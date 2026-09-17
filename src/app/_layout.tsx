@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { SystemProvider } from '../system2/state/SystemProvider';
+import AwakeningCelebration from '../system2/components/AwakeningCelebration';
 
 export default function RootLayout() {
   return (
@@ -17,6 +18,7 @@ export default function RootLayout() {
           animation: 'fade',
         }}
       />
+      <AwakeningCelebration />
     </SystemProvider>
   );
 }

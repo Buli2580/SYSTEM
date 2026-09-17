@@ -6,11 +6,14 @@ import {
 } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePathname, useRouter } from 'expo-router';
 
 import { SYSTEM_COLORS } from '../core';
 
 export default function BottomNavigation() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <View
@@ -26,27 +29,34 @@ export default function BottomNavigation() {
     >
       <NavItem
         label="SYSTEM"
-        active
+        active={pathname === '/'}
+        onPress={() => router.replace('/')}
         shape="diamond"
       />
 
       <NavItem
         label="QUESTY"
+        active={pathname === '/quests'}
+        onPress={() => router.replace('/quests')}
         shape="diamond"
       />
 
       <NavItem
         label="POSTAĆ"
+        unavailable
         shape="diamond"
       />
 
       <NavItem
         label="ŚWIAT"
+        active={pathname === '/world'}
+        onPress={() => router.replace('/world')}
         shape="circle"
       />
 
       <NavItem
         label="WIĘCEJ"
+        unavailable
         shape="dots"
       />
     </View>
@@ -57,13 +67,19 @@ function NavItem({
   label,
   active = false,
   shape,
+  onPress,
+  unavailable = false,
 }: {
   label: string;
   active?: boolean;
   shape: 'diamond' | 'circle' | 'dots';
+  onPress?: () => void;
+  unavailable?: boolean;
 }) {
   return (
-    <Pressable style={styles.item}>
+    <Pressable style={styles.item} onPress={onPress} disabled={unavailable}
+      accessibilityRole="button" accessibilityState={{ disabled: unavailable, selected: active }}
+      accessibilityLabel={label + (unavailable ? ' — wkrótce' : '')}>
       {shape === 'diamond' && (
         <View
           style={[
@@ -74,7 +90,7 @@ function NavItem({
       )}
 
       {shape === 'circle' && (
-        <View style={styles.circle} />
+        <View style={[styles.circle, active && styles.activeDiamond]} />
       )}
 
       {shape === 'dots' && (
@@ -93,17 +109,20 @@ function NavItem({
       >
         {label}
       </Text>
+      {unavailable && <Text style={styles.soon}>WKRÓTCE</Text>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    minHeight: 108,
     borderTopWidth: 1,
     borderTopColor: SYSTEM_COLORS.line,
-    backgroundColor: '#020709',
+    backgroundColor: 'rgba(1,6,8,0.98)',
     flexDirection: 'row',
-    paddingTop: 11,
+    paddingTop: 17,
   },
 
   item: {
@@ -113,12 +132,12 @@ const styles = StyleSheet.create({
   },
 
   diamond: {
-    width: 13,
-    height: 13,
+    width: 22,
+    height: 22,
     borderWidth: 1,
     borderColor: SYSTEM_COLORS.textVeryMuted,
     transform: [{ rotate: '45deg' }],
-    marginBottom: 8,
+    marginBottom: 14,
   },
 
   activeDiamond: {
@@ -127,32 +146,32 @@ const styles = StyleSheet.create({
   },
 
   circle: {
-    width: 15,
-    height: 15,
-    borderRadius: 8,
+    width: 23,
+    height: 23,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: SYSTEM_COLORS.textVeryMuted,
-    marginBottom: 7,
+    marginBottom: 13,
   },
 
   dots: {
     flexDirection: 'row',
-    gap: 4,
-    height: 15,
+    gap: 7,
+    height: 23,
     alignItems: 'center',
-    marginBottom: 7,
+    marginBottom: 13,
   },
 
   dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: SYSTEM_COLORS.textVeryMuted,
   },
 
   label: {
     color: SYSTEM_COLORS.textVeryMuted,
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0.8,
   },
@@ -160,4 +179,5 @@ const styles = StyleSheet.create({
   activeLabel: {
     color: SYSTEM_COLORS.cyan,
   },
+  soon: { color: SYSTEM_COLORS.textMuted, fontSize: 6, marginTop: 5, letterSpacing: 1 },
 });

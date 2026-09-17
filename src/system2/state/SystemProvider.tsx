@@ -1,16 +1,24 @@
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import {
-  createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState,
+  createContext, type ReactNode, type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useRef, useState,
 } from 'react';
 import { createNewPlayer, type PlayerProfile } from '../core';
 import {
-  completeVerifiedQuest as persistVerifiedQuest, loadOrCreatePlayer,
-  type CompleteQuestInput, type CompleteQuestResult,
+  completeVerifiedQuest as persistVerifiedQuest, loadSystemState,
+  acknowledgeAwakening as persistAwakeningSeen,
+  type CompleteQuestInput, type CompleteQuestResult, type SystemSnapshot,
 } from '../storage/database';
 
 type SystemContextValue = {
   player: PlayerProfile;
   ready: boolean;
+  completedQuestIds: string[];
+  awakeningCompleted: boolean;
+  awakeningPending: boolean;
+  worldUnlocked: boolean;
+  activeQuestId: string | null;
+  setActiveQuestId: Dispatch<SetStateAction<string | null>>;
+  acknowledgeAwakening: () => Promise<void>;
   error: string | null;
   completeVerifiedQuest: (input: CompleteQuestInput) => Promise<CompleteQuestResult>;
   refreshPlayer: () => Promise<void>;
@@ -18,7 +26,11 @@ type SystemContextValue = {
 const SystemContext = createContext<SystemContextValue | null>(null);
 
 export function SystemProvider({ children }: { children: ReactNode }) {
-  const [player, setPlayer] = useState(() => createNewPlayer('GRACZ'));
+  const [snapshot, setSnapshot] = useState<SystemSnapshot>(() => ({
+    player: createNewPlayer('GRACZ'), completedQuestIds: [],
+    awakeningCompleted: false, worldUnlocked: false, awakeningPending: false,
+  }));
+  const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshRef = useRef<Promise<void> | null>(null);
@@ -28,7 +40,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     setError(null);
     const operation = (async () => {
       try {
-        setPlayer(await awaitWithTimeout(loadOrCreatePlayer()));
+        const snapshot = await awaitWithTimeout(loadSystemState());
+        setSnapshot(snapshot);
         setReady(true);
       } catch {
         setReady(false);
@@ -45,12 +58,18 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 
   const completeVerifiedQuest = useCallback(async (input: CompleteQuestInput) => {
     const result = await persistVerifiedQuest(input);
-    setPlayer(result.player);
+    setSnapshot(result);
     return result;
   }, []);
 
+  const acknowledgeAwakening = useCallback(async () => {
+    await awaitWithTimeout(persistAwakeningSeen());
+    setSnapshot(current => ({ ...current, awakeningPending: false }));
+  }, []);
+
   return (
-    <SystemContext.Provider value={{ player, ready, error, completeVerifiedQuest, refreshPlayer }}>
+    <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId,
+      completeVerifiedQuest, refreshPlayer, acknowledgeAwakening }}>
       {children}
     </SystemContext.Provider>
   );

@@ -1,3 +1,5 @@
+import BottomNavigation from '../components/BottomNavigation';
+import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useEffect } from 'react';
 
 import {
@@ -276,18 +278,14 @@ function SectionTitle({
 export default function SystemHomeScreen() {
   const router = useRouter();
 
-  const { player, ready, error, refreshPlayer } = useSystem();
+  const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, error, refreshPlayer } = useSystem();
 
   const realProgress =
     getPlayerProgressPercent(player) * 100;
 
-  const mainQuestProgress = Math.min(
-    player.verifiedQuestCount,
-    3
-  );
-
-  const mainQuestPercent =
-    (mainQuestProgress / 3) * 100;
+  const awakening = getAwakeningProgress(completedQuestIds);
+  const mainQuestProgress = awakening.completed;
+  const mainQuestPercent = awakening.percent;
 
   if (!ready) {
     return (
@@ -627,7 +625,7 @@ export default function SystemHomeScreen() {
                     styles.availableText
                   }
                 >
-                  AVAILABLE
+                  {awakeningCompleted ? 'COMPLETED' : 'AVAILABLE'}
                 </Text>
               </View>
             </View>
@@ -641,10 +639,7 @@ export default function SystemHomeScreen() {
                 styles.questDescription
               }
             >
-              Ukończ 3 prawdziwe i
-              zweryfikowane misje. Dopiero
-              wtedy SYSTEM uzna przebudzenie
-              za zakończone.
+              Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.
             </Text>
 
             <View style={styles.questStats}>
@@ -662,7 +657,7 @@ export default function SystemHomeScreen() {
                     styles.questStatValue
                   }
                 >
-                  {mainQuestProgress} / 3
+                  {mainQuestProgress} / {awakening.total}
                 </Text>
               </View>
 
@@ -680,7 +675,7 @@ export default function SystemHomeScreen() {
                     styles.questReward
                   }
                 >
-                  +300 XP
+                  +{AWAKENING_REWARD_XP} REAL XP
                 </Text>
               </View>
 
@@ -713,7 +708,7 @@ export default function SystemHomeScreen() {
                   styles.questProgressFill,
                   {
                     width: `${Math.max(
-                      1,
+                      0,
                       mainQuestPercent
                     )}%`,
                   },
@@ -721,30 +716,16 @@ export default function SystemHomeScreen() {
               />
             </View>
 
-            <Pressable
-              style={
-                styles.startQuestButton
-              }
-              onPress={() =>
-                router.push('/quest')
-              }
-            >
-              <Text
-                style={
-                  styles.startQuestText
-                }
-              >
-                ROZPOCZNIJ MISJĘ
-              </Text>
-
-              <Text
-                style={
-                  styles.startQuestArrow
-                }
-              >
-                →
-              </Text>
-            </Pressable>
+            {AWAKENING_QUESTS.map(quest => (
+              <Pressable key={quest.id} style={styles.startQuestButton}
+                disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
+                onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
+                <Text style={styles.startQuestText}>{quest.title}</Text>
+                <Text style={styles.startQuestText}>
+                  {getQuestStatus(quest.id, completedQuestIds, activeQuestId)}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
@@ -755,7 +736,7 @@ export default function SystemHomeScreen() {
           title="SYSTEM WORLD"
         />
 
-        <Pressable style={styles.worldCard}>
+        <Pressable style={styles.worldCard} disabled={!worldUnlocked} onPress={() => router.push('/world')}>
           <View style={styles.gateIcon}>
             <View
               style={
@@ -766,11 +747,11 @@ export default function SystemHomeScreen() {
 
           <View style={styles.worldContent}>
             <Text style={styles.locked}>
-              LOCKED
+              {worldUnlocked ? 'WORLD ONLINE' : 'LOCKED'}
             </Text>
 
             <Text style={styles.gateTitle}>
-              UNKNOWN GATE
+              {worldUnlocked ? 'FIRST GATE SIGNAL DETECTED' : 'UNKNOWN GATE'}
             </Text>
 
             <Text
@@ -778,9 +759,7 @@ export default function SystemHomeScreen() {
                 styles.gateDescription
               }
             >
-              Ukończ Pierwsze Przebudzenie,
-              aby SYSTEM aktywował mapę,
-              eksplorację i pierwszy Gate.
+              {worldUnlocked ? 'Dostęp do World aktywny. Sprawdź pierwszy sygnał. Mapa i Gates będą kolejnym etapem.' : 'Ukończ Pierwsze Przebudzenie, aby odblokować dostęp do SYSTEM WORLD.'}
             </Text>
           </View>
         </Pressable>
@@ -807,61 +786,7 @@ export default function SystemHomeScreen() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* BOTTOM NAVIGATION */}
-
-      <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem}>
-          <View
-            style={
-              styles.activeNavDiamond
-            }
-          />
-
-          <Text
-            style={
-              styles.activeNavText
-            }
-          >
-            SYSTEM
-          </Text>
-        </Pressable>
-
-        <Pressable style={styles.navItem}>
-          <View style={styles.navDiamond} />
-
-          <Text style={styles.navText}>
-            QUESTY
-          </Text>
-        </Pressable>
-
-        <Pressable style={styles.navItem}>
-          <View style={styles.navDiamond} />
-
-          <Text style={styles.navText}>
-            POSTAĆ
-          </Text>
-        </Pressable>
-
-        <Pressable style={styles.navItem}>
-          <View style={styles.navCircle} />
-
-          <Text style={styles.navText}>
-            ŚWIAT
-          </Text>
-        </Pressable>
-
-        <Pressable style={styles.navItem}>
-          <View style={styles.dots}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
-
-          <Text style={styles.navText}>
-            WIĘCEJ
-          </Text>
-        </Pressable>
-      </View>
+      <BottomNavigation />
     </View>
   );
 }
@@ -1619,91 +1544,4 @@ const styles = StyleSheet.create({
     height: 45,
   },
 
-  bottomNav: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 108,
-    backgroundColor:
-      'rgba(1,6,8,0.98)',
-    borderTopWidth: 1,
-    borderTopColor:
-      SYSTEM_COLORS.line,
-    flexDirection: 'row',
-    paddingTop: 17,
-  },
-
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-
-  activeNavDiamond: {
-    width: 23,
-    height: 23,
-    backgroundColor:
-      SYSTEM_COLORS.cyan,
-    transform: [
-      {
-        rotate: '45deg',
-      },
-    ],
-    marginBottom: 14,
-  },
-
-  navDiamond: {
-    width: 22,
-    height: 22,
-    borderWidth: 1,
-    borderColor:
-      SYSTEM_COLORS.textVeryMuted,
-    transform: [
-      {
-        rotate: '45deg',
-      },
-    ],
-    marginBottom: 14,
-  },
-
-  navCircle: {
-    width: 23,
-    height: 23,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor:
-      SYSTEM_COLORS.textVeryMuted,
-    marginBottom: 13,
-  },
-
-  dots: {
-    height: 23,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    marginBottom: 13,
-  },
-
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor:
-      SYSTEM_COLORS.textVeryMuted,
-  },
-
-  activeNavText: {
-    color: SYSTEM_COLORS.cyan,
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-
-  navText: {
-    color:
-      SYSTEM_COLORS.textVeryMuted,
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
 });

@@ -1,6 +1,6 @@
-import { Quest } from '../core';
+import type { RunnableQuest } from './types';
 
-export const FIRST_MOVEMENT_QUEST: Quest = {
+export const FIRST_MOVEMENT_QUEST: RunnableQuest = {
   id: 'first_movement_v1',
 
   title: 'PIERWSZY RUCH',
@@ -13,7 +13,8 @@ export const FIRST_MOVEMENT_QUEST: Quest = {
 
   difficulty: 'EASY',
 
-  status: 'AVAILABLE',
+  order: 1,
+  secondarySkills: [],
 
   primarySkill: 'VIT',
 
