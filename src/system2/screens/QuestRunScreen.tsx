@@ -23,6 +23,7 @@ export default function QuestRunScreen() {
   const [duration, setDuration] = useState(0);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const watcherRef = useRef<Location.LocationSubscription | null>(null);
+  const trackingActiveRef = useRef(false);
   const lastPointRef = useRef<Location.LocationObject | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const lastFixTimeRef = useRef(0);
@@ -41,6 +42,7 @@ export default function QuestRunScreen() {
   const stopGps = useCallback(() => {
     // Also invalidates pending permissions / a watch promise without a handle yet.
     sessionRef.current += 1;
+    trackingActiveRef.current = false;
     const watcher = watcherRef.current;
     watcherRef.current = null;
     watcher?.remove();
@@ -85,8 +87,9 @@ export default function QuestRunScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
-      if (state === 'background' &&
-          (statusRef.current === 'TRACKING' || statusRef.current === 'STARTING')) {
+      // Permission dialogs can temporarily background Android while STARTING.
+      // Only an established GPS subscription may be stopped by AppState.
+      if (state === 'background' && trackingActiveRef.current === true) {
         fail('Pomiar przerwany po przejściu do tła. Rozpocznij ponownie i pozostaw ekran misji otwarty.');
       }
     });
@@ -131,7 +134,7 @@ export default function QuestRunScreen() {
   }
 
   function processLocation(location: Location.LocationObject, session: number) {
-    if (!focusedRef.current || session !== sessionRef.current ||
+    if (!focusedRef.current || session !== sessionRef.current || !trackingActiveRef.current ||
         !['STARTING', 'TRACKING'].includes(statusRef.current)) return;
     setAccuracy(location.coords.accuracy);
     if (!isUsableLocation(location)) {
@@ -212,9 +215,15 @@ export default function QuestRunScreen() {
       }
       // The watch supplies the first fix too, so there is no uncancellable
       // getCurrentPositionAsync request left running after leaving this screen.
+      let firstLocation: Location.LocationObject | null = null;
       const watcher = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1500, distanceInterval: 2 },
-        location => processLocation(location, session),
+        location => {
+          if (!active()) return;
+          // Native callbacks may arrive before the promise returns its handle.
+          if (!trackingActiveRef.current) firstLocation = location;
+          else processLocation(location, session);
+        },
         () => { if (active()) fail('Wystąpił błąd GPS. Pomiar został zatrzymany.'); }
       );
       if (!active()) {
@@ -222,10 +231,19 @@ export default function QuestRunScreen() {
         return;
       }
       watcherRef.current = watcher;
+      trackingActiveRef.current = true;
+      if (firstLocation) processLocation(firstLocation, session);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     } catch {
       if (active()) fail('Nie udało się uruchomić misji. Sprawdź dostęp do GPS i bazy danych, a następnie spróbuj ponownie.');
     }
+  }
+
+  async function retryQuest() {
+    if (!focusedRef.current || !['ERROR', 'DENIED'].includes(statusRef.current)) return;
+    // Recheck an ambiguous SQLite result before starting a fresh GPS session.
+    await checkCompletion();
+    if (focusedRef.current && statusRef.current === 'READY') await startQuest();
   }
 
   const progress =
@@ -589,8 +607,8 @@ export default function QuestRunScreen() {
                 {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'MISJA ZATRZYMANA'}
               </Text>
               <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => { void checkCompletion(); }}>
-                <Text style={styles.retry}>SPRAWDŹ ZAPIS I SPRÓBUJ PONOWNIE</Text>
+              <Pressable onPress={() => { void retryQuest(); }}>
+                <Text style={styles.retry}>SPRÓBUJ PONOWNIE</Text>
               </Pressable>
             </View>
           )}

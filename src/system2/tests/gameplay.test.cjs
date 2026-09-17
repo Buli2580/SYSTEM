@@ -198,6 +198,7 @@ function screenHarness(t, options = {}) {
   let focusCleanup;
   let callback;
   let gpsError;
+  let appStateListener;
   let removals = 0;
   let starts = 0;
   let awards = 0;
@@ -240,7 +241,10 @@ function screenHarness(t, options = {}) {
     react,
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
     'react-native': {
-      AppState: { addEventListener: () => ({ remove() {} }) },
+      AppState: { addEventListener: (_, listener) => {
+        appStateListener = listener;
+        return { remove() { appStateListener = undefined; } };
+      } },
       Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s },
     },
     'expo-router': {
@@ -291,6 +295,7 @@ function screenHarness(t, options = {}) {
     starts: () => starts, removals: () => removals, awards: () => awards,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
+    appState: state => appStateListener?.(state),
     fix(meters) { clock.now += 5000; callback(fix(clock.now, meters)); },
   };
 }
@@ -351,3 +356,66 @@ for (const saveError of [false, true]) {
     assert.equal(h.awards(), 1);
   });
 }
+
+test('permission dialog and transient AppState before GPS subscription do not stop STARTING', async t => {
+  const permission = deferred();
+  const watch = deferred();
+  const h = screenHarness(t, { permission, watch });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await flush();
+  assert.equal(h.starts(), 0);
+  h.appState('inactive');
+  h.appState('background');
+  assert.equal(h.status(), 'STARTING');
+  h.appState('active');
+  permission.resolve({ status: 'granted' });
+  await flush();
+  assert.equal(h.starts(), 1);
+  h.fix(0); // A native fix arrives before watchPositionAsync returns its handle.
+  h.appState('background');
+  assert.equal(h.status(), 'STARTING');
+  assert.equal(h.removals(), 0);
+  h.appState('active');
+  watch.resolve();
+  await start;
+  assert.equal(h.status(), 'TRACKING');
+  assert.equal(h.awards(), 0);
+});
+
+test('real background removes an established GPS watcher and retry starts without remounting', async t => {
+  const h = screenHarness(t);
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  h.fix(0);
+  assert.equal(h.status(), 'TRACKING');
+  h.appState('background');
+  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.removals(), 1);
+  h.appState('background');
+  assert.equal(h.removals(), 1);
+  h.appState('active'); h.render();
+  h.button('SPRÓBUJ PONOWNIE').props.onPress();
+  await flush();
+  assert.equal(h.starts(), 2);
+  assert.equal(h.status(), 'STARTING');
+  h.fix(0);
+  assert.equal(h.status(), 'TRACKING');
+  h.error();
+  assert.equal(h.removals(), 2);
+  assert.equal(h.status(), 'ERROR');
+  h.appState('background');
+  assert.equal(h.removals(), 2);
+});
+
+test('background with a watcher but before the first fix removes the watcher', async t => {
+  const h = screenHarness(t);
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  assert.equal(h.status(), 'STARTING');
+  h.appState('background');
+  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.removals(), 1);
+  h.fix(0);
+  assert.equal(h.status(), 'ERROR');
+});
