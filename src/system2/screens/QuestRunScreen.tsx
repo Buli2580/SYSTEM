@@ -1,342 +1,231 @@
-import {
-    useEffect,
-    useRef,
-    useState,
-} from 'react';
-
-import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
-
-import { useRouter } from 'expo-router';
-
+import { awaitWithTimeout } from '../storage/awaitWithTimeout';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
+import { SYSTEM_COLORS } from '../core';
+import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
+import { distanceBetween, isUsableLocation, verifiedSegment, verificationScoreForAccuracy } from '../verification/gps';
+import { isQuestCompleted } from '../storage/database';
+import { useSystem } from '../state/SystemProvider';
 
-import {
-    SYSTEM_COLORS,
-} from '../core';
-
-import {
-    FIRST_MOVEMENT_QUEST,
-} from '../quests/firstMovement';
-
-import {
-    distanceBetween,
-    verificationScoreForAccuracy,
-} from '../verification/gps';
-
-import {
-    isQuestCompleted,
-} from '../storage/database';
-
-import {
-    useSystem,
-} from '../state/SystemProvider';
-
-type RunStatus =
-  | 'READY'
-  | 'TRACKING'
-  | 'COMPLETING'
-  | 'COMPLETED'
-  | 'DENIED';
-
-const TARGET_DISTANCE = 500;
+type RunStatus = 'CHECKING' | 'READY' | 'STARTING' | 'TRACKING' | 'COMPLETING' | 'COMPLETED' | 'DENIED' | 'ERROR';
+const TARGET_DISTANCE = FIRST_MOVEMENT_QUEST.verification.minimumDistanceMeters!;
 
 export default function QuestRunScreen() {
   const router = useRouter();
+  const { completeVerifiedQuest, ready, error: databaseError, refreshPlayer } = useSystem();
+  const [status, setStatus] = useState<RunStatus>('CHECKING');
+  const [error, setError] = useState<string | null>(null);
+  const [distance, setDistance] = useState(0);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [duration, setDuration] = useState(0);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+  const watcherRef = useRef<Location.LocationSubscription | null>(null);
+  const lastPointRef = useRef<Location.LocationObject | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const lastFixTimeRef = useRef(0);
+  const distanceRef = useRef(0);
+  const scoreRef = useRef(100);
+  const sessionRef = useRef(0);
+  const focusedRef = useRef(false);
+  const statusRef = useRef<RunStatus>('CHECKING');
+  const startupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const {
-    completeVerifiedQuest,
-  } = useSystem();
-
-  const [status, setStatus] =
-    useState<RunStatus>('READY');
-
-  const [distance, setDistance] =
-    useState(0);
-
-  const [accuracy, setAccuracy] =
-    useState<number | null>(null);
-
-  const [duration, setDuration] =
-    useState(0);
-
-  const [alreadyCompleted, setAlreadyCompleted] =
-    useState(false);
-
-  const watcherRef =
-    useRef<Location.LocationSubscription | null>(
-      null
-    );
-
-  const lastPointRef =
-    useRef<Location.LocationObject | null>(null);
-
-  const startTimeRef =
-    useRef<number | null>(null);
-
-  const distanceRef =
-    useRef(0);
-
-  const accuracyRef =
-    useRef<number | null>(null);
-
-  const completingRef =
-    useRef(false);
-
-  useEffect(() => {
-    isQuestCompleted(
-      FIRST_MOVEMENT_QUEST.id
-    ).then((completed) => {
-      if (completed) {
-        setAlreadyCompleted(true);
-        setStatus('COMPLETED');
-      }
-    });
-
-    return () => {
-      watcherRef.current?.remove();
-      watcherRef.current = null;
-    };
+  const transition = useCallback((next: RunStatus) => {
+    statusRef.current = next;
+    setStatus(next);
   }, []);
 
-  useEffect(() => {
-    if (status !== 'TRACKING') {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      if (!startTimeRef.current) return;
-
-      setDuration(
-        Math.floor(
-          (Date.now() -
-            startTimeRef.current) /
-            1000
-        )
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [status]);
-
-  async function finishQuest(
-    finalDistance: number
-  ) {
-    if (completingRef.current) return;
-
-    completingRef.current = true;
-
-    setStatus('COMPLETING');
-
-    watcherRef.current?.remove();
+  const stopGps = useCallback(() => {
+    // Also invalidates pending permissions / a watch promise without a handle yet.
+    sessionRef.current += 1;
+    const watcher = watcherRef.current;
     watcherRef.current = null;
+    watcher?.remove();
+    if (startupTimerRef.current) clearTimeout(startupTimerRef.current);
+    startupTimerRef.current = null;
+    lastPointRef.current = null;
+  }, []);
 
-    const durationSeconds =
-      startTimeRef.current
-        ? Math.max(
-            1,
-            Math.floor(
-              (Date.now() -
-                startTimeRef.current) /
-                1000
-            )
-          )
-        : 1;
+  const fail = useCallback((message: string, denied = false) => {
+    stopGps();
+    if (!focusedRef.current) return;
+    setError(message);
+    transition(denied ? 'DENIED' : 'ERROR');
+  }, [stopGps, transition]);
 
-    const verificationScore =
-      verificationScoreForAccuracy(
-        accuracyRef.current
-      );
+  const checkCompletion = useCallback(async () => {
+    stopGps();
+    const session = sessionRef.current;
+    setError(null);
+    transition('CHECKING');
+    try {
+      const completed = await awaitWithTimeout(isQuestCompleted(FIRST_MOVEMENT_QUEST.id));
+      if (!focusedRef.current || session !== sessionRef.current) return;
+      setAlreadyCompleted(completed);
+      transition(completed ? 'COMPLETED' : 'READY');
+      if (completed) void refreshPlayer();
+    } catch {
+      if (focusedRef.current && session === sessionRef.current) {
+        fail('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
+      }
+    }
+  }, [stopGps, transition, fail, refreshPlayer]);
 
-    const result =
-      await completeVerifiedQuest({
-        questId:
-          FIRST_MOVEMENT_QUEST.id,
+  useFocusEffect(useCallback(() => {
+    focusedRef.current = true;
+    void checkCompletion();
+    return () => {
+      focusedRef.current = false;
+      stopGps();
+    };
+  }, [checkCompletion, stopGps]));
 
-        realXp:
-          FIRST_MOVEMENT_QUEST.rewards
-            .realXp,
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'background' &&
+          (statusRef.current === 'TRACKING' || statusRef.current === 'STARTING')) {
+        fail('Pomiar przerwany po przejściu do tła. Rozpocznij ponownie i pozostaw ekran misji otwarty.');
+      }
+    });
+    return () => subscription.remove();
+  }, [fail]);
 
-        skillXp:
-          FIRST_MOVEMENT_QUEST.rewards
-            .skillXp ?? {},
+  useEffect(() => {
+    if (status !== 'TRACKING') return;
+    const interval = setInterval(() => {
+      if (!focusedRef.current || statusRef.current !== 'TRACKING') return;
+      if (Date.now() - lastFixTimeRef.current > 30000) {
+        fail('Utracono wiarygodny sygnał GPS. Wyjdź na otwartą przestrzeń i rozpocznij ponownie.');
+        return;
+      }
+      if (startTimeRef.current) setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [status, fail]);
 
-        gameEnergy:
-          FIRST_MOVEMENT_QUEST.rewards
-            .gameEnergy ?? 0,
-
-        verificationType:
-          'GPS_DISTANCE',
-
-        verificationScore,
-
-        distanceMeters:
-          Math.round(finalDistance),
-
-        durationSeconds,
-      });
-
-    await Haptics.notificationAsync(
-      Haptics.NotificationFeedbackType.Success
-    );
-
-    setAlreadyCompleted(
-      !result.awarded
-    );
-
-    setStatus('COMPLETED');
+  async function finishQuest(finalDistance: number) {
+    if (statusRef.current !== 'TRACKING' || finalDistance < TARGET_DISTANCE) return;
+    transition('COMPLETING');
+    stopGps();
+    const session = sessionRef.current;
+    const durationSeconds = Math.max(1, Math.floor((Date.now() - startTimeRef.current!) / 1000));
+    setDuration(durationSeconds);
+    try {
+      const result = await awaitWithTimeout(completeVerifiedQuest({
+        questId: FIRST_MOVEMENT_QUEST.id, verificationType: 'GPS_DISTANCE',
+        verificationScore: scoreRef.current, distanceMeters: finalDistance, durationSeconds,
+      }));
+      if (!focusedRef.current || session !== sessionRef.current) return;
+      setAlreadyCompleted(!result.awarded);
+      transition('COMPLETED');
+      // Haptics cannot turn a committed quest into a failed quest.
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    } catch {
+      if (focusedRef.current && session === sessionRef.current) {
+        fail('Nie udało się potwierdzić zapisu nagrody. Sprawdź zapis ponownie. Jeśli misja nie została zapisana, rozpocznij nowy pomiar.');
+      }
+    }
   }
 
-  async function processLocation(
-    location: Location.LocationObject
-  ) {
-    const currentAccuracy =
-      location.coords.accuracy;
-
-    accuracyRef.current =
-      currentAccuracy;
-
-    setAccuracy(currentAccuracy);
-
-    if (
-      currentAccuracy !== null &&
-      currentAccuracy > 50
-    ) {
+  function processLocation(location: Location.LocationObject, session: number) {
+    if (!focusedRef.current || session !== sessionRef.current ||
+        !['STARTING', 'TRACKING'].includes(statusRef.current)) return;
+    setAccuracy(location.coords.accuracy);
+    if (!isUsableLocation(location)) {
+      lastPointRef.current = null;
       return;
     }
-
-    const previous =
-      lastPointRef.current;
-
+    const previous = lastPointRef.current;
+    if (previous && location.timestamp <= previous.timestamp) return;
+    lastFixTimeRef.current = Date.now();
+    if (statusRef.current === 'STARTING') {
+      if (startupTimerRef.current) clearTimeout(startupTimerRef.current);
+      startupTimerRef.current = null;
+      startTimeRef.current = Date.now();
+      transition('TRACKING');
+    }
     if (!previous) {
-      lastPointRef.current =
-        location;
-
+      lastPointRef.current = location;
       return;
     }
-
-    const segment =
-      distanceBetween(
-        previous,
-        location
-      );
-
-    const deltaSeconds =
-      Math.max(
-        0.1,
-        (location.timestamp -
-          previous.timestamp) /
-          1000
-      );
-
-    const calculatedSpeed =
-      segment / deltaSeconds;
-
-    // Odrzucamy drobne drgania GPS.
-    if (segment < 1.5) {
+    const segment = verifiedSegment(previous, location);
+    if (segment <= 0) {
+      const seconds = (location.timestamp - previous.timestamp) / 1000;
+      const meters = distanceBetween(previous, location);
+      if (seconds > 15 || meters > 100 || meters / seconds > 8.5) {
+        lastPointRef.current = location;
+      }
+      // Keep the anchor for small movements so normal walking can accumulate
+      // enough displacement to exceed GPS uncertainty without counting jitter.
       return;
     }
-
-    // Odrzucamy teleporty GPS.
-    if (
-      segment > 100 ||
-      calculatedSpeed > 8.5
-    ) {
-      lastPointRef.current =
-        location;
-
-      return;
-    }
-
-    lastPointRef.current =
-      location;
-
-    const nextDistance =
-      distanceRef.current + segment;
-
-    distanceRef.current =
-      nextDistance;
-
-    setDistance(nextDistance);
-
-    if (
-      nextDistance >=
-      TARGET_DISTANCE
-    ) {
-      await finishQuest(
-        nextDistance
-      );
-    }
+    lastPointRef.current = location;
+    scoreRef.current = Math.min(scoreRef.current,
+      verificationScoreForAccuracy(previous.coords.accuracy),
+      verificationScoreForAccuracy(location.coords.accuracy));
+    distanceRef.current += segment;
+    setDistance(distanceRef.current);
+    if (distanceRef.current >= TARGET_DISTANCE) void finishQuest(distanceRef.current);
   }
 
   async function startQuest() {
-    const permission =
-      await Location.requestForegroundPermissionsAsync();
-
-    if (
-      permission.status !==
-      'granted'
-    ) {
-      setStatus('DENIED');
-
-      await Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Error
-      );
-
-      return;
-    }
-
+    // Synchronous ref guard: a second tap is blocked even before React renders.
+    if (!focusedRef.current || !ready || statusRef.current !== 'READY') return;
+    transition('STARTING');
+    setError(null);
+    stopGps();
+    const session = sessionRef.current;
+    const active = () => focusedRef.current && session === sessionRef.current;
     distanceRef.current = 0;
+    scoreRef.current = 100;
+    startTimeRef.current = null;
     setDistance(0);
-
-    completingRef.current = false;
-
-    startTimeRef.current =
-      Date.now();
-
-    const firstLocation =
-      await Location.getCurrentPositionAsync({
-        accuracy:
-          Location.Accuracy.Highest,
-      });
-
-    lastPointRef.current =
-      firstLocation;
-
-    accuracyRef.current =
-      firstLocation.coords.accuracy;
-
-    setAccuracy(
-      firstLocation.coords.accuracy
-    );
-
-    setStatus('TRACKING');
-
-    await Haptics.impactAsync(
-      Haptics.ImpactFeedbackStyle.Medium
-    );
-
-    watcherRef.current =
-      await Location.watchPositionAsync(
-        {
-          accuracy:
-            Location.Accuracy.BestForNavigation,
-
-          timeInterval: 1500,
-
-          distanceInterval: 2,
-        },
-
-        (location) => {
-          processLocation(location);
-        }
+    setDuration(0);
+    setAccuracy(null);
+    startupTimerRef.current = setTimeout(() => {
+      if (active()) fail('Nie uzyskano dokładnej lokalizacji w ciągu 30 sekund. Sprawdź GPS i spróbuj ponownie.');
+    }, 30000);
+    try {
+      if (await isQuestCompleted(FIRST_MOVEMENT_QUEST.id)) {
+        if (!active()) return;
+        stopGps();
+        setAlreadyCompleted(true);
+        transition('COMPLETED');
+        void refreshPlayer();
+        return;
+      }
+      if (!active()) return;
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!active()) return;
+      if (permission.status !== 'granted') {
+        fail('SYSTEM nie może zweryfikować tej misji bez dostępu do lokalizacji.', true);
+        return;
+      }
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!active()) return;
+      if (!servicesEnabled) {
+        fail('Lokalizacja jest wyłączona. Włącz GPS w ustawieniach telefonu.');
+        return;
+      }
+      // The watch supplies the first fix too, so there is no uncancellable
+      // getCurrentPositionAsync request left running after leaving this screen.
+      const watcher = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1500, distanceInterval: 2 },
+        location => processLocation(location, session),
+        () => { if (active()) fail('Wystąpił błąd GPS. Pomiar został zatrzymany.'); }
       );
+      if (!active()) {
+        watcher.remove();
+        return;
+      }
+      watcherRef.current = watcher;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+    } catch {
+      if (active()) fail('Nie udało się uruchomić misji. Sprawdź dostęp do GPS i bazy danych, a następnie spróbuj ponownie.');
+    }
   }
 
   const progress =
@@ -610,8 +499,24 @@ export default function QuestRunScreen() {
             </View>
           </View>
 
-          {status ===
-            'READY' && (
+          {(status === 'CHECKING' || status === 'STARTING') && (
+            <View style={styles.trackingBox}>
+              <Text style={styles.trackingText}>
+                {status === 'CHECKING' ? 'SPRAWDZANIE ZAPISU...' : 'OCZEKIWANIE NA GPS...'}
+              </Text>
+            </View>
+          )}
+
+          {!ready && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{databaseError ?? 'Trwa odczyt profilu SYSTEMU...'}</Text>
+              {databaseError && <Pressable onPress={() => { void refreshPlayer(); }}>
+                <Text style={styles.retry}>PONÓW ODCZYT PROFILU</Text>
+              </Pressable>}
+            </View>
+          )}
+
+          {status === 'READY' && ready && (
             <Pressable
               style={
                 styles.startButton
@@ -678,41 +583,14 @@ export default function QuestRunScreen() {
             </View>
           )}
 
-          {status ===
-            'DENIED' && (
-            <View
-              style={styles.errorBox}
-            >
-              <Text
-                style={
-                  styles.errorTitle
-                }
-              >
-                BRAK DOSTĘPU DO GPS
+          {(status === 'DENIED' || status === 'ERROR') && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorTitle}>
+                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'MISJA ZATRZYMANA'}
               </Text>
-
-              <Text
-                style={
-                  styles.errorText
-                }
-              >
-                SYSTEM nie może
-                zweryfikować tej misji bez
-                lokalizacji.
-              </Text>
-
-              <Pressable
-                onPress={
-                  startQuest
-                }
-              >
-                <Text
-                  style={
-                    styles.retry
-                  }
-                >
-                  SPRÓBUJ PONOWNIE
-                </Text>
+              <Text style={styles.errorText}>{error}</Text>
+              <Pressable onPress={() => { void checkCompletion(); }}>
+                <Text style={styles.retry}>SPRAWDŹ ZAPIS I SPRÓBUJ PONOWNIE</Text>
               </Pressable>
             </View>
           )}

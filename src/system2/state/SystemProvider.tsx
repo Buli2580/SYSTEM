@@ -1,200 +1,56 @@
+import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import {
-    createContext,
-    ReactNode,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
+  createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState,
 } from 'react';
-
+import { createNewPlayer, type PlayerProfile } from '../core';
 import {
-    addRealXp,
-    addSkillXp,
-    createNewPlayer,
-    PlayerProfile,
-    SkillKey,
-    VerificationType,
-    VerifiedEvent,
-} from '../core';
-
-import {
-    isQuestCompleted,
-    loadOrCreatePlayer,
-    recordVerifiedEvent,
-    savePlayer,
+  completeVerifiedQuest as persistVerifiedQuest, loadOrCreatePlayer,
+  type CompleteQuestInput, type CompleteQuestResult,
 } from '../storage/database';
-
-type CompleteQuestInput = {
-  questId: string;
-
-  realXp: number;
-
-  skillXp: Partial<Record<SkillKey, number>>;
-
-  gameEnergy: number;
-
-  verificationType: VerificationType;
-  verificationScore: number;
-
-  distanceMeters?: number;
-  durationSeconds?: number;
-  steps?: number;
-};
-
-type CompleteQuestResult = {
-  awarded: boolean;
-  player: PlayerProfile;
-};
 
 type SystemContextValue = {
   player: PlayerProfile;
   ready: boolean;
-
-  completeVerifiedQuest: (
-    input: CompleteQuestInput
-  ) => Promise<CompleteQuestResult>;
-
+  error: string | null;
+  completeVerifiedQuest: (input: CompleteQuestInput) => Promise<CompleteQuestResult>;
   refreshPlayer: () => Promise<void>;
 };
+const SystemContext = createContext<SystemContextValue | null>(null);
 
-const SystemContext =
-  createContext<SystemContextValue | null>(null);
-
-export function SystemProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [player, setPlayer] = useState<PlayerProfile>(
-    createNewPlayer('GRACZ')
-  );
-
+export function SystemProvider({ children }: { children: ReactNode }) {
+  const [player, setPlayer] = useState(() => createNewPlayer('GRACZ'));
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const refreshRef = useRef<Promise<void> | null>(null);
 
-  const refreshPlayer = useCallback(async () => {
-    const storedPlayer = await loadOrCreatePlayer();
-
-    setPlayer(storedPlayer);
-    setReady(true);
+  const refreshPlayer = useCallback((): Promise<void> => {
+    if (refreshRef.current) return refreshRef.current;
+    setError(null);
+    const operation = (async () => {
+      try {
+        setPlayer(await awaitWithTimeout(loadOrCreatePlayer()));
+        setReady(true);
+      } catch {
+        setReady(false);
+        setError('Nie można odczytać profilu z bazy SYSTEMU. Spróbuj ponownie. Dane nie zostały zresetowane.');
+      } finally {
+        refreshRef.current = null;
+      }
+    })();
+    refreshRef.current = operation;
+    return operation;
   }, []);
 
-  useEffect(() => {
-    refreshPlayer();
-  }, [refreshPlayer]);
+  useEffect(() => { void refreshPlayer(); }, [refreshPlayer]);
 
-  const completeVerifiedQuest = useCallback(
-    async (
-      input: CompleteQuestInput
-    ): Promise<CompleteQuestResult> => {
-      const completed = await isQuestCompleted(
-        input.questId
-      );
-
-      if (completed) {
-        const currentPlayer =
-          await loadOrCreatePlayer();
-
-        setPlayer(currentPlayer);
-
-        return {
-          awarded: false,
-          player: currentPlayer,
-        };
-      }
-
-      let nextPlayer = addRealXp(
-        player,
-        input.realXp
-      );
-
-      const skillEntries = Object.entries(
-        input.skillXp
-      ) as [SkillKey, number][];
-
-      for (const [skillKey, xp] of skillEntries) {
-        if (xp > 0) {
-          nextPlayer = addSkillXp(
-            nextPlayer,
-            skillKey,
-            xp
-          );
-        }
-      }
-
-      nextPlayer = {
-        ...nextPlayer,
-
-        verifiedQuestCount:
-          nextPlayer.verifiedQuestCount + 1,
-
-        gameEnergy:
-          nextPlayer.gameEnergy +
-          input.gameEnergy,
-
-        updatedAt: new Date().toISOString(),
-      };
-
-      const now = new Date().toISOString();
-
-      const event: VerifiedEvent = {
-        id: `event_${Date.now()}_${Math.random()
-          .toString(36)
-          .slice(2, 8)}`,
-
-        playerId: nextPlayer.id,
-
-        questId: input.questId,
-
-        createdAt: now,
-
-        verificationType:
-          input.verificationType,
-
-        verificationScore:
-          input.verificationScore,
-
-        verified: true,
-
-        realXpAwarded: input.realXp,
-
-        skillXpAwarded:
-          input.skillXp,
-
-        gameEnergyAwarded:
-          input.gameEnergy,
-
-        distanceMeters:
-          input.distanceMeters,
-
-        durationSeconds:
-          input.durationSeconds,
-
-        steps:
-          input.steps,
-      };
-
-      await savePlayer(nextPlayer);
-      await recordVerifiedEvent(event);
-
-      setPlayer(nextPlayer);
-
-      return {
-        awarded: true,
-        player: nextPlayer,
-      };
-    },
-    [player]
-  );
+  const completeVerifiedQuest = useCallback(async (input: CompleteQuestInput) => {
+    const result = await persistVerifiedQuest(input);
+    setPlayer(result.player);
+    return result;
+  }, []);
 
   return (
-    <SystemContext.Provider
-      value={{
-        player,
-        ready,
-        completeVerifiedQuest,
-        refreshPlayer,
-      }}
-    >
+    <SystemContext.Provider value={{ player, ready, error, completeVerifiedQuest, refreshPlayer }}>
       {children}
     </SystemContext.Provider>
   );
@@ -202,12 +58,6 @@ export function SystemProvider({
 
 export function useSystem() {
   const context = useContext(SystemContext);
-
-  if (!context) {
-    throw new Error(
-      'useSystem musi działać wewnątrz SystemProvider.'
-    );
-  }
-
+  if (!context) throw new Error('useSystem musi działać wewnątrz SystemProvider.');
   return context;
 }

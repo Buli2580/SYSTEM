@@ -8,7 +8,8 @@ export const FIRST_MOVEMENT_QUEST: Quest = {
   description:
     'Przejdź 500 metrów. SYSTEM będzie mierzył rzeczywisty dystans za pomocą GPS.',
 
-  category: 'DAILY',
+  // Jednorazowy quest rozdziału Awakening; stały id jest kluczem ukończenia.
+  category: 'MAIN',
 
   difficulty: 'EASY',
 

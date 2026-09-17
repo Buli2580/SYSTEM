@@ -276,7 +276,7 @@ function SectionTitle({
 export default function SystemHomeScreen() {
   const router = useRouter();
 
-  const { player, ready } = useSystem();
+  const { player, ready, error, refreshPlayer } = useSystem();
 
   const realProgress =
     getPlayerProgressPercent(player) * 100;
@@ -293,12 +293,20 @@ export default function SystemHomeScreen() {
     return (
       <View style={styles.loadingRoot}>
         <Text style={styles.loadingSmall}>
-          SYSTEM // INITIALIZING
+          {error ? 'SYSTEM // BŁĄD ZAPISU' : 'SYSTEM // INITIALIZING'}
         </Text>
 
         <Text style={styles.loadingTitle}>
           AWAKENING
         </Text>
+        {error && (
+          <>
+            <Text style={styles.loadingSmall}>{error}</Text>
+            <Pressable onPress={() => { void refreshPlayer(); }}>
+              <Text style={styles.loadingSmall}>SPRÓBUJ PONOWNIE</Text>
+            </Pressable>
+          </>
+        )}
       </View>
     );
   }
