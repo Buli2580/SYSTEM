@@ -28,7 +28,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       throw new Error('Unexpected dependency: ' + name);
     };
     vm.runInNewContext(source, {
-      module, exports: module.exports, require: requireMock, console,
+      module, exports: module.exports, require: requireMock, console, __DEV__: mocks.__DEV__ ?? false,
       setTimeout, clearTimeout,
       setInterval: clock.intervals ? fn => { const id = {}; clock.intervals.set(id, fn); return id; } : setInterval,
       clearInterval: clock.intervals ? id => clock.intervals.delete(id) : clearInterval,
@@ -103,7 +103,7 @@ test('parallel completion awards once, persists one event and distance, preserve
   initial.streak = 7;
   initial.totalRealXp = initial.realXp = 20;
   initial.totalDistanceMeters = 12;
-  sql.prepare('UPDATE app_state SET value = ?').run(JSON.stringify(initial));
+  sql.prepare("UPDATE app_state SET value = ? WHERE key = 'player'").run(JSON.stringify(initial));
   const results = await Promise.all(Array.from({ length: 12 }, () => db.completeVerifiedQuest(evidence)));
   assert.equal(results.filter(r => r.awarded).length, 1);
   const player = await db.loadOrCreatePlayer();
@@ -1760,4 +1760,104 @@ test('SQLite completed Daily replay remains idempotent after its availability pe
  await h.db.completeVerifiedQuest({...ev,operationKey:key});const before=(await h.db.loadSystemState()).player.totalRealXp;
  h.clock.now+=86400000;const replay=await h.reload().completeVerifiedQuest({...ev,operationKey:key});
  assert.equal(replay.awarded,false);assert.equal(replay.player.totalRealXp,before);
+});
+
+
+test('tester deterministic player defaults and catalog metadata',()=>{
+ const load=loader({}),core=load('core/progression');const identity={id:'tester-fixed',createdAt:'2026-09-18T10:00:00.000Z'};
+ const a=core.createNewPlayer('TESTER',identity),b=core.createNewPlayer('TESTER',identity);
+ assert.equal(JSON.stringify(a),JSON.stringify(b));assert.equal(a.realLevel,1);assert.equal(a.totalRealXp,0);assert.equal(a.gameEnergy,0);assert.equal(a.streak,0);
+ assert.equal(core.SKILL_KEYS.length,7);assert.ok(core.SKILL_KEYS.every(k=>a.stats[k].level===1&&a.stats[k].totalXp===0));
+ assert.throws(()=>core.createNewPlayer('TESTER',{id:'',createdAt:identity.createdAt}));
+ assert.equal(load('quests/catalog').AWAKENING_QUESTS.length,3);
+ assert.equal(load('quests/firstMovement').FIRST_MOVEMENT_QUEST.createdAt,'2026-09-17T00:00:00.000Z');
+});
+test('tester full first session: initialize, onboard, activate, verify, reward, level, log, reload',async t=>{
+ const clock={now:new Date(2026,8,18,10).getTime()},h=databaseHarness(t,clock);
+ const first=await h.db.loadSystemState();assert.equal(first.onboardingComplete,false);assert.equal(first.player.realLevel,1);
+ assert.equal((await h.db.testerHealthCheck()).ok,true);
+ assert.equal(JSON.stringify((await h.db.loadSystemState()).player),JSON.stringify(first.player));
+ assert.equal((await h.db.finishOnboarding('TESTER')).onboardingComplete,true);
+ assert.equal(await h.db.getQuestAccess(evidence.questId),'AVAILABLE');assert.equal(await h.db.getQuestAccess(focusEvidence.questId),'LOCKED');
+ for(const [i,ev] of [evidence,focusEvidence,multiEvidence].entries()) {
+   const attemptId='tester-session-'+i;await h.db.beginQuestAttempt(ev.questId,attemptId);
+   assert.equal(h.sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get(attemptId).result,null);
+   clock.now+=ev.durationSeconds*1000;
+   const before=(await h.db.loadSystemState()).player;
+   const key=h.load('repositories/contracts').completionOperation(before.id,ev.questId).key;
+   const complete=await h.db.completeVerifiedQuest({...ev,attemptId,operationKey:key});assert.equal(complete.awarded,true);
+   const reward=h.load('quests/catalog').getQuest(ev.questId).rewards;
+   assert.ok(complete.player.totalRealXp>=before.totalRealXp+reward.realXp);
+   for(const [skill,xp] of Object.entries(reward.skillXp))assert.equal(complete.player.stats[skill].totalXp,before.stats[skill].totalXp+xp);
+   if(i===1)assert.ok(complete.player.realLevel>=2);
+   assert.equal((await h.db.completeVerifiedQuest({...ev,attemptId,operationKey:key})).awarded,false);
+   const restored=await h.reload().loadSystemState();assert.equal(JSON.stringify(restored.player),JSON.stringify(complete.player));
+   assert.ok(restored.completedQuestIds.includes(ev.questId));assert.equal(h.sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get(attemptId).result,'COMPLETED');
+ }
+ const end=await h.reload().loadSystemState();assert.equal(end.player.totalRealXp,600);assert.equal(end.awakeningCompleted,true);assert.equal(end.daily.questIds.length,3);
+ assert.equal((await h.db.loadSystemLog()).filter(e=>e.id.startsWith('quest_')).length,3);
+ assert.equal((await h.db.testerHealthCheck()).ok,true);
+});
+test('tester returning user preserves partial Daily, rejects expired incomplete and replays completed safely',async t=>{
+ const h=await dailyHarness(t),first=await h.db.loadSystemState();const [done,incomplete]=first.daily.questIds;
+ await h.db.completeVerifiedQuest(dailyEvidence(h,done));const partial=await h.db.loadSystemState();
+ const reload=await h.reload().loadSystemState();assert.equal(JSON.stringify(reload.daily),JSON.stringify(partial.daily));assert.equal(reload.player.streak,0);
+ h.clock.now+=86400000;const next=await h.reload().loadSystemState();assert.equal(next.daily.completed,0);assert.equal(next.daily.clear,false);
+ await assert.rejects(h.db.completeVerifiedQuest(dailyEvidence(h,incomplete)));assert.equal((await h.db.completeVerifiedQuest(dailyEvidence(h,done))).awarded,false);
+ assert.equal((await h.db.loadSystemState()).player.totalRealXp,partial.player.totalRealXp);
+ for(const id of next.daily.questIds)await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ const clear=await h.reload().loadSystemState();assert.equal(clear.daily.clear,true);assert.equal(clear.player.streak,1);
+ h.clock.now+=86400000;for(const id of (await h.db.loadSystemState()).daily.questIds)await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ assert.equal((await h.reload().loadSystemState()).player.streak,2);assert.equal((await h.db.testerHealthCheck()).ok,true);
+});
+test('tester invalid and locked requests leave a valid first-run profile untouched',async t=>{
+ const h=databaseHarness(t,{now:new Date(2026,8,18,10).getTime()}),first=await h.db.loadSystemState();
+ await assert.rejects(h.db.completeVerifiedQuest({...evidence,distanceMeters:499}));await assert.rejects(h.db.completeVerifiedQuest(focusEvidence));
+ assert.equal(JSON.stringify((await h.db.loadSystemState()).player),JSON.stringify(first.player));assert.equal((await h.db.loadSystemLog()).length,0);
+ assert.equal((await h.db.testerHealthCheck()).ok,true);
+});
+test('tester completion rollback retains active attempt and healthy profile for retry',async t=>{
+ const h=databaseHarness(t,{now:new Date(2026,8,18,10).getTime()});await h.db.loadSystemState();await h.db.beginQuestAttempt(evidence.questId,'tester-rollback');
+ h.faults.statement='INSERT INTO verified_events';await assert.rejects(h.db.completeVerifiedQuest({...evidence,attemptId:'tester-rollback'}));
+ assert.equal((await h.db.loadSystemState()).player.totalRealXp,0);assert.equal(h.sql.prepare('SELECT result FROM quest_attempts').get().result,null);
+ assert.equal((await h.db.testerHealthCheck()).ok,true);assert.equal((await h.db.completeVerifiedQuest({...evidence,attemptId:'tester-rollback'})).awarded,true);
+});
+test('tester reset requires development build and exact confirmation before storage access',async()=>{
+ let calls=0;const db={resetSystemData:async()=>{calls++;}};
+ const prod=loader({'../storage/database':db,__DEV__:false})('tester/reset');await assert.rejects(prod.resetTesterProfile('RESET TESTER PROFILE'));assert.equal(calls,0);
+ const dev=loader({'../storage/database':db,__DEV__:true})('tester/reset');await assert.rejects(dev.resetTesterProfile('RESET'));assert.equal(calls,0);
+ await dev.resetTesterProfile('RESET TESTER PROFILE');assert.equal(calls,1);
+});
+test('tester development reset clears gameplay transactionally, creates new identity and reinitializes',async t=>{
+ const h=await dailyHarness(t);const initial=await h.db.loadSystemState();await h.db.completeVerifiedQuest(dailyEvidence(h,initial.daily.questIds[0]));
+ const reset=loader({'../storage/database':h.db,__DEV__:true})('tester/reset');
+ h.faults.commit=true;await assert.rejects(reset.resetTesterProfile('RESET TESTER PROFILE'));
+ assert.ok((await h.db.loadSystemState()).player.totalRealXp>0);
+ const fresh=await reset.resetTesterProfile('RESET TESTER PROFILE');assert.equal(fresh.onboardingComplete,false);assert.equal(fresh.player.totalRealXp,0);assert.equal(fresh.player.realLevel,1);assert.equal(fresh.player.streak,0);assert.equal(fresh.daily,null);
+ assert.notEqual(fresh.player.id,initial.player.id);
+ for(const table of ['quest_attempts','story_events','story_progress','boss_progress','daily_instances','daily_sets','protocol_bonuses','verified_events','quest_completions','chapter_completions','discovered_sectors','world_signals'])assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM '+table).get().n,0);
+ const again=await h.reload().loadSystemState();assert.equal(again.player.id,fresh.player.id);assert.equal(await h.db.getQuestAccess(evidence.questId),'AVAILABLE');assert.equal((await h.db.testerHealthCheck()).ok,true);
+ assert.equal(await h.db.hasAvatarCleanupPending(),true);
+});
+for(const [label,change,code] of [
+ ['missing player',sql=>sql.prepare("DELETE FROM app_state WHERE key='player'").run(),'PLAYER_MISSING'],
+ ['derived XP',sql=>{const p=JSON.parse(sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value);p.realLevel=999;sql.prepare("UPDATE app_state SET value=? WHERE key='player'").run(JSON.stringify(p));},'PLAYER_PROGRESSION'],
+ ['invalid stat',sql=>{const p=JSON.parse(sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value);p.stats.WIL.totalXp=-1;sql.prepare("UPDATE app_state SET value=? WHERE key='player'").run(JSON.stringify(p));},'PLAYER_INVALID'],
+ ['onboarding',sql=>sql.prepare("UPDATE app_state SET value='broken' WHERE key='onboarding_complete'").run(),'ONBOARDING_METADATA'],
+ ['settings',sql=>sql.prepare("UPDATE app_state SET value='{}' WHERE key='settings'").run(),'SETTINGS_METADATA'],
+ ['quest reference',sql=>sql.prepare("INSERT INTO quest_completions VALUES ('unknown','2026-09-18T10:00:00Z')").run(),'QUEST_REFERENCE'],
+])test('tester health detects '+label+' without repairing the data',async t=>{
+ const h=databaseHarness(t,{now:new Date(2026,8,18,10).getTime()});await h.db.loadSystemState();change(h.sql);
+ const before=JSON.stringify(h.sql.prepare('SELECT * FROM app_state ORDER BY key').all());const result=await h.db.testerHealthCheck();assert.equal(result.ok,false);assert.ok(result.issues.some(i=>i.code===code));
+ assert.equal(JSON.stringify(h.sql.prepare('SELECT * FROM app_state ORDER BY key').all()),before);
+});
+test('tester health detects missing/duplicate events and malformed Daily state',async t=>{
+ const h=await dailyHarness(t);const event=h.sql.prepare("SELECT * FROM verified_events WHERE id='quest_first_movement_v1'").get();
+ h.sql.prepare('INSERT INTO verified_events(id,quest_id,payload,created_at) VALUES (?,?,?,?)').run('quest_duplicate',event.quest_id,event.payload,event.created_at);
+ h.sql.prepare("DELETE FROM verified_events WHERE id='quest_focus_protocol_v1'").run();h.sql.prepare('DELETE FROM daily_instances WHERE id=(SELECT id FROM daily_instances LIMIT 1)').run();
+ const result=await h.db.testerHealthCheck();for(const code of ['DUPLICATE_COMPLETION_EVENT','COMPLETION_EVENT_MISSING','DAILY_SET_SIZE'])assert.ok(result.issues.some(i=>i.code===code));
+});
+test('tester health reports storage failure instead of throwing or resetting',async t=>{
+ const h=databaseHarness(t);h.faults.open=true;const result=await h.db.testerHealthCheck();assert.equal(result.ok,false);assert.equal(result.issues[0].code,'STORAGE_UNAVAILABLE');
+ await h.db.loadSystemState();assert.equal((await h.db.testerHealthCheck()).ok,true);
 });
