@@ -1,3 +1,4 @@
+import GameplayGate from '../system2/components/GameplayGate';
 import StoryNotice from '../system2/components/StoryNotice';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,6 +15,7 @@ export default function RootLayout() {
       <StatusBar style="light" />
 
       <Stack
+        screenLayout={({ children }) => <GameplayGate>{children}</GameplayGate>}
         screenOptions={{
           headerShown: false,
           contentStyle: {

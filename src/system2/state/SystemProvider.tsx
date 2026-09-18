@@ -1,3 +1,4 @@
+import { resetTesterProfile } from '../tester/reset';
 import { AppState } from 'react-native';
 import { configureAudio, playFeedback, rewardSound, stopAudio } from '../identity/audio';
 import { syncReminders } from '../notifications/service';
@@ -17,7 +18,7 @@ type SystemContextValue = db.SystemSnapshot & {
   acknowledgeAwakening: () => Promise<void>;
   completeVerifiedQuest: (input: db.CompleteQuestInput) => Promise<db.CompleteQuestResult>;
   refreshPlayer: () => Promise<void>;
-  finishOnboarding: (name: string) => Promise<void>;
+  finishOnboarding: (name: string, birthDate?: string) => Promise<void>;
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
   saveSettings: (settings: Settings) => Promise<void>;
   resetData: (confirmed: true) => Promise<void>;
@@ -62,9 +63,11 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
         }
         const next = await awaitWithTimeout(db.loadSystemState());
+        const health = await awaitWithTimeout(db.testerHealthCheck());
+        if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
         if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true); }
       } catch (cause) {
-        if (epoch === generation.current) { setReady(false); setError('Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
+        if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
     })();
     refreshRef.current = operation; return operation;
@@ -86,22 +89,23 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   }, []);
   const dismissCelebration = useCallback(() => setCelebration(null), []);
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
-    const epoch = generation.current;
+    const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
     if (epoch === generation.current) { setSnapshot(result); if (result.receipt) presentReward(result.receipt); }
     return result;
   }, [presentReward]);
   const apply = useCallback(async (operation: Promise<db.SystemSnapshot>) => {
-    const epoch = generation.current;
+    const epoch = ++generation.current; refreshRef.current = null;
     const next = await awaitWithTimeout(operation);
     if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); }
   }, []);
   const resetData = useCallback(async (confirmed: true) => {
+    if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
     resetting.current = true; generation.current++; refreshRef.current = null;
     setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null);
     try {
-      await awaitWithTimeout(db.resetSystemData(confirmed));
+      await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());
       seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true);
@@ -110,7 +114,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   }, []);
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
-    finishOnboarding: name => apply(db.finishOnboarding(name)), updateIdentity: patch => apply(db.updateIdentity(patch)),
+    finishOnboarding: (name, birthDate) => apply(db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)), resetData,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;

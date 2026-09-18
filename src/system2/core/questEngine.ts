@@ -43,6 +43,7 @@ export function completeQuest(player: PlayerProfile, input: QuestEvidence, statu
     player: next,
     quest: { ...definition, status: 'COMPLETED', completedAt, progress: definition.progressTarget },
     event: {
+      levelBefore: player.realLevel, levelAfter: next.realLevel,
       activity: definition.activityType ? evidence.activity : undefined,
       id: 'quest_' + definition.id, playerId: player.id, questId: definition.id, createdAt: completedAt,
       verificationType: evidence.verificationType, verificationScore: evidence.verificationScore, verified: true,

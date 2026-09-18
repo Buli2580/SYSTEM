@@ -1,3 +1,4 @@
+import { validateBirthDate } from '../identity/age';
 import { inspectLocalHealth, type LocalHealth } from './health';
 import { createQuestCompletion } from '../application/completeQuest';
 import { localQuestVerification } from '../verification/localProvider';
@@ -29,6 +30,7 @@ import { awardAwakeningIfEligible } from './chapter';
 
 export type CompleteQuestInput = QuestEvidence & { operationKey?: string };
 export type SystemSnapshot = {
+  failedQuestIds?: string[];
   story: StoryState | null;
   daily: DailyState | null;
   player: PlayerProfile;
@@ -141,8 +143,9 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const preferences = parseSettings(settings?.value);
   const daily = await dailyState(db, chapter.player, chapter.awakeningCompleted, preferences.activities ?? DEFAULT_ACTIVITIES);
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
+  const failed = await db.getAllAsync<{ quest_id: string }>("SELECT DISTINCT quest_id FROM quest_attempts WHERE result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS') AND quest_id NOT IN (SELECT quest_id FROM quest_completions)");
   return {
-    daily, story: reconciled.story,
+    failedQuestIds: failed.map(row => row.quest_id), daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
     completedQuestIds: ids, worldUnlocked: chapter.awakeningCompleted,
@@ -251,24 +254,26 @@ export function profileTransaction<T>(task: (txn: SQLite.SQLiteDatabase) => Prom
     return result!;
   });
 }
-export function finishOnboarding(name: string) {
+export function finishOnboarding(name: string, birthDate?: string) {
+  const birth = birthDate === undefined ? undefined : validateBirthDate(birthDate);
   const displayName = systemName(name);
   return profileTransaction(async txn => {
     const marker = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'onboarding_complete');
     if (marker?.value === 'true') return snapshotInTransaction(txn);
     const player = await readPlayer(txn);
-    await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify({ ...player, displayName }), 'player');
+    await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify({ ...player, displayName, ...(birth ? { birthDate: birth } : {}) }), 'player');
     await txn.runAsync("INSERT INTO app_state(key, value) VALUES ('onboarding_complete', 'true') ON CONFLICT(key) DO UPDATE SET value = excluded.value");
     return snapshotInTransaction(txn);
   });
 }
-export function updateIdentity(patch: { displayName?: string; avatarUri?: string | null; currentTitle?: Title }) {
+export function updateIdentity(patch: { displayName?: string; birthDate?: string; avatarUri?: string | null; currentTitle?: Title }) {
   const update = { ...patch };
   return profileTransaction(async txn => {
     const snapshot = await snapshotInTransaction(txn);
     if (update.currentTitle && !snapshot.titles.includes(update.currentTitle)) throw new Error('Title nie został jeszcze zdobyty.');
     if (update.avatarUri && !update.avatarUri.startsWith('file://')) throw new Error('Avatar musi być lokalnym plikiem.');
     const player = { ...snapshot.player,
+      ...(update.birthDate !== undefined ? { birthDate: validateBirthDate(update.birthDate) } : {}),
       ...(update.displayName !== undefined ? { displayName: systemName(update.displayName) } : {}),
       ...(update.avatarUri !== undefined ? { avatarUri: update.avatarUri ?? undefined } : {}),
       ...(update.currentTitle ? { currentTitle: update.currentTitle } : {}) };
