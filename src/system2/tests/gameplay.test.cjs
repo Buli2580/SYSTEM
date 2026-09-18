@@ -629,7 +629,7 @@ for (const failure of ['chapter marker', 'chapter profile', 'chapter event', 'co
     if (failure === 'commit') faults.commit = true;
     else faults.failWhen = (source, params) =>
       failure === 'chapter marker' ? source.startsWith('INSERT INTO chapter_completions') :
-      failure === 'chapter profile' ? source.startsWith('UPDATE app_state') && JSON.parse(params[0]).totalRealXp === 600 :
+      failure === 'chapter profile' ? source.startsWith('UPDATE app_state SET value = ?') && JSON.parse(params[0]).totalRealXp === 600 :
       source.startsWith('INSERT INTO verified_events') && params[0] === 'chapter_awakening_chapter_1';
     await assert.rejects(db.completeVerifiedQuest(multiEvidence));
     const state = await db.loadSystemState();
@@ -1675,4 +1675,89 @@ test('domain timer completion adds no distance and no arbitrary streak',()=>{
  const load=loader({}),player=load('core/progression').createNewPlayer();player.streak=4;player.totalDistanceMeters=123;
  const result=load('core/questEngine').completeQuest(player,{questId:'focus_protocol_v1',verificationType:'TIMER',durationSeconds:600,verificationScore:100},'ACTIVE','2026-09-18T10:00:00.000Z');
  assert.equal(result.player.totalDistanceMeters,123);assert.equal(result.player.streak,4);assert.equal(result.player.stats.WIL.totalXp,70);
+});
+
+// Application contract tests use transactional ports; SQLite integration remains covered above.
+function completionContractHarness(options={}) {
+ const load=loader({});
+ let state={player:load('core/progression').createNewPlayer(),completions:{},events:[]};
+ let runs=0;const now='2026-09-18T12:00:00.000Z';
+ const unit={async run(work){
+   runs++;const draft=JSON.parse(JSON.stringify(state));
+   const value=await work({
+     players:{get:async()=>draft.player,save:async p=>{draft.player=p;}},
+     quests:{get:async id=>load('quests/catalog').getQuest(id),
+       availability:async()=>({status:options.status??'AVAILABLE',code:options.status??'AVAILABLE',canComplete:!options.status||['AVAILABLE','ACTIVE'].includes(options.status)}),
+       claimCompletion:async(id,date)=>{if(draft.completions[id])return false;draft.completions[id]=date;return true;}},
+     events:{has:async id=>draft.events.some(e=>e.id===id),append:async event=>{if(options.failEvent)throw Error('event failed');draft.events.push(event);}},
+     idempotency:{find:async op=>draft.completions[op.questId]?{...op,state:'APPLIED',appliedAt:draft.completions[op.questId]}:null},
+     effects:{apply:async p=>p,result:async awarded=>({awarded,player:draft.player})},
+   });
+   if(options.failCommit)throw Error('commit failed');
+   state=draft;return value;
+ }};
+ const provider=options.provider??load('verification/localProvider').localQuestVerification;
+ return {load,run:load('application/completeQuest').createQuestCompletion(unit,provider,()=>now),state:()=>state,runs:()=>runs};
+}
+test('contracts valid completion and repeated canonical operation produce exactly one event/reward',async()=>{
+ const h=completionContractHarness();const key=h.load('repositories/contracts').completionOperation(h.state().player.id,evidence.questId).key;
+ const first=await h.run({evidence,operationKey:key});const second=await h.run({evidence,operationKey:key});
+ assert.equal(first.status,'APPLIED');assert.equal(second.status,'DUPLICATE');assert.equal(first.operation.key,second.operation.key);
+ assert.equal(h.state().player.totalRealXp,100);assert.equal(h.state().events.length,1);assert.equal(Object.keys(h.state().completions).length,1);
+});
+for(const status of ['LOCKED','FAILED']) test('contracts '+status+' quest cannot complete',async()=>{
+ const h=completionContractHarness({status});const result=await h.run({evidence});assert.equal(result.status,status);
+ assert.equal(h.state().player.totalRealXp,0);assert.equal(h.state().events.length,0);assert.equal(Object.keys(h.state().completions).length,0);
+});
+for(const status of ['REJECTED','PENDING','UNAVAILABLE']) test('contracts verification '+status+' never enters a write transaction',async()=>{
+ const h=completionContractHarness({provider:{id:'test',canHandle:()=>true,verify:async r=>({status,code:'TEST_'+status,reason:'test',checkedAt:r.requestedAt,providerId:'test'})}});
+ assert.equal((await h.run({evidence})).status,status);assert.equal(h.runs(),0);assert.equal(h.state().player.totalRealXp,0);
+});
+test('contracts unsupported verifier and invalid local evidence grant no XP',async()=>{
+ const h=completionContractHarness({provider:{id:'unsupported',canHandle:()=>false,verify:()=>{throw Error('must not run');}}});
+ assert.equal((await h.run({evidence})).status,'UNAVAILABLE');assert.equal(h.runs(),0);
+ const local=completionContractHarness();assert.equal((await local.run({evidence:{...evidence,distanceMeters:499}})).status,'REJECTED');assert.equal(local.runs(),0);
+});
+for(const fault of ['failEvent','failCommit']) test('contracts '+fault+' rolls back profile, completion and event',async()=>{
+ const options={[fault]:true},h=completionContractHarness(options);await assert.rejects(h.run({evidence}));
+ assert.equal(h.state().player.totalRealXp,0);assert.equal(h.state().events.length,0);assert.equal(Object.keys(h.state().completions).length,0);
+ options[fault]=false;assert.equal((await h.run({evidence})).status,'APPLIED');assert.equal(h.state().events.length,1);
+});
+test('contracts operation identity cannot be reused for another player or quest',async()=>{
+ const h=completionContractHarness();const operation=h.load('repositories/contracts').completionOperation;
+ for(const key of [operation('other',evidence.questId).key,operation(h.state().player.id,'focus_protocol_v1').key]) await assert.rejects(h.run({evidence,operationKey:key}));
+ assert.equal(h.state().player.totalRealXp,0);assert.equal(h.state().events.length,0);
+ assert.notEqual(operation('a:b','c').key,operation('a','b:c').key);
+});
+test('contracts provider cannot change verification identity',async()=>{
+ const h=completionContractHarness({provider:{id:'test',canHandle:()=>true,verify:async r=>({status:'VERIFIED',code:'TEST',checkedAt:r.requestedAt,providerId:'test',evidence:{...r.evidence,questId:'focus_protocol_v1'}})}});
+ await assert.rejects(h.run({evidence}));assert.equal(h.runs(),0);
+});
+test('availability contract reuses prerequisite, active, failed, Daily and Boss rules',()=>{
+ const load=loader({}),resolve=load('quests/availability').questAvailability;
+ const empty={completedQuestIds:[]};assert.equal(resolve('unknown',empty).code,'UNKNOWN_QUEST');
+ assert.equal(resolve('focus_protocol_v1',empty).status,'LOCKED');assert.equal(resolve(evidence.questId,empty).status,'AVAILABLE');
+ assert.equal(resolve(evidence.questId,{...empty,failedQuestId:evidence.questId}).status,'FAILED');
+ assert.equal(resolve(evidence.questId,{...empty,failedQuestId:evidence.questId,activeQuestId:evidence.questId}).status,'ACTIVE');
+ assert.equal(resolve(evidence.questId,{completedQuestIds:[evidence.questId]}).status,'COMPLETED');
+ const awakened={completedQuestIds:load('quests/catalog').AWAKENING_QUESTS.map(q=>q.id)};
+ const boss=load('story/catalog').BOSS_FOCUS;assert.equal(resolve(boss,awakened).code,'BOSS_LOCKED');assert.equal(resolve(boss,{...awakened,bossAccessible:true}).status,'AVAILABLE');
+ const templates=load('daily/templates');const id=templates.generateDaily('p','2026-09-18',templates.DEFAULT_ACTIVITIES)[0].id;
+ assert.equal(resolve(id,awakened).code,'DAILY_UNAVAILABLE');assert.equal(resolve(id,{...awakened,daily:{questIds:[id],clockAnomaly:false}}).status,'AVAILABLE');
+ assert.equal(resolve(id,{...awakened,daily:{questIds:[id],clockAnomaly:true}}).status,'LOCKED');
+});
+test('SQLite explicit operation key survives reload, parallel retries and mismatched replay',async t=>{
+ const h=databaseHarness(t),initial=await h.db.loadSystemState();const key=h.load('repositories/contracts').completionOperation(initial.player.id,evidence.questId).key;
+ const outcomes=await Promise.all(Array.from({length:6},()=>h.db.completeVerifiedQuest({...evidence,operationKey:key})));
+ assert.equal(outcomes.filter(r=>r.awarded).length,1);assert.equal((await h.reload().completeVerifiedQuest({...evidence,operationKey:key})).awarded,false);
+ await assert.rejects(h.db.completeVerifiedQuest({...evidence,operationKey:'foreign-operation'}));
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM verified_events WHERE id=?').get('quest_'+evidence.questId).n,1);
+ assert.equal((await h.db.loadSystemState()).player.totalRealXp,100);
+});
+test('SQLite completed Daily replay remains idempotent after its availability period',async t=>{
+ const h=await dailyHarness(t),s=await h.db.loadSystemState(),ev=dailyEvidence(h,s.daily.questIds[0]);
+ const key=h.load('repositories/contracts').completionOperation(s.player.id,ev.questId).key;
+ await h.db.completeVerifiedQuest({...ev,operationKey:key});const before=(await h.db.loadSystemState()).player.totalRealXp;
+ h.clock.now+=86400000;const replay=await h.reload().completeVerifiedQuest({...ev,operationKey:key});
+ assert.equal(replay.awarded,false);assert.equal(replay.player.totalRealXp,before);
 });
