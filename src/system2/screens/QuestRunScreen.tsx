@@ -3,6 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
 import type { RunnableQuest } from '../quests/types';
@@ -17,6 +19,10 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const insets = useSafeAreaInsets();
   const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
+  const [questAccepted, setQuestAccepted] = useState(false);
+  const [startInProgress, setStartInProgress] = useState(false);
+  const [questCompleteVisible, setQuestCompleteVisible] = useState(false);
+  const startInProgressRef = useRef(false);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
@@ -42,6 +48,29 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   const seconds =
     duration % 60;
+
+  useEffect(() => {
+    if (!questAccepted) return;
+    const timer = setTimeout(() => setQuestAccepted(false), 1200);
+    return () => clearTimeout(timer);
+  }, [questAccepted]);
+
+  useEffect(() => {
+    setQuestCompleteVisible(status === 'COMPLETED');
+  }, [status]);
+
+  const handleStartQuest = () => {
+    if (startInProgressRef.current) return;
+    startInProgressRef.current = true;
+    setStartInProgress(true);
+    setQuestAccepted(true);
+    void startQuest()
+      .catch(() => undefined)
+      .finally(() => {
+        startInProgressRef.current = false;
+        setStartInProgress(false);
+      });
+  };
 
   return (
     <View style={styles.root}>
@@ -322,12 +351,9 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
           {status === 'READY' && ready && (
             <Pressable accessibilityRole="button"
-              style={
-                styles.startButton
-              }
-              onPress={
-                startQuest
-              }
+              style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
+              disabled={startInProgress}
+              onPress={handleStartQuest}
             >
               <Text
                 style={
@@ -487,6 +513,20 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         )}
       </ScrollView>
+
+      {questAccepted && (
+        <Animated.View pointerEvents="none" entering={FadeIn.duration(220)} exiting={FadeOut.duration(220)} style={styles.questOverlay}>
+          <Text style={styles.questOverlayLabel}>QUEST ACCEPTED</Text>
+          <Text style={styles.questOverlayTitle}>{quest.title}</Text>
+        </Animated.View>
+      )}
+
+      {questCompleteVisible && (
+        <Animated.View pointerEvents="none" entering={FadeIn.duration(250)} exiting={FadeOut.duration(220)} style={styles.questCompleteOverlay}>
+          <Text style={styles.questOverlayLabel}>QUEST COMPLETE</Text>
+          <Text style={styles.questOverlayTitle}>VERIFIED</Text>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -495,6 +535,7 @@ const styles =
   StyleSheet.create({
     root: {
       flex: 1,
+      position: 'relative',
       backgroundColor:
         SYSTEM_COLORS.background,
     },
@@ -721,6 +762,12 @@ const styles =
       justifyContent:
         'space-between',
       paddingHorizontal: 24,
+      transform: [{ scale: 1 }],
+    },
+
+    startButtonPressed: {
+      transform: [{ scale: 0.985 }],
+      opacity: 0.96,
     },
 
     startButtonText: {
@@ -823,6 +870,40 @@ const styles =
         SYSTEM_COLORS.cyan,
       fontSize: 14,
       fontWeight: '900',
+    },
+
+    questOverlay: {
+      position: 'absolute',
+      inset: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(2, 9, 15, 0.72)',
+      paddingHorizontal: 26,
+    },
+
+    questCompleteOverlay: {
+      position: 'absolute',
+      inset: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(3, 18, 16, 0.8)',
+      paddingHorizontal: 26,
+    },
+
+    questOverlayLabel: {
+      color: SYSTEM_COLORS.cyan,
+      fontSize: 11,
+      fontWeight: '900',
+      letterSpacing: 4,
+      textAlign: 'center',
+    },
+
+    questOverlayTitle: {
+      color: SYSTEM_COLORS.white,
+      fontSize: 36,
+      fontWeight: '900',
+      textAlign: 'center',
+      marginTop: 10,
     },
 
     completeCard: {
