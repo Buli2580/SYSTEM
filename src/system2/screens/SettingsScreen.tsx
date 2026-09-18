@@ -41,11 +41,11 @@ export default function SettingsScreen() {
     </View>
     <BetaSettings />
     <View style={s.panel}><Text style={s.label}>DATA</Text><Text style={s.body}>Profil, questy, World i preferencje są zapisane lokalnie w SQLite. Avatar pozostaje w katalogu aplikacji. Brak konta online i synchronizacji. Odinstalowanie aplikacji może usunąć progres.</Text>
-      <Action label="RESET SYSTEM DATA" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />
+      {__DEV__ && <Action label="RESET SYSTEM DATA // DEVELOPMENT" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />}
     </View>
-    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM 2.0 // MVP BUILD</Text><Text style={s.body}>Wersja aplikacji: {Constants.expoConfig?.version ?? 'niedostępna'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
+    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM 2.0 // MVP BUILD</Text><Text style={s.body}>Wersja aplikacji: {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'niedostępna'} · BUILD {Constants.nativeBuildVersion ?? Constants.expoConfig?.android?.versionCode ?? 'DEV'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}
-    <Modal visible={resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
+    <Modal visible={__DEV__ && resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, backgroundColor: '#030709' }}>
         <Text style={s.title}>RESET SYSTEM DATA // {resetStep}/2</Text>
         <Text style={s.body}>Usuniesz REAL XP, skille, questy, World, historię, ustawienia i avatar. Tej operacji nie można cofnąć. Oryginalne zdjęcia w galerii pozostaną.</Text>

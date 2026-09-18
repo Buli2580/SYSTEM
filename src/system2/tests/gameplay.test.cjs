@@ -28,7 +28,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       throw new Error('Unexpected dependency: ' + name);
     };
     vm.runInNewContext(source, {
-      module, exports: module.exports, require: requireMock, console, __DEV__: mocks.__DEV__ ?? false,
+      module, exports: module.exports, require: requireMock, console, Error, __DEV__: mocks.__DEV__ ?? false,
       setTimeout, clearTimeout,
       setInterval: clock.intervals ? fn => { const id = {}; clock.intervals.set(id, fn); return id; } : setInterval,
       clearInterval: clock.intervals ? id => clock.intervals.delete(id) : clearInterval,
@@ -746,14 +746,14 @@ function uiHarness(context = {}) {
   const navigation = [];
   const jsx = (type, props) => typeof type === 'function' ? type(props) : ({ type, props });
   const load = loader({
-    'react': { useState: value => [value, () => {}] },
+    'react': { useState: value => [value, () => {}], useCallback: fn => fn },
     '../components/world/WorldMap': { __esModule: true, default: 'WorldMap' },
     '../components/world/DiscoveryToast': { __esModule: true, default: 'DiscoveryToast' },
     '../world/useWorldTracking': { useWorldTracking: () => ({ status: 'PAUSED', sectorIds: [], signal: null, fix: null }) },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: s => s } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ top: 24, bottom: 0 }) },
-    'expo-router': { usePathname: () => '/', useRouter: () => ({ push: value => navigation.push(value), replace: value => navigation.push(value) }) },
+    'expo-router': { useFocusEffect: fn => fn(), usePathname: () => '/', useRouter: () => ({ push: value => navigation.push(value), replace: value => navigation.push(value) }) },
     '../state/SystemProvider': { useSystem: () => context },
     '../components/SystemPage': { __esModule: true, default: 'SystemPage', pageStyles: {} },
   });
@@ -1860,4 +1860,135 @@ test('tester health detects missing/duplicate events and malformed Daily state',
 test('tester health reports storage failure instead of throwing or resetting',async t=>{
  const h=databaseHarness(t);h.faults.open=true;const result=await h.db.testerHealthCheck();assert.equal(result.ok,false);assert.equal(result.issues[0].code,'STORAGE_UNAVAILABLE');
  await h.db.loadSystemState();assert.equal((await h.db.testerHealthCheck()).ok,true);
+});
+
+
+for(const [label,birth,today,expected] of [
+ ['passed','2000-01-10',[2026,8,18],26],['later','2000-12-10',[2026,8,18],25],
+ ['today','2000-09-18',[2026,8,18],26],['leap before','2000-02-29',[2025,1,28],24],
+ ['leap after','2000-02-29',[2025,2,1],25],['leap birthday','2000-02-29',[2024,1,29],24],
+ ['invalid','2001-02-29',[2026,8,18],null],['impossible','2000-04-31',[2026,8,18],null],
+ ['future','2027-01-01',[2026,8,18],null],['bad format','18/09/2000',[2026,8,18],null],
+])test('canonical age '+label,()=>{
+ const age=loader({})('identity/age');assert.equal(age.calculateAge(birth,new Date(...today)),expected);
+ if(expected===null)assert.throws(()=>age.validateBirthDate(birth,new Date(...today)));
+});
+function integrationUI(context,extra={}) {
+ const slots=[];let cursor=0;const navigation=[];
+ const react={useState(initial){const i=cursor++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return [slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v;}];},
+ useRef(initial){const i=cursor++;return slots[i]??(slots[i]={current:initial});},useCallback:fn=>fn,useEffect:()=>{}};
+ const jsx=(type,props)=>typeof type==='function'?type(props):({type,props});
+ const load=loader({
+  react,'react/jsx-runtime':{jsx,jsxs:jsx,Fragment:'Fragment'},
+  'react-native':{Text:'Text',TextInput:'TextInput',View:'View',Pressable:'Pressable',ScrollView:'ScrollView',Modal:'Modal',Switch:'Switch',KeyboardAvoidingView:'KeyboardAvoidingView',Platform:{OS:'android'},StyleSheet:{create:s=>s},Linking:{openSettings:async()=>{}}},
+  'expo-router':{useRouter:()=>({replace:p=>navigation.push(p),push:p=>navigation.push(p)}),useFocusEffect:()=>{}},
+  'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:24,bottom:24})},
+  '../components/SystemPage':{__esModule:true,default:'SystemPage',pageStyles:{}},
+  '../components/BetaSettings':{__esModule:true,default:'BetaSettings'},
+  '../components/IdentityAvatar':{__esModule:true,default:'IdentityAvatar'},
+  'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0',android:{versionCode:1}}}},
+  'expo-location':{},'expo-image-picker':{},
+  '../identity/avatar':{persistAvatar:async()=>'',removeOwnedAvatar:()=>{}},
+  '../state/SystemProvider':{useSystem:()=>context},...extra,
+ });
+ return {navigation,render(file){cursor=0;return load(file).default();},load};
+}
+function nodesOfType(tree,type){if(Array.isArray(tree))return tree.flatMap(n=>nodesOfType(n,type));if(!tree||typeof tree!=='object')return [];return [...(tree.type===type?[tree]:[]),...nodesOfType(tree.props?.children,type)];}
+test('real onboarding UI validates date, persists identity and skips onboarding after restart',async t=>{
+ const clock={now:new Date(2026,8,18,10).getTime()},h=databaseHarness(t,clock);await h.db.loadSystemState();
+ const ui=integrationUI({finishOnboarding:(name,birth)=>h.db.finishOnboarding(name,birth)});
+ let tree;for(let i=0;i<3;i++){tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='DALEJ →').props.onPress();}
+ tree=ui.render('screens/OnboardingScreen');const inputs=nodesOfType(tree,'TextInput');inputs[0].props.onChangeText('TESTER');inputs[1].props.onChangeText('2001-02-29');
+ tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='ENTER SYSTEM').props.onPress();await flush();
+ assert.equal((await h.db.loadSystemState()).onboardingComplete,false);assert.equal(ui.navigation.length,0);
+ tree=ui.render('screens/OnboardingScreen');assert.match(treeText(tree),/prawidłową datę/);
+ nodesOfType(tree,'TextInput')[1].props.onChangeText('2000-09-18');tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='ENTER SYSTEM').props.onPress();await flush();await flush();
+ const saved=await h.reload().loadSystemState();assert.equal(saved.onboardingComplete,true);assert.equal(saved.player.displayName,'TESTER');assert.equal(saved.player.birthDate,'2000-09-18');
+ assert.equal(ui.navigation[0],'/');assert.equal((await h.db.testerHealthCheck()).ok,true);
+ await h.db.completeVerifiedQuest(evidence);await h.db.completeVerifiedQuest(focusEvidence);const restored=await h.reload().loadSystemState();
+ assert.equal(restored.onboardingComplete,true);assert.equal(restored.player.birthDate,'2000-09-18');assert.equal(restored.player.totalRealXp,180);assert.equal(restored.player.realLevel,2);
+ const log=await h.db.loadSystemLog();assert.ok(log.some(e=>e.levelAfter>e.levelBefore));assert.ok(log.every(e=>!('birthDate' in e)));
+});
+test('birth date edits reject invalid/future input without changing rewards; legacy profile remains valid',async t=>{
+ const h=databaseHarness(t,{now:new Date(2026,8,18,10).getTime()});await h.db.loadSystemState();await h.db.finishOnboarding('OLD PLAYER');await h.db.completeVerifiedQuest(evidence);
+ const original=(await h.db.loadSystemState()).player;assert.equal(original.birthDate,undefined);
+ await assert.rejects(h.db.updateIdentity({birthDate:'3000-01-01'}));await assert.rejects(h.db.updateIdentity({birthDate:'2000-13-01'}));
+ const updated=await h.db.updateIdentity({birthDate:'2000-01-01'});assert.equal(updated.player.totalRealXp,original.totalRealXp);assert.equal(updated.player.stats.VIT.totalXp,80);
+ const replay=await h.db.finishOnboarding('CHANGED','1990-01-01');assert.equal(replay.player.displayName,'OLD PLAYER');assert.equal(replay.player.birthDate,'2000-01-01');
+});
+test('gameplay gate mounts children only for ready onboarded player',()=>{
+ const ctx={ready:false,onboardingComplete:false};const ui=integrationUI(ctx);const Gate=ui.load('components/GameplayGate').default;
+ assert.equal(Gate({children:'GAMEPLAY'}),null);ctx.ready=true;assert.equal(Gate({children:'GAMEPLAY'}),null);ctx.onboardingComplete=true;assert.equal(treeText(Gate({children:'GAMEPLAY'})),'GAMEPLAY');ctx.ready=false;assert.equal(Gate({children:'GAMEPLAY'}),null);
+});
+test('Character renders canonical name, birth date age and earned stats',()=>{
+ const core=loader({})('core/progression'),player=core.addSkillXp(core.createNewPlayer('REAL TESTER'),'WIL',70);player.birthDate='2000-01-01';
+ const ui=integrationUI({player,titles:['UNAWAKENED'],updateIdentity:async()=>{}});const tree=ui.render('screens/CharacterScreen');
+ assert.match(treeText(tree),/REAL TESTER/);assert.match(treeText(tree),new RegExp('WIEK '+loader({})('identity/age').calculateAge(player.birthDate)));assert.match(treeText(tree),/70 \/ 117 XP/);
+});
+test('Settings hides destructive reset in production and preserves confirmation in development',()=>{
+ const player=loader({})('core/progression').createNewPlayer(),ctx={player,settings:{audio:false,haptics:true},saveSettings:async()=>{},resetData:async()=>{}};
+ const prod=integrationUI(ctx,{__DEV__:false}),dev=integrationUI(ctx,{__DEV__:true});
+ assert.ok(!findButtons(prod.render('screens/SettingsScreen')).some(b=>treeText(b)==='RESET SYSTEM DATA // DEVELOPMENT'));
+ const tree=dev.render('screens/SettingsScreen');findButtons(tree).find(b=>treeText(b)==='RESET SYSTEM DATA // DEVELOPMENT').props.onPress();
+ assert.equal(nodesOfType(dev.render('screens/SettingsScreen'),'Modal')[0].props.visible,true);
+});
+test('quest list shows persisted FAILED, offers retry and de-duplicates Daily cards',async t=>{
+ const h=await dailyHarness(t),s=await h.db.loadSystemState(),id=s.daily.questIds[0];
+ await h.db.beginQuestAttempt(id,'ui-failed');h.clock.now+=10000;await h.db.endQuestAttempt('ui-failed','INTERRUPTED','BACKGROUND',10,0);
+ const state=await h.db.loadSystemState();assert.ok(state.failedQuestIds.includes(id));
+ const ctx={...state,activeQuestId:null,daily:{...state.daily,questIds:[...state.daily.questIds,id]},refreshPlayer:async()=>{}};
+ const ui=uiHarness(ctx),tree=ui.load('screens/QuestsScreen').default();assert.match(treeText(tree),/FAILED/);
+ const q=h.load('quests/catalog').getQuest(id);assert.equal(findButtons(tree).filter(b=>treeText(b).includes(q.description)).length,1);
+ assert.equal(await h.db.getQuestAccess(id),'AVAILABLE');
+});
+test('Android config has correct identity and foreground-only location plugin',()=>{
+ const config=JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8')).expo;
+ assert.equal(config.name,'SYSTEM');assert.equal(config.android.package,'com.system2.app');assert.ok(config.android.versionCode>=1);
+ const location=config.plugins.find(p=>Array.isArray(p)&&p[0]==='expo-location')[1];assert.equal(location.isAndroidBackgroundLocationEnabled,false);assert.equal(location.isAndroidForegroundServiceEnabled,false);
+ assert.ok(config.android.permissions.includes('android.permission.ACCESS_FINE_LOCATION'));assert.ok(!config.android.permissions.includes('android.permission.ACCESS_BACKGROUND_LOCATION'));
+});
+
+
+function providerUI(db,dev=false) {
+ const slots=[],pending=[],cleanups=[],clock={now:Date.now(),intervals:new Map()};let cursor=0,value;
+ const same=(a,b)=>a&&b&&a.length===b.length&&a.every((v,i)=>v===b[i]);
+ const react={
+  createContext:()=>({Provider:props=>{value=props.value;return props.children;}}),useContext:()=>value,
+  useState(initial){const i=cursor++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return [slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v;}];},
+  useRef(initial){const i=cursor++;return slots[i]??(slots[i]={current:initial});},
+  useCallback(fn,deps){const i=cursor++;if(!slots[i]||!same(slots[i].deps,deps))slots[i]={deps,fn};return slots[i].fn;},
+  useEffect(fn,deps){const i=cursor++;if(!slots[i]||!same(slots[i],deps)){slots[i]=deps;pending.push(fn);}},
+ };
+ const jsx=(type,props)=>typeof type==='function'?type(props):({type,props});
+ const load=loader({react,'react/jsx-runtime':{jsx,jsxs:jsx},__DEV__:dev,
+  'react-native':{AppState:{addEventListener:()=>({remove(){}}),currentState:'active'}},
+  '../storage/database':db,
+  '../identity/audio':{configureAudio(){},playFeedback(){},rewardSound(){},stopAudio(){}},
+  '../identity/feedback':{configureHaptics(){}},
+  '../identity/avatar':{removeAllAvatars(){}},
+  '../notifications/service':{syncReminders:async()=>{}},
+ },clock);
+ const Provider=load('state/SystemProvider').SystemProvider;
+ return {render(){cursor=0;Provider({children:null});for(const fn of pending.splice(0)){const cleanup=fn();if(cleanup)cleanups.push(cleanup);}return value;},close(){for(const fn of cleanups)fn();}};
+}
+function startupFixture(){const player=loader({})('core').createNewPlayer('RETURNING');return {player,completedQuestIds:[],daily:null,story:null,onboardingComplete:true,awakeningCompleted:false,awakeningPending:false,worldUnlocked:false,settings:{haptics:true,audio:false},titles:['UNAWAKENED']};}
+test('SystemProvider gates startup on health and blocks production reset',async()=>{
+ const state=startupFixture();let healthy=false,resetCalls=0;
+ const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>state,testerHealthCheck:async()=>({ok:healthy,issues:healthy?[]:[{code:'PLAYER_INVALID'}]}),resetSystemData:async()=>{resetCalls++;}};
+ const h=providerUI(db);try {
+  assert.equal(h.render().ready,false);await flush();let ctx=h.render();assert.equal(ctx.ready,false);assert.match(ctx.error,/PLAYER_INVALID/);
+  healthy=true;await ctx.refreshPlayer();ctx=h.render();assert.equal(ctx.ready,true);assert.equal(ctx.onboardingComplete,true);assert.equal(ctx.player.id,state.player.id);
+  await assert.rejects(ctx.resetData(true));assert.equal(resetCalls,0);
+ }finally{h.close();}
+});
+test('SystemProvider late refresh cannot overwrite committed reward',async()=>{
+ const state=startupFixture();let release;
+ const rewarded={...state,player:loader({})('core').addRealXp(state.player,100),awarded:true};
+ const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>state,testerHealthCheck:async()=>({ok:true,issues:[]}),completeVerifiedQuest:async()=>rewarded};
+ const h=providerUI(db);try {
+  h.render();await flush();let ctx=h.render();assert.equal(ctx.ready,true);
+  db.loadSystemState=()=>new Promise(resolve=>{release=resolve;});const stale=ctx.refreshPlayer();await flush();
+  await ctx.completeVerifiedQuest(evidence);ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
+  release(state);await stale;ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
+ }finally{h.close();}
 });

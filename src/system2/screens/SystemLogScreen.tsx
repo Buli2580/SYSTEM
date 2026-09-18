@@ -21,11 +21,13 @@ export default function SystemLogScreen() {
   }, []);
   useFocusEffect(useCallback(() => { void load(); return () => { request.current++; }; }, [load]));
   return <SystemPage title="SYSTEM LOG" subtitle="OSTATNIE 50 ACTIVITY EVENTS">
+    <Action label="CHRONICLE →" onPress={() => router.push('/story')} />
     <Action label="← POSTAĆ" onPress={() => router.replace('/character')} />
     {error ? <SystemError message={error} retry={() => { void load(); }} /> : loading ? <Text style={s.body}>ODCZYTYWANIE…</Text> : events.length === 0 ? <Text style={s.body}>Twoja historia zacznie się od pierwszej zweryfikowanej aktywności.</Text> : events.map(event => <View key={event.id} style={s.panel}>
       <Text style={s.title}>{activityName(event.questId)}</Text><Text style={s.body}>{new Date(event.createdAt).toLocaleString()}</Text>
       <Text style={s.label}>{event.verificationType} // {event.activity?.verdict ?? 'VERIFIED'}</Text><Text style={s.body}>+{event.realXpAwarded} REAL XP · +{event.gameEnergyAwarded} ENERGY</Text>
       <Text style={s.body}>{Object.entries(event.skillXpAwarded).map(([key, xp]) => `+${xp} ${key} XP`).join(' · ')}</Text>
+      {event.levelBefore !== undefined && event.levelAfter !== undefined && event.levelAfter > event.levelBefore && <Text style={s.label}>LEVEL UP · {event.levelBefore} → {event.levelAfter}</Text>}
       {event.activity && <Text style={s.body}>VERIFICATION · {event.activity.activityTypeDetected} · {event.activity.verdict} · {event.activity.verificationScore}/100 · {event.activity.sensorSources.join(' + ')}</Text>}
       {event.distanceMeters !== undefined && <Text style={s.body}>{Math.round(event.distanceMeters)} M</Text>}
       {event.durationSeconds !== undefined && <Text style={s.body}>{Math.floor(event.durationSeconds / 60)} MIN {Math.floor(event.durationSeconds % 60)} SEC</Text>}

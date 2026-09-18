@@ -1,3 +1,4 @@
+import { calculateAge } from '../identity/age';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { normalizePlayer, SKILL_KEYS } from '../core/progression';
 import { getQuest } from '../quests/catalog';
@@ -22,6 +23,7 @@ export async function inspectLocalHealth(db: SQLiteDatabase): Promise<LocalHealt
     const raw = JSON.parse(state.get('player')!);
     const normalized = normalizePlayer(raw);
     player = raw;
+    if (raw.birthDate !== undefined && calculateAge(raw.birthDate) === null) add('BIRTH_DATE_INVALID');
     if (!raw.id.trim() || !raw.displayName.trim() || !Number.isFinite(Date.parse(raw.updatedAt))) add('PLAYER_IDENTITY');
     if (['realLevel','realXp','realXpToNextLevel','rank','avatarEvolution'].some(key => raw[key] !== normalized[key as keyof typeof normalized])) add('PLAYER_PROGRESSION');
     if (SKILL_KEYS.some(key => JSON.stringify(raw.stats[key]) !== JSON.stringify(normalized.stats[key]))) add('PLAYER_STATS');
