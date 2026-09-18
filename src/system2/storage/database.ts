@@ -1,4 +1,7 @@
-import { completeQuest } from '../core/questEngine';
+import { createQuestCompletion } from '../application/completeQuest';
+import { localQuestVerification } from '../verification/localProvider';
+import { questAvailability } from '../quests/availability';
+import { completionRepositories } from './completionRepositories';
 import { reconcileStory, completeStoryActivity, bossAccess, storyEvent } from './story';
 import { BOSS_ID, attemptKind } from '../story/catalog';
 import type { StoryState, StoryEvent, QuestAttempt, AttemptResult, AttemptReason } from '../story/types';
@@ -19,11 +22,11 @@ import {
   createNewPlayer,
   type PlayerProfile, type VerifiedEvent,
 } from '../core';
-import { validateQuestEvidence, getQuestStatus, prerequisitesCompleted } from '../quests/catalog';
+import { getQuestStatus, prerequisitesCompleted } from '../quests/catalog';
 import type { QuestEvidence } from '../quests/types';
 import { awardAwakeningIfEligible } from './chapter';
 
-export type CompleteQuestInput = QuestEvidence;
+export type CompleteQuestInput = QuestEvidence & { operationKey?: string };
 export type SystemSnapshot = {
   story: StoryState | null;
   daily: DailyState | null;
@@ -113,11 +116,9 @@ export function getQuestAccess(questId: string): Promise<ReturnType<typeof getQu
     await db.withExclusiveTransactionAsync(async txn => {
       await txn.runAsync('UPDATE app_state SET value=value WHERE key=?', 'player');
       const snapshot = await snapshotInTransaction(txn);
-      access = getQuestStatus(questId, snapshot.completedQuestIds);
-      if (getQuest(questId)?.category === 'BOSS' && access !== 'COMPLETED' && !await bossAccess(txn,questId)) access = 'LOCKED';
-      if (getQuest(questId)?.category === 'DAILY' && access !== 'COMPLETED') {
-        if (!snapshot.daily || snapshot.daily.clockAnomaly || !snapshot.daily.questIds.includes(questId)) access = 'LOCKED';
-      }
+      const resolved = questAvailability(questId, { completedQuestIds: snapshot.completedQuestIds, daily: snapshot.daily,
+        bossAccessible: getQuest(questId)?.category === 'BOSS' ? await bossAccess(txn, questId) : false });
+      access = resolved.status === 'FAILED' ? 'AVAILABLE' : resolved.status;
     });
     return access;
   });
@@ -166,52 +167,40 @@ export function worldTransaction<T>(task: (txn: SQLite.SQLiteDatabase, player: P
   });
 }
 
-export function completeVerifiedQuest(input: CompleteQuestInput): Promise<CompleteQuestResult> {
-  // Snapshot caller data before entering the queue. Rewards come only from the quest definition.
-  const evidence: CompleteQuestInput = JSON.parse(JSON.stringify(input));
-  return serialized(async () => {
-    const quest = validateQuestEvidence(evidence);
+// Compatibility facade: Provider/UI continue to call the same API.
+const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
+  run: work => serialized(async () => {
     await initSystemDatabase();
     const db = await getDatabase();
-    let result: CompleteQuestResult | undefined;
+    let result: Awaited<ReturnType<typeof work>>;
     await db.withExclusiveTransactionAsync(async txn => {
-      const now = new Date().toISOString();
-      // First statement takes the write lock BEFORE reading the current profile.
-      const claim = await txn.runAsync(
-        'INSERT INTO quest_completions (quest_id, completed_at) VALUES (?, ?) ON CONFLICT(quest_id) DO NOTHING',
-        quest.id, now
-      );
-      let player = await readPlayer(txn);
-      if (claim.changes === 0) {
-        result = { awarded: false, ...await snapshotInTransaction(txn) };
-        return;
-      }
-      if (!prerequisitesCompleted(quest, await completedQuestIds(txn))) {
-        throw new Error('Ta misja jest zablokowana. Ukończ poprzednie questy Awakening.');
-      }
-      if (quest.category === 'BOSS' && !await bossAccess(txn,quest.id)) throw new Error('Ten etap Bossa jest zablokowany.');
-      if (quest.category === 'DAILY') {
-        const snapshot = await snapshotInTransaction(txn);
-        await ensureDailyAccess(txn, player, quest.id, snapshot.awakeningCompleted, snapshot.settings.activities ?? DEFAULT_ACTIVITIES);
-        player = await readPlayer(txn);
-      }
-      const completion = completeQuest(player, evidence, 'ACTIVE', now);
-      let next = completion.player;
-      const event = completion.event;
-      next = await completeStoryActivity(txn,next,quest,evidence);
-      next = await awardProtocols(txn, next, quest.id, now);
-      await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(next), 'player');
-      await txn.runAsync(
-        'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
-        event.id, quest.id, JSON.stringify(event), now
-      );
-      const snapshot = await snapshotInTransaction(txn);
-      result = { awarded: true, ...snapshot, receipt: rewardReceipt(event.id, player, snapshot.player,
-        snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
+      // Lock before reads; uniqueness on completion/event remains the final duplicate guard.
+      await txn.runAsync('UPDATE app_state SET value = value WHERE key = ?', 'player');
+      result = await work(completionRepositories(txn, () => readPlayer(txn), async id => {
+        const quest = getQuest(id);
+        const ids = await completedQuestIds(txn);
+        const daily = quest?.category === 'DAILY' ? (await snapshotInTransaction(txn)).daily : null;
+        return questAvailability(id, { completedQuestIds: ids, daily,
+          bossAccessible: quest?.category === 'BOSS' ? await bossAccess(txn, id) : false });
+      }, {
+        async apply(player, quest, evidence, now) {
+          return awardProtocols(txn, await completeStoryActivity(txn, player, quest, evidence), quest.id, now);
+        },
+        async result(awarded, before, event) {
+          const snapshot = await snapshotInTransaction(txn);
+          return { awarded, ...snapshot, ...(event ? { receipt: rewardReceipt(event.id, before, snapshot.player,
+            snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) } : {}) };
+        },
+      }));
     });
-    if (!result) throw new Error('Nie udało się potwierdzić zapisu misji.');
-    return result;
-  });
+    return result!;
+  }),
+}, localQuestVerification, () => new Date().toISOString());
+
+export async function completeVerifiedQuest(input: CompleteQuestInput): Promise<CompleteQuestResult> {
+  const result = await completeQuestUseCase({ evidence: input, operationKey: input.operationKey });
+  if ('value' in result) return result.value;
+  throw new Error(result.reason);
 }
 
 export function loadSystemState(): Promise<SystemSnapshot> {
