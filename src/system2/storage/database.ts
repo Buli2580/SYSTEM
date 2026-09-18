@@ -1,3 +1,7 @@
+import { reconcileStory, completeStoryActivity, bossAccess, storyEvent } from './story';
+import { BOSS_ID, attemptKind } from '../story/catalog';
+import type { StoryState, StoryEvent, QuestAttempt, AttemptResult, AttemptReason } from '../story/types';
+import { dayKey } from '../daily/calendar';
 import { classifyActivity } from '../activity/classifier';
 import type { ActivityEvidence } from '../activity/types';
 import { dailyState, ensureDailyAccess, awardProtocols, currentStreak, type DailyState } from './daily';
@@ -20,6 +24,7 @@ import { awardAwakeningIfEligible } from './chapter';
 
 export type CompleteQuestInput = QuestEvidence;
 export type SystemSnapshot = {
+  story: StoryState | null;
   daily: DailyState | null;
   player: PlayerProfile;
   completedQuestIds: string[];
@@ -64,6 +69,9 @@ export async function initSystemDatabase() {
     initializationPromise = (async () => {
       const db = await getDatabase();
       await migrateDatabase(db);
+      await db.withExclusiveTransactionAsync(async txn => {
+        await txn.runAsync("UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL",new Date(Date.now()).toISOString());
+      });
     })().catch(error => {
       initializationPromise = null;
       throw error;
@@ -105,6 +113,7 @@ export function getQuestAccess(questId: string): Promise<ReturnType<typeof getQu
       await txn.runAsync('UPDATE app_state SET value=value WHERE key=?', 'player');
       const snapshot = await snapshotInTransaction(txn);
       access = getQuestStatus(questId, snapshot.completedQuestIds);
+      if (getQuest(questId)?.category === 'BOSS' && access !== 'COMPLETED' && !await bossAccess(txn,questId)) access = 'LOCKED';
       if (getQuest(questId)?.category === 'DAILY' && access !== 'COMPLETED') {
         if (!snapshot.daily || snapshot.daily.clockAnomaly || !snapshot.daily.questIds.includes(questId)) access = 'LOCKED';
       }
@@ -122,13 +131,15 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const onboarding = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'onboarding_complete');
   const settings = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'settings');
   const signal = await db.getFirstAsync('SELECT id FROM verified_events WHERE id = ?', 'first_world_signal_v1');
-  const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal));
+  const reconciled = await reconcileStory(db, chapter.player, ids);
+  chapter.player = reconciled.player;
+  const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
   const selected = titles.includes(chapter.player.currentTitle as Title) ? chapter.player.currentTitle : titles[titles.length - 1];
   const preferences = parseSettings(settings?.value);
   const daily = await dailyState(db, chapter.player, chapter.awakeningCompleted, preferences.activities ?? DEFAULT_ACTIVITIES);
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
   return {
-    daily,
+    daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
     completedQuestIds: ids, worldUnlocked: chapter.awakeningCompleted,
@@ -148,6 +159,7 @@ export function worldTransaction<T>(task: (txn: SQLite.SQLiteDatabase, player: P
       const snapshot = await snapshotInTransaction(txn);
       if (!snapshot.worldUnlocked) throw new Error('Complete Awakening to unlock SYSTEM WORLD.');
       result = await task(txn, snapshot.player);
+      await reconcileStory(txn, await readPlayer(txn), await completedQuestIds(txn));
     });
     return result!;
   });
@@ -168,7 +180,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         'INSERT INTO quest_completions (quest_id, completed_at) VALUES (?, ?) ON CONFLICT(quest_id) DO NOTHING',
         quest.id, now
       );
-      const player = await readPlayer(txn);
+      let player = await readPlayer(txn);
       if (claim.changes === 0) {
         result = { awarded: false, ...await snapshotInTransaction(txn) };
         return;
@@ -176,9 +188,11 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
       if (!prerequisitesCompleted(quest, await completedQuestIds(txn))) {
         throw new Error('Ta misja jest zablokowana. Ukończ poprzednie questy Awakening.');
       }
+      if (quest.category === 'BOSS' && !await bossAccess(txn,quest.id)) throw new Error('Ten etap Bossa jest zablokowany.');
       if (quest.category === 'DAILY') {
         const snapshot = await snapshotInTransaction(txn);
         await ensureDailyAccess(txn, player, quest.id, snapshot.awakeningCompleted, snapshot.settings.activities ?? DEFAULT_ACTIVITIES);
+        player = await readPlayer(txn);
       }
       let next = addRealXp(player, quest.rewards.realXp);
       for (const [key, xp] of Object.entries(quest.rewards.skillXp ?? {})) {
@@ -202,6 +216,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         gameEnergyAwarded: quest.rewards.gameEnergy ?? 0,
         distanceMeters: evidence.distanceMeters, durationSeconds: evidence.durationSeconds,
       };
+      next = await completeStoryActivity(txn,next,quest,evidence);
       next = await awardProtocols(txn, next, quest.id, now);
       await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(next), 'player');
       await txn.runAsync(
@@ -305,7 +320,7 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -345,5 +360,38 @@ export function recordActivityAttempt(questId: string, evidence: ActivityEvidenc
    const event: VerifiedEvent = { id, playerId: snapshot.player.id, questId, createdAt: now, verificationType: 'GPS_DISTANCE',
      verificationScore: activity.verificationScore, verified: false, realXpAwarded: 0, skillXpAwarded: {}, gameEnergyAwarded: 0, activity };
    await txn.runAsync('INSERT INTO verified_events(id,quest_id,payload,created_at) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload, created_at=excluded.created_at', id, questId, JSON.stringify(event), now);
+ });
+}
+
+export function beginQuestAttempt(questId:string, attemptId:string) {
+ return profileTransaction(async txn=>{
+   const snapshot=await snapshotInTransaction(txn), quest=getQuest(questId);
+   if(!quest||snapshot.completedQuestIds.includes(questId)||!prerequisitesCompleted(quest,snapshot.completedQuestIds)) throw new Error('Misja nie jest dostępna.');
+   if(quest.category==='DAILY') await ensureDailyAccess(txn,snapshot.player,questId,snapshot.awakeningCompleted,snapshot.settings.activities??DEFAULT_ACTIVITIES);
+   if(quest.category==='BOSS'&&!await bossAccess(txn,questId)) throw new Error('Etap Bossa jest zablokowany.');
+   const pending=await txn.getFirstAsync('SELECT attempt_id FROM quest_attempts WHERE result IS NULL LIMIT 1');
+   if(pending) throw new Error('Poprzednia próba jest nadal aktywna. Sprawdź jej zapis przed ponowieniem.');
+   await txn.runAsync('INSERT INTO quest_attempts(attempt_id,quest_id,kind,started_at) VALUES (?,?,?,?)',attemptId,questId,attemptKind(quest),new Date(Date.now()).toISOString());
+   return attemptId;
+ });
+}
+export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'COMPLETED'>,reason:AttemptReason,duration=0,distance=0) {
+ return profileTransaction(async txn=>{
+   if(!Number.isFinite(duration)||duration<0||!Number.isFinite(distance)||distance<0) throw new Error('Nieprawidłowe dane próby.');
+   const eligible=duration>0 && ((result==='INTERRUPTED'&&['BACKGROUND','LEFT_SCREEN'].includes(reason)) || (['FAILED','REJECTED'].includes(result)&&reason==='VERIFICATION_REJECTED'));
+   const changed=await txn.runAsync('UPDATE quest_attempts SET ended_at=?,result=?,reason=?,duration=?,distance=?,eligible=? WHERE attempt_id=? AND result IS NULL',new Date(Date.now()).toISOString(),result,reason,duration,distance,eligible?1:0,attemptId);
+   if(changed.changes&&eligible) await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
+ });
+}
+export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
+export function loadChronicle() { return profileTransaction(txn=>txn.getAllAsync<StoryEvent>("SELECT * FROM story_events WHERE type NOT IN ('REMATCH_AVAILABLE','REMATCH_COMPLETED') ORDER BY created_at DESC,id DESC LIMIT 50")); }
+export function consumeStoryEvent(id:string) { return profileTransaction(txn=>txn.runAsync('UPDATE story_events SET consumed=1 WHERE id=?',id)); }
+export function startBossProtocol() {
+ return profileTransaction(async txn=>{
+   const snapshot=await snapshotInTransaction(txn);
+   if(!snapshot.story.worldLinkComplete||snapshot.daily?.clockAnomaly) throw new Error('BOSS PROTOCOL jest zablokowany. Sprawdź WORLD LINK i datę telefonu.');
+   await txn.runAsync('INSERT INTO boss_progress(id,started_at,start_day) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING',BOSS_ID,new Date(Date.now()).toISOString(),dayKey());
+   await storyEvent(txn,'boss_started','BOSS_STARTED','THE FIRST WALL // BOSS STARTED');
+   return snapshotInTransaction(txn);
  });
 }

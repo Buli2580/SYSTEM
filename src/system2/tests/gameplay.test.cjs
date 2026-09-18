@@ -282,7 +282,7 @@ function screenHarness(t, options = {}) {
       },
     },
     '../state/SystemProvider': { useSystem: () => context },
-    '../storage/database': { getQuestAccess: async () => options.access ?? 'AVAILABLE', recordActivityAttempt: async () => {} },
+    '../storage/database': { getQuestAccess: async () => options.access ?? 'AVAILABLE', recordActivityAttempt: async () => {}, beginQuestAttempt: async (_quest,id) => id, endQuestAttempt: async () => {} },
   }, clock);
   const Screen = load('screens/QuestRunScreen').default;
   function render() {
@@ -751,7 +751,7 @@ function uiHarness(context = {}) {
     '../world/useWorldTracking': { useWorldTracking: () => ({ status: 'PAUSED', sectorIds: [], signal: null, fix: null }) },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: s => s } },
-    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ top: 24, bottom: 0 }) },
     'expo-router': { usePathname: () => '/', useRouter: () => ({ push: value => navigation.push(value), replace: value => navigation.push(value) }) },
     '../state/SystemProvider': { useSystem: () => context },
     '../components/SystemPage': { __esModule: true, default: 'SystemPage', pageStyles: {} },
@@ -933,7 +933,7 @@ test('world schema and reward events do not retain raw player GPS samples or hom
   const event = JSON.parse(h.sql.prepare('SELECT payload FROM verified_events WHERE id = ?').get(signal.id).payload);
   assert.equal(event.latitude, undefined); assert.equal(event.longitude, undefined);
   const tables = h.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(t => t.name);
-  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses'].sort());
+  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress'].sort());
 });
 function worldTrackingHarness(t, options = {}) {
   const load = loader({}); const { WorldTracking } = load('world/tracking');
@@ -1082,10 +1082,10 @@ test('legacy unversioned profile and verified history migrate without onboarding
   assert.equal(migrated.onboardingComplete, true); assert.equal(migrated.player.totalRealXp, 320);
   assert.equal(migrated.player.id, player.id); assert.equal(migrated.player.displayName, 'EXISTING');
   assert.ok(migrated.completedQuestIds.includes(evidence.questId));
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 4);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 5);
   assert.equal((await h.reload().loadSystemState()).player.totalRealXp, 320);
 });
-for (const version of [1, 2, 3]) test('schema version ' + version + ' upgrades to 4 preserving World and profile', async t => {
+for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrades to 5 preserving World and profile', async t => {
   const h = databaseHarness(t); const w = await unlockWorld(h); await w.discoverSector(worldFix()); await w.scanSignal(worldFix());
   const before = await h.db.loadSystemState(); h.sql.exec('PRAGMA user_version = ' + version);
   if (version < 3) h.sql.prepare("DELETE FROM app_state WHERE key = 'onboarding_complete'").run();
@@ -1093,7 +1093,7 @@ for (const version of [1, 2, 3]) test('schema version ' + version + ' upgrades t
   const after = await h.reload().loadSystemState();
   assert.equal(after.onboardingComplete, true); assert.equal(after.player.totalRealXp, before.player.totalRealXp);
   assert.equal(after.player.discoveredSectors, 1); assert.ok((await h.reloadWorld().loadWorld()).signal);
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 4);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 5);
 });
 test('failed migration rolls back version and retries; future schema is not downgraded', async t => {
   const h = databaseHarness(t); h.faults.commit = true;
@@ -1210,7 +1210,7 @@ test('reset failure rolls back existing user data and settings', async t => {
   h.faults.statement = 'DELETE FROM world_signals'; await assert.rejects(h.db.resetSystemData(true));
   const after = await h.db.loadSystemState(); assert.equal(after.player.totalRealXp, before.player.totalRealXp); assert.equal(after.worldUnlocked, true);
 });
-test('avatar copies to persistent app documents and cleanup never deletes gallery originals', () => {
+test('avatar copies to persistent app documents and cleanup never deletes gallery originals', async () => {
   const entries = new Set(['file:///gallery/original.png']);
   class Directory {
     constructor(...parts) { this.uri = parts.map(p => typeof p === 'string' ? p.replace(/\/$/, '') : p.uri.replace(/\/$/, '')).join('/') + '/'; }
@@ -1219,13 +1219,13 @@ test('avatar copies to persistent app documents and cleanup never deletes galler
   }
   class File {
     constructor(...parts) { this.uri = parts.map(p => typeof p === 'string' ? p : p.uri.replace(/\/$/, '')).join('/'); }
-    get exists() { return entries.has(this.uri); } copy(target) { assert.ok(this.exists); entries.add(target.uri); } delete() { entries.delete(this.uri); }
+    get exists() { return entries.has(this.uri); } async copy(target) { await flush(); assert.ok(this.exists); entries.add(target.uri); } delete() { entries.delete(this.uri); }
   }
   const avatar = loader({ 'expo-file-system': { Directory, File, Paths: { document: new Directory('file:///documents') } } })('identity/avatar');
-  const uri = avatar.persistAvatar('file:///gallery/original.png'); assert.ok(uri.startsWith('file:///documents/system2-avatars/')); assert.ok(entries.has(uri));
+  const uri = await avatar.persistAvatar('file:///gallery/original.png'); assert.ok(uri.startsWith('file:///documents/system2-avatars/')); assert.ok(entries.has(uri));
   avatar.removeOwnedAvatar('file:///gallery/original.png'); assert.ok(entries.has('file:///gallery/original.png'));
   avatar.removeOwnedAvatar(uri); assert.equal(entries.has(uri), false);
-  const again = avatar.persistAvatar('file:///gallery/original.png'); avatar.removeAllAvatars(); assert.equal(entries.has(again), false); assert.ok(entries.has('file:///gallery/original.png'));
+  const again = await avatar.persistAvatar('file:///gallery/original.png'); avatar.removeAllAvatars(); assert.equal(entries.has(again), false); assert.ok(entries.has('file:///gallery/original.png'));
 });
 
 // MVP 90: deterministic classifier, actual aggregation, protocol transactions and native-effect routing.
@@ -1416,7 +1416,7 @@ test('genuine v3 migration adds tables without resetting profile or onboarding',
  h.sql.exec('DROP TABLE daily_instances; DROP TABLE daily_sets; DROP TABLE protocol_bonuses; PRAGMA user_version=3;');
  const before=h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value;
  const state=await h.reload().loadSystemState();assert.equal(state.player.displayName,'BETA');assert.equal(state.onboardingComplete,true);
- assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,4);
+ assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,5);
 });
 test('settings notification and preferences persist with backward compatible defaults',async t=>{
  const h=databaseHarness(t);await h.db.loadSystemState();await h.db.saveSettings({haptics:false,audio:true,activities:{walking:true,running:true,cycling:false},dailyReminder:true,reminderTime:'20:30'});
@@ -1452,4 +1452,168 @@ test('ambiguous run ends without XP, removes GPS and can retry',async t=>{
 test('repeatable daily timer verifies only full foreground duration and never starts GPS',async t=>{
  const h=screenHarness(t,{questId:'daily:2026-09-18:focus_session'});await flush();h.render();await h.button('ROZPOCZNIJ QUEST').props.onPress();h.render();
  h.advance(899);await flush();assert.equal(h.awards(),0);h.advance(1);await flush();assert.equal(h.awards(),1);assert.equal(h.starts(),0);
+});
+
+for (const source of ['content://gallery/image/42','file:///cache/camera.jpg']) test('avatar waits for actual native copy: '+source,async()=>{
+ const gate=deferred(), entries=new Set([source]);let destination;
+ class Directory { constructor(...parts){this.uri=parts.map(p=>typeof p==='string'?p.replace(/\/$/,''):p.uri.replace(/\/$/,'')).join('/')+'/';} create(){} }
+ class File {
+  constructor(...parts){this.uri=parts.map(p=>typeof p==='string'?p:p.uri.replace(/\/$/,'')).join('/');}
+  get exists(){return entries.has(this.uri);}
+  async copy(target){destination=target.uri;await gate.promise;entries.add(target.uri);}
+  delete(){entries.delete(this.uri);}
+ }
+ const mocks={'expo-file-system':{Directory,File,Paths:{document:new Directory('file:///documents')}}};
+ const avatar=loader(mocks)('identity/avatar');let published=false;
+ const pending=avatar.persistAvatar(source).then(uri=>{published=true;return uri;});await flush();
+ assert.equal(published,false);assert.equal(entries.has(destination),false);
+ gate.resolve();const uri=await pending;assert.ok(uri.startsWith('file:///documents/system2-avatars/'));assert.ok(entries.has(uri));assert.ok(entries.has(source));
+ // Module recreation must not remove or recopy a persisted image.
+ const reloaded=loader(mocks)('identity/avatar');assert.equal(reloaded.isOwnedAvatar(uri,'file:///documents/system2-avatars/'),true);assert.ok(entries.has(uri));
+});
+test('avatar native rejection preserves cause, removes partial destination, never deletes original',async()=>{
+ const entries=new Set(['content://gallery/original']);const nativeError=new Error('Native copy denied');let dest;
+ class Directory { constructor(...parts){this.uri=parts.map(p=>typeof p==='string'?p.replace(/\/$/,''):p.uri.replace(/\/$/,'')).join('/')+'/';}create(){} }
+ class File {constructor(...parts){this.uri=parts.map(p=>typeof p==='string'?p:p.uri.replace(/\/$/,'')).join('/');}get exists(){return entries.has(this.uri);}async copy(target){dest=target.uri;entries.add(dest);await flush();throw nativeError;}delete(){entries.delete(this.uri);}}
+ const avatar=loader({'expo-file-system':{Directory,File,Paths:{document:new Directory('file:///documents')}}})('identity/avatar');
+ await assert.rejects(avatar.persistAvatar('content://gallery/original'),error=>error.cause===nativeError);
+ assert.ok(entries.has('content://gallery/original'));assert.equal(entries.has(dest),false);
+});
+test('avatar ownership rejects outside files, traversal, encoded paths and unknown filenames',()=>{
+ const {isOwnedAvatar}=loader({'expo-file-system':{}})('identity/avatar');const dir='file:///documents/system2-avatars/';
+ assert.equal(isOwnedAvatar(dir+'avatar-123-abc.jpg',dir),true);
+ for(const uri of [undefined,'file:///gallery/avatar-123.jpg',dir+'../original.jpg',dir+'%2e%2e%2foriginal.jpg',dir+'nested/avatar-123.jpg',dir+'original.jpg',dir+'avatar-123.jpg?x=1','content://gallery/avatar-1.jpg']) assert.equal(isOwnedAvatar(uri,dir),false);
+});
+test('safe viewport encloses scroll content, excludes bottom inset handled by navigation',()=>{
+ const {load}=uiHarness({ready:true});const screen=load('components/SystemScreen').default({style:{flex:1},children:'content'});
+ assert.equal(screen.type,'SafeAreaView');assert.equal(JSON.stringify(screen.props.edges),JSON.stringify(['top','left','right']));
+ const page=load('components/SystemPage').default({title:'POSTAĆ',subtitle:'SYSTEM',children:'body'});
+ assert.equal(page.type,'SafeAreaView');
+ const scroll=page.props.children[0];assert.equal(scroll.props.contentContainerStyle[1].paddingTop,20);
+});
+
+const storyFix=(h,...args)=>({...worldFix(...args),timestamp:h.clock.now});
+async function worldLinkHarness(t) {
+ const h=await dailyHarness(t);const w=h.load('storage/world');
+ for(const id of (await h.db.loadSystemState()).daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ for(let n=0;n<3;n++) await w.discoverSector(storyFix(h,52+n*.002,19));
+ const signal=await w.scanSignal(storyFix(h,));await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
+ return h;
+}
+test('Story recognizes Chapter 1 and locks World Link before Awakening',async t=>{
+ const h=databaseHarness(t);let s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].status,'LOCKED');assert.equal(s.story.chapters[0].status,'AVAILABLE');
+ await unlockWorld(h);s=await h.db.loadSystemState();assert.equal(s.story.chapters[0].status,'COMPLETED');assert.equal(s.story.chapters[1].status,'AVAILABLE');
+ assert.equal(s.story.worldLinkComplete,false);assert.ok(!s.titles.includes('PATHFINDER'));
+ assert.equal(await h.db.getQuestAccess('wall_focus_v1'),'LOCKED');await assert.rejects(h.db.startBossProtocol());
+});
+test('World Link exact milestones, reward, title, event and Chronicle persist once',async t=>{
+ const h=await dailyHarness(t);const w=h.load('storage/world');
+ let s=await h.db.loadSystemState();const before=s.player.totalRealXp;
+ // Unrelated verified events cannot satisfy a milestone.
+ assert.equal(s.story.chapters[1].completed,0);
+ for(let n=0;n<3;n++) await w.discoverSector(storyFix(h,52+n*.002,19));
+ s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,1);assert.equal(s.player.totalRealXp,before);
+ const signal=await w.scanSignal(storyFix(h,));await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
+ s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,2);assert.ok(!s.titles.includes('PATHFINDER'));
+ for(const id of s.daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,3);assert.equal(s.story.worldLinkComplete,true);assert.ok(s.titles.includes('PATHFINDER'));
+ const xp=s.player.totalRealXp;await Promise.all(Array.from({length:5},()=>h.db.loadSystemState()));assert.equal((await h.reload().loadSystemState()).player.totalRealXp,xp);
+ const chronicle=await h.db.loadChronicle();assert.equal(chronicle.filter(e=>e.id==='world_link_chapter_2').length,1);assert.equal(chronicle.filter(e=>e.id==='title_pathfinder').length,1);
+ await h.db.consumeStoryEvent('world_link_chapter_2');assert.ok(!(await h.db.loadSystemState()).story.pendingEvents.some(e=>e.id==='world_link_chapter_2'));
+ assert.ok((await h.db.loadChronicle()).some(e=>e.id==='world_link_chapter_2'));
+ await h.db.updateIdentity({currentTitle:'PATHFINDER'});assert.equal((await h.reload().loadSystemState()).player.currentTitle,'PATHFINDER');
+});
+for(const failure of ['INSERT INTO story_progress','INSERT INTO story_events','COMMIT']) test('World Link reward rolls back with last milestone: '+failure,async t=>{
+ const h=await dailyHarness(t);const w=h.load('storage/world');for(let n=0;n<3;n++)await w.discoverSector(storyFix(h,52+n*.002,19));const signal=await w.scanSignal(storyFix(h,));await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
+ const ids=(await h.db.loadSystemState()).daily.questIds;for(const id of ids.slice(0,2))await h.db.completeVerifiedQuest(dailyEvidence(h,id));const before=await h.db.loadSystemState();
+ if(failure==='COMMIT')h.faults.commit=true;else h.faults.failWhen=(sql,params)=>sql.includes(failure)&&params[0]==='world_link_chapter_2';
+ await assert.rejects(h.db.completeVerifiedQuest(dailyEvidence(h,ids[2])));const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp,before.player.totalRealXp);assert.equal(after.daily.completed,2);assert.equal(after.story.worldLinkComplete,false);
+ await h.db.completeVerifiedQuest(dailyEvidence(h,ids[2]));assert.equal((await h.db.loadSystemState()).story.worldLinkComplete,true);
+});
+for(const [factor,qualifies] of [[1.24,false],[1.25,true]]) test('Extra Mile boundary '+factor,async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('walk_'));const e=dailyEvidence(h,id);e.distanceMeters*=factor;e.activity.features.distanceMeters=e.distanceMeters;
+ const before=await h.db.loadSystemState();await h.db.completeVerifiedQuest(e);let s=await h.db.loadSystemState();assert.equal(s.story.sideComplete,qualifies);assert.equal(s.player.stats.WIL.totalXp-before.player.stats.WIL.totalXp,qualifies?40:0);
+ const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest(e);assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
+});
+test('Hidden/Rematch require real prior failure; repeated interrupts do not stack',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('focus_')||id.includes('learn_')||id.includes('create')||id.includes('organize'));
+ for(let n=0;n<3;n++){await h.db.beginQuestAttempt(id,'fail-'+n);h.clock.now+=10000;await h.db.endQuestAttempt('fail-'+n,'INTERRUPTED','BACKGROUND',10,0);h.clock.now+=1000;}
+ let s=await h.db.loadSystemState();assert.ok(s.story.rematchQuestIds.includes(id));assert.equal(s.story.hiddenComplete,false);
+ await h.db.beginQuestAttempt(id,'success');const before=s.player;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});
+ s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,true);assert.ok(!s.story.rematchQuestIds.includes(id));
+ const base=h.load('quests/catalog').getQuest(id).rewards.skillXp.WIL??0;assert.equal(s.player.stats.WIL.totalXp-before.stats.WIL.totalXp,base+50+15);
+ const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
+ assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,1);
+});
+for(const reason of ['PERMISSION_DENIED','TECHNICAL_ERROR']) test('technical failure has no story rematch or hidden: '+reason,async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'technical');h.clock.now+=10000;await h.db.endQuestAttempt('technical','FAILED',reason,10,0);h.clock.now+=1000;
+ await h.db.beginQuestAttempt(id,'success');await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});const s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,false);assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,0);
+});
+test('no previous failure and failure after successful attempt start cannot trigger rewards',async t=>{
+ const h=await dailyHarness(t);const ids=(await h.db.loadSystemState()).daily.questIds;await h.db.beginQuestAttempt(ids[0],'ok');await h.db.completeVerifiedQuest({...dailyEvidence(h,ids[0]),attemptId:'ok'});assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
+ await h.db.beginQuestAttempt(ids[1],'in-progress');
+ h.sql.prepare('INSERT INTO quest_attempts(attempt_id,quest_id,kind,started_at,ended_at,result,eligible) VALUES (?,?,?,?,?,?,1)').run('late',ids[1],h.load('story/catalog').attemptKind(h.load('quests/catalog').getQuest(ids[1])),new Date(h.clock.now+1000).toISOString(),new Date(h.clock.now+2000).toISOString(),'INTERRUPTED');
+ h.clock.now+=3000;await h.db.completeVerifiedQuest({...dailyEvidence(h,ids[1]),attemptId:'in-progress'});assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
+});
+test('abandoned attempt recovery has no XP and does not fabricate Rematch',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];const before=(await h.db.loadSystemState()).player.totalRealXp;await h.db.beginQuestAttempt(id,'killed');const db=h.reload();const s=await db.loadSystemState();
+ assert.equal(s.player.totalRealXp,before);assert.equal((await db.listQuestAttempts())[0].result,'ABANDONED');assert.equal(s.story.rematchQuestIds.length,0);await db.beginQuestAttempt(id,'fresh');
+});
+test('Boss staged progression survives restart; requires future day and awards exactly once',async t=>{
+ const h=await worldLinkHarness(t);let s=await h.db.startBossProtocol();assert.ok(s.story.boss);assert.equal(await h.db.getQuestAccess('wall_walk_v1'),'LOCKED');
+ await assert.rejects(h.db.completeVerifiedQuest({questId:'wall_walk_v1',verificationType:'GPS_DISTANCE',durationSeconds:1000,distanceMeters:2000,verificationScore:87}));
+ await h.db.completeVerifiedQuest({questId:'wall_focus_v1',verificationType:'TIMER',durationSeconds:900,verificationScore:100});assert.equal(await h.db.getQuestAccess('wall_walk_v1'),'AVAILABLE');
+ const activity=classify('WALK',features({distanceMeters:2000,medianSpeedMps:1.5}));
+ await h.db.completeVerifiedQuest({questId:'wall_walk_v1',verificationType:'GPS_DISTANCE',durationSeconds:600,distanceMeters:2000,verificationScore:87,activity});
+ assert.equal(await h.db.getQuestAccess('wall_run_v1'),'LOCKED');s=await h.reload().loadSystemState();assert.ok(s.story.boss.move_at);assert.equal(s.story.boss.discipline_at,null);assert.equal(s.story.bossComplete,false);
+ h.clock.now+=86400000;s=await h.db.loadSystemState();const before=s.player;const id=s.daily.questIds[0];await h.db.completeVerifiedQuest(dailyEvidence(h,id));s=await h.db.loadSystemState();
+ assert.equal(s.story.bossComplete,true);assert.ok(s.titles.includes('WALLBREAKER'));assert.equal(s.player.totalRealXp-before.totalRealXp,500+h.load('quests/catalog').getQuest(id).rewards.realXp);
+ const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest(dailyEvidence(h,id));await h.db.startBossProtocol();assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
+ assert.equal((await h.db.loadChronicle()).filter(e=>e.type==='BOSS_DEFEATED').length,1);
+});
+test('Boss stage3 does not consume same-day or earlier completed Daily',async t=>{
+ const h=await worldLinkHarness(t);await h.db.startBossProtocol();
+ h.sql.prepare('UPDATE boss_progress SET focus_at=?,move_at=?').run(new Date(h.clock.now).toISOString(),new Date(h.clock.now).toISOString());
+ // Reset the test daily completion ONLY in the isolated fixture, never production.
+ const id=(await h.db.loadSystemState()).daily.questIds[0];h.sql.prepare('DELETE FROM quest_completions WHERE quest_id=?').run(id);h.sql.prepare('DELETE FROM verified_events WHERE id=?').run('quest_'+id);
+ await h.db.completeVerifiedQuest(dailyEvidence(h,id));assert.equal((await h.db.loadSystemState()).story.boss.discipline_at,null);
+});
+test('v4 migration preserves all existing data and recognizes old milestones without replaying base XP',async t=>{
+ const h=await worldLinkHarness(t);const before=await h.db.loadSystemState();
+ h.sql.exec('DROP TABLE quest_attempts; DROP TABLE story_events; DROP TABLE story_progress; DROP TABLE boss_progress; PRAGMA user_version=4;');
+ // Simulate v4: remove only new reward from profile and new chapter marker.
+ const player=JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value);player.totalRealXp-=400;player.stats.RES.totalXp-=100;player.gameEnergy-=25;
+ h.sql.prepare("UPDATE app_state SET value=? WHERE key='player'").run(JSON.stringify(player));h.sql.prepare('DELETE FROM chapter_completions WHERE chapter_id=?').run('world_link_chapter_2');
+ const migrated=await h.reload().loadSystemState();assert.equal(migrated.player.totalRealXp,before.player.totalRealXp);assert.equal(migrated.player.totalDistanceMeters,before.player.totalDistanceMeters);assert.equal(migrated.story.chapters[0].status,'COMPLETED');assert.equal(migrated.story.worldLinkComplete,true);
+ assert.equal((await h.reload().loadSystemState()).player.totalRealXp,before.player.totalRealXp);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,5);
+});
+
+test('Extra Mile and base daily roll back together when story event fails',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('walk_'));const e=dailyEvidence(h,id);e.distanceMeters*=1.25;e.activity.features.distanceMeters=e.distanceMeters;const before=await h.db.loadSystemState();
+ h.faults.failWhen=(sql,args)=>sql.includes('INSERT INTO story_events')&&args[0]==='extra_mile_v1';await assert.rejects(h.db.completeVerifiedQuest(e));const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp,before.player.totalRealXp);assert.equal(after.story.sideComplete,false);assert.equal(after.daily.completed,0);
+ await h.db.completeVerifiedQuest(e);assert.equal((await h.db.loadSystemState()).story.sideComplete,true);
+});
+test('Hidden reward and attempt completion roll back together and retry cannot duplicate',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'fail');h.clock.now+=10000;await h.db.endQuestAttempt('fail','FAILED','VERIFICATION_REJECTED',10);h.clock.now+=1000;await h.db.beginQuestAttempt(id,'success');const before=await h.db.loadSystemState();
+ h.faults.failWhen=(sql,args)=>sql.includes('INSERT INTO story_events')&&args[0]==='no_turning_back_v1';const e={...dailyEvidence(h,id),attemptId:'success'};await assert.rejects(h.db.completeVerifiedQuest(e));const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp,before.player.totalRealXp);assert.equal(after.story.hiddenComplete,false);assert.equal(h.sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get('success').result,null);
+ await h.db.completeVerifiedQuest(e);assert.equal((await h.db.loadSystemState()).story.hiddenComplete,true);
+});
+test('Boss final reward and Daily completion are one transaction on failure and retry',async t=>{
+ const h=await worldLinkHarness(t);await h.db.startBossProtocol();h.sql.prepare('UPDATE boss_progress SET focus_at=?,move_at=?').run(new Date(h.clock.now).toISOString(),new Date(h.clock.now).toISOString());h.clock.now+=86400000;
+ const s=await h.db.loadSystemState(),id=s.daily.questIds[0];h.faults.failWhen=(sql,args)=>sql.includes('INSERT INTO story_events')&&args[0]==='the_first_wall_v1';await assert.rejects(h.db.completeVerifiedQuest(dailyEvidence(h,id)));let after=await h.db.loadSystemState();assert.equal(after.story.bossComplete,false);assert.equal(after.story.boss.discipline_at,null);assert.equal(after.player.totalRealXp,s.player.totalRealXp);
+ await h.db.completeVerifiedQuest(dailyEvidence(h,id));after=await h.db.loadSystemState();assert.equal(after.story.bossComplete,true);assert.ok(after.titles.includes('WALLBREAKER'));
+});
+test('extended Daily keeps the shared GPS running past base target until 125 percent',async t=>{
+ const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();h.button('CEL ROZSZERZONY 125%').props.onPress();h.render();await h.button('ROZPOCZNIJ QUEST').props.onPress();h.fix(0);h.render();
+ for(let m=7;m<=1512;m+=7)h.fix(m);await flush();assert.equal(h.awards(),0);assert.equal(h.removals(),0);
+ for(let m=1519;m<=1890;m+=7)h.fix(m);await flush();assert.equal(h.awards(),1);assert.equal(h.removals(),1);
+});
+test('main objective follows real story and ends with unknown chapter, not fake content',()=>{
+ const select=loader({})('story/selectors').mainStoryObjective;
+ assert.equal(select(null,false).title,'PIERWSZE PRZEBUDZENIE');assert.equal(select(null,true).title,'WORLD LINK');
+ assert.equal(select({worldLinkComplete:true,bossComplete:false,boss:null},true).title,'THE FIRST WALL');assert.equal(select({worldLinkComplete:true,bossComplete:true},true).title,'STORY SIGNAL LOST');
+});
+test('same-day completed attempt cannot be forged from a terminal failure record',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'closed');await h.db.endQuestAttempt('closed','INTERRUPTED','BACKGROUND',10);
+ await assert.rejects(h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'closed'}));assert.equal((await h.db.loadSystemState()).daily.completed,0);
 });

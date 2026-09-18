@@ -1,0 +1,18 @@
+import type { QuestReward } from '../core';
+export type StoryKind = 'MAIN' | 'SIDE' | 'HIDDEN' | 'BOSS' | 'REMATCH';
+export type StoryQuestDefinition = { id: string; kind: StoryKind; title: string; reward: QuestReward; hidden: boolean };
+export type ChapterStatus = 'LOCKED' | 'AVAILABLE' | 'ACTIVE' | 'COMPLETED';
+export type Chapter = { id: string; arcId: string; number: number; title: string; description: string;
+ requirements: string[]; questIds: string[]; reward: QuestReward; unlockCondition: string | null };
+export type ChapterState = Chapter & { status: ChapterStatus; completed: number; total: number };
+export type Arc = { id: string; title: string; chapterIds: string[] };
+export type AttemptResult = 'COMPLETED' | 'INTERRUPTED' | 'FAILED' | 'SUSPICIOUS' | 'REJECTED' | 'ABANDONED';
+export type AttemptReason = 'BACKGROUND' | 'LEFT_SCREEN' | 'VERIFICATION_REJECTED' | 'LOW_CONFIDENCE' | 'PERMISSION_DENIED' | 'TECHNICAL_ERROR' | 'PROCESS_ENDED';
+export type QuestAttempt = { attempt_id: string; quest_id: string; kind: string; started_at: string; ended_at: string | null;
+ result: AttemptResult | null; duration: number; distance: number; reason: AttemptReason | null; eligible: number };
+export type StoryEventType = 'CHAPTER_UNLOCKED' | 'CHAPTER_COMPLETED' | 'HIDDEN_QUEST_DISCOVERED' | 'SIDE_QUEST_COMPLETED' | 'REMATCH_AVAILABLE' | 'REMATCH_COMPLETED' | 'BOSS_STARTED' | 'BOSS_STAGE_COMPLETED' | 'BOSS_DEFEATED' | 'TITLE_UNLOCKED' | 'FIRST_SIGNAL_LOCATED';
+export type StoryEvent = { id: string; type: StoryEventType; title: string; subtitle: string | null; created_at: string; consumed: number };
+export type BossProgress = { id: string; started_at: string; start_day: string; focus_at: string | null; move_at: string | null; discipline_at: string | null };
+export type StoryState = { chapters: ChapterState[]; milestones: { sectors: boolean; signal: boolean; dailyClear: boolean };
+ worldLinkComplete: boolean; bossComplete: boolean; boss: BossProgress | null; sideComplete: boolean; hiddenComplete: boolean;
+ pendingEvents: StoryEvent[]; rematchQuestIds: string[] };

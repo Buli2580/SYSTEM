@@ -90,7 +90,7 @@ export interface PlayerProfile {
   id: string;
 
   displayName: string;
-  currentTitle?: 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER';
+  currentTitle?: 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
 
   // RULE #1 — EQUAL ORIGIN
   // Każdy zaczyna dokładnie tak samo.

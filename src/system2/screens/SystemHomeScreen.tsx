@@ -1,3 +1,5 @@
+import { mainStoryObjective } from '../story/selectors';
+import SystemScreen from '../components/SystemScreen';
 import { DAILY_RULES } from '../daily/calendar';
 import RewardSummary from '../components/RewardSummary';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -284,7 +286,7 @@ function SectionTitle({
 
 export default function SystemHomeScreen() {
   const insets = useSafeAreaInsets();
-  const { lastReward, daily } = useSystem();
+  const { lastReward, daily, story } = useSystem();
   const router = useRouter();
 
   const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, error, refreshPlayer } = useSystem();
@@ -293,8 +295,9 @@ export default function SystemHomeScreen() {
     getPlayerProgressPercent(player) * 100;
 
   const awakening = getAwakeningProgress(completedQuestIds);
-  const mainQuestProgress = awakeningCompleted ? daily?.completed ?? 0 : awakening.completed;
-  const mainQuestPercent = awakeningCompleted ? (daily?.completed ?? 0) / DAILY_RULES.slots * 100 : awakening.percent;
+  const objective = mainStoryObjective(story,awakeningCompleted);
+  const mainQuestProgress = awakeningCompleted ? objective.completed : awakening.completed;
+  const mainQuestPercent = awakeningCompleted ? (objective.total ? objective.completed/objective.total*100 : 0) : awakening.percent;
 
   if (!ready) {
     return (
@@ -314,13 +317,13 @@ export default function SystemHomeScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <SystemScreen style={styles.root}>
       <SystemBackground />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={
-          [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 130 }]
+          [styles.content, { paddingTop: 20, paddingBottom: insets.bottom + 130 }]
         }
       >
         {/* HEADER */}
@@ -629,13 +632,13 @@ export default function SystemHomeScreen() {
                     styles.availableText
                   }
                 >
-                  {awakeningCompleted && daily?.clear ? 'COMPLETED' : 'AVAILABLE'}
+                  {story?.bossComplete ? 'SIGNAL LOST' : 'AVAILABLE'}
                 </Text>
               </View>
             </View>
 
             <Text style={styles.questTitle}>
-              {awakeningCompleted ? 'DAILY PROTOCOL' : 'PIERWSZE PRZEBUDZENIE'}
+              {objective.title}
             </Text>
 
             <Text
@@ -643,7 +646,7 @@ export default function SystemHomeScreen() {
                 styles.questDescription
               }
             >
-              {awakeningCompleted ? `Daily ${daily?.completed ?? 0}/3 · Weekly ${Math.min(5, daily?.weeklyCompleted ?? 0)}/5 · World ${player.discoveredSectors} sektorów. Otwórz QUESTY, aby rozpocząć kolejną misję.` : 'Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.'}
+              {awakeningCompleted ? `${objective.subtitle} Daily ${daily?.completed ?? 0}/3 · Weekly ${Math.min(5,daily?.weeklyCompleted ?? 0)}/5` : 'Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.'}
             </Text>
 
             <View style={styles.questStats}>
@@ -661,7 +664,7 @@ export default function SystemHomeScreen() {
                     styles.questStatValue
                   }
                 >
-                  {mainQuestProgress} / {awakeningCompleted ? DAILY_RULES.slots : awakening.total}
+                  {mainQuestProgress} / {awakeningCompleted ? objective.total : awakening.total}
                 </Text>
               </View>
 
@@ -679,7 +682,7 @@ export default function SystemHomeScreen() {
                     styles.questReward
                   }
                 >
-                  +{awakeningCompleted ? DAILY_RULES.clearXp : AWAKENING_REWARD_XP} REAL XP
+                  +{awakeningCompleted ? objective.reward : AWAKENING_REWARD_XP} REAL XP
                 </Text>
               </View>
 
@@ -720,7 +723,7 @@ export default function SystemHomeScreen() {
               />
             </View>
 
-            {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/quests')}><Text style={styles.startQuestText}>OTWÓRZ DAILY / WEEKLY →</Text></Pressable>}
+            {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/story')}><Text style={styles.startQuestText}>STORY / CHRONICLE →</Text></Pressable>}
             {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
               <Pressable key={quest.id} style={styles.startQuestButton}
                 disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
@@ -794,7 +797,7 @@ export default function SystemHomeScreen() {
       </ScrollView>
 
       <BottomNavigation />
-    </View>
+    </SystemScreen>
   );
 }
 

@@ -1,3 +1,4 @@
+import { BOSS_QUESTS } from '../story/catalog';
 import { dailyQuest } from '../daily/templates';
 import { classifyActivity } from '../activity/classifier';
 import { supportsStrength, phoneProvider } from '../activity/capabilities';
@@ -8,13 +9,13 @@ import type { RunnableQuest, QuestEvidence, QuestAvailability } from './types';
 
 export const AWAKENING_CHAPTER_ID = 'awakening_chapter_1';
 export const AWAKENING_REWARD_XP = 300;
-export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PROTOCOL_QUEST, FINAL_TRIAL_QUEST];
+export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PROTOCOL_QUEST, FINAL_TRIAL_QUEST, ...BOSS_QUESTS];
 export const AWAKENING_QUESTS = QUESTS.filter(quest => quest.arc === 'AWAKENING' && quest.chapter === 1)
   .sort((a, b) => a.order - b.order);
 export function getQuest(id: string) { return QUESTS.find(quest => quest.id === id) ?? dailyQuest(id); }
 
 export function prerequisitesCompleted(quest: RunnableQuest, completedIds: readonly string[]) {
-  if (quest.category === 'DAILY') return AWAKENING_QUESTS.every(q => completedIds.includes(q.id));
+  if (quest.category === 'DAILY' || quest.category === 'BOSS') return AWAKENING_QUESTS.every(q => completedIds.includes(q.id));
   return QUESTS.filter(other => other.arc === quest.arc && other.chapter === quest.chapter && other.order < quest.order)
     .every(other => completedIds.includes(other.id));
 }

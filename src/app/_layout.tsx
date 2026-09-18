@@ -1,3 +1,4 @@
+import StoryNotice from '../system2/components/StoryNotice';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
@@ -23,6 +24,7 @@ export default function RootLayout() {
       />
       <AwakeningCelebration />
       <LevelUpCelebration />
+      <StoryNotice />
       <SessionGate />
     </SystemProvider></SystemBoundary>
   );

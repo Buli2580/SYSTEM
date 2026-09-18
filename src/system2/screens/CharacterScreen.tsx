@@ -21,7 +21,7 @@ export default function CharacterScreen() {
   useEffect(() => setName(player.displayName), [player.id, player.displayName]);
   async function run(task: () => Promise<void>) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
-    try { await task(); } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać tożsamości.'); }
+    try { await task(); } catch (cause) { if (__DEV__) console.error('[SYSTEM identity] Operation failed', cause); if (mounted.current) setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać tożsamości.'); }
     finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
   async function chooseAvatar(camera: boolean) {
@@ -32,7 +32,10 @@ export default function CharacterScreen() {
     const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8, exif: false, base64: false };
     const result = camera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !mounted.current) return;
-    const uri = persistAvatar(result.assets[0].uri);
+    const asset = result.assets[0];
+    if (!asset?.uri) throw new Error('Nie otrzymano obrazu z galerii lub aparatu.');
+    const uri = await persistAvatar(asset.uri);
+    if (!mounted.current) { removeOwnedAvatar(uri); return; }
     // Do not delete a newly copied image on an ambiguous SQLite timeout: the
     // commit may still finish. Full reset removes the app-owned avatar directory.
     await updateIdentity({ avatarUri: uri });

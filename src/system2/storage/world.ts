@@ -1,3 +1,4 @@
+import { reconcileStory } from './story';
 import { rewardReceipt } from '../core/rewards';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { LocationObject } from 'expo-location';
@@ -77,6 +78,8 @@ export function locateSignal(location: LocationObject, revision: number, active:
       await db.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(next), 'player');
     }
     await db.runAsync('UPDATE world_signals SET status = ?, located_at = ? WHERE id = ?', 'LOCATED', now, SIGNAL_ID);
+    const ids = await db.getAllAsync<{quest_id:string}>('SELECT quest_id FROM quest_completions');
+    next = (await reconcileStory(db,next,ids.map(r=>r.quest_id))).player;
     return { awarded: claim.changes === 1, receipt: claim.changes === 1 ? rewardReceipt(SIGNAL_ID, player, next, ['SIGNAL HUNTER']) : undefined, signal: { ...signal, status: 'LOCATED' as const } };
   });
 }

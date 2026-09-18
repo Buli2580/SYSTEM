@@ -300,3 +300,93 @@ Zmienione względem stanu zastanego (wcześniejsze zmiany MVP70/World zachowane)
 - `git diff --check`: PASS po usunięciu jednej końcowej spacji w nagłówku QuestRun; informacyjne LF/CRLF w zastanym progression.ts nie są błędem.
 - `git status`: zmiany niezacommitowane; aktualny etap dotyczy wyłącznie src/system2. Wcześniejsze pliki routingu/MVP70/World pozostają zachowane. Bez commita.
 - Fizyczne Android QA: **NIEWYKONANE**; checklista A–N powyżej jest obowiązkową bramką przed zamkniętą betą.
+
+
+## STORY ENGINE QA (2026-09-18)
+
+Status: implementacja gotowa do fizycznego Android QA; testy telefonu nie zostały wykonane. Bez commita, nowych bibliotek ani zmian natywnych. Wcześniejsze poprawki avatara i wspólnego Safe Area pozostają zachowane.
+
+### Architektura i reguły
+
+- ARC 01 AWAKENING zawiera CH01 FIRST AWAKENING oraz CH02 WORLD LINK. Chapter 3 jest wyłącznie UNKNOWN / LOCKED. Modele obejmują Main, Side, Hidden, Boss i Rematch; katalog i selektory są oddzielone od transakcji i UI. Dotychczasowy silnik GPS/TIMER obsługuje również Bossa.
+- Home pokazuje faktyczny główny cel: Awakening → World Link → The First Wall → STORY SIGNAL LOST. Story/Chronicle otwierają się z Home i Questów bez nowej zakładki dolnego menu.
+- WORLD LINK po Awakening: 3 różne sektory, pierwszy Signal fizycznie LOCATED, dowolny pełny Daily Clear. Każdy warunek jest trwały. Nagroda raz: +400 REAL XP, +100 RES XP, +25 ENERGY i dostępny tytuł PATHFINDER.
+- EXTRA MILE: nowa poprawnie VERIFIED aktywność ruchowa Daily osiąga >=125% bazowego dystansu. Nagroda raz +50 REAL XP / +40 WIL XP. Ponieważ standardowy GPS kończy się automatycznie przy 100%, przed zwykłym rozpoczęciem Daily można wybrać cel rozszerzony 125%. To ta sama sesja i watcher; bez osobnego startu Side Questa ani ręcznego ukończenia. Zwykłe 100% i first_movement pozostają bez zmian.
+- NO TURNING BACK: nowa pomyślna próba po wcześniejszej kwalifikowanej porażce/przerwaniu tego samego rodzaju. Nazwa ukryta do odkrycia. Nagroda raz +60 REAL XP / +50 WIL XP. Rodzaj to WALK/RUN/BIKE, a bez klasyfikacji typ weryfikacji (TIMER lub GPS_DISTANCE); różne timery mogą więc spełnić ten warunek.
+- QuestAttempt: id, questId, kind, startedAt, endedAt, result, duration, distance, reason, eligibility; brak surowej trasy. Rezultaty COMPLETED/INTERRUPTED/FAILED/SUSPICIOUS/REJECTED/ABANDONED. Pozostawione po zabiciu procesu próby przechodzą na ABANDONED przy inicjalizacji, bez nagrody i bez Rematch.
+- Rematch wymaga realnego przerwania aktywnej sesji (BACKGROUND/LEFT_SCREEN) lub odrzucenia weryfikacji, dodatniego czasu działania i zakończenia porażki przed rozpoczęciem nowej próby. Odmowa permission i techniczne błędy GPS/SQLite nie kwalifikują. BEGIN REMATCH uruchamia zwykłą próbę; +15 WIL XP raz dla konkretnej instancji questa. Kolejne porażki nie kumulują premii, nie odejmują XP i nie modyfikują streaka.
+- THE FIRST WALL po WORLD LINK: jawny start zapisuje lokalny dzień. Stage 1 TIMER 15 minut, Stage 2 WALK albo RUN 2 km, Stage 3 nowy ukończony Daily po Stage 2, w następnym lokalnym dniu od startu Bossa lub później. Pominięcie następnego dnia nie blokuje Bossa na stałe. Etapy trwają między sesjami; nagroda końcowa raz +500 REAL XP / +120 WIL XP / +80 VIT XP / +30 ENERGY, tytuł WALLBREAKER.
+- Chronicle przechowuje kamienie milowe StoryEvents oddzielnie od VerifiedEvents. System Log pokazuje próby osobno. Ostatnie 50 wpisów/prob jest ładowane dla UI, bez skanowania całej historii w renderze. Rematch Available/Completed pozostają w StoryEvents, ale są wyłączone z listy kamieni milowych Chronicle.
+- StoryNotice pokazuje krótki komunikat; durable consumed zapisywane przed pokazaniem chroni przed ponownym odtwarzaniem po starcie. Awaria między zapisem consumed a renderem może pominąć banner; sam wpis Chronicle i nagrody pozostają trwałe.
+
+### Migracja i atomowość
+
+SQLite schema **v5**, migracja addytywna: story_progress, quest_attempts, story_events, boss_progress oraz indeksy. Istniejące app_state/player, quest_completions, verified_events, chapter_completions, discovered_sectors, world_signals, daily_sets/daily_instances, protocol_bonuses pozostają zachowane, bez resetu profilu.
+
+Istniejące ukończone Awakening, odkryte sektory, LOCATED Signal i Daily Clear są odczytywane jako kamienie milowe. Nie trzeba ponownie odkrywać trzech sektorów. Spełniony już WORLD LINK może przyznać nową nagrodę rozdziału podczas pierwszego odczytu; nie odtwarza nagród bazowych wcześniejszych questów, Signal ani Daily Clear. Side/Hidden/Rematch wymagają nowych weryfikacji i nowych zapisów prób. Nie fabrykujemy dawnej historii porażek.
+
+Wspólna kolejka i exclusive SQLite transaction obejmują bazową nagrodę, profil, ukończenie questa, VerifiedEvent, ukończenie próby oraz powiązane nagrody i StoryEvents. WORLD LINK również rozlicza się w transakcji ostatniego kamienia milowego. Extra Mile, Hidden, Rematch i końcowy Boss korzystają z unikatowych markerów; failure/rollback nie pozostawia częściowego XP. Testy obejmują awarie zapisu markera, eventu i COMMIT oraz ponowną próbę. Tytuły są wyliczane z trwałych markerów i nie zmieniają automatycznie wybranego tytułu gracza.
+
+### Android QA — do wykonania na telefonie
+
+- [ ] Existing Awakening migration: zaktualizować istniejący profil, sprawdzić XP, avatar, sektory, Signal, Daily/Weekly i brak powtórnych starych nagród.
+- [ ] World Link: dostępny dopiero po Awakening; Home i Story zgodnie pokazują postęp 0–3.
+- [ ] Sector milestone: 3 unikalne sektory zaliczają raz; ponowne wejście do tego samego nie zwiększa licznika.
+- [ ] Signal milestone: dopiero fizyczne LOCATED, z zachowaniem dotychczasowych progów GPS.
+- [ ] Daily Clear milestone: pełny zestaw, a nie pojedynczy Daily; istniejący Clear rozpoznawany.
+- [ ] Chapter completion: 400/100 RES/25, PATHFINDER raz, odświeżenie i restart nie powielają.
+- [ ] Side Quest: standardowe 100% działa jak wcześniej; wybrać 125%, osiągnąć realny dystans, sprawdzić 50/40 WIL raz.
+- [ ] Failed quest: aktywny TIMER/GPS przerwać tłem lub wyjściem; permission dialog i błąd techniczny nie dają Rematch.
+- [ ] Rematch: BEGIN REMATCH, ta sama instancja, sukces i +15 WIL raz mimo kilku porażek.
+- [ ] Hidden Quest: wcześniejsza prawdziwa porażka → późniejszy sukces tego samego rodzaju, odkrycie i 60/50 WIL raz.
+- [ ] Boss Stage 1: start zapisany, 15 minut foreground; tło przerywa bieżącą próbę, nie kasuje wcześniejszych etapów.
+- [ ] Boss Stage 2: po focus WALK lub RUN 2 km, klasyfikacja rzeczywistego GPS, drugi wariant nie daje dodatkowego etapu.
+- [ ] Next-day Stage 3: ten sam dzień nie zalicza; nowy Daily po Stage 2 następnego dnia lub później zalicza.
+- [ ] Boss reward: 500/120 WIL/80 VIT/30, WALLBREAKER raz; Home kończy na UNKNOWN bez fikcyjnego Chapter 3.
+- [ ] Restart persistence: wyłączyć proces między etapami; ukończone etapy, Chronicle, tytuły zostają, otwarta próba ABANDONED.
+- [ ] Duplicate protection: szybkie podwójne tapnięcia/starty, refresh i restart nie powielają nagród ani bannerów.
+- [ ] Regresje: pierwszy GPS 500 m i permission dialog, focus/final trial, Daily/Weekly, World Signal, avatar, Safe Area, foreground cleanup oraz diagnostyka gps:true / steps:false / motion:false / watch:false.
+
+### Kontrole i ograniczenia
+
+173 testy regresji (wszystkie 151 wcześniejsze zachowane, 22 dodatkowe przypadki) przechodzą w kopii roboczej. Wyniki końcowych kontroli w C:\Users\Ja\SYSTEM podano poniżej po wdrożeniu plików.
+
+Zmiany są JavaScript/TypeScript/SQLite i routingiem, bez nowych modułów natywnych: **rebuild obecnego Development Build nie jest potrzebny**. Potrzebne przeładowanie aktualnego bundla; nowe /story trafia do generowanych typów Expo.
+
+Ograniczenia: brak fizycznego Android QA w tym środowisku, SQLite testowane adapterem testowym zamiast natywnej biblioteki telefonu; lokalny zegar/dzień bez serwera, istniejąca detekcja cofania czasu nie zastępuje autorytatywnego czasu; GPS-only nie rozróżnia niezawodnie wszystkich pojazdów; brak nowych sensorów, background tracking, Chapter 3, backendu i Health Connect. Historia prób nie odtwarza dawnych porażek. Kwalifikacja Hidden dotyczy rodzaju aktywności, Rematch konkretnej instancji (Daily innego dnia jest inną instancją).
+
+### Nowe pliki Story Engine
+
+- src/app/story.tsx
+- src/system2/components/StoryNotice.tsx
+- src/system2/screens/StoryScreen.tsx
+- src/system2/storage/story.ts
+- src/system2/story/catalog.ts
+- src/system2/story/selectors.ts
+- src/system2/story/types.ts
+
+### Zmienione pliki Story Engine
+
+- src/app/_layout.tsx
+- src/system2/core/types.ts
+- src/system2/identity/model.ts
+- src/system2/quests/catalog.ts
+- src/system2/quests/types.ts
+- src/system2/quests/useQuestRun.ts
+- src/system2/screens/QuestRunScreen.tsx
+- src/system2/screens/QuestsScreen.tsx
+- src/system2/screens/SystemHomeScreen.tsx
+- src/system2/screens/SystemLogScreen.tsx
+- src/system2/state/SystemProvider.tsx
+- src/system2/storage/database.ts
+- src/system2/storage/migrations.ts
+- src/system2/storage/world.ts
+- src/system2/tests/gameplay.test.cjs
+- src/system2/MVP_QA.md
+
+### Wyniki końcowe w docelowym repozytorium
+
+- TypeScript: PASS (exit 0), npx tsc --noEmit --incremental false.
+- Wszystkie testy: 173/173 PASS, 0 failed/skipped (node --test src/system2/tests/gameplay.test.cjs).
+- git diff --check: PASS (exit 0); tylko informacja o konwersji LF/CRLF w tym dokumencie.
+- git status: zmiany Story Engine oraz wcześniejsze poprawki avatar/Safe Area pozostają niezacommitowane. Bez zmian package.json ani lockfile.

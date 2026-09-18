@@ -1,3 +1,4 @@
+import SystemScreen from './SystemScreen';
 import SystemError from './SystemError';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,8 +10,8 @@ import BottomNavigation from './BottomNavigation';
 export default function SystemPage({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const { ready, error, refreshPlayer } = useSystem();
-  return <View style={styles.root}>
-    <ScrollView contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 20, 48), paddingBottom: 150 + insets.bottom }]}>
+  return <SystemScreen style={styles.root}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: 150 + insets.bottom }]}>
       <Text style={styles.code}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
       {ready ? children : <View style={styles.panel}>
@@ -18,7 +19,7 @@ export default function SystemPage({ title, subtitle, children }: { title: strin
       </View>}
     </ScrollView>
     <BottomNavigation />
-  </View>;
+  </SystemScreen>;
 }
 export const pageStyles = StyleSheet.create({
   panel: { padding: 20, marginTop: 16, backgroundColor: C.panel, borderWidth: 1, borderColor: C.line, borderRadius: 20 },

@@ -1,11 +1,11 @@
 import { DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
 import type { PlayerProfile, SkillKey } from '../core/types';
 import { SKILL_KEYS } from '../core/progression';
-export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER';
+export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
 export type Settings = { haptics: boolean; audio: boolean; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
 export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false };
-export function earnedTitles(awakening: boolean, signal: boolean): Title[] {
-  return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : [])];
+export function earnedTitles(awakening: boolean, signal: boolean, worldLink = false, boss = false): Title[] {
+  return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : []), ...(worldLink ? ['PATHFINDER' as const] : []), ...(boss ? ['WALLBREAKER' as const] : [])];
 }
 export function dominantSkill(player: PlayerProfile): SkillKey | 'BALANCED ORIGIN' | 'MIXED BUILD' {
   const totals = SKILL_KEYS.map(key => player.stats[key].totalXp);

@@ -1,3 +1,4 @@
+import { useSystem } from '../state/SystemProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,13 +12,15 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
+  const { story } = useSystem();
+  const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
-  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed,
+  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
-    ? quest.verification.minimumDurationSeconds : quest.verification.minimumDistanceMeters;
+    ? quest.verification.minimumDurationSeconds : quest.verification.minimumDistanceMeters * (extendedGoal ? 1.25 : 1);
   const formatTime = formatQuestTime;
   const progress =
     Math.min(
@@ -71,7 +74,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.screenTitle}
             >
-              {quest.category === 'DAILY' ? 'DAILY PROTOCOL' : `AWAKENING ${quest.order}/${AWAKENING_QUESTS.length}`}
+              {quest.category === 'BOSS' ? 'BOSS PROTOCOL' : quest.category === 'DAILY' ? 'DAILY PROTOCOL' : `AWAKENING ${quest.order}/${AWAKENING_QUESTS.length}`}
             </Text>
           </View>
         </View>
@@ -312,6 +315,11 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
+          {status === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
+            <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
+            <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
+          </Pressable>}
+          {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
           {status === 'READY' && ready && (
             <Pressable accessibilityRole="button"
               style={
@@ -326,7 +334,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.startButtonText
                 }
               >
-                ROZPOCZNIJ QUEST
+                {rematch ? 'BEGIN REMATCH' : 'ROZPOCZNIJ QUEST'}
               </Text>
 
               <Text
@@ -382,11 +390,11 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           {(status === 'DENIED' || status === 'ERROR') && (
             <View style={styles.errorBox}>
               <Text style={styles.errorTitle}>
-                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'MISJA ZATRZYMANA'}
+                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'ATTEMPT ENDED // SYSTEM ANALYSIS'}
               </Text>
               <Text style={styles.errorText}>{error}</Text>
               <Pressable onPress={() => { void retryQuest(); }}>
-                <Text style={styles.retry}>SPRÓBUJ PONOWNIE</Text>
+                <Text style={styles.retry}>{rematch ? 'BEGIN REMATCH' : 'SPRÓBUJ PONOWNIE'}</Text>
               </Pressable>
             </View>
           )}

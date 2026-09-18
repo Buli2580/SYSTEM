@@ -1,3 +1,4 @@
+import SystemScreen from '../components/SystemScreen';
 import RewardSummary from '../components/RewardSummary';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -33,7 +34,7 @@ function OnlineWorld() {
   const [centerRequest, setCenterRequest] = useState(0);
   const active = world.status === 'ACTIVE';
   const signalState = world.signal?.status ?? 'LOCKED';
-  return <View style={[styles.root, { paddingTop: insets.top + 10, paddingBottom: 110 + insets.bottom }]}>
+  return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
     <View style={styles.heading}>
       <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD STATUS: ONLINE</Text>
       <Text style={styles.body}>WORLD EXPLORATION · SECTORS DISCOVERED {world.sectorIds.length}</Text>
@@ -66,7 +67,7 @@ function OnlineWorld() {
       {lastReward?.id === 'first_world_signal_v1' && <RewardSummary receipt={lastReward} />}
     </ScrollView>
     <BottomNavigation />
-  </View>;
+  </SystemScreen>;
 }
 function Button({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} style={[styles.button, disabled && { opacity: 0.4 }]}><Text style={styles.label}>{label}</Text></Pressable>;
