@@ -10,6 +10,7 @@ import {
     SKILL_KEYS,
     SKILL_META,
     SYSTEM_COLORS,
+    getSkillProgressPercent,
 } from '../core';
 
 type Props = {
@@ -60,7 +61,7 @@ export default function SkillStrip({
               </Text>
 
               <View style={styles.bar}>
-                <View style={styles.barFill} />
+                <View style={[styles.barFill, { width: `${Math.max(1, getSkillProgressPercent(skill) * 100)}%` }]} />
               </View>
             </View>
           );

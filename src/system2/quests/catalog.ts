@@ -34,6 +34,16 @@ export function getAwakeningProgress(completedIds: readonly string[]) {
   return { completed, total, percent: total ? completed / total * 100 : 0 };
 }
 
+export function getBlockingPrerequisite(quest: RunnableQuest, completedIds: readonly string[]): string | null {
+  if (quest.category === 'DAILY' || quest.category === 'BOSS') {
+    const incomplete = AWAKENING_QUESTS.find(q => !completedIds.includes(q.id));
+    return incomplete?.id ?? null;
+  }
+  const incomplete = QUESTS.filter(other => other.arc === quest.arc && other.chapter === quest.chapter && other.order < quest.order)
+    .find(other => !completedIds.includes(other.id));
+  return incomplete?.id ?? null;
+}
+
 export function validateQuestEvidence(evidence: QuestEvidence): RunnableQuest {
   const quest = getQuest(evidence.questId);
   if (!quest || evidence.verificationType !== quest.verification.type ||

@@ -1,129 +1,150 @@
-import { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SYSTEM_COLORS as C } from '../core';
+import type { RunnableQuest } from '../quests/types';
+import type { QuestCompletionDetails } from '../storage/database';
 
-import {
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+type QuestCardStatus = 'LOCKED' | 'AVAILABLE' | 'ACTIVE' | 'COMPLETED';
 
-import Animated, {
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withTiming,
-} from 'react-native-reanimated';
+interface QuestCardProps {
+  quest: RunnableQuest;
+  status: QuestCardStatus;
+  completion?: QuestCompletionDetails | null;
+  onPress?: () => void;
+  disabled?: boolean;
+  showExtended?: boolean;
+}
 
-import * as Haptics from '../identity/feedback';
-
-import { SYSTEM_COLORS } from '../core';
-
-export default function QuestCard() {
-  const glow = useSharedValue(0);
-
-  useEffect(() => {
-    glow.value = withRepeat(
-      withTiming(1, {
-        duration: 1500,
-      }),
-      -1,
-      true
-    );
-  }, [glow]);
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      glow.value,
-      [0, 1],
-      [0.25, 0.8]
-    ),
-  }));
-
-  async function startQuest() {
-    await Haptics.impactAsync(
-      Haptics.ImpactFeedbackStyle.Medium
-    );
+function getStatusConfig(status: QuestCardStatus) {
+  switch (status) {
+    case 'LOCKED':
+      return { color: C.danger, bg: 'rgba(255,68,68,0.08)', label: 'LOCKED' };
+    case 'AVAILABLE':
+      return { color: C.cyan, bg: 'rgba(0,229,255,0.06)', label: 'AVAILABLE' };
+    case 'ACTIVE':
+      return { color: C.success, bg: 'rgba(0,200,100,0.08)', label: 'ACTIVE' };
+    case 'COMPLETED':
+      return { color: C.success, bg: 'rgba(0,200,100,0.08)', label: 'COMPLETED' };
   }
+}
+
+function formatDistance(meters: number) {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(2)} KM` : `${Math.round(meters)} M`;
+}
+
+function formatDuration(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+export default function QuestCard({
+  quest,
+  status,
+  completion = null,
+  onPress,
+  disabled = false,
+  showExtended = true,
+}: QuestCardProps) {
+  const config = getStatusConfig(status);
+  const isMulti = quest.verification.type === 'MULTI';
+  const target = quest.verification.type === 'TIMER'
+    ? quest.verification.minimumDurationSeconds
+    : quest.verification.minimumDistanceMeters;
+  const targetDisplay = quest.verification.type === 'TIMER'
+    ? formatDuration(target)
+    : `${target} M`;
+
+  const progressPercent = completion
+    ? 100
+    : status === 'ACTIVE'
+      ? 50
+      : 0;
 
   return (
-    <View style={styles.root}>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.glowLine, glowStyle]}
-      />
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || status === 'LOCKED'}
+      accessibilityRole="button"
+      accessibilityLabel={`${quest.title} — ${config.label}`}
+      accessibilityState={{ disabled: disabled || status === 'LOCKED' }}
+      style={({ pressed }) => [
+        styles.root,
+        pressed && styles.rootPressed,
+        disabled && styles.rootDisabled,
+      ]}
+    >
+      <View style={[styles.glowLine, { backgroundColor: config.color }]} />
 
       <View style={styles.header}>
         <Text style={styles.category}>
-          MAIN QUEST
+          {quest.category === 'BOSS' ? 'BOSS PROTOCOL' : quest.category === 'DAILY' ? 'DAILY PROTOCOL' : 'AWAKENING'}
         </Text>
 
-        <View style={styles.statusBadge}>
-          <Text style={styles.status}>
-            AVAILABLE
-          </Text>
+        <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
+          <Text style={[styles.status, { color: config.color }]}>{config.label}</Text>
         </View>
       </View>
 
-      <Text style={styles.title}>
-        PIERWSZE PRZEBUDZENIE
-      </Text>
+      <Text style={styles.title}>{quest.title}</Text>
 
-      <Text style={styles.description}>
-        Ukończ 3 prawdziwe i zweryfikowane
-        misje. Dopiero wtedy SYSTEM uzna
-        przebudzenie za zakończone.
-      </Text>
+      <Text style={styles.description}>{quest.description}</Text>
 
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>
-          <Text style={styles.metaLabel}>
-            PROGRESS
-          </Text>
-          <Text style={styles.metaValue}>
-            0 / 3
-          </Text>
+          <Text style={styles.metaLabel}>TARGET</Text>
+          <Text style={styles.metaValue}>{targetDisplay}</Text>
         </View>
 
         <View style={styles.metaItem}>
-          <Text style={styles.metaLabel}>
-            REWARD
-          </Text>
-          <Text style={styles.reward}>
-            +300 XP
-          </Text>
+          <Text style={styles.metaLabel}>PRIMARY SKILL</Text>
+          <Text style={[styles.metaValue, { color: C.cyan }]}>{[quest.primarySkill, ...quest.secondarySkills].join(' + ')}</Text>
         </View>
 
         <View style={styles.metaItem}>
-          <Text style={styles.metaLabel}>
-            VERIFY
-          </Text>
+          <Text style={styles.metaLabel}>VERIFY</Text>
           <Text style={styles.metaValue}>
-            REQUIRED
+            {isMulti ? 'GPS + TIMER' : quest.verification.type}
+            {quest.activityType ? ' + ACTIVITY' : ''}
           </Text>
         </View>
       </View>
 
-      <View style={styles.progress}>
-        <View style={styles.progressFill} />
+      <View style={styles.progressTrack}>
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${Math.max(1, progressPercent)}%`, backgroundColor: config.color },
+          ]}
+        />
       </View>
 
-      <Pressable
-        onPress={startQuest}
-        style={({ pressed }) => [
-          styles.button,
-          pressed && styles.buttonPressed,
-        ]}
-      >
-        <Text style={styles.buttonText}>
-          ROZPOCZNIJ MISJĘ
-        </Text>
+      {showExtended && completion && (
+        <View style={styles.completionInfo}>
+          <Text style={[styles.infoLabel, { color: config.color }]}>COMPLETION DATA</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoValue}>Score: {completion.verificationScore}/100</Text>
+            <Text style={styles.infoValue}>{completion.verificationType}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoValue}>Dist: {formatDistance(completion.distanceMeters)}</Text>
+            <Text style={styles.infoValue}>Time: {formatDuration(completion.durationSeconds)}</Text>
+          </View>
+        </View>
+      )}
 
-        <Text style={styles.buttonArrow}>
-          →
-        </Text>
-      </Pressable>
-    </View>
+      <View style={styles.rewardRow}>
+        <Text style={styles.rewardLabel}>REWARD</Text>
+        <View style={styles.rewards}>
+          <Text style={styles.reward}>+{quest.rewards.realXp} REAL XP</Text>
+          {Object.entries(quest.rewards.skillXp ?? {}).map(([skill, xp]) => (
+            <Text key={skill} style={styles.reward}>+{xp} {skill} XP</Text>
+          ))}
+          <Text style={styles.reward}>+{quest.rewards.gameEnergy ?? 0} ENERGY</Text>
+        </View>
+      </View>
+
+      {status === 'ACTIVE' && <Text style={styles.activeHint}>W TRAKCIE... Pozostaw ekran otwarty.</Text>}
+      {status === 'COMPLETED' && !completion && <Text style={styles.activeHint}>Zweryfikowane. Nagroda zapisana.</Text>}
+      {status === 'LOCKED' && <Text style={styles.lockedHint}>Ukończ poprzednią misję, by odblokować.</Text>}
+    </Pressable>
   );
 }
 
@@ -133,9 +154,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: SYSTEM_COLORS.line,
+    borderColor: C.line,
     backgroundColor: '#061116',
     padding: 18,
+  },
+  rootPressed: {
+    opacity: 0.85,
+  },
+  rootDisabled: {
+    opacity: 0.6,
   },
 
   glowLine: {
@@ -144,7 +171,6 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: SYSTEM_COLORS.cyan,
   },
 
   header: {
@@ -154,7 +180,7 @@ const styles = StyleSheet.create({
   },
 
   category: {
-    color: SYSTEM_COLORS.cyan,
+    color: C.cyan,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 2,
@@ -164,25 +190,23 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 5,
-    backgroundColor: 'rgba(0,229,255,0.06)',
   },
 
   status: {
-    color: SYSTEM_COLORS.cyanSoft,
     fontSize: 7,
     fontWeight: '900',
     letterSpacing: 1.2,
   },
 
   title: {
-    color: SYSTEM_COLORS.white,
+    color: C.white,
     fontSize: 22,
     fontWeight: '900',
     marginTop: 13,
   },
 
   description: {
-    color: SYSTEM_COLORS.textMuted,
+    color: C.textMuted,
     fontSize: 12,
     lineHeight: 19,
     marginTop: 8,
@@ -198,27 +222,20 @@ const styles = StyleSheet.create({
   },
 
   metaLabel: {
-    color: SYSTEM_COLORS.textVeryMuted,
+    color: C.textVeryMuted,
     fontSize: 7,
     fontWeight: '900',
     letterSpacing: 1.3,
   },
 
   metaValue: {
-    color: SYSTEM_COLORS.text,
+    color: C.text,
     fontSize: 10,
     fontWeight: '900',
     marginTop: 5,
   },
 
-  reward: {
-    color: SYSTEM_COLORS.cyan,
-    fontSize: 10,
-    fontWeight: '900',
-    marginTop: 5,
-  },
-
-  progress: {
+  progressTrack: {
     height: 5,
     borderRadius: 999,
     backgroundColor: '#09252C',
@@ -227,36 +244,84 @@ const styles = StyleSheet.create({
   },
 
   progressFill: {
-    width: '1%',
     height: '100%',
-    backgroundColor: SYSTEM_COLORS.cyan,
+    borderRadius: 999,
   },
 
-  button: {
-    height: 52,
-    borderRadius: 13,
-    marginTop: 17,
-    backgroundColor: SYSTEM_COLORS.cyan,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 19,
+  completionInfo: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: C.line,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 12,
+    padding: 12,
   },
 
-  buttonPressed: {
-    opacity: 0.75,
-  },
-
-  buttonText: {
-    color: '#001014',
-    fontSize: 11,
+  infoLabel: {
+    fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 1.5,
+    marginBottom: 8,
   },
 
-  buttonArrow: {
-    color: '#001014',
-    fontSize: 22,
-    fontWeight: '500',
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+
+  infoValue: {
+    color: C.textMuted,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+
+  rewardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: C.line,
+  },
+
+  rewardLabel: {
+    color: C.textVeryMuted,
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+
+  rewards: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  reward: {
+    color: C.cyan,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+
+  activeHint: {
+    color: C.success,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 14,
+    textAlign: 'center',
+  },
+
+  lockedHint: {
+    color: C.danger,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 14,
+    textAlign: 'center',
   },
 });

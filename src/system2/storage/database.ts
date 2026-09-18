@@ -385,6 +385,31 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
 }
 export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
 export function loadChronicle() { return profileTransaction(txn=>txn.getAllAsync<StoryEvent>("SELECT * FROM story_events WHERE type NOT IN ('REMATCH_AVAILABLE','REMATCH_COMPLETED') ORDER BY created_at DESC,id DESC LIMIT 50")); }
+
+export type QuestCompletionDetails = {
+  verificationScore: number;
+  completedAt: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  verificationType: string;
+} | null;
+
+export function getQuestCompletionDetails(questId: string): Promise<QuestCompletionDetails> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{
+      payload: string;
+    }>('SELECT payload FROM verified_events WHERE quest_id = ? AND verified = 1 ORDER BY created_at DESC LIMIT 1', questId);
+    if (!row) return null;
+    const event = JSON.parse(row.payload);
+    return {
+      verificationScore: event.verificationScore,
+      completedAt: event.createdAt,
+      distanceMeters: event.distanceMeters ?? 0,
+      durationSeconds: event.durationSeconds ?? 0,
+      verificationType: event.verificationType,
+    };
+  });
+}
 export function consumeStoryEvent(id:string) { return profileTransaction(txn=>txn.runAsync('UPDATE story_events SET consumed=1 WHERE id=?',id)); }
 export function startBossProtocol() {
  return profileTransaction(async txn=>{
