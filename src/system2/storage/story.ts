@@ -1,5 +1,6 @@
+import { applyQuestRewards } from '../core/questEngine';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { addRealXp, addSkillXp, type PlayerProfile, type QuestReward, type SkillKey } from '../core';
+import { type PlayerProfile, type QuestReward } from '../core';
 import type { RunnableQuest, QuestEvidence } from '../quests/types';
 import { BOSS_ID, BOSS_FOCUS, BOSS_WALK, BOSS_RUN, CHAPTERS, STORY_REWARDS, WORLD_LINK_ID, qualifiesExtraMile, EXTRA_MILE, NO_TURNING_BACK } from '../story/catalog';
 import type { BossProgress, QuestAttempt, StoryEvent, StoryEventType, StoryState } from '../story/types';
@@ -11,9 +12,7 @@ export async function storyEvent(db: SQLiteDatabase, id: string, type: StoryEven
 async function award(db: SQLiteDatabase, player: PlayerProfile, id: string, reward: QuestReward, type: StoryEventType, title: string) {
  const claim=await db.runAsync('INSERT INTO story_progress(id,completed_at) VALUES (?,?) ON CONFLICT(id) DO NOTHING',id,nowISO());
  if(!claim.changes) return player;
- let next=addRealXp(player,reward.realXp);
- for(const [key,xp] of Object.entries(reward.skillXp??{})) next=addSkillXp(next,key as SkillKey,xp);
- next={...next,gameEnergy:next.gameEnergy+(reward.gameEnergy??0),updatedAt:nowISO()};
+ const next=applyQuestRewards(player,reward,nowISO());
  await db.runAsync('UPDATE app_state SET value=? WHERE key=?',JSON.stringify(next),'player');
  await storyEvent(db,id,type,title,`+${reward.realXp} REAL XP · ${Object.entries(reward.skillXp??{}).map(([k,v])=>`+${v} ${k} XP`).join(' · ')} · +${reward.gameEnergy??0} ENERGY`);
  return next;

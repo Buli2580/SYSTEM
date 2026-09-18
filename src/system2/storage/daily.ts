@@ -1,5 +1,6 @@
+import { applyQuestRewards } from '../core/questEngine';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { addRealXp, type PlayerProfile, type VerifiedEvent } from '../core';
+import { type PlayerProfile, type VerifiedEvent } from '../core';
 import { dayKey, dayOrdinal, weekKey, nextStreak, DAILY_RULES } from '../daily/calendar';
 import { generateDaily, dailyQuest, DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
 export type DailyState = { dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
@@ -44,7 +45,7 @@ export async function awardProtocols(db: SQLiteDatabase, player: PlayerProfile, 
    const id = kind + ':' + key;
    const claim = await db.runAsync('INSERT INTO protocol_bonuses(bonus_key, kind, period_key, created_at, streak) VALUES (?, ?, ?, ?, 0) ON CONFLICT(bonus_key) DO NOTHING', id, kind, key, now);
    if (!claim.changes) continue;
-   next = { ...addRealXp(next, xp), gameEnergy: next.gameEnergy + energy };
+   next = applyQuestRewards(next, { realXp: xp, gameEnergy: energy }, now);
    if (kind === 'daily_clear') {
      const previous = await db.getFirstAsync<{ period_key: string; streak: number }>("SELECT period_key, streak FROM protocol_bonuses WHERE kind='daily_clear' AND period_key < ? ORDER BY period_key DESC LIMIT 1", day);
      next.streak = nextStreak(previous?.period_key, day, previous?.streak ?? 0);
