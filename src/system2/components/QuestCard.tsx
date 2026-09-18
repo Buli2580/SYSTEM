@@ -15,7 +15,7 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../identity/feedback';
 
 import { SYSTEM_COLORS } from '../core';
 

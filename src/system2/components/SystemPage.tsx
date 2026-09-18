@@ -1,5 +1,6 @@
+import SystemError from './SystemError';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
@@ -13,8 +14,7 @@ export default function SystemPage({ title, subtitle, children }: { title: strin
       <Text style={styles.code}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
       {ready ? children : <View style={styles.panel}>
-        <Text style={styles.body}>{error ?? 'SYSTEM // INITIALIZING'}</Text>
-        {error && <Pressable onPress={() => { void refreshPlayer(); }}><Text style={styles.link}>SPRÓBUJ PONOWNIE</Text></Pressable>}
+        {error ? <SystemError message={error} retry={() => { void refreshPlayer(); }} /> : <Text style={styles.body}>SYSTEM // INITIALIZING</Text>}
       </View>}
     </ScrollView>
     <BottomNavigation />

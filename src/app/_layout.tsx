@@ -2,11 +2,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { SystemProvider } from '../system2/state/SystemProvider';
+import SessionGate from '../system2/components/SessionGate';
+import LevelUpCelebration from '../system2/components/LevelUpCelebration';
+import SystemBoundary from '../system2/components/SystemBoundary';
 import AwakeningCelebration from '../system2/components/AwakeningCelebration';
 
 export default function RootLayout() {
   return (
-    <SystemProvider>
+    <SystemBoundary><SystemProvider>
       <StatusBar style="light" />
 
       <Stack
@@ -19,6 +22,8 @@ export default function RootLayout() {
         }}
       />
       <AwakeningCelebration />
-    </SystemProvider>
+      <LevelUpCelebration />
+      <SessionGate />
+    </SystemProvider></SystemBoundary>
   );
 }

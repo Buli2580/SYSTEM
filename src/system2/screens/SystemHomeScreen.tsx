@@ -1,6 +1,11 @@
+import { DAILY_RULES } from '../daily/calendar';
+import RewardSummary from '../components/RewardSummary';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import IdentityAvatar from '../components/IdentityAvatar';
+import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
 import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
-import { useEffect } from 'react';
+import { useCallback } from 'react';
 
 import {
     Pressable,
@@ -11,10 +16,11 @@ import {
     View,
 } from 'react-native';
 
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import Animated, {
     Easing,
+    cancelAnimation,
     interpolate,
     useAnimatedStyle,
     useSharedValue,
@@ -81,11 +87,13 @@ function SystemBackground() {
 }
 
 function PlayerCore() {
+  const { player } = useSystem();
+  const { width } = useWindowDimensions();
   const pulse = useSharedValue(0);
   const rotation = useSharedValue(0);
   const reverseRotation = useSharedValue(0);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     pulse.value = withRepeat(
       withTiming(1, {
         duration: 1700,
@@ -112,7 +120,8 @@ function PlayerCore() {
       -1,
       false
     );
-  }, [pulse, rotation, reverseRotation]);
+    return () => { cancelAnimation(pulse); cancelAnimation(rotation); cancelAnimation(reverseRotation); };
+  }, [pulse, rotation, reverseRotation]));
 
   const pulseStyle = useAnimatedStyle(() => {
     return {
@@ -155,7 +164,7 @@ function PlayerCore() {
   });
 
   return (
-    <View style={styles.coreContainer}>
+    <View style={[styles.coreContainer, width < 380 && { transform: [{ scale: 0.75 }] }]}>
       <Animated.View
         style={[
           styles.corePulse,
@@ -184,9 +193,7 @@ function PlayerCore() {
       </Animated.View>
 
       <View style={styles.coreRingInner}>
-        <View style={styles.coreDiamondOuter}>
-          <View style={styles.coreDiamondInner} />
-        </View>
+        {player.avatarUri ? <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={88} /> : <View style={styles.coreDiamondOuter}><View style={styles.coreDiamondInner} /></View>}
       </View>
 
       <Text style={styles.playerCoreText}>
@@ -215,7 +222,7 @@ function SkillCard({
       : 0;
 
   return (
-    <Pressable style={styles.skillCard}>
+    <View style={styles.skillCard}>
       <View style={styles.skillTop}>
         <Text style={styles.skillCode}>
           {skill}
@@ -247,7 +254,7 @@ function SkillCard({
       <Text style={styles.skillXp}>
         {xp} / {xpToNextLevel} XP
       </Text>
-    </Pressable>
+    </View>
   );
 }
 
@@ -276,6 +283,8 @@ function SectionTitle({
 }
 
 export default function SystemHomeScreen() {
+  const insets = useSafeAreaInsets();
+  const { lastReward, daily } = useSystem();
   const router = useRouter();
 
   const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, error, refreshPlayer } = useSystem();
@@ -284,8 +293,8 @@ export default function SystemHomeScreen() {
     getPlayerProgressPercent(player) * 100;
 
   const awakening = getAwakeningProgress(completedQuestIds);
-  const mainQuestProgress = awakening.completed;
-  const mainQuestPercent = awakening.percent;
+  const mainQuestProgress = awakeningCompleted ? daily?.completed ?? 0 : awakening.completed;
+  const mainQuestPercent = awakeningCompleted ? (daily?.completed ?? 0) / DAILY_RULES.slots * 100 : awakening.percent;
 
   if (!ready) {
     return (
@@ -298,12 +307,7 @@ export default function SystemHomeScreen() {
           AWAKENING
         </Text>
         {error && (
-          <>
-            <Text style={styles.loadingSmall}>{error}</Text>
-            <Pressable onPress={() => { void refreshPlayer(); }}>
-              <Text style={styles.loadingSmall}>SPRÓBUJ PONOWNIE</Text>
-            </Pressable>
-          </>
+          <SystemError message={error} retry={() => { void refreshPlayer(); }} />
         )}
       </View>
     );
@@ -316,7 +320,7 @@ export default function SystemHomeScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={
-          styles.content
+          [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 130 }]
         }
       >
         {/* HEADER */}
@@ -361,7 +365,7 @@ export default function SystemHomeScreen() {
                   styles.awakeningActive
                 }
               >
-                AWAKENING FORM // ACTIVE
+                {player.displayName} // {player.currentTitle}
               </Text>
             </View>
 
@@ -625,13 +629,13 @@ export default function SystemHomeScreen() {
                     styles.availableText
                   }
                 >
-                  {awakeningCompleted ? 'COMPLETED' : 'AVAILABLE'}
+                  {awakeningCompleted && daily?.clear ? 'COMPLETED' : 'AVAILABLE'}
                 </Text>
               </View>
             </View>
 
             <Text style={styles.questTitle}>
-              PIERWSZE PRZEBUDZENIE
+              {awakeningCompleted ? 'DAILY PROTOCOL' : 'PIERWSZE PRZEBUDZENIE'}
             </Text>
 
             <Text
@@ -639,7 +643,7 @@ export default function SystemHomeScreen() {
                 styles.questDescription
               }
             >
-              Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.
+              {awakeningCompleted ? `Daily ${daily?.completed ?? 0}/3 · Weekly ${Math.min(5, daily?.weeklyCompleted ?? 0)}/5 · World ${player.discoveredSectors} sektorów. Otwórz QUESTY, aby rozpocząć kolejną misję.` : 'Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.'}
             </Text>
 
             <View style={styles.questStats}>
@@ -657,7 +661,7 @@ export default function SystemHomeScreen() {
                     styles.questStatValue
                   }
                 >
-                  {mainQuestProgress} / {awakening.total}
+                  {mainQuestProgress} / {awakeningCompleted ? DAILY_RULES.slots : awakening.total}
                 </Text>
               </View>
 
@@ -675,7 +679,7 @@ export default function SystemHomeScreen() {
                     styles.questReward
                   }
                 >
-                  +{AWAKENING_REWARD_XP} REAL XP
+                  +{awakeningCompleted ? DAILY_RULES.clearXp : AWAKENING_REWARD_XP} REAL XP
                 </Text>
               </View>
 
@@ -716,7 +720,8 @@ export default function SystemHomeScreen() {
               />
             </View>
 
-            {AWAKENING_QUESTS.map(quest => (
+            {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/quests')}><Text style={styles.startQuestText}>OTWÓRZ DAILY / WEEKLY →</Text></Pressable>}
+            {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
               <Pressable key={quest.id} style={styles.startQuestButton}
                 disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
                 onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
@@ -729,6 +734,8 @@ export default function SystemHomeScreen() {
           </View>
         </View>
 
+        {lastReward && <RewardSummary receipt={lastReward} />}
+
         {/* WORLD */}
 
         <SectionTitle
@@ -736,7 +743,7 @@ export default function SystemHomeScreen() {
           title="SYSTEM WORLD"
         />
 
-        <Pressable style={styles.worldCard} disabled={!worldUnlocked} onPress={() => router.push('/world')}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Otwórz SYSTEM WORLD" style={styles.worldCard} disabled={!worldUnlocked} onPress={() => router.replace('/world')}>
           <View style={styles.gateIcon}>
             <View
               style={
@@ -751,7 +758,7 @@ export default function SystemHomeScreen() {
             </Text>
 
             <Text style={styles.gateTitle}>
-              {worldUnlocked ? 'FIRST GATE SIGNAL DETECTED' : 'UNKNOWN GATE'}
+              {worldUnlocked ? 'EXPLORE SYSTEM WORLD' : 'WORLD LOCKED'}
             </Text>
 
             <Text
@@ -759,7 +766,7 @@ export default function SystemHomeScreen() {
                 styles.gateDescription
               }
             >
-              {worldUnlocked ? 'Dostęp do World aktywny. Sprawdź pierwszy sygnał. Mapa i Gates będą kolejnym etapem.' : 'Ukończ Pierwsze Przebudzenie, aby odblokować dostęp do SYSTEM WORLD.'}
+              {worldUnlocked ? 'Odkrywaj sektory i uruchom SCAN FOR SIGNAL, aby odnaleźć pierwszy sygnał.' : 'Ukończ Pierwsze Przebudzenie, aby odblokować dostęp do SYSTEM WORLD.'}
             </Text>
           </View>
         </Pressable>

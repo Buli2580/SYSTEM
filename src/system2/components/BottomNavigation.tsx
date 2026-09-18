@@ -43,7 +43,8 @@ export default function BottomNavigation() {
 
       <NavItem
         label="POSTAĆ"
-        unavailable
+        active={pathname === '/character' || pathname === '/system-log'}
+        onPress={() => router.replace('/character')}
         shape="diamond"
       />
 
@@ -56,7 +57,8 @@ export default function BottomNavigation() {
 
       <NavItem
         label="WIĘCEJ"
-        unavailable
+        active={pathname === '/more'}
+        onPress={() => router.replace('/more')}
         shape="dots"
       />
     </View>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../identity/feedback';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
@@ -9,11 +9,11 @@ import { useSystem } from '../state/SystemProvider';
 // Presentation acknowledgement is independent of the already committed reward.
 // If the app closes here, the celebration can be shown again without awarding XP.
 export default function AwakeningCelebration() {
-  const { ready, awakeningPending, acknowledgeAwakening } = useSystem();
+  const { ready, awakeningPending, acknowledgeAwakening, celebration, onboardingComplete } = useSystem();
   const router = useRouter();
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const visible = ready && awakeningPending;
+  const visible = ready && onboardingComplete && awakeningPending && !celebration;
   const finish = useCallback(async () => {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -38,7 +38,7 @@ export default function AwakeningCelebration() {
       <Animated.Text entering={FadeIn.delay(200).duration(700)} style={styles.title}>AWAKENING COMPLETE</Animated.Text>
       <Animated.Text entering={FadeIn.delay(1500).duration(700)} style={styles.line}>SYSTEM ACCESS EXPANDED</Animated.Text>
       <Animated.Text entering={FadeIn.delay(2900).duration(700)} style={styles.line}>WORLD PROTOCOL UNLOCKED</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(3600).duration(600)} style={styles.reward}>+300 REAL XP // CHAPTER 01 VERIFIED</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(3600).duration(600)} style={styles.reward}>CHAPTER 01 VERIFIED // REWARD SAVED</Animated.Text>
       {error && <><Text style={styles.error}>{error}</Text>
         <Pressable onPress={() => { void finish(); }}><Text style={styles.line}>SPRÓBUJ PONOWNIE</Text></Pressable></>}
     </View>}

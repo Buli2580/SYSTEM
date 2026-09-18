@@ -1,13 +1,17 @@
+import { createActivityWindow } from '../activity/features';
+import { classifyActivity, verdictMessage } from '../activity/classifier';
+import type { ActivityEvidence } from '../activity/types';
+import type { RewardReceipt } from '../core/rewards';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../identity/feedback';
 import * as Location from 'expo-location';
 import type { RunnableQuest, QuestEvidence } from './types';
 import { createFocusTimer } from '../verification/timer';
 import { distanceBetween, isUsableLocation, verifiedSegment, verificationScoreForAccuracy } from '../verification/gps';
-import { getQuestAccess } from '../storage/database';
+import { getQuestAccess, recordActivityAttempt } from '../storage/database';
 import { buildEvidence } from '../verification/evidence';
 import { useSystem } from '../state/SystemProvider';
 
@@ -23,6 +27,7 @@ export function useQuestRun(quest: RunnableQuest) {
   const [distance, setDistance] = useState(0);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [duration, setDuration] = useState(0);
+  const [receipt, setReceipt] = useState<RewardReceipt | null>(null);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const watcherRef = useRef<Location.LocationSubscription | null>(null);
   const trackingActiveRef = useRef(false);
@@ -38,6 +43,10 @@ export function useQuestRun(quest: RunnableQuest) {
   const focusedRef = useRef(false);
   const statusRef = useRef<RunStatus>('CHECKING');
   const startupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const activityWindow = useRef<ReturnType<typeof createActivityWindow> | null>(null);
+  const [activity, setActivity] = useState<ActivityEvidence | null>(null);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
 
   const transition = useCallback((next: RunStatus) => {
     statusRef.current = next;
@@ -59,11 +68,13 @@ export function useQuestRun(quest: RunnableQuest) {
     if (startupTimerRef.current) clearTimeout(startupTimerRef.current);
     startupTimerRef.current = null;
     lastPointRef.current = null;
+    activityWindow.current = null;
   }, [quest.id, setActiveQuestId]);
 
   const fail = useCallback((message: string, denied = false) => {
     stopVerification();
     if (!focusedRef.current) return;
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     setError(message);
     transition(denied ? 'DENIED' : 'ERROR');
   }, [stopVerification, transition]);
@@ -125,6 +136,7 @@ export function useQuestRun(quest: RunnableQuest) {
       const result = await awaitWithTimeout(completeVerifiedQuest(evidence));
       if (!focusedRef.current || session !== sessionRef.current) return;
       setAlreadyCompleted(!result.awarded);
+      setReceipt(result.receipt ?? null);
       transition('COMPLETED');
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch {
@@ -168,6 +180,27 @@ export function useQuestRun(quest: RunnableQuest) {
     if (!focusedRef.current || session !== sessionRef.current || !trackingActiveRef.current ||
         !['STARTING', 'TRACKING'].includes(statusRef.current)) return;
     setAccuracy(location.coords.accuracy);
+    if (quest.activityType && activityWindow.current) {
+      const window = activityWindow.current;
+      window.add(location);
+      const result = classifyActivity(quest.activityType, window.features());
+      setActivity(result); setCurrentSpeed(window.currentSpeed());
+      if (isUsableLocation(location)) lastFixTimeRef.current = Date.now();
+      if (statusRef.current === 'STARTING' && isUsableLocation(location)) {
+        if (startupTimerRef.current) clearTimeout(startupTimerRef.current);
+        startupTimerRef.current = null; startTimeRef.current = Date.now(); transition('TRACKING');
+      }
+      distanceRef.current = result.features.distanceMeters;
+      setDistance(distanceRef.current); setDuration(Math.floor(result.features.durationSeconds));
+      if (quest.verification.type !== 'TIMER' && distanceRef.current >= quest.verification.minimumDistanceMeters) {
+        if (result.verdict !== 'VERIFIED') {
+          void awaitWithTimeout(recordActivityAttempt(quest.id, result)).then(() => refreshPlayer()).catch(() => undefined);
+          fail((result.verdict === 'SUSPICIOUS' ? 'ACTIVITY REQUIRES VERIFICATION — ' : 'QUEST NOT VERIFIED — ') + verdictMessage(result)); return; }
+        void finishQuest({ questId: quest.id, verificationType: 'GPS_DISTANCE', distanceMeters: distanceRef.current,
+          durationSeconds: result.features.durationSeconds, verificationScore: result.verificationScore, activity: result });
+      }
+      return;
+    }
     if (!isUsableLocation(location)) {
       lastPointRef.current = null;
       return;
@@ -221,6 +254,8 @@ export function useQuestRun(quest: RunnableQuest) {
     distanceRef.current = 0;
     scoreRef.current = 100;
     startTimeRef.current = null;
+    activityWindow.current = quest.activityType ? createActivityWindow() : null;
+    setActivity(null); setCurrentSpeed(0);
     setDistance(0);
     setDuration(0);
     setAccuracy(null);
@@ -251,6 +286,7 @@ export function useQuestRun(quest: RunnableQuest) {
         if (startupTimerRef.current) clearTimeout(startupTimerRef.current);
         startupTimerRef.current = null;
         timerRef.current = createFocusTimer(targetSeconds);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         transition('TRACKING');
         return;
       }
@@ -271,12 +307,12 @@ export function useQuestRun(quest: RunnableQuest) {
       let firstLocation: Location.LocationObject | null = null;
       const watcher = await Location.watchPositionAsync(
         // MULTI still needs fresh fixes while waiting for time after reaching 600 m.
-        { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1500, distanceInterval: hasTimer ? 0 : 2 },
+        { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1500, distanceInterval: hasTimer || quest.activityType ? 0 : 2 },
         location => {
           if (!active()) return;
           // Native callbacks may arrive before the promise returns its handle.
           if (!trackingActiveRef.current) firstLocation = location;
-          else processLocation(location, session);
+          else { try { processLocation(location, session); } catch { fail('Nie udało się przeanalizować pomiaru. Rozpocznij nową próbę.'); } }
         },
         () => { if (active()) fail('Wystąpił błąd GPS. Pomiar został zatrzymany.'); }
       );
@@ -301,7 +337,7 @@ export function useQuestRun(quest: RunnableQuest) {
   }
 
   return {
-    status, error, distance, accuracy, duration, alreadyCompleted,
+    status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed,
     ready, databaseError, refreshPlayer, startQuest, retryQuest,
   };
 }

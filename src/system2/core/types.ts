@@ -90,6 +90,7 @@ export interface PlayerProfile {
   id: string;
 
   displayName: string;
+  currentTitle?: 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER';
 
   // RULE #1 — EQUAL ORIGIN
   // Każdy zaczyna dokładnie tak samo.
@@ -201,6 +202,7 @@ export interface Quest {
 }
 
 export interface VerifiedEvent {
+  activity?: import('../activity/types').ActivityEvidence;
   id: string;
 
   playerId: string;

@@ -154,6 +154,7 @@ export function createNewPlayer(
     mode: 'STANDARD',
 
     avatarEvolution: 0,
+    currentTitle: 'UNAWAKENED',
 
     discoveredSectors: 0,
     totalDistanceMeters: 0,
@@ -191,6 +192,7 @@ export function addRealXp(
     totalRealXp: totalXp,
 
     rank: rankForLevel(level),
+    avatarEvolution: evolutionForLevel(level),
 
     updatedAt: new Date().toISOString(),
   };
@@ -265,4 +267,34 @@ export function getSkillProgressPercent(
       skill.xp / skill.xpToNextLevel
     )
   );
+}
+
+export function evolutionForLevel(level: number): 0 | 1 | 2 {
+  return level >= 25 ? 2 : level >= 10 ? 1 : 0;
+}
+
+// XP totals are canonical. Derived level/rank/bars can be rebuilt without
+// inventing XP or resetting a corrupt save. Existing reward curves are unchanged.
+function progressFromTotal(total: number, needed: (level: number) => number) {
+  if (!Number.isSafeInteger(total) || total < 0) throw new Error('Nieprawidłowy zapis sumy XP.');
+  let level = 1, xp = total, required = needed(level);
+  while (xp >= required) {
+    xp -= required; required = needed(++level);
+    if (level > 100000) throw new Error('Suma XP wymaga kontroli zapisu. Dane nie zostały zmienione.');
+  }
+  return { level, xp, required };
+}
+export function normalizePlayer(player: PlayerProfile): PlayerProfile {
+  if (!player || typeof player.id !== 'string' || typeof player.displayName !== 'string' || !player.stats ||
+      !Number.isFinite(Date.parse(player.createdAt)) ||
+      ![player.gameEnergy, player.verifiedQuestCount, player.totalDistanceMeters, player.streak].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0) ||
+      !SKILL_KEYS.every(key => player.stats[key])) throw new Error('Zapis profilu jest uszkodzony. Dane nie zostały zresetowane.');
+  const real = progressFromTotal(player.totalRealXp, xpNeededForRealLevel);
+  const stats = { ...player.stats };
+  for (const key of SKILL_KEYS) {
+    const skill = progressFromTotal(stats[key].totalXp, xpNeededForSkillLevel);
+    stats[key] = { ...stats[key], key, level: skill.level, xp: skill.xp, xpToNextLevel: skill.required };
+  }
+  return { ...player, stats, realLevel: real.level, realXp: real.xp, realXpToNextLevel: real.required,
+    rank: rankForLevel(real.level), avatarEvolution: evolutionForLevel(real.level) };
 }

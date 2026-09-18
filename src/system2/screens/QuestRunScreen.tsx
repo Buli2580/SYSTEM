@@ -1,3 +1,5 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import RewardSummary from '../components/RewardSummary';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS } from '../core';
@@ -9,7 +11,8 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
-  const { status, error, distance, accuracy, duration, alreadyCompleted,
+  const insets = useSafeAreaInsets();
+  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
@@ -41,11 +44,11 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     <View style={styles.root}>
       <ScrollView
         contentContainerStyle={
-          styles.content
+          [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
         }
       >
         <View style={styles.topBar}>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() =>
               router.back()
             }
@@ -68,7 +71,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.screenTitle}
             >
-              AWAKENING {quest.order}/{AWAKENING_QUESTS.length}
+              {quest.category === 'DAILY' ? 'DAILY PROTOCOL' : `AWAKENING ${quest.order}/${AWAKENING_QUESTS.length}`}
             </Text>
           </View>
         </View>
@@ -165,6 +168,12 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
+        {!!quest.activityType && <View style={styles.questCard}>
+          <Text style={styles.category}>ACTIVITY MATCH // {!activity || activity.features.durationSeconds < 30 ? 'CHECKING' : activity.verdict === 'VERIFIED' ? 'GOOD' : 'LOW CONFIDENCE'}</Text>
+          <Text style={styles.description}>CURRENT {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · AVG {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
+          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
+          <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
+        </View>}
         <View
           style={styles.tracker}
         >
@@ -177,7 +186,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <View
             style={styles.distanceRow}
           >
-            <Text
+            <Text adjustsFontSizeToFit numberOfLines={1}
               style={
                 styles.distanceNumber
               }
@@ -290,7 +299,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
           {status === 'LOCKED' && <View style={styles.errorBox}>
             <Text style={styles.errorTitle}>QUEST LOCKED</Text>
-            <Text style={styles.errorText}>Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.</Text>
+            <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
             <Pressable onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
           </View>}
 
@@ -304,7 +313,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           )}
 
           {status === 'READY' && ready && (
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={
                 styles.startButton
               }
@@ -348,7 +357,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                {isTimer ? 'FOCUS PROTOCOL // ACTIVE' : isMulti ? 'FINAL TRIAL // ACTIVE' : 'SYSTEM MONITORUJE RUCH'}
+                {isTimer ? `${quest.title} // ACTIVE` : isMulti ? 'FINAL TRIAL // ACTIVE' : 'SYSTEM MONITORUJE RUCH'}
               </Text>
             </View>
           )}
@@ -393,7 +402,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text
             style={styles.rewardTitle}
           >
-            VERIFIED REWARD
+            POTENTIAL REWARD
           </Text>
 
           <View
@@ -417,6 +426,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
+        {receipt && <RewardSummary receipt={receipt} />}
         {status ===
           'COMPLETED' && (
           <View
@@ -450,7 +460,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 : 'Cel został zweryfikowany. Nagrody zostały zapisane w profilu SYSTEMU.'}
             </Text>
 
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={
                 styles.returnButton
               }
