@@ -1,3 +1,4 @@
+import { completeQuest } from '../core/questEngine';
 import { reconcileStory, completeStoryActivity, bossAccess, storyEvent } from './story';
 import { BOSS_ID, attemptKind } from '../story/catalog';
 import type { StoryState, StoryEvent, QuestAttempt, AttemptResult, AttemptReason } from '../story/types';
@@ -15,8 +16,8 @@ import { rewardReceipt, type RewardReceipt } from '../core/rewards';
 import { parseEvent } from '../identity/history';
 
 import {
-  addRealXp, addSkillXp, createNewPlayer,
-  type PlayerProfile, type SkillKey, type VerifiedEvent,
+  createNewPlayer,
+  type PlayerProfile, type VerifiedEvent,
 } from '../core';
 import { validateQuestEvidence, getQuestStatus, prerequisitesCompleted } from '../quests/catalog';
 import type { QuestEvidence } from '../quests/types';
@@ -194,28 +195,9 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         await ensureDailyAccess(txn, player, quest.id, snapshot.awakeningCompleted, snapshot.settings.activities ?? DEFAULT_ACTIVITIES);
         player = await readPlayer(txn);
       }
-      let next = addRealXp(player, quest.rewards.realXp);
-      for (const [key, xp] of Object.entries(quest.rewards.skillXp ?? {})) {
-        next = addSkillXp(next, key as SkillKey, xp);
-      }
-      next = {
-        ...next,
-        verifiedQuestCount: next.verifiedQuestCount + 1,
-        gameEnergy: next.gameEnergy + (quest.rewards.gameEnergy ?? 0),
-        totalDistanceMeters: next.totalDistanceMeters + (evidence.verificationType !== 'TIMER' ? evidence.distanceMeters : 0),
-        updatedAt: now,
-      };
-      const event: VerifiedEvent = {
-        activity: quest.activityType ? evidence.activity : undefined,
-        id: 'quest_' + quest.id,
-        playerId: next.id, questId: quest.id, createdAt: now,
-        verificationType: evidence.verificationType,
-        verificationScore: evidence.verificationScore, verified: true,
-        realXpAwarded: quest.rewards.realXp,
-        skillXpAwarded: { ...quest.rewards.skillXp },
-        gameEnergyAwarded: quest.rewards.gameEnergy ?? 0,
-        distanceMeters: evidence.distanceMeters, durationSeconds: evidence.durationSeconds,
-      };
+      const completion = completeQuest(player, evidence, 'ACTIVE', now);
+      let next = completion.player;
+      const event = completion.event;
       next = await completeStoryActivity(txn,next,quest,evidence);
       next = await awardProtocols(txn, next, quest.id, now);
       await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(next), 'player');

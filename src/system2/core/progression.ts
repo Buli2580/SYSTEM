@@ -165,12 +165,15 @@ export function createNewPlayer(
 
 export function addRealXp(
   player: PlayerProfile,
-  amount: number
+  amount: number,
+  now = new Date().toISOString()
 ): PlayerProfile {
-  if (amount <= 0) {
+  assertXpAmount(amount);
+  if (amount === 0) {
     return player;
   }
 
+  assertXpAmount(player.totalRealXp + amount);
   let level = player.realLevel;
   let currentXp = player.realXp + amount;
   let totalXp = player.totalRealXp + amount;
@@ -194,20 +197,24 @@ export function addRealXp(
     rank: rankForLevel(level),
     avatarEvolution: evolutionForLevel(level),
 
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   };
 }
 
 export function addSkillXp(
   player: PlayerProfile,
   skillKey: SkillKey,
-  amount: number
+  amount: number,
+  now = new Date().toISOString()
 ): PlayerProfile {
-  if (amount <= 0) {
+  assertXpAmount(amount);
+  if (amount === 0) {
     return player;
   }
 
+  if (!SKILL_KEYS.includes(skillKey)) throw new Error('Unknown skill.');
   const currentSkill = player.stats[skillKey];
+  assertXpAmount(currentSkill.totalXp + amount);
 
   let level = currentSkill.level;
   let currentXp = currentSkill.xp + amount;
@@ -237,7 +244,7 @@ export function addSkillXp(
       },
     },
 
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   };
 }
 
@@ -297,4 +304,9 @@ export function normalizePlayer(player: PlayerProfile): PlayerProfile {
   }
   return { ...player, stats, realLevel: real.level, realXp: real.xp, realXpToNextLevel: real.required,
     rank: rankForLevel(real.level), avatarEvolution: evolutionForLevel(real.level) };
+}
+
+// Reject malformed rewards before arithmetic (Infinity would never leave the level loop).
+export function assertXpAmount(amount: number): void {
+  if (!Number.isSafeInteger(amount) || amount < 0) throw new Error('XP must be a non-negative safe integer.');
 }

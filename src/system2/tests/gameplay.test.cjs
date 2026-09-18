@@ -9,7 +9,8 @@ const vm = require('node:vm');
 const root = process.env.SYSTEM_PROJECT_ROOT ?? path.resolve(__dirname, '../../..');
 const ts = require(require.resolve('typescript', { paths: [root, process.cwd()] }));
 
-function loader(mocks, clock = { now: Date.now() }) {
+// Live GPS fixtures use wall time; freeze time only when a test explicitly injects a clock.
+function loader(mocks, clock = { get now() { return Date.now(); } }) {
   const cache = new Map();
   function load(file) {
     const resolved = [file, file + '.ts', file + '.tsx', path.join(file, 'index.ts')]
@@ -1616,4 +1617,62 @@ test('main objective follows real story and ends with unknown chapter, not fake 
 test('same-day completed attempt cannot be forged from a terminal failure record',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'closed');await h.db.endQuestAttempt('closed','INTERRUPTED','BACKGROUND',10);
  await assert.rejects(h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'closed'}));assert.equal((await h.db.loadSystemState()).daily.completed,0);
+});
+
+// Domain contract: explicit time, immutable inputs, unchanged persisted progression curves.
+for (const [label,levels,remainder] of [['normal XP',0,25],['exact threshold',1,0],['one level',1,7],['multiple levels',4,13]]) {
+ test('domain progression: '+label,()=>{
+  const core=loader({})('core/progression'); const before=core.createNewPlayer();
+  const amount=Array.from({length:levels},(_,i)=>core.xpNeededForRealLevel(i+1)).reduce((a,b)=>a+b,0)+remainder;
+  const saved=JSON.stringify(before); const now='2026-09-18T10:00:00.000Z';
+  const after=core.addRealXp(before,amount,now);
+  assert.equal(after.realLevel,1+levels); assert.equal(after.realXp,remainder); assert.equal(after.totalRealXp,amount);
+  assert.equal(after.realXpToNextLevel,core.xpNeededForRealLevel(1+levels)); assert.equal(after.updatedAt,now);
+  assert.equal(JSON.stringify(before),saved);
+  const receipts=loader({})('core/rewards'); assert.equal(receipts.hasLevelUp(receipts.rewardReceipt('unit',before,after)),levels>0);
+ });
+}
+for(const invalid of [NaN,Infinity,-1,0.5,Number.MAX_SAFE_INTEGER+1]) test('domain rejects invalid XP '+invalid,()=>{
+ const core=loader({})('core/progression'),player=core.createNewPlayer();
+ assert.throws(()=>core.addRealXp(player,invalid)); assert.throws(()=>core.addSkillXp(player,'WIL',invalid));
+ assert.equal(player.totalRealXp,0);
+});
+test('domain zero reward, stat reward and multiple skill levels are deterministic',()=>{
+ const load=loader({}),core=load('core/progression'),engine=load('core/questEngine');
+ const player=core.createNewPlayer(),now='2026-09-18T10:00:00.000Z',saved=JSON.stringify(player);
+ const skill=core.xpNeededForSkillLevel(1)+core.xpNeededForSkillLevel(2)+9;
+ const reward={realXp:25,skillXp:{WIL:skill,STR:10},gameEnergy:8};
+ const after=engine.applyQuestRewards(player,reward,now);
+ assert.equal(after.stats.WIL.level,3); assert.equal(after.stats.WIL.xp,9); assert.equal(after.stats.STR.totalXp,10);
+ assert.equal(after.gameEnergy,8); assert.equal(after.totalRealXp,25); assert.equal(after.streak,player.streak);
+ assert.equal(after.verifiedQuestCount,0); assert.equal(JSON.stringify(player),saved);
+ assert.equal(JSON.stringify(after),JSON.stringify(engine.applyQuestRewards(player,reward,now)));
+ assert.equal(engine.applyQuestRewards(player,{realXp:0},now).totalRealXp,0);
+});
+test('domain rejects malformed rewards without mutating player',()=>{
+ const load=loader({}),core=load('core/progression'),engine=load('core/questEngine'),player=core.createNewPlayer();
+ const saved=JSON.stringify(player),now='2026-09-18T10:00:00.000Z';
+ for(const reward of [{realXp:10,skillXp:{BAD:3}},{realXp:10,skillXp:{WIL:Infinity}},{realXp:10,gameEnergy:-1},{realXp:10,coins:1},{realXp:10,chest:'COMMON'}]) assert.throws(()=>engine.applyQuestRewards(player,reward,now));
+ assert.throws(()=>engine.applyQuestRewards(player,{realXp:10},'invalid'));
+ assert.throws(()=>core.addRealXp({...player,totalRealXp:Number.MAX_SAFE_INTEGER},1,now));
+ assert.equal(JSON.stringify(player),saved);
+});
+test('domain verified completion returns profile, completed quest and event without side effects',()=>{
+ const load=loader({}),core=load('core/progression'),engine=load('core/questEngine');
+ const player=core.createNewPlayer(),now='2026-09-18T10:00:00.000Z';
+ const evidence={questId:'first_movement_v1',verificationType:'GPS_DISTANCE',distanceMeters:500,durationSeconds:400,verificationScore:100};
+ const saved=JSON.stringify({player,evidence}); const result=engine.completeQuest(player,evidence,'ACTIVE',now);
+ assert.equal(result.quest.status,'COMPLETED'); assert.equal(result.quest.completedAt,now);
+ assert.equal(result.player.totalRealXp,100); assert.equal(result.player.stats.VIT.totalXp,80);
+ assert.equal(result.player.gameEnergy,10); assert.equal(result.player.verifiedQuestCount,1); assert.equal(result.player.totalDistanceMeters,500);
+ assert.equal(result.event.realXpAwarded,100); assert.equal(result.event.questId,evidence.questId); assert.equal(result.event.createdAt,now);
+ assert.equal(JSON.stringify({player,evidence}),saved);
+ assert.throws(()=>engine.completeQuest(result.player,evidence,result.quest.status,now));
+ for(const status of ['LOCKED','FAILED','VERIFYING']) assert.throws(()=>engine.completeQuest(player,evidence,status,now));
+ assert.throws(()=>engine.completeQuest(player,{...evidence,distanceMeters:499},'ACTIVE',now));
+});
+test('domain timer completion adds no distance and no arbitrary streak',()=>{
+ const load=loader({}),player=load('core/progression').createNewPlayer();player.streak=4;player.totalDistanceMeters=123;
+ const result=load('core/questEngine').completeQuest(player,{questId:'focus_protocol_v1',verificationType:'TIMER',durationSeconds:600,verificationScore:100},'ACTIVE','2026-09-18T10:00:00.000Z');
+ assert.equal(result.player.totalDistanceMeters,123);assert.equal(result.player.streak,4);assert.equal(result.player.stats.WIL.totalXp,70);
 });
