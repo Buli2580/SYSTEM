@@ -1,7 +1,7 @@
 import { AppState } from 'react-native';
 import { configureAudio, playFeedback, rewardSound, stopAudio } from '../identity/audio';
 import { syncReminders } from '../notifications/service';
-import { dayKey } from '../daily/calendar';
+import { dayKey, weekKey } from '../daily/calendar';
 import { createContext, type ReactNode, type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createNewPlayer } from '../core';
 import * as db from '../storage/database';
@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS, type Settings } from '../identity/model';
 import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
+import type { BossDetailed, WeeklyChallengeState } from '../storage/database';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -24,6 +25,14 @@ type SystemContextValue = db.SystemSnapshot & {
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
   lastReward: RewardReceipt | null; notificationError: string | null;
+  // Boss
+  activeBoss: BossDetailed | null;
+  loadBoss: (id: string) => Promise<void>;
+  updateBoss: (boss: BossDetailed) => Promise<void>;
+  // Weekly Challenges
+  weeklyChallenges: WeeklyChallengeState[];
+  loadWeeklyChallenges: () => Promise<void>;
+  updateWeeklyChallenge: (state: WeeklyChallengeState) => Promise<void>;
 };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
@@ -37,6 +46,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<RewardReceipt | null>(null);
   const [lastReward, setLastReward] = useState<RewardReceipt | null>(null);
+  const [activeBoss, setActiveBoss] = useState<BossDetailed | null>(null);
+  const [weeklyChallenges, setWeeklyChallenges] = useState<WeeklyChallengeState[]>([]);
   const seenRewards = useRef(new Set<string>());
   const refreshRef = useRef<Promise<void> | null>(null);
   const generation = useRef(0);
@@ -108,11 +119,43 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
   }, []);
+
+  const loadBoss = useCallback(async (id: string) => {
+    const boss = await db.loadBossDetailed(id);
+    if (boss) setActiveBoss(boss);
+  }, []);
+
+  const updateBoss = useCallback(async (boss: BossDetailed) => {
+    await db.saveBossDetailed(boss);
+    setActiveBoss(boss);
+  }, []);
+
+  const loadWeeklyChallenges = useCallback(async () => {
+    const currentWeek = weekKey(dayKey());
+    const challenges = await db.loadWeeklyChallengesForWeek(currentWeek);
+    setWeeklyChallenges(challenges);
+  }, []);
+
+  const updateWeeklyChallenge = useCallback(async (state: WeeklyChallengeState) => {
+    await db.saveWeeklyChallengeState(state);
+    setWeeklyChallenges(current => {
+      const exists = current.find(c => c.id === state.id && c.weekKey === state.weekKey);
+      if (exists) {
+        return current.map(c => c.id === state.id && c.weekKey === state.weekKey ? state : c);
+      }
+      return [...current, state];
+    });
+  }, []);
+
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: name => apply(db.finishOnboarding(name)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)), resetData,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
+    // Boss
+    activeBoss, loadBoss, updateBoss,
+    // Weekly Challenges
+    weeklyChallenges, loadWeeklyChallenges, updateWeeklyChallenge,
   }}>{children}</SystemContext.Provider>;
 }
 export function useSystem() {

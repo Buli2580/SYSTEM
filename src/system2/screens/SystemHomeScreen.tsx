@@ -7,7 +7,15 @@ import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
 import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
-import { useCallback } from 'react';
+import { buildDailyProgressModel } from '../daily/progression';
+import { calculateStreakState, getStreakStatusText } from '../daily/streak';
+import { buildWeeklyChallengeProgressModel } from '../weekly/challenges';
+import { getBossById } from '../boss/catalog';
+import { useCallback, useEffect, useState } from 'react';
+import { determineNextAction } from '../gameplay/nextAction';
+import BossCard from '../components/BossCard';
+import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
+import StreakCard from '../components/StreakCard';
 
 import {
     Pressable,
@@ -289,15 +297,62 @@ export default function SystemHomeScreen() {
   const { lastReward, daily, story } = useSystem();
   const router = useRouter();
 
-  const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, error, refreshPlayer } = useSystem();
+  const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, error, refreshPlayer, daily: systemDaily, activeBoss, loadBoss, weeklyChallenges, loadWeeklyChallenges } = useSystem();
 
-  const realProgress =
-    getPlayerProgressPercent(player) * 100;
+  const realProgress = getPlayerProgressPercent(player) * 100;
 
   const awakening = getAwakeningProgress(completedQuestIds);
-  const objective = mainStoryObjective(story,awakeningCompleted);
+  const objective = mainStoryObjective(story, awakeningCompleted);
   const mainQuestProgress = awakeningCompleted ? objective.completed : awakening.completed;
-  const mainQuestPercent = awakeningCompleted ? (objective.total ? objective.completed/objective.total*100 : 0) : awakening.percent;
+  const mainQuestPercent = awakeningCompleted ? (objective.total ? objective.completed / objective.total * 100 : 0) : awakening.percent;
+
+  const dailyProgress = buildDailyProgressModel(systemDaily, completedQuestIds, activeQuestId, (id) => {
+    const { getQuest } = require('../quests/catalog');
+    return getQuest(id);
+  });
+
+  const streakState = calculateStreakState(
+    player.streak,
+    player.streak,
+    null,
+    require('../daily/calendar').dayKey(),
+    systemDaily
+  );
+
+  const weeklyProgress = buildWeeklyChallengeProgressModel(
+    require('../daily/calendar').weekKey(require('../daily/calendar').dayKey()),
+    weeklyChallenges.reduce((acc, c) => ({ ...acc, [c.id]: c.progress }), {})
+  );
+
+  const fallbackBoss = getBossById('inertia');
+  const activeBossForAction = activeBoss ?? (fallbackBoss ? {
+    ...fallbackBoss,
+    currentHp: fallbackBoss.maxHp,
+    status: 'AVAILABLE' as const,
+    progress: 0,
+    startedAt: null,
+    defeatedAt: null,
+  } : null);
+
+  const nextAction = determineNextAction({
+    player,
+    completedQuestIds,
+    activeQuestId,
+    daily: systemDaily,
+    awakeningCompleted,
+    worldUnlocked,
+    story,
+    activeBoss: activeBossForAction,
+    weeklyChallenges: weeklyProgress.map(wp => ({
+      id: wp.challenge.id,
+      status: wp.status,
+      progress: wp.currentProgress,
+    })),
+    getQuest: (id) => {
+      const { getQuest } = require('../quests/catalog');
+      return getQuest(id);
+    },
+  });
 
   if (!ready) {
     return (
@@ -736,6 +791,90 @@ export default function SystemHomeScreen() {
             ))}
           </View>
         </View>
+
+        {lastReward && <RewardSummary receipt={lastReward} />}
+
+        {/* DAILY PROGRESSION */}
+        {systemDaily && (
+          <View>
+            <SectionTitle code="03 // DAILY PROTOCOL" title="DAILY PROGRESSION" />
+            <View style={styles.dailyCard}>
+            <View style={styles.dailyHeader}>
+              <Text style={styles.dailyTitle}>TODAY</Text>
+              <Text style={styles.dailyProgress}>
+                {dailyProgress.completedQuests} / {dailyProgress.totalQuests} QUESTS
+              </Text>
+            </View>
+            <View style={styles.dailyStats}>
+              <View style={styles.dailyStat}>
+                <Text style={styles.dailyStatValue}>{dailyProgress.earnedXp}</Text>
+                <Text style={styles.dailyStatLabel}>XP EARNED</Text>
+              </View>
+              <View style={styles.dailyDivider} />
+              <View style={styles.dailyStat}>
+                <Text style={styles.dailyStatValue}>{dailyProgress.totalXp}</Text>
+                <Text style={styles.dailyStatLabel}>TOTAL XP</Text>
+              </View>
+              <View style={styles.dailyDivider} />
+              <View style={styles.dailyStat}>
+                <Text style={styles.dailyStatValue}>{dailyProgress.completionPercent}%</Text>
+                <Text style={styles.dailyStatLabel}>COMPLETE</Text>
+              </View>
+            </View>
+            <View style={styles.dailyProgressTrack}>
+              <View style={[styles.dailyProgressFill, { width: `${dailyProgress.completionPercent}%` }]} />
+            </View>
+            {dailyProgress.nextAvailableQuest && (
+              <Pressable style={styles.nextQuestButton} onPress={() => router.push({ pathname: '/quest', params: { questId: dailyProgress.nextAvailableQuest!.id } })}>
+                <Text style={styles.nextQuestText}>NEXT: {dailyProgress.nextAvailableQuest.title}</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+        )}
+
+        {/* STREAK */}
+        <SectionTitle code="04 // CONSISTENCY" title="STREAK SYSTEM" />
+        <StreakCard streak={streakState} compact />
+
+        {/* WEEKLY CHALLENGES */}
+        {weeklyProgress.length > 0 && (
+          <View>
+            <SectionTitle code="05 // WEEKLY CHALLENGES" title="WEEKLY CHALLENGES" />
+            {weeklyProgress.map(wp => (
+              <WeeklyChallengeCard key={wp.challenge.id} progress={wp} compact />
+            ))}
+          </View>
+        )}
+
+        {/* BOSS */}
+        {activeBoss && (
+          <View>
+            <SectionTitle code="06 // BOSS PROTOCOL" title="ACTIVE BOSS" />
+            <BossCard boss={activeBoss} compact onPress={() => router.push('/story')} />
+          </View>
+        )}
+
+        {/* NEXT ACTION */}
+        {nextAction.type !== 'NONE' && (
+          <View>
+            <SectionTitle code="07 // NEXT ACTION" title="RECOMMENDED ACTION" />
+            <View style={styles.nextActionCard}>
+              <Text style={styles.nextActionLabel}>{nextAction.label}</Text>
+              <Text style={styles.nextActionDesc}>{nextAction.description}</Text>
+              {nextAction.questId && (
+                <Pressable style={styles.nextActionButton} onPress={() => router.push({ pathname: '/quest', params: { questId: nextAction.questId } })}>
+                  <Text style={styles.nextActionButtonText}>START QUEST</Text>
+                </Pressable>
+              )}
+              {nextAction.bossId && (
+                <Pressable style={styles.nextActionButton} onPress={() => router.push('/story')}>
+                  <Text style={styles.nextActionButtonText}>FIGHT BOSS</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
 
         {lastReward && <RewardSummary receipt={lastReward} />}
 
@@ -1554,4 +1693,114 @@ const styles = StyleSheet.create({
     height: 45,
   },
 
+  dailyCard: {
+    borderWidth: 1,
+    borderColor: SYSTEM_COLORS.line,
+    borderRadius: 22,
+    backgroundColor: '#061116',
+    padding: 18,
+    marginTop: 16,
+  },
+  dailyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dailyTitle: {
+    color: SYSTEM_COLORS.cyan,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  dailyProgress: {
+    color: SYSTEM_COLORS.white,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  dailyStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  dailyStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  dailyStatValue: {
+    color: SYSTEM_COLORS.white,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  dailyStatLabel: {
+    color: SYSTEM_COLORS.textVeryMuted,
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 4,
+  },
+  dailyDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: SYSTEM_COLORS.line,
+  },
+  dailyProgressTrack: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: '#09252C',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  dailyProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: SYSTEM_COLORS.cyan,
+  },
+  nextQuestButton: {
+    backgroundColor: SYSTEM_COLORS.cyan,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  nextQuestText: {
+    color: '#001014',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+
+  nextActionCard: {
+    borderWidth: 1,
+    borderColor: SYSTEM_COLORS.cyan,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,229,255,0.05)',
+    padding: 18,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  nextActionLabel: {
+    color: SYSTEM_COLORS.cyan,
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  nextActionDesc: {
+    color: SYSTEM_COLORS.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  nextActionButton: {
+    backgroundColor: SYSTEM_COLORS.cyan,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  nextActionButtonText: {
+    color: '#001014',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
 });

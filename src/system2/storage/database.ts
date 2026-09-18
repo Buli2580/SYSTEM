@@ -412,11 +412,132 @@ export function getQuestCompletionDetails(questId: string): Promise<QuestComplet
 }
 export function consumeStoryEvent(id:string) { return profileTransaction(txn=>txn.runAsync('UPDATE story_events SET consumed=1 WHERE id=?',id)); }
 export function startBossProtocol() {
- return profileTransaction(async txn=>{
-   const snapshot=await snapshotInTransaction(txn);
-   if(!snapshot.story.worldLinkComplete||snapshot.daily?.clockAnomaly) throw new Error('BOSS PROTOCOL jest zablokowany. Sprawdź WORLD LINK i datę telefonu.');
-   await txn.runAsync('INSERT INTO boss_progress(id,started_at,start_day) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING',BOSS_ID,new Date(Date.now()).toISOString(),dayKey());
-   await storyEvent(txn,'boss_started','BOSS_STARTED','THE FIRST WALL // BOSS STARTED');
-   return snapshotInTransaction(txn);
- });
+  return profileTransaction(async txn=>{
+    const snapshot=await snapshotInTransaction(txn);
+    if(!snapshot.story.worldLinkComplete||snapshot.daily?.clockAnomaly) throw new Error('BOSS PROTOCOL jest zablokowany. Sprawdź WORLD LINK i datę telefonu.');
+    await txn.runAsync('INSERT INTO boss_progress(id,started_at,start_day) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING',BOSS_ID,new Date(Date.now()).toISOString(),dayKey());
+    await storyEvent(txn,'boss_started','BOSS_STARTED','THE FIRST WALL // BOSS STARTED');
+    return snapshotInTransaction(txn);
+  });
+}
+
+export type BossDetailed = {
+  id: string;
+  name: string;
+  description: string;
+  difficulty: 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4';
+  maxHp: number;
+  currentHp: number;
+  status: 'LOCKED' | 'AVAILABLE' | 'ACTIVE' | 'DEFEATED';
+  rewardXp: number;
+  rewardEnergy: number;
+  unlockCondition: string | null;
+  progress: number;
+  startedAt: string | null;
+  defeatedAt: string | null;
+};
+
+export function loadBossDetailed(id: string): Promise<BossDetailed | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{
+      id: string;
+      name: string;
+      description: string;
+      difficulty: 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4';
+      max_hp: number;
+      current_hp: number;
+      status: 'LOCKED' | 'AVAILABLE' | 'ACTIVE' | 'DEFEATED';
+      reward_xp: number;
+      reward_energy: number;
+      unlock_condition: string | null;
+      progress: number;
+      started_at: string | null;
+      defeated_at: string | null;
+    }>('SELECT * FROM boss_detailed WHERE id = ?', id);
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      difficulty: row.difficulty,
+      maxHp: row.max_hp,
+      currentHp: row.current_hp,
+      status: row.status,
+      rewardXp: row.reward_xp,
+      rewardEnergy: row.reward_energy,
+      unlockCondition: row.unlock_condition,
+      progress: row.progress,
+      startedAt: row.started_at,
+      defeatedAt: row.defeated_at,
+    };
+  });
+}
+
+export function saveBossDetailed(boss: BossDetailed): Promise<void> {
+  return profileTransaction(async txn => {
+    await txn.runAsync(
+      `INSERT INTO boss_detailed (id, name, description, difficulty, max_hp, current_hp, status, reward_xp, reward_energy, unlock_condition, progress, started_at, defeated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         description = excluded.description,
+         difficulty = excluded.difficulty,
+         max_hp = excluded.max_hp,
+         current_hp = excluded.current_hp,
+         status = excluded.status,
+         reward_xp = excluded.reward_xp,
+         reward_energy = excluded.reward_energy,
+         unlock_condition = excluded.unlock_condition,
+         progress = excluded.progress,
+         started_at = excluded.started_at,
+         defeated_at = excluded.defeated_at`,
+      boss.id, boss.name, boss.description, boss.difficulty, boss.maxHp, boss.currentHp, boss.status, boss.rewardXp, boss.rewardEnergy, boss.unlockCondition, boss.progress, boss.startedAt, boss.defeatedAt
+    );
+  });
+}
+
+export type WeeklyChallengeState = {
+  id: string;
+  weekKey: string;
+  progress: number;
+  completed: number;
+  rewardClaimed: number;
+};
+
+export function loadWeeklyChallengeState(id: string, weekKey: string): Promise<WeeklyChallengeState | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{
+      progress: number;
+      completed: number;
+      reward_claimed: number;
+    }>('SELECT * FROM weekly_challenges WHERE id = ? AND week_key = ?', id, weekKey);
+    if (!row) return null;
+    return { id, weekKey, progress: row.progress, completed: row.completed, rewardClaimed: row.reward_claimed };
+  });
+}
+
+export function saveWeeklyChallengeState(state: WeeklyChallengeState): Promise<void> {
+  return profileTransaction(async txn => {
+    await txn.runAsync(
+      `INSERT INTO weekly_challenges (id, week_key, progress, completed, reward_claimed)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id, week_key) DO UPDATE SET
+         progress = excluded.progress,
+         completed = excluded.completed,
+         reward_claimed = excluded.reward_claimed`,
+      state.id, state.weekKey, state.progress, state.completed, state.rewardClaimed
+    );
+  });
+}
+
+export function loadWeeklyChallengesForWeek(weekKey: string): Promise<WeeklyChallengeState[]> {
+  return profileTransaction(async txn => {
+    const rows = await txn.getAllAsync<{
+      id: string;
+      progress: number;
+      completed: number;
+      reward_claimed: number;
+    }>('SELECT * FROM weekly_challenges WHERE week_key = ?', weekKey);
+    return rows.map(r => ({ id: r.id, weekKey, progress: r.progress, completed: r.completed, rewardClaimed: r.reward_claimed }));
+  });
 }

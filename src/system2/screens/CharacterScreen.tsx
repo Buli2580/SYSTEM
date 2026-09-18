@@ -7,8 +7,9 @@ import Action from '../components/Action';
 import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
-import { SKILL_KEYS, SKILL_META, type SkillKey } from '../core';
+import { SKILL_KEYS, SKILL_META, type SkillKey, getPlayerProgressPercent } from '../core';
 import { dominantSkill } from '../identity/model';
+import { calculateStreakState, getStreakStatusText } from '../daily/streak';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 
 export default function CharacterScreen() {
@@ -19,6 +20,16 @@ export default function CharacterScreen() {
   const lock = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => setName(player.displayName), [player.id, player.displayName]);
+
+  const streakState = calculateStreakState(
+    player.streak,
+    player.streak,
+    null,
+    require('../daily/calendar').dayKey(),
+    null
+  );
+  const progressPercent = getPlayerProgressPercent(player) * 100;
+
   async function run(task: () => Promise<void>) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
     try { await task(); } catch (cause) { if (__DEV__) console.error('[SYSTEM identity] Operation failed', cause); if (mounted.current) setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać tożsamości.'); }
@@ -50,6 +61,24 @@ export default function CharacterScreen() {
       <Text style={s.body}>{player.realXp} / {player.realXpToNextLevel} REAL XP</Text>
       <Progress value={player.realXp} max={player.realXpToNextLevel} />
       <Text style={s.body}>DOMINANT SKILL · {dominantSkill(player)}</Text><Text style={s.label}>ARCHETYPE // UNFORMED</Text>
+    </View>
+    <View style={s.panel}>
+      <Text style={s.label}>STREAK</Text>
+      <Text style={s.title}>{streakState.currentStreak} DAY{streakState.currentStreak !== 1 ? 'S' : ''}</Text>
+      <Text style={s.body}>{getStreakStatusText(streakState)}</Text>
+      <Text style={s.body}>BEST: {streakState.bestStreak} DAYS</Text>
+      {streakState.nextMilestone && (
+        <Text style={s.body}>NEXT MILESTONE: {streakState.nextMilestone} DAYS ({streakState.progressToNextMilestone}%)</Text>
+      )}
+      <Progress value={streakState.progressToNextMilestone} max={100} />
+    </View>
+    <View style={s.panel}>
+      <Text style={s.label}>REAL PROGRESSION</Text>
+      <Text style={s.title}>{progressPercent.toFixed(1)}% TO NEXT LEVEL</Text>
+      <Text style={s.body}>XP: {player.realXp} / {player.realXpToNextLevel}</Text>
+      <Text style={s.body}>TOTAL XP: {player.totalRealXp.toLocaleString()}</Text>
+      <Text style={s.body}>VERIFIED QUESTS: {player.verifiedQuestCount}</Text>
+      <Progress value={player.realXp} max={player.realXpToNextLevel} />
     </View>
     <View style={s.panel}>
       <Text style={s.label}>SYSTEM NAME</Text>
