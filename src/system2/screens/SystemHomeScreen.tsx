@@ -22,6 +22,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 
 import Animated, {
     Easing,
+    FadeInUp,
     cancelAnimation,
     interpolate,
     useAnimatedStyle,
@@ -85,6 +86,35 @@ function SystemBackground() {
         color="rgba(0,229,255,0.018)"
       />
     </Canvas>
+  );
+}
+
+function WorldSignalBeacon({ active }: { active: boolean }) {
+  const pulse = useSharedValue(0);
+
+  useFocusEffect(useCallback(() => {
+    pulse.value = withRepeat(
+      withTiming(1, {
+        duration: 1700,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+
+    return () => cancelAnimation(pulse);
+  }, [pulse]));
+
+  const beaconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.85, 1.35]) }],
+    opacity: interpolate(pulse.value, [0, 0.5, 1], [0.22, 0.72, 0.12]),
+  }));
+
+  return (
+    <View style={[styles.systemSignal, active && styles.systemSignalActive]}>
+      <Animated.View style={[styles.systemSignalHalo, beaconStyle]} />
+      <View style={styles.systemSignalDiamond} />
+    </View>
   );
 }
 
@@ -339,18 +369,12 @@ export default function SystemHomeScreen() {
             </Text>
           </View>
 
-          <View style={styles.systemSignal}>
-            <View
-              style={
-                styles.systemSignalDiamond
-              }
-            />
-          </View>
+          <WorldSignalBeacon active={worldUnlocked} />
         </View>
 
         {/* PLAYER CARD */}
 
-        <View style={styles.playerCard}>
+        <Animated.View entering={FadeInUp.duration(500).delay(60)} style={styles.playerCard}>
           <View style={styles.playerGlow} />
 
           <View style={styles.playerTop}>
@@ -563,7 +587,7 @@ export default function SystemHomeScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* SKILLS */}
 
@@ -609,7 +633,7 @@ export default function SystemHomeScreen() {
           title="GŁÓWNA MISJA"
         />
 
-        <View style={styles.mainQuest}>
+        <Animated.View entering={FadeInUp.duration(500).delay(120)} style={styles.mainQuest}>
           <View style={styles.questAccent} />
 
           <View style={styles.questContent}>
@@ -723,9 +747,16 @@ export default function SystemHomeScreen() {
               />
             </View>
 
-            {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/story')}><Text style={styles.startQuestText}>STORY / CHRONICLE →</Text></Pressable>}
+            {awakeningCompleted && <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.startQuestButton, pressed && styles.startQuestButtonPressed]}
+              onPress={() => router.push('/story')}>
+              <Text style={styles.startQuestText}>STORY / CHRONICLE →</Text>
+            </Pressable>}
             {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
-              <Pressable key={quest.id} style={styles.startQuestButton}
+              <Pressable key={quest.id}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.startQuestButton, pressed && styles.startQuestButtonPressed, getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED' && { opacity: 0.45 }]}
                 disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
                 onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
                 <Text style={styles.startQuestText}>{quest.title}</Text>
@@ -735,7 +766,7 @@ export default function SystemHomeScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {lastReward && <RewardSummary receipt={lastReward} />}
 
@@ -746,14 +777,16 @@ export default function SystemHomeScreen() {
           title="SYSTEM WORLD"
         />
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Otwórz SYSTEM WORLD" style={styles.worldCard} disabled={!worldUnlocked} onPress={() => router.replace('/world')}>
-          <View style={styles.gateIcon}>
-            <View
-              style={
-                styles.gateDiamond
-              }
-            />
-          </View>
+        <Animated.View entering={FadeInUp.duration(500).delay(180)}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Otwórz SYSTEM WORLD"
+            style={({ pressed }) => [styles.worldCard, pressed && styles.worldCardPressed, !worldUnlocked && { opacity: 0.8 }]}
+            disabled={!worldUnlocked}
+            onPress={() => router.replace('/world')}>
+            <View style={styles.gateIcon}>
+              <View style={styles.gateDiamond} />
+            </View>
 
           <View style={styles.worldContent}>
             <Text style={styles.locked}>
@@ -771,8 +804,9 @@ export default function SystemHomeScreen() {
             >
               {worldUnlocked ? 'Odkrywaj sektory i uruchom SCAN FOR SIGNAL, aby odnaleźć pierwszy sygnał.' : 'Ukończ Pierwsze Przebudzenie, aby odblokować dostęp do SYSTEM WORLD.'}
             </Text>
-          </View>
-        </Pressable>
+            </View>
+          </Pressable>
+        </Animated.View>
 
         <View style={styles.protocol}>
           <Text
@@ -867,6 +901,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#061014',
+    overflow: 'hidden',
+  },
+
+  systemSignalActive: {
+    borderColor: SYSTEM_COLORS.cyan,
+    shadowColor: SYSTEM_COLORS.cyan,
+    shadowOpacity: 0.35,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 0 },
+  },
+
+  systemSignalHalo: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 238, 255, 0.6)',
+    backgroundColor: 'rgba(108, 238, 255, 0.08)',
   },
 
   systemSignalDiamond: {
@@ -879,6 +932,7 @@ const styles = StyleSheet.create({
         rotate: '45deg',
       },
     ],
+    zIndex: 1,
   },
 
   playerCard: {
@@ -1455,6 +1509,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 27,
     marginTop: 27,
+    transform: [{ scale: 1 }],
+  },
+
+  startQuestButtonPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.96,
+    backgroundColor: '#72effd',
   },
 
   startQuestText: {
@@ -1477,6 +1538,13 @@ const styles = StyleSheet.create({
     padding: 25,
     flexDirection: 'row',
     alignItems: 'center',
+    transform: [{ scale: 1 }],
+  },
+
+  worldCardPressed: {
+    transform: [{ scale: 0.985 }],
+    borderColor: SYSTEM_COLORS.cyan,
+    backgroundColor: '#091d24',
   },
 
   gateIcon: {
