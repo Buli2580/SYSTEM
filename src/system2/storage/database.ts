@@ -1,3 +1,4 @@
+import { inspectLocalHealth, type LocalHealth } from './health';
 import { createQuestCompletion } from '../application/completeQuest';
 import { localQuestVerification } from '../verification/localProvider';
 import { questAvailability } from '../quests/availability';
@@ -14,7 +15,7 @@ import { getQuest } from '../quests/catalog';
 import * as SQLite from 'expo-sqlite';
 import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
-import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
+import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
 import { parseEvent } from '../identity/history';
 
@@ -215,6 +216,7 @@ export function loadSystemState(): Promise<SystemSnapshot> {
         'player', JSON.stringify(createNewPlayer('GRACZ'))
       );
       await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING', 'onboarding_complete', 'false');
+      await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING', 'settings', JSON.stringify(DEFAULT_SETTINGS));
       snapshot = await snapshotInTransaction(txn);
     });
     if (!snapshot) throw new Error('Nie udało się odczytać zapisu SYSTEMU.');
@@ -365,4 +367,16 @@ export function startBossProtocol() {
    await storyEvent(txn,'boss_started','BOSS_STARTED','THE FIRST WALL // BOSS STARTED');
    return snapshotInTransaction(txn);
  });
+}
+
+// Manual local diagnostics: no telemetry and no repair of corrupt player values.
+export function testerHealthCheck(): Promise<LocalHealth> {
+  return serialized(async () => {
+    try {
+      await initSystemDatabase();
+      let result: LocalHealth | undefined;
+      await (await getDatabase()).withExclusiveTransactionAsync(async txn => { result = await inspectLocalHealth(txn); });
+      return result!;
+    } catch { return { ok: false, schema: null, issues: [{ code: 'STORAGE_UNAVAILABLE' }] }; }
+  });
 }

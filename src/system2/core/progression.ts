@@ -125,12 +125,16 @@ export function createInitialStats(): PlayerStats {
 }
 
 export function createNewPlayer(
-  displayName = 'GRACZ'
+  displayName = 'GRACZ',
+  identity?: { id: string; createdAt: string }
 ): PlayerProfile {
-  const now = new Date().toISOString();
+  const now = identity?.createdAt ?? new Date(Date.now()).toISOString();
+  // Explicit identity makes fixtures deterministic; random suffix separates same-ms resets.
+  const id = identity?.id ?? ('player_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+  if (!id.trim() || !Number.isFinite(Date.parse(now))) throw new Error('Invalid initial player identity.');
 
   return {
-    id: `player_${Date.now()}`,
+    id,
 
     displayName,
 
