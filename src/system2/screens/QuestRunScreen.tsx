@@ -280,7 +280,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveValue
                 }
               >
-                {isTimer ? (status === 'POMIAR' ? 'ON' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
+                {isTimer ? (status === 'TRACKING' ? 'WŁ.' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
               </Text>
 
               <Text
@@ -293,17 +293,17 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           </View>
 
-          {(status === 'SPRAWDZANIE' || status === 'URUCHAMIANIE') && (
+          {(status === 'CHECKING' || status === 'STARTING') && (
             <View style={styles.trackingBox}>
               <Text style={styles.trackingText}>
-                {status === 'SPRAWDZANIE' ? 'SPRAWDZANIE ZAPISU…' : isTimer ? 'URUCHAMIANIE CZASU…' : 'OCZEKIWANIE NA GPS…'}
+                {status === 'CHECKING' ? 'SPRAWDZANIE ZAPISU…' : isTimer ? 'URUCHAMIANIE CZASU…' : 'OCZEKIWANIE NA GPS…'}
               </Text>
             </View>
           )}
 
-          {status === 'ZABLOKOWANA' && <View style={styles.errorBox}>
-            <Text style={styles.errorTitle}>QUEST LOCKED</Text>
-            <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
+          {status === 'LOCKED' && <View style={styles.errorBox}>
+            <Text style={styles.errorTitle}>MISJA ZABLOKOWANA</Text>
+            <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu dziennego. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Przebudzenia, aby rozpocząć tę próbę.'}</Text>
             <Pressable onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
           </View>}
 
@@ -316,12 +316,12 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-          {status === 'GOTOWA' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
+          {status === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
             <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
             <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
           </Pressable>}
-          {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
-          {status === 'GOTOWA' && ready && (
+          {rematch && <Text style={styles.retry}>WIADOMOŚĆ SYSTEMU // REWANŻ DOSTĘPNY</Text>}
+          {status === 'READY' && ready && (
             <Pressable accessibilityRole="button"
               style={
                 styles.startButton
@@ -349,7 +349,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           )}
 
           {status ===
-            'POMIAR' && (
+            'TRACKING' && (
             <View
               style={
                 styles.trackingBox
@@ -366,13 +366,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                {isTimer ? `${quest.title} // AKTYWNA` : isMulti ? 'FINAL TRIAL // AKTYWNA' : 'SYSTEM MONITORUJE AKTYWNOŚĆ'}
+                {isTimer ? `${quest.title} // AKTYWNA` : isMulti ? 'OSTATNIA PRÓBA // AKTYWNA' : 'SYSTEM MONITORUJE AKTYWNOŚĆ'}
               </Text>
             </View>
           )}
 
           {status ===
-            'FINALIZOWANIE' && (
+            'COMPLETING' && (
             <View
               style={
                 styles.trackingBox
@@ -383,15 +383,15 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                SYSTEM // VERIFYING...
+                SYSTEM // WERYFIKACJA…
               </Text>
             </View>
           )}
 
-          {(status === 'ODRZUCONA' || status === 'BŁĄD') && (
+          {(status === 'DENIED' || status === 'ERROR') && (
             <View style={styles.errorBox}>
               <Text style={styles.errorTitle}>
-                {status === 'ODRZUCONA' ? 'BRAK DOSTĘPU DO GPS' : 'PRÓBA ZAKOŃCZONA // ANALIZA SYSTEMU'}
+                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'PRÓBA ZAKOŃCZONA // ANALIZA SYSTEMU'}
               </Text>
               <Text style={styles.errorText}>{error}</Text>
               <Pressable onPress={() => { void retryQuest(); }}>
@@ -411,7 +411,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text
             style={styles.rewardTitle}
           >
-            POTENTIAL REWARD
+            MOŻLIWA NAGRODA
           </Text>
 
           <View
@@ -430,14 +430,14 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.reward}
             >
-              +{quest.rewards.gameEnergy ?? 0} ENERGY
+              +{quest.rewards.gameEnergy ?? 0} ENERGII
             </Text>
           </View>
         </View>
 
         {receipt && <RewardSummary receipt={receipt} />}
         {status ===
-          'UKOŃCZONA' && (
+          'COMPLETED' && (
           <View
             style={
               styles.completeCard
@@ -448,7 +448,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 styles.completeSmall
               }
             >
-              QUEST COMPLETE
+              MISJA UKOŃCZONA
             </Text>
 
             <Text

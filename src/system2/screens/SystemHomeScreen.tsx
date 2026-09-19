@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
-import { PRZEBUDZENIE_QUESTS, PRZEBUDZENIE_NAGRODA_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
+import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useCallback } from 'react';
 
 import {
@@ -683,7 +683,7 @@ export default function SystemHomeScreen() {
                     styles.questReward
                   }
                 >
-                  +{awakeningCompleted ? objective.reward : PRZEBUDZENIE_NAGRODA_XP} REAL XP
+                  +{awakeningCompleted ? objective.reward : AWAKENING_REWARD_XP} REAL XP
                 </Text>
               </View>
 
@@ -725,7 +725,7 @@ export default function SystemHomeScreen() {
             </View>
 
             {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/story')}><Text style={styles.startQuestText}>HISTORIA / KRONIKA →</Text></Pressable>}
-            {!awakeningCompleted && PRZEBUDZENIE_QUESTS.map(quest => (
+            {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
               <Pressable key={quest.id} style={styles.startQuestButton}
                 disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
                 onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
