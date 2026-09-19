@@ -26,6 +26,7 @@ export default function XpBar({
     max <= 0
       ? 0
       : Math.min(1, Math.max(0, value / max));
+  const percent = Math.round(target * 100);
 
   const progress = useSharedValue(0);
 
@@ -43,7 +44,7 @@ export default function XpBar({
   }));
 
   return (
-    <View>
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={`Real XP ${value} z ${max}`} accessibilityValue={{ min: 0, max: 100, now: percent }}>
       <View style={styles.header}>
         <Text style={styles.label}>
           REAL XP

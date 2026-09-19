@@ -11,6 +11,8 @@ import type { RunnableQuest } from '../quests/types';
 import { useQuestRun } from '../quests/useQuestRun';
 import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
+import { MissionBriefing } from '../components/QuestExperience';
+import SystemAmbientBackground from '../components/SystemAmbientBackground';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -28,13 +30,9 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const target = quest.verification.type === 'TIMER'
     ? quest.verification.minimumDurationSeconds : quest.verification.minimumDistanceMeters * (extendedGoal ? 1.25 : 1);
   const formatTime = formatQuestTime;
-  const progress =
-    Math.min(
-      100,
-      ((isTimer ? duration : distance) /
-        target) *
-        100
-    );
+  const progress = target > 0 && Number.isFinite(target)
+    ? Math.min(100, Math.max(0, (isTimer ? duration : distance) / target * 100))
+    : 0;
 
   const metersLeft =
     Math.max(
@@ -48,6 +46,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   const seconds =
     duration % 60;
+  const showLiveTracker = isLiveQuestStatus(status);
+  const renderStatus: string = status;
 
   useEffect(() => {
     if (!questAccepted) return;
@@ -74,6 +74,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   return (
     <View style={styles.root}>
+      <SystemAmbientBackground intensity="quiet" />
       <ScrollView
         contentContainerStyle={
           [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
@@ -108,97 +109,12 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
-        <View
-          style={styles.questCard}
-        >
-          <View
-            style={styles.questHeader}
-          >
-            <Text
-              style={styles.category}
-            >
-              {quest.verification.type}
-            </Text>
-
-            <Text
-              style={styles.difficulty}
-            >
-              {quest.difficulty}
-            </Text>
-          </View>
-
-          <Text
-            style={styles.questTitle}
-          >
-            {quest.title}
-          </Text>
-
-          <Text
-            style={
-              styles.description
-            }
-          >
-            {quest.description} Ukończenie następuje automatycznie po weryfikacji.
-          </Text>
-
-          <View
-            style={styles.targetRow}
-          >
-            <View>
-              <Text
-                style={
-                  styles.metricLabel
-                }
-              >
-                TARGET
-              </Text>
-
-              <Text
-                style={
-                  styles.metricBig
-                }
-              >
-                {isTimer ? formatTime(target) : target + ' M'}
-              </Text>
-            </View>
-
-            <View>
-              <Text
-                style={
-                  styles.metricLabel
-                }
-              >
-                SKILL
-              </Text>
-
-              <Text
-                style={
-                  styles.metricCyan
-                }
-              >
-                {[quest.primarySkill, ...quest.secondarySkills].join(' + ')}
-              </Text>
-            </View>
-
-            <View>
-              <Text
-                style={
-                  styles.metricLabel
-                }
-              >
-                VERIFY
-              </Text>
-
-              <Text
-                style={
-                  styles.metricCyan
-                }
-              >
-                {isMulti ? 'GPS + TIMER' : isTimer ? 'TIMER' : 'GPS'}
-              </Text>
-            </View>
-          </View>
-        </View>
+        <MissionBriefing
+          quest={quest}
+          status={status}
+          onStart={status === 'READY' && ready ? handleStartQuest : undefined}
+          startDisabled={startInProgress || !ready}
+        />
 
         {!!quest.activityType && <View style={styles.questCard}>
           <Text style={styles.category}>ACTIVITY MATCH // {!activity || activity.features.durationSeconds < 30 ? 'CHECKING' : activity.verdict === 'VERIFIED' ? 'GOOD' : 'LOW CONFIDENCE'}</Text>
@@ -206,9 +122,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
           <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
-        <View
-          style={styles.tracker}
-        >
+        {showLiveTracker && <View style={styles.tracker}>
           <Text
             style={styles.trackerLabel}
           >
@@ -235,9 +149,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </Text>
           </View>
 
-          <View
-            style={styles.progressTrack}
-          >
+          <View accessibilityRole="progressbar" accessibilityLabel="Mission progress" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }} style={styles.progressTrack}>
             <View
               style={[
                 styles.progressFill,
@@ -308,7 +220,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveValue
                 }
               >
-                {isTimer ? (status === 'TRACKING' ? 'ON' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
+                {isTimer ? (renderStatus === 'TRACKING' ? 'ON' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
               </Text>
 
               <Text
@@ -321,59 +233,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           </View>
 
-          {(status === 'CHECKING' || status === 'STARTING') && (
-            <View style={styles.trackingBox}>
-              <Text style={styles.trackingText}>
-                {status === 'CHECKING' ? 'SPRAWDZANIE ZAPISU...' : isTimer ? 'URUCHAMIANIE TIMERA...' : 'OCZEKIWANIE NA GPS...'}
-              </Text>
-            </View>
-          )}
-
-          {status === 'LOCKED' && <View style={styles.errorBox}>
-            <Text style={styles.errorTitle}>QUEST LOCKED</Text>
-            <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
-            <Pressable onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
-          </View>}
-
-          {!ready && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{databaseError ?? 'Trwa odczyt profilu SYSTEMU...'}</Text>
-              {databaseError && <Pressable onPress={() => { void refreshPlayer(); }}>
-                <Text style={styles.retry}>PONÓW ODCZYT PROFILU</Text>
-              </Pressable>}
-            </View>
-          )}
-
-          {status === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
-            <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
-            <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
-          </Pressable>}
-          {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
-          {status === 'READY' && ready && (
-            <Pressable accessibilityRole="button"
-              style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
-              disabled={startInProgress}
-              onPress={handleStartQuest}
-            >
-              <Text
-                style={
-                  styles.startButtonText
-                }
-              >
-                {rematch ? 'BEGIN REMATCH' : 'ROZPOCZNIJ QUEST'}
-              </Text>
-
-              <Text
-                style={
-                  styles.startArrow
-                }
-              >
-                →
-              </Text>
-            </Pressable>
-          )}
-
-          {status ===
+          {renderStatus ===
             'TRACKING' && (
             <View
               style={
@@ -396,7 +256,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-          {status ===
+          {renderStatus ===
             'COMPLETING' && (
             <View
               style={
@@ -413,55 +273,49 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-          {(status === 'DENIED' || status === 'ERROR') && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorTitle}>
-                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'ATTEMPT ENDED // SYSTEM ANALYSIS'}
-              </Text>
-              <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => { void retryQuest(); }}>
-                <Text style={styles.retry}>{rematch ? 'BEGIN REMATCH' : 'SPRÓBUJ PONOWNIE'}</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
+        </View>}
 
-        {quest.verification.type === 'MULTI' && <MultiProgress
+        {(renderStatus === 'CHECKING' || renderStatus === 'STARTING') && (
+          <View style={styles.trackingBox}>
+            <Text style={styles.trackingText}>
+              {renderStatus === 'CHECKING' ? 'SPRAWDZANIE ZAPISU...' : isTimer ? 'URUCHAMIANIE TIMERA...' : 'OCZEKIWANIE NA GPS...'}
+            </Text>
+          </View>
+        )}
+
+        {renderStatus === 'LOCKED' && <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>QUEST LOCKED</Text>
+          <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Przejdź do questów" onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
+        </View>}
+
+        {!ready && <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{databaseError ?? 'Trwa odczyt profilu SYSTEMU...'}</Text>
+          {databaseError && <Pressable accessibilityRole="button" accessibilityLabel="Ponów odczyt profilu" onPress={() => { void refreshPlayer(); }}>
+            <Text style={styles.retry}>PONÓW ODCZYT PROFILU</Text>
+          </Pressable>}
+        </View>}
+
+        {renderStatus === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)} style={styles.optionButton}>
+          <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
+          <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
+        </Pressable>}
+        {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
+
+        {(renderStatus === 'DENIED' || renderStatus === 'ERROR') && <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>{renderStatus === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'ATTEMPT ENDED // SYSTEM ANALYSIS'}</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Spróbuj ponownie" onPress={() => { void retryQuest(); }}>
+            <Text style={styles.retry}>{rematch ? 'BEGIN REMATCH' : 'SPRÓBUJ PONOWNIE'}</Text>
+          </Pressable>
+        </View>}
+
+        {quest.verification.type === 'MULTI' && showLiveTracker && <MultiProgress
           distance={distance} duration={duration} meters={quest.verification.minimumDistanceMeters}
           seconds={quest.verification.minimumDurationSeconds} />}
 
-        <View
-          style={styles.rewardCard}
-        >
-          <Text
-            style={styles.rewardTitle}
-          >
-            POTENTIAL REWARD
-          </Text>
-
-          <View
-            style={styles.rewardRow}
-          >
-            <Text
-              style={styles.reward}
-            >
-              +{quest.rewards.realXp} REAL XP
-            </Text>
-
-            {Object.entries(quest.rewards.skillXp ?? {}).map(([skill, xp]) => (
-              <Text key={skill} style={styles.reward}>+{xp} {skill} XP</Text>
-            ))}
-
-            <Text
-              style={styles.reward}
-            >
-              +{quest.rewards.gameEnergy ?? 0} ENERGY
-            </Text>
-          </View>
-        </View>
-
         {receipt && <RewardSummary receipt={receipt} />}
-        {status ===
+        {renderStatus ===
           'COMPLETED' && (
           <View
             style={
@@ -531,6 +385,10 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   );
 }
 
+function isLiveQuestStatus(status: string) {
+  return status === 'TRACKING' || status === 'COMPLETING' || status === 'COMPLETED';
+}
+
 const styles =
   StyleSheet.create({
     root: {
@@ -597,12 +455,6 @@ const styles =
       padding: 22,
     },
 
-    questHeader: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-    },
-
     category: {
       color:
         SYSTEM_COLORS.cyan,
@@ -619,51 +471,12 @@ const styles =
       letterSpacing: 2,
     },
 
-    questTitle: {
-      color:
-        SYSTEM_COLORS.white,
-      fontSize: 30,
-      lineHeight: 34,
-      fontWeight: '900',
-      marginTop: 22,
-    },
-
     description: {
       color:
         SYSTEM_COLORS.textMuted,
       fontSize: 14,
       lineHeight: 22,
       marginTop: 14,
-    },
-
-    targetRow: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-      marginTop: 28,
-    },
-
-    metricLabel: {
-      color:
-        SYSTEM_COLORS.textVeryMuted,
-      fontSize: 8,
-      fontWeight: '900',
-      letterSpacing: 2,
-      marginBottom: 7,
-    },
-
-    metricBig: {
-      color:
-        SYSTEM_COLORS.white,
-      fontSize: 20,
-      fontWeight: '900',
-    },
-
-    metricCyan: {
-      color:
-        SYSTEM_COLORS.cyan,
-      fontSize: 20,
-      fontWeight: '900',
     },
 
     tracker: {
@@ -841,35 +654,9 @@ const styles =
       marginTop: 18,
     },
 
-    rewardCard: {
-      marginTop: 16,
-      borderWidth: 1,
-      borderColor:
-        SYSTEM_COLORS.line,
-      borderRadius: 22,
-      padding: 20,
-      backgroundColor:
-        '#061115',
-    },
-
-    rewardTitle: {
-      color:
-        SYSTEM_COLORS.textMuted,
-      fontSize: 9,
-      fontWeight: '900',
-      letterSpacing: 3,
-    },
-
-    rewardRow: {
-      gap: 9,
-      marginTop: 16,
-    },
-
-    reward: {
-      color:
-        SYSTEM_COLORS.cyan,
-      fontSize: 14,
-      fontWeight: '900',
+    optionButton: {
+      marginTop: 18,
+      paddingVertical: 4,
     },
 
     questOverlay: {

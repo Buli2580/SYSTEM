@@ -12,12 +12,20 @@ import { useSystem } from '../state/SystemProvider';
 import { useWorldTracking } from '../world/useWorldTracking';
 import { locationToSector } from '../world/sectors';
 import { signalDistance } from '../world/signals';
+import { SYSTEM_COLORS as C } from '../core';
+import SystemAmbientBackground from '../components/SystemAmbientBackground';
 
 export default function WorldScreen() {
   const router = useRouter();
   const { ready, worldUnlocked } = useSystem();
   // Do not mount the tracking hook/map until the persisted unlock is ready.
-  if (!ready || !worldUnlocked) return <SystemPage title="SYSTEM WORLD" subtitle="WORLD PROTOCOL">
+  if (!ready || !worldUnlocked) return <SystemPage title="SYSTEM WORLD" subtitle="WORLD PROTOCOL" intensity="world">
+    <View style={styles.lockedWorldHero}>
+      <View style={styles.lockedWorldRingOuter} />
+      <View style={styles.lockedWorldRingInner} />
+      <View style={styles.lockedWorldNode}><View style={styles.lockedWorldDiamond} /></View>
+      <Text style={styles.lockedWorldCode}>PROTOCOL // SEALED</Text>
+    </View>
     <View style={pageStyles.panel}>
       <Text style={pageStyles.label}>WORLD LOCKED</Text>
       <Text style={pageStyles.body}>Complete Awakening to unlock SYSTEM WORLD.</Text>
@@ -35,6 +43,7 @@ function OnlineWorld() {
   const active = world.status === 'ACTIVE';
   const signalState = world.signal?.status ?? 'LOCKED';
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
+    <SystemAmbientBackground intensity="world" />
     <View style={styles.heading}>
       <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD STATUS: ONLINE</Text>
       <Text style={styles.body}>WORLD EXPLORATION · SECTORS DISCOVERED {world.sectorIds.length}</Text>
@@ -70,16 +79,23 @@ function OnlineWorld() {
   </SystemScreen>;
 }
 function Button({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} style={[styles.button, disabled && { opacity: 0.4 }]}><Text style={styles.label}>{label}</Text></Pressable>;
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={({ pressed }) => [styles.button, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}><Text style={styles.label}>{label}</Text></Pressable>;
 }
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030709' }, heading: { paddingHorizontal: 16, paddingBottom: 10 },
-  title: { color: '#fff', fontSize: 23, fontWeight: '900' },
-  label: { color: '#62efff', fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
-  body: { color: '#c1d3df', fontSize: 11, marginTop: 5 }, small: { color: '#91a5b2', fontSize: 9, marginTop: 5 },
-  error: { color: '#ffb791', fontSize: 11, marginTop: 5 }, map: { flex: 1, minHeight: 160, overflow: 'hidden' },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#061017' },
+  root: { flex: 1, backgroundColor: C.background }, heading: { paddingHorizontal: 16, paddingBottom: 10 },
+  title: { color: C.white, fontSize: 23, fontWeight: '900' },
+  label: { color: C.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
+  body: { color: C.text, fontSize: 11, marginTop: 5 }, small: { color: C.textMuted, fontSize: 9, marginTop: 5 },
+  error: { color: C.warning, fontSize: 11, marginTop: 5 }, map: { flex: 1, minHeight: 160, overflow: 'hidden' },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.panel },
   mapControls: { position: 'absolute', right: 8, top: 52, gap: 5 }, hud: { padding: 12 },
   actions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginVertical: 8 },
-  button: { backgroundColor: '#0b2630', borderRadius: 6, padding: 12 },
+  button: { minHeight: 48, justifyContent: 'center', backgroundColor: C.panelSoft, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12 },
+  buttonDisabled: { opacity: 0.4 }, buttonPressed: { opacity: 0.75 },
+  lockedWorldHero: { height: 250, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  lockedWorldRingOuter: { position: 'absolute', width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: 'rgba(0,229,255,0.16)' },
+  lockedWorldRingInner: { position: 'absolute', width: 142, height: 142, borderRadius: 71, borderWidth: 1, borderColor: 'rgba(0,229,255,0.28)', transform: [{ rotate: '45deg' }] },
+  lockedWorldNode: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, borderColor: C.cyan, backgroundColor: 'rgba(3,7,9,0.86)', alignItems: 'center', justifyContent: 'center' },
+  lockedWorldDiamond: { width: 24, height: 24, borderWidth: 1, borderColor: C.cyanSoft, transform: [{ rotate: '45deg' }] },
+  lockedWorldCode: { position: 'absolute', bottom: 18, color: C.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 2 },
 });
