@@ -1,0 +1,2 @@
+import type {SocialActivityEvent,SocialActivityType,SocialVisibility} from './types';import {sanitizeActivityForPublic} from './activity';
+export function createSocialActivity(input:{id:string;playerId:string;type:SocialActivityType;visibility?:SocialVisibility;metadata?:Record<string,unknown>;createdAt?:string}):SocialActivityEvent{return sanitizeActivityForPublic({id:input.id,playerId:input.playerId,type:input.type,visibility:input.visibility??'PUBLIC',metadata:input.metadata??{},createdAt:input.createdAt??new Date().toISOString()});}
