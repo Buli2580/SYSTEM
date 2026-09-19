@@ -56,13 +56,7 @@ export default function CharacterProgressPanel({
         </View>
       </View>
 
-      <View
-        accessible
-        accessibilityRole="progressbar"
-        accessibilityLabel={`Real XP ${player.realXp} z ${player.realXpToNextLevel}`}
-        accessibilityValue={{ min: 0, max: 100, now: Math.round(realProgress) }}
-        style={styles.xpSection}
-      >
+      <View style={styles.xpSection}>
         <XpBar value={player.realXp} max={player.realXpToNextLevel} />
         <View style={styles.xpFooter}>
           <Text style={styles.xpPercent}>{Math.round(realProgress)}% TO NEXT LEVEL</Text>
