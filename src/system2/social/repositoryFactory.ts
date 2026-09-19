@@ -1,0 +1,1 @@
+import {CloudSocialRepository} from '../cloud/CloudSocialRepository';import type {SocialRepository} from './SocialRepository';let singleton:SocialRepository|null=null;export function socialRepository():SocialRepository{return singleton??(singleton=new CloudSocialRepository());}export function setSocialRepositoryForTests(repo:SocialRepository|null){singleton=repo;}
