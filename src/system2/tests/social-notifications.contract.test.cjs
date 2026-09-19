@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../../supabase/migrations/20260919104000_social_network_events.sql'),'utf8');for(const x of ['social_notifications','send_friend_request','respond_friend_request','FRIEND_ACCEPTED'])assert.match(s,new RegExp(x));console.log('social notifications contract: PASS');
