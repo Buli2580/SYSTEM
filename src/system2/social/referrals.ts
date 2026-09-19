@@ -1,0 +1,1 @@
+export type Referral={code:string;ownerId:string;uses:number;maxUses:number;expiresAt?:string};export function referralValid(r:Referral,now=new Date().toISOString()){return r.uses<r.maxUses&&(!r.expiresAt||now<r.expiresAt);}export function normalizeReferralCode(v:string){return v.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);}

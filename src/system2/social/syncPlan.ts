@@ -1,0 +1,1 @@
+export type SocialSyncStep='PROFILE'|'FOLLOWS'|'FRIENDS'|'FEED'|'RANKS'|'NOTIFICATIONS';export const SOCIAL_SYNC_ORDER:readonly SocialSyncStep[]=['PROFILE','FOLLOWS','FRIENDS','RANKS','FEED','NOTIFICATIONS'];export function socialSyncPlan(online:boolean){return online?[...SOCIAL_SYNC_ORDER]:[];}

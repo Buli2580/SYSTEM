@@ -1,0 +1,1 @@
+export type League='IRON'|'BRONZE'|'SILVER'|'GOLD'|'DIAMOND';export function streakLeague(days:number):League{return days>=100?'DIAMOND':days>=60?'GOLD':days>=30?'SILVER':days>=14?'BRONZE':'IRON';}export function nextLeagueAt(days:number){return days<14?14:days<30?30:days<60?60:days<100?100:null;}

@@ -1,0 +1,1 @@
+export function socialMutationKey(kind:string,actor:string,target?:string,nonce=''){return[kind.trim().toUpperCase(),actor,target??'',nonce].join(':');}export class MutationDeduper{private seen=new Set<string>();accept(key:string){if(this.seen.has(key))return false;this.seen.add(key);return true;}clear(){this.seen.clear();}}

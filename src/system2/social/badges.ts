@@ -1,0 +1,1 @@
+export type SocialBadgeKind='FOUNDER'|'VERIFIED'|'TOP_100'|'STREAK_30'|'RAID_WINNER'|'COMMUNITY';export type SocialBadge={kind:SocialBadgeKind;earnedAt:string;label:string};export function visibleBadges(rows:SocialBadge[],limit=4){return [...rows].sort((a,b)=>b.earnedAt.localeCompare(a.earnedAt)).slice(0,limit);}
