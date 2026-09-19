@@ -1,8 +1,2 @@
-import type {LeaderboardEntry,Page,PublicPlayerProfile,RankingCategory,RankingPeriod,RankingScope,SocialActivityEvent} from './types';
-export interface SocialRepository{
-getPublicProfile(playerId:string):Promise<PublicPlayerProfile|null>;
-searchPlayers(query:string,cursor?:string):Promise<Page<PublicPlayerProfile>>;
-follow(playerId:string):Promise<void>;unfollow(playerId:string):Promise<void>;block(playerId:string):Promise<void>;unblock(playerId:string):Promise<void>;
-getLeaderboard(scope:RankingScope,category:RankingCategory,period:RankingPeriod,cursor?:string):Promise<Page<LeaderboardEntry>>;
-getActivityFeed(cursor?:string):Promise<Page<SocialActivityEvent>>;
-}
+import type {FriendshipState,LeaderboardEntry,Page,PlayerRankSnapshot,PublicPlayerProfile,RankingCategory,RankingPeriod,RankingScope,SocialActivityEvent,SocialCounts} from './types';
+export interface SocialRepository{getPublicProfile(playerId:string):Promise<PublicPlayerProfile|null>;searchPlayers(query:string,cursor?:string):Promise<Page<PublicPlayerProfile>>;follow(playerId:string):Promise<void>;unfollow(playerId:string):Promise<void>;block(playerId:string):Promise<void>;unblock(playerId:string):Promise<void>;getCounts():Promise<SocialCounts>;getFriendship(playerId:string):Promise<FriendshipState>;sendFriendRequest(playerId:string):Promise<void>;acceptFriendRequest(playerId:string):Promise<void>;removeFriend(playerId:string):Promise<void>;getLeaderboard(scope:RankingScope,category:RankingCategory,period:RankingPeriod,cursor?:string):Promise<Page<LeaderboardEntry>>;getPlayerRank(playerId:string,category:RankingCategory,period:RankingPeriod):Promise<PlayerRankSnapshot>;getActivityFeed(cursor?:string):Promise<Page<SocialActivityEvent>>;}

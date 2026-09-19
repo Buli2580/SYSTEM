@@ -1,11 +1,14 @@
 export type SocialVisibility='PUBLIC'|'FRIENDS'|'PRIVATE';
 export type Relationship='NONE'|'FOLLOWING'|'FOLLOWED_BY'|'MUTUAL'|'BLOCKED';
+export type FriendshipState='NONE'|'REQUEST_SENT'|'REQUEST_RECEIVED'|'FRIENDS'|'BLOCKED';
 export type RankingScope='GLOBAL'|'COUNTRY'|'CITY'|'FRIENDS';
 export type RankingPeriod='ALL_TIME'|'MONTH'|'WEEK';
 export type RankingCategory='REAL_LEVEL'|'REAL_XP'|'QUESTS'|'STREAK'|'ACHIEVEMENTS'|'DISTANCE'|'WORLD_DISCOVERY';
 export type VerificationStatus='VERIFIED'|'UNVERIFIED'|'FLAGGED';
-export type PublicPlayerProfile={playerId:string;displayName:string;avatarUrl?:string;countryCode?:string;city?:string;level:number;rank:string;title?:string;streak:number;verifiedQuestCount:number;achievementCount:number;discoveredSectors:number;totalDistanceMeters:number;joinedAt:string;visibility:SocialVisibility};
+export type PublicPlayerProfile={playerId:string;displayName:string;avatarUrl?:string;countryCode?:string;city?:string;level:number;realXp:number;rank:string;title?:string;streak:number;verifiedQuestCount:number;achievementCount:number;discoveredSectors:number;totalDistanceMeters:number;joinedAt:string;visibility:SocialVisibility};
 export type LeaderboardEntry={player:PublicPlayerProfile;value:number;position:number;verification:VerificationStatus};
+export type PlayerRankSnapshot={global:number|null;country:number|null;city:number|null;friends:number|null;category:RankingCategory;period:RankingPeriod;generatedAt:string};
 export type Page<T>={items:T[];nextCursor:string|null};
 export type SocialActivityType='QUEST_COMPLETED'|'ACHIEVEMENT_UNLOCKED'|'LEVEL_UP'|'RANK_UP'|'STREAK_MILESTONE'|'BOSS_DEFEATED'|'WORLD_SECTOR_DISCOVERED'|'TITLE_UNLOCKED';
 export type SocialActivityEvent={id:string;playerId:string;type:SocialActivityType;createdAt:string;visibility:SocialVisibility;metadata:Record<string,unknown>};
+export type SocialCounts={followers:number;following:number;friends:number};
