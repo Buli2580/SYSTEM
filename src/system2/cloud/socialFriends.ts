@@ -1,0 +1,1 @@
+import {getValidSession} from './auth';import {cloudRequest} from './http';async function s(){const x=await getValidSession();if(!x)throw new Error('Najpierw zaloguj SYSTEM CLOUD.');return x;}export async function removeCloudFriend(id:string){const x=await s();await cloudRequest('/rest/v1/rpc/remove_friend',{method:'POST',body:JSON.stringify({p_target:id})},x.accessToken);}

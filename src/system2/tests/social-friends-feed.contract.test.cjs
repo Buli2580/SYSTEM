@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../../supabase/migrations/20260919105000_social_friends_feed.sql'),'utf8');for(const x of ['remove_friend','get_social_feed','visibility=\'friends\'','social_blocks'])assert.match(s,new RegExp(x));console.log('friends feed contract: PASS');
