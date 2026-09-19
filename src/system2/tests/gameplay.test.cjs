@@ -1691,7 +1691,7 @@ test('extended Daily keeps the shared GPS running past base target until 125 per
 test('main objective follows real story and ends with unknown chapter, not fake content',()=>{
  const select=loader({})('story/selectors').mainStoryObjective;
  assert.equal(select(null,false).title,'PIERWSZE PRZEBUDZENIE');assert.equal(select(null,true).title,'POŁĄCZENIE ZE ŚWIATEM');
- assert.equal(select({worldLinkComplete:true,bossComplete:false,boss:null},true).title,'THE FIRST WALL');assert.equal(select({worldLinkComplete:true,bossComplete:true},true).title,'SYGNAŁ HISTORII UTRACONY');
+ assert.equal(select({worldLinkComplete:true,bossComplete:false,boss:null},true).title,'PIERWSZY MUR');assert.equal(select({worldLinkComplete:true,bossComplete:true},true).title,'SYGNAŁ HISTORII UTRACONY');
 });
 test('same-day completed attempt cannot be forged from a terminal failure record',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'closed');await h.db.endQuestAttempt('closed','INTERRUPTED','BACKGROUND',10);
