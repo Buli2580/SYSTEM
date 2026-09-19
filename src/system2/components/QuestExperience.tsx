@@ -80,7 +80,7 @@ export function QuestMissionCard({ quest, status, progress, progressTarget, disa
       <Text style={styles.description}>{quest.description}</Text>
       <View style={styles.infoRow}>
         <Info label="VERIFY" value={questVerificationLabel(quest)} />
-        <Info label="SKILL" value={[quest.primarySkill, ...quest.secondarySkills].join(' + ')} />
+        <Info label="SKILL" value={[quest.primarySkill, ...(quest.secondarySkills ?? [])].join(' + ')} />
       </View>
       {hasProgress && <QuestProgressBar value={progress!} max={progressTarget!} />}
       <QuestRewardRow quest={quest} />
@@ -91,7 +91,7 @@ export function QuestMissionCard({ quest, status, progress, progressTarget, disa
 
 export function MissionBriefing({ quest, status, onStart, startDisabled }: { quest: RunnableQuest; status: string; onStart?: () => void; startDisabled?: boolean }) {
   const displayStatus = questStatusForRun(status);
-  const objective = quest.verification.type === 'TIMER' ? `${Math.floor(quest.verification.minimumDurationSeconds / 60)} MIN FOCUS` : quest.verification.type === 'MULTI' ? `${quest.verification.minimumDistanceMeters} M + ${Math.floor(quest.verification.minimumDurationSeconds / 60)} MIN` : `${quest.verification.minimumDistanceMeters} M`;
+  const objective = quest.verification.type === 'TIMER' ? `${Math.floor((quest.verification.minimumDurationSeconds ?? 0) / 60)} MIN FOCUS` : quest.verification.type === 'MULTI' ? `${quest.verification.minimumDistanceMeters ?? 0} M + ${Math.floor((quest.verification.minimumDurationSeconds ?? 0) / 60)} MIN` : `${quest.verification.minimumDistanceMeters ?? 0} M`;
   return <View style={styles.briefing}>
     <View style={styles.cardHeader}><Text style={styles.category}>MISSION BRIEFING</Text><QuestStatusBadge status={displayStatus} /></View>
     <Text style={styles.briefingType}>{questCategoryLabel(quest.category)} // {quest.difficulty}</Text>
