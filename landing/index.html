@@ -68,11 +68,18 @@
       <h2>Budujemy SYSTEM od zera.</h2>
       <p>Pierwsza wersja startuje w Polsce. Zostaw kontakt, jeśli chcesz wejść wcześniej i pomagać nam budować produkt.</p>
       <form id="waitlist">
-        <input id="email" type="email" placeholder="twój@email.pl" required />
-        <button type="submit">DOŁĄCZ</button>
+        <div class="waitlist-row">
+          <input id="email" name="email" type="email" autocomplete="email" placeholder="twój@email.pl" maxlength="320" required />
+          <button id="waitlist-submit" type="submit">DOŁĄCZ</button>
+        </div>
+        <input class="hp" id="website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <label class="consent">
+          <input id="waitlist-consent" type="checkbox" required />
+          <span>Chcę dołączyć do listy oczekujących SYSTEM i zgadzam się na użycie mojego e-maila wyłącznie do kontaktu w sprawie bety.</span>
+        </label>
       </form>
       <div id="form-status" aria-live="polite"></div>
-      <small class="privacy">Formularz testowy — adres pozostaje lokalnie w przeglądarce do czasu podłączenia backendu waitlisty.</small>
+      <small class="privacy">Dane trafiają do zabezpieczonego backendu SYSTEM. <a href="/privacy.html">Informacja o danych</a>.</small>
     </section>
 
     <footer>
