@@ -1729,3 +1729,32 @@ test('same-day completed attempt cannot be forged from a terminal failure record
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'closed');await h.db.endQuestAttempt('closed','INTERRUPTED','BACKGROUND',10);
  await assert.rejects(h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'closed'}));assert.equal((await h.db.loadSystemState()).daily.completed,0);
 });
+
+
+test('tester report excludes raw GPS coordinates and account secrets', async t => {
+ const load=loader({}, {now:new Date(2026,8,19,12).getTime()});
+ const {buildTesterReport}=load('diagnostics/report');
+ const report=buildTesterReport({
+   generatedAt:'2026-09-19T12:00:00.000Z',
+   appVersion:'1.0.0',versionCode:1,platform:'android',osVersion:16,
+   ready:true,activeQuestId:'walk',systemError:null,notificationError:null,
+   foregroundPermission:'granted',backgroundPermission:'granted',
+   locationServicesEnabled:true,backgroundLocationAvailable:true,nativeBackgroundTaskStarted:true,
+   database:{schema:6,integrity:'ok',events:2},
+   backgroundSession:{
+     questId:'walk',attemptId:'secret-attempt',mode:'BACKGROUND',extendedGoal:false,
+     lastPoint:{latitude:54.5,longitude:17.75,accuracy:5,timestamp:1,mocked:false},
+     lastObservedTimestamp:1,updatedAt:'2026-09-19T12:00:00.000Z'
+   },
+   cloudAuthenticated:true,cloudBound:true,outbox:{pending:1,synced:2,failed:0},
+   remoteSync:{total:1,received:1,processing:0,processed:0,rejected:0,latest_event_at:null},
+   latestSyncFailure:null,
+ });
+ const json=JSON.stringify(report);
+ assert.equal(json.includes('54.5'),false);
+ assert.equal(json.includes('17.75'),false);
+ assert.equal(json.includes('secret-attempt'),false);
+ assert.equal(report.background_tracking.session.has_location_anchor,true);
+ assert.equal(report.privacy.raw_gps_coordinates_included,false);
+ assert.equal(report.privacy.auth_tokens_included,false);
+});
