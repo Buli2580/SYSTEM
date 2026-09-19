@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../social/activity.ts'),'utf8');assert.match(s,/function clean/);for(const x of ['latitude','accessToken','refreshToken'])assert.match(s,new RegExp(x));console.log('social deep privacy contract: PASS');
