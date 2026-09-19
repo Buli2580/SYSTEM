@@ -223,6 +223,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
         event.id, quest.id, JSON.stringify(event), now
       );
+      await enqueueCloudOutboxEvent(txn, event);
       const snapshot = await snapshotInTransaction(txn);
       result = { awarded: true, ...snapshot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
@@ -320,7 +321,7 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['cloud_outbox', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -394,4 +395,112 @@ export function startBossProtocol() {
    await storyEvent(txn,'boss_started','BOSS_STARTED','THE FIRST WALL // BOSS STARTED');
    return snapshotInTransaction(txn);
  });
+}
+
+
+export type CloudOutboxRow = {
+  event_key: string;
+  entity_type: string;
+  entity_id: string | null;
+  payload: string;
+  client_created_at: string;
+  schema_version: number;
+  attempts: number;
+  last_attempt_at: string | null;
+  last_error: string | null;
+  synced_at: string | null;
+};
+
+function cloudEvidencePayload(event: VerifiedEvent) {
+  return {
+    quest_id: event.questId,
+    verification_type: event.verificationType,
+    verification_score: event.verificationScore,
+    ...(event.distanceMeters !== undefined ? { distance_meters: event.distanceMeters } : {}),
+    ...(event.durationSeconds !== undefined ? { duration_seconds: event.durationSeconds } : {}),
+    ...(event.steps !== undefined ? { steps: event.steps } : {}),
+    ...(event.activity ? {
+      activity: {
+        expected: event.activity.activityTypeExpected,
+        detected: event.activity.activityTypeDetected,
+        verdict: event.activity.verdict,
+        score: event.activity.verificationScore,
+        reason_codes: event.activity.reasonCodes,
+        features: event.activity.features,
+        sensors: event.activity.sensors,
+        sensor_sources: event.activity.sensorSources,
+      },
+    } : {}),
+  };
+}
+
+async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: VerifiedEvent) {
+  if (!event.verified) return;
+  await txn.runAsync(
+    \`INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
+     VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING\`,
+    'verified:' + event.id,
+    'VERIFIED_EVENT',
+    event.questId,
+    JSON.stringify(cloudEvidencePayload(event)),
+    event.createdAt,
+  );
+}
+
+export function backfillCloudOutbox() {
+  return profileTransaction(async txn => {
+    const marker = await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', 'cloud_outbox_backfill_v1');
+    if (marker) return;
+    const rows = await txn.getAllAsync<{ payload: string }>(
+      'SELECT payload FROM verified_events ORDER BY created_at ASC, id ASC LIMIT 500'
+    );
+    for (const row of rows) {
+      try {
+        const event = JSON.parse(row.payload) as VerifiedEvent;
+        if (event?.verified === true && typeof event.id === 'string' && typeof event.questId === 'string') {
+          await enqueueCloudOutboxEvent(txn, event);
+        }
+      } catch {
+        // A malformed legacy log entry must not block startup or later sync.
+      }
+    }
+    await txn.runAsync(
+      "INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'"
+    );
+  });
+}
+
+export function listPendingCloudOutbox(limit = 25) {
+  const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
+  return profileTransaction(txn => txn.getAllAsync<CloudOutboxRow>(
+    \`SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?\`,
+    safeLimit,
+  ));
+}
+
+export function markCloudOutboxSynced(eventKey: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET synced_at=?,last_error=NULL,last_attempt_at=? WHERE event_key=?',
+    new Date().toISOString(), new Date().toISOString(), eventKey,
+  ));
+}
+
+export function markCloudOutboxAttempt(eventKey: string, error: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET attempts=attempts+1,last_attempt_at=?,last_error=? WHERE event_key=? AND synced_at IS NULL',
+    new Date().toISOString(), error.slice(0, 300), eventKey,
+  ));
+}
+
+export function cloudOutboxStats() {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ pending: number; synced: number; failed: number }>(
+      \`SELECT
+        SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) AS synced,
+        SUM(CASE WHEN synced_at IS NULL AND attempts > 0 THEN 1 ELSE 0 END) AS failed
+       FROM cloud_outbox\`
+    );
+    return { pending: row?.pending ?? 0, synced: row?.synced ?? 0, failed: row?.failed ?? 0 };
+  });
 }

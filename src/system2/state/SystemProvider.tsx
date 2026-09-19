@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS, type Settings } from '../identity/model';
 import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
+import { flushCloudOutbox } from '../cloud/sync';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -62,7 +63,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
         }
         const next = await awaitWithTimeout(db.loadSystemState());
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true); void flushCloudOutbox().catch(() => undefined); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError('Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
@@ -88,7 +89,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     const epoch = generation.current;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) { setSnapshot(result); if (result.receipt) presentReward(result.receipt); void flushCloudOutbox().catch(() => undefined); }
     return result;
   }, [presentReward]);
   const apply = useCallback(async (operation: Promise<db.SystemSnapshot>) => {
