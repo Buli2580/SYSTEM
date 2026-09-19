@@ -601,6 +601,44 @@ export function startBossProtocol() {
 }
 
 
+const CLOUD_USER_BINDING_KEY = 'cloud_user_binding_v1';
+
+export function getCloudUserBinding(): Promise<string | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    return row?.value ?? null;
+  });
+}
+
+export function ensureCloudUserBinding(userId: string): Promise<void> {
+  const normalized = userId.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(normalized)) {
+    return Promise.reject(new Error('Nieprawidłowy identyfikator konta SYSTEM CLOUD.'));
+  }
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    if (!row) {
+      await txn.runAsync(
+        'INSERT INTO app_state(key,value) VALUES(?,?)',
+        CLOUD_USER_BINDING_KEY,
+        normalized,
+      );
+      return;
+    }
+    if (row.value !== normalized) {
+      throw new Error(
+        'Ten lokalny profil jest już połączony z innym kontem SYSTEM CLOUD. Aby użyć innego konta, najpierw wyczyść lokalne dane SYSTEMU.',
+      );
+    }
+  });
+}
+
 export type CloudOutboxRow = {
   event_key: string;
   entity_type: string;
@@ -676,7 +714,17 @@ export function backfillCloudOutbox() {
 export function listPendingCloudOutbox(limit = 25) {
   const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
   return profileTransaction(txn => txn.getAllAsync<CloudOutboxRow>(
-    `SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
+    `SELECT * FROM cloud_outbox
+     WHERE synced_at IS NULL
+       AND (
+         attempts = 0 OR last_attempt_at IS NULL OR
+         (attempts = 1 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 60) OR
+         (attempts = 2 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 300) OR
+         (attempts = 3 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 900) OR
+         (attempts = 4 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 3600) OR
+         (attempts >= 5 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 21600)
+       )
+     ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
     safeLimit,
   ));
 }

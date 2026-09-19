@@ -11,6 +11,7 @@ import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import { flushCloudOutbox } from '../cloud/sync';
+import { stopQuestBackgroundTracking } from '../background/locationService';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -102,6 +103,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     resetting.current = true; generation.current++; refreshRef.current = null;
     setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null);
     try {
+      // Stop Android/iOS native tracking before deleting the persisted owner.
+      await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(db.resetSystemData(confirmed));
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());

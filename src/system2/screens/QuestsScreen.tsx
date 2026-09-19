@@ -22,7 +22,7 @@ export default function QuestsScreen() {
         accessibilityRole="button" onPress={() => router.push({ pathname: '/quest', params: { questId: id } })}>
         <Text style={styles.label}>{done ? 'UKOŃCZONA' : activeQuestId === id ? 'AKTYWNA' : story?.rematchQuestIds.includes(id) ? 'DOSTĘPNY REWANŻ' : daily.suspiciousQuestIds.includes(id) ? 'WYMAGA UWAGI' : 'DOSTĘPNA'} · {q.primarySkill} · {verificationPl(q.verification.type)}{q.activityType ? ' + AKTYWNOŚĆ' : ''}</Text>
         <Text style={styles.title}>{q.title}</Text><Text style={styles.body}>{q.description}</Text>
-        <Text style={styles.body}>+{q.rewards.realXp} REAL XP · +{q.rewards.gameEnergy} ENERGY · {Object.entries(q.rewards.skillXp ?? {}).map(([k,v]) => `+${v} ${k} XP`).join(' · ')}</Text>
+        <Text style={styles.body}>+{q.rewards.realXp} REAL XP · +{q.rewards.gameEnergy} ENERGII · {Object.entries(q.rewards.skillXp ?? {}).map(([k,v]) => `+${v} ${k} XP`).join(' · ')}</Text>
       </Pressable>; })}
       <Text style={styles.title}>PROTOKÓŁ TYGODNIOWY · {Math.min(5, daily.weeklyCompleted)}/5</Text>
       <Text style={styles.body}>{daily.weeklyClear ? 'TYDZIEŃ UKOŃCZONY' : `${DAILY_RULES.weeklyTarget} aktywności dziennych · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGII`} · {daily.weekKey}</Text>
@@ -37,15 +37,15 @@ export default function QuestsScreen() {
         <Text style={styles.title}>{quest.title}</Text>
         <Text style={styles.body}>{[quest.primarySkill, ...quest.secondarySkills].join(' + ')} · {verificationPl(quest.verification.type)}</Text>
         <Text style={styles.body}>{quest.description}</Text>
-        <Text style={styles.label}>+{quest.rewards.realXp} REAL XP · +{quest.rewards.gameEnergy} ENERGY</Text>
+        <Text style={styles.label}>+{quest.rewards.realXp} REAL XP · +{quest.rewards.gameEnergy} ENERGII</Text>
         <Text style={styles.body}>{Object.entries(quest.rewards.skillXp ?? {}).map(([skill, xp]) => `+${xp} ${skill} XP`).join(' · ')}</Text>
-        <Text style={styles.link}>{locked ? 'UKOŃCZ POPRZEDNI QUEST' : status === 'COMPLETED' ? 'ZOBACZ UKOŃCZENIE →' : story?.rematchQuestIds.includes(quest.id) ? 'ROZPOCZNIJ REWANŻ →' : 'OTWÓRZ MISJĘ →'}</Text>
+        <Text style={styles.link}>{locked ? 'UKOŃCZ POPRZEDNIĄ MISJĘ' : status === 'COMPLETED' ? 'ZOBACZ UKOŃCZENIE →' : story?.rematchQuestIds.includes(quest.id) ? 'ROZPOCZNIJ REWANŻ →' : 'OTWÓRZ MISJĘ →'}</Text>
       </Pressable>;
     })}
     {progress.completed === progress.total && <View style={styles.panel}><Text style={styles.label}>ROZDZIAŁ 01 // UKOŃCZONY</Text><Text style={styles.body}>POŁĄCZENIE ZE ŚWIATEM // {story?.chapters[1]?.completed??0}/3</Text></View>}
-    {!!story && <View style={styles.panel}><Text style={styles.label}>MISJE POBOCZNE</Text><Text style={styles.title}>EXTRA MILE // {story.sideComplete?'UKOŃCZONA':'DOSTĘPNA'}</Text><Text style={styles.body}>Dzienna misja ruchowa z dystansem co najmniej 125% celu. +50 REAL XP · +40 WIL XP. Jednorazowo.</Text></View>}
-    {!!story?.hiddenComplete && <View style={styles.panel}><Text style={styles.label}>UKRYTA // UKOŃCZONA</Text><Text style={styles.title}>NO TURNING BACK</Text></View>}
-    {!!story?.worldLinkComplete && <Action label="PROTOKÓŁ BOSSA // THE FIRST WALL →" onPress={()=>router.push('/story')}/>}
+    {!!story && <View style={styles.panel}><Text style={styles.label}>MISJE POBOCZNE</Text><Text style={styles.title}>DODATKOWY WYSIŁEK // {story.sideComplete?'UKOŃCZONA':'DOSTĘPNA'}</Text><Text style={styles.body}>Dzienna misja ruchowa z dystansem co najmniej 125% celu. +50 REAL XP · +40 WIL XP. Jednorazowo.</Text></View>}
+    {!!story?.hiddenComplete && <View style={styles.panel}><Text style={styles.label}>UKRYTA // UKOŃCZONA</Text><Text style={styles.title}>BEZ ODWROTU</Text></View>}
+    {!!story?.worldLinkComplete && <Action label="PROTOKÓŁ BOSSA // PIERWSZY MUR →" onPress={()=>router.push('/story')}/>}
     <View style={styles.panel}><Text style={styles.body}>Nagrody i ukończenia są zapisane w SYSTEMIE. Przerwane próby nie przyznają częściowego XP.</Text></View>
   </SystemPage>;
 }

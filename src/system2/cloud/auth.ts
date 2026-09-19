@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { CLOUD_SESSION_STORAGE_KEY } from './config';
 import { cloudRequest } from './http';
 
@@ -35,6 +37,9 @@ export type SignUpResult = {
   confirmationRequired: boolean;
 };
 
+let refreshPromise: Promise<CloudSession> | null = null;
+let authGeneration = 0;
+
 function sessionFromPayload(payload: AuthPayload): CloudSession | null {
   const source = payload.session ?? payload;
   const accessToken = source.access_token;
@@ -51,30 +56,60 @@ function sessionFromPayload(payload: AuthPayload): CloudSession | null {
   return { accessToken, refreshToken, expiresAt, user };
 }
 
-async function persistSession(session: CloudSession | null) {
-  if (!session) {
+function isValidStoredSession(parsed: unknown): parsed is CloudSession {
+  if (!parsed || typeof parsed !== 'object') return false;
+  const value = parsed as Partial<CloudSession>;
+  return typeof value.accessToken === 'string' &&
+    value.accessToken.length > 0 &&
+    typeof value.refreshToken === 'string' &&
+    value.refreshToken.length > 0 &&
+    typeof value.expiresAt === 'number' &&
+    Number.isFinite(value.expiresAt) &&
+    Boolean(value.user) &&
+    typeof value.user?.id === 'string' &&
+    value.user.id.length > 0;
+}
+
+async function readSessionValue() {
+  if (Platform.OS === 'web') return AsyncStorage.getItem(CLOUD_SESSION_STORAGE_KEY);
+
+  const secure = await SecureStore.getItemAsync(CLOUD_SESSION_STORAGE_KEY);
+  if (secure) return secure;
+
+  // One-time migration from SYSTEM ONLINE 0.2/0.3 where tokens lived in AsyncStorage.
+  const legacy = await AsyncStorage.getItem(CLOUD_SESSION_STORAGE_KEY);
+  if (legacy) {
+    await SecureStore.setItemAsync(CLOUD_SESSION_STORAGE_KEY, legacy);
     await AsyncStorage.removeItem(CLOUD_SESSION_STORAGE_KEY);
+  }
+  return legacy;
+}
+
+async function persistSession(session: CloudSession | null) {
+  const value = session ? JSON.stringify(session) : null;
+  if (Platform.OS === 'web') {
+    if (value) await AsyncStorage.setItem(CLOUD_SESSION_STORAGE_KEY, value);
+    else await AsyncStorage.removeItem(CLOUD_SESSION_STORAGE_KEY);
     return;
   }
-  await AsyncStorage.setItem(CLOUD_SESSION_STORAGE_KEY, JSON.stringify(session));
+
+  if (value) await SecureStore.setItemAsync(CLOUD_SESSION_STORAGE_KEY, value);
+  else await SecureStore.deleteItemAsync(CLOUD_SESSION_STORAGE_KEY);
+
+  // Never leave an old plaintext token after migration/sign-out.
+  await AsyncStorage.removeItem(CLOUD_SESSION_STORAGE_KEY);
 }
 
 export async function loadStoredSession(): Promise<CloudSession | null> {
-  const raw = await AsyncStorage.getItem(CLOUD_SESSION_STORAGE_KEY);
+  const raw = await readSessionValue();
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as Partial<CloudSession>;
-    if (
-      typeof parsed.accessToken !== 'string' ||
-      typeof parsed.refreshToken !== 'string' ||
-      typeof parsed.expiresAt !== 'number' ||
-      !parsed.user ||
-      typeof parsed.user.id !== 'string'
-    ) {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isValidStoredSession(parsed)) {
       await persistSession(null);
       return null;
     }
-    return parsed as CloudSession;
+    return parsed;
   } catch {
     await persistSession(null);
     return null;
@@ -86,6 +121,8 @@ export async function signUpWithPassword(
   password: string,
   displayName: string,
 ): Promise<SignUpResult> {
+  const generation = ++authGeneration;
+  refreshPromise = null;
   const safeEmail = email.trim().toLowerCase();
   if (!safeEmail || !safeEmail.includes('@')) throw new Error('Podaj poprawny e-mail.');
   if (password.length < 8) throw new Error('Hasło musi mieć co najmniej 8 znaków.');
@@ -100,6 +137,7 @@ export async function signUpWithPassword(
     }),
   });
 
+  if (generation !== authGeneration) throw new Error('Sesja logowania została zastąpiona nowszą operacją.');
   const session = sessionFromPayload(payload);
   if (session) await persistSession(session);
   return {
@@ -110,21 +148,27 @@ export async function signUpWithPassword(
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<CloudSession> {
+  const generation = ++authGeneration;
+  refreshPromise = null;
   const payload = await cloudRequest<AuthPayload>('/auth/v1/token?grant_type=password', {
     method: 'POST',
     body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
   });
+  if (generation !== authGeneration) throw new Error('Sesja logowania została zastąpiona nowszą operacją.');
   const session = sessionFromPayload(payload);
   if (!session) throw new Error('SYSTEM CLOUD nie zwrócił sesji.');
   await persistSession(session);
   return session;
 }
 
-async function refreshSession(session: CloudSession): Promise<CloudSession> {
+async function refreshSession(session: CloudSession, generation: number): Promise<CloudSession> {
   const payload = await cloudRequest<AuthPayload>('/auth/v1/token?grant_type=refresh_token', {
     method: 'POST',
     body: JSON.stringify({ refresh_token: session.refreshToken }),
   });
+  if (generation !== authGeneration) {
+    throw new Error('Odświeżenie starej sesji zostało anulowane.');
+  }
   const refreshed = sessionFromPayload(payload);
   if (!refreshed) {
     await persistSession(null);
@@ -138,14 +182,25 @@ export async function getValidSession(): Promise<CloudSession | null> {
   const session = await loadStoredSession();
   if (!session) return null;
   if (session.expiresAt - Date.now() > 120_000) return session;
-  return refreshSession(session);
+
+  if (!refreshPromise) {
+    const generation = authGeneration;
+    const operation = refreshSession(session, generation);
+    const tracked = operation.finally(() => {
+      if (refreshPromise === tracked) refreshPromise = null;
+    });
+    refreshPromise = tracked;
+  }
+  return refreshPromise;
 }
 
 export async function signOutCloud(): Promise<void> {
+  const generation = ++authGeneration;
+  refreshPromise = null;
   const session = await loadStoredSession();
   try {
     if (session) await cloudRequest('/auth/v1/logout', { method: 'POST' }, session.accessToken);
   } finally {
-    await persistSession(null);
+    if (generation === authGeneration) await persistSession(null);
   }
 }

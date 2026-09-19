@@ -15,7 +15,7 @@ async function award(db: SQLiteDatabase, player: PlayerProfile, id: string, rewa
  for(const [key,xp] of Object.entries(reward.skillXp??{})) next=addSkillXp(next,key as SkillKey,xp);
  next={...next,gameEnergy:next.gameEnergy+(reward.gameEnergy??0),updatedAt:nowISO()};
  await db.runAsync('UPDATE app_state SET value=? WHERE key=?',JSON.stringify(next),'player');
- await storyEvent(db,id,type,title,`+${reward.realXp} REAL XP · ${Object.entries(reward.skillXp??{}).map(([k,v])=>`+${v} ${k} XP`).join(' · ')} · +${reward.gameEnergy??0} ENERGY`);
+ await storyEvent(db,id,type,title,`+${reward.realXp} REAL XP · ${Object.entries(reward.skillXp??{}).map(([k,v])=>`+${v} ${k} XP`).join(' · ')} · +${reward.gameEnergy??0} ENERGII`);
  return next;
 }
 export async function bossAccess(db: SQLiteDatabase, questId: string) {
@@ -41,12 +41,12 @@ export async function reconcileStory(db: SQLiteDatabase, player: PlayerProfile, 
  if(progress===3) {
    next=await award(db,next,WORLD_LINK_ID,STORY_REWARDS.worldLink,'CHAPTER_COMPLETED','POŁĄCZENIE ZE ŚWIATEM UKOŃCZONE');
    await db.runAsync('INSERT INTO chapter_completions(chapter_id,completed_at) VALUES (?,?) ON CONFLICT(chapter_id) DO NOTHING',WORLD_LINK_ID,nowISO());
-   await storyEvent(db,'title_pathfinder','TITLE_UNLOCKED','PATHFINDER');
+   await storyEvent(db,'title_pathfinder','TITLE_UNLOCKED','ODKRYWCA');
  }
  const boss=await db.getFirstAsync<BossProgress>('SELECT * FROM boss_progress WHERE id=?',BOSS_ID);
  if(boss?.focus_at&&boss.move_at&&boss.discipline_at) {
    next=await award(db,next,BOSS_ID,STORY_REWARDS.boss,'BOSS_DEFEATED','PIERWSZY MUR // BOSS POKONANY');
-   await storyEvent(db,'title_wallbreaker','TITLE_UNLOCKED','WALLBREAKER');
+   await storyEvent(db,'title_wallbreaker','TITLE_UNLOCKED','POGROMCA MURU');
  }
  const has=async(id:string)=>Boolean(await db.getFirstAsync('SELECT id FROM story_progress WHERE id=?',id));
  const worldLinkComplete=await has(WORLD_LINK_ID),bossComplete=await has(BOSS_ID);
@@ -73,7 +73,7 @@ export async function completeStoryActivity(db:SQLiteDatabase,player:PlayerProfi
  if(quest.category==='BOSS') {
    const column=quest.id===BOSS_FOCUS?'focus_at':'move_at';
    await db.runAsync(`UPDATE boss_progress SET ${column}=? WHERE id=? AND ${column} IS NULL`,nowISO(),BOSS_ID);
-   await storyEvent(db,'boss_stage_'+(column==='focus_at'?'1':'2'),'BOSS_STAGE_COMPLETED',`THE FIRST WALL // STAGE ${column==='focus_at'?'1':'2'} COMPLETE`);
+   await storyEvent(db,'boss_stage_'+(column==='focus_at'?'1':'2'),'BOSS_STAGE_COMPLETED',`PIERWSZY MUR // ETAP ${column==='focus_at'?'1':'2'} UKOŃCZONY`);
  }
  if(quest.category==='DAILY') {
    const boss=await db.getFirstAsync<BossProgress>('SELECT * FROM boss_progress WHERE id=?',BOSS_ID);

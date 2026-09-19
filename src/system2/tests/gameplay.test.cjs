@@ -466,6 +466,24 @@ test('background with a watcher but before the first fix hands off without fabri
   assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
 });
 
+test('a second GPS quest cannot replace an active background quest after restart', async t => {
+  const owner = {
+    questId: 'daily:2026-09-18:walk_protocol_1',
+    attemptId: 'background-owner',
+    mode: 'BACKGROUND',
+    extendedGoal: false,
+    updatedAt: new Date().toISOString(),
+  };
+  const h = screenHarness(t, { backgroundSession: owner });
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); h.render();
+  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.starts(), 0);
+  assert.equal(h.backgroundSession()?.questId, owner.questId);
+  assert.equal(h.backgroundSession()?.attemptId, owner.attemptId);
+});
+
 test('GPS distance checkpoint survives background and returns with the same meters', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
@@ -1598,6 +1616,20 @@ test('abandoned attempt recovery has no XP and does not fabricate Rematch',async
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];const before=(await h.db.loadSystemState()).player.totalRealXp;await h.db.beginQuestAttempt(id,'killed');const db=h.reload();const s=await db.loadSystemState();
  assert.equal(s.player.totalRealXp,before);assert.equal((await db.listQuestAttempts())[0].result,'ABANDONED');assert.equal(s.story.rematchQuestIds.length,0);await db.beginQuestAttempt(id,'fresh');
 });
+test('local profile cloud binding cannot silently switch accounts and reset clears the binding',async t=>{
+ const h=await dailyHarness(t);
+ const userA='11111111-1111-4111-8111-111111111111';
+ const userB='22222222-2222-4222-8222-222222222222';
+ await h.db.ensureCloudUserBinding(userA);
+ assert.equal(await h.db.getCloudUserBinding(),userA);
+ await h.db.ensureCloudUserBinding(userA);
+ await assert.rejects(()=>h.db.ensureCloudUserBinding(userB),/innym kontem SYSTEM CLOUD/);
+ await h.db.resetSystemData(true);
+ assert.equal(await h.db.getCloudUserBinding(),null);
+ await h.db.ensureCloudUserBinding(userB);
+ assert.equal(await h.db.getCloudUserBinding(),userB);
+});
+
 test('background quest attempt survives database reinitialization and remains resumable',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('walk_'));
  await h.db.beginQuestAttempt(id,'background-active');
@@ -1659,7 +1691,7 @@ test('extended Daily keeps the shared GPS running past base target until 125 per
 test('main objective follows real story and ends with unknown chapter, not fake content',()=>{
  const select=loader({})('story/selectors').mainStoryObjective;
  assert.equal(select(null,false).title,'PIERWSZE PRZEBUDZENIE');assert.equal(select(null,true).title,'POŁĄCZENIE ZE ŚWIATEM');
- assert.equal(select({worldLinkComplete:true,bossComplete:false,boss:null},true).title,'THE FIRST WALL');assert.equal(select({worldLinkComplete:true,bossComplete:true},true).title,'SYGNAŁ HISTORII UTRACONY');
+ assert.equal(select({worldLinkComplete:true,bossComplete:false,boss:null},true).title,'PIERWSZY MUR');assert.equal(select({worldLinkComplete:true,bossComplete:true},true).title,'SYGNAŁ HISTORII UTRACONY');
 });
 test('same-day completed attempt cannot be forged from a terminal failure record',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'closed');await h.db.endQuestAttempt('closed','INTERRUPTED','BACKGROUND',10);
