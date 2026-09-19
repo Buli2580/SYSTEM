@@ -30,7 +30,7 @@ const steps = [
    CREATE TABLE IF NOT EXISTS daily_hf_share_log(id TEXT PRIMARY KEY NOT NULL, day_key TEXT NOT NULL, share_type TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
    CREATE INDEX IF NOT EXISTS daily_hf_share_log_day ON daily_hf_share_log(day_key);
    CREATE TABLE IF NOT EXISTS daily_instances_refill(id TEXT PRIMARY KEY NOT NULL, original_id TEXT NOT NULL, refill_count INTEGER NOT NULL DEFAULT 0, refilled_at TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS daily_instances_refill_original ON daily_instances_refill(original_id);`,,
+   CREATE INDEX IF NOT EXISTS daily_instances_refill_original ON daily_instances_refill(original_id);`,
   `CREATE TABLE IF NOT EXISTS achievements (id TEXT PRIMARY KEY NOT NULL, state TEXT NOT NULL CHECK(state IN ('LOCKED','IN_PROGRESS','UNLOCKED','CLAIMED')), current_progress INTEGER NOT NULL DEFAULT 0, max_progress INTEGER NOT NULL DEFAULT 0, unlocked_at TEXT, claimed_at TEXT, updated_at INTEGER NOT NULL);
    CREATE INDEX IF NOT EXISTS idx_achievements_state ON achievements(state);
    CREATE TABLE IF NOT EXISTS player_titles (id TEXT PRIMARY KEY NOT NULL, unlocked INTEGER NOT NULL DEFAULT 0, unlocked_at TEXT, is_active INTEGER NOT NULL DEFAULT 0);
