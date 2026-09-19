@@ -1401,11 +1401,12 @@ test('unassigned/stale daily and fabricated movement verdict cannot award',async
  e.activity.features.mocked=true;e.activity.verdict='VERIFIED';e.verificationScore=100;
  await assert.rejects(h.db.completeVerifiedQuest(e));assert.equal((await h.db.loadSystemState()).daily.completed,0);
 });
-test('activity daily session shares watcher and auto-completes; interruption requires fresh retry',async t=>{
+test('activity daily session shares watcher, keeps checkpoint in background and resumes to completion',async t=>{
  const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
  h.fix(0);h.render();h.fix(10);h.appState('background');h.render();assert.equal(h.removals(),1);assert.equal(h.awards(),0);
- h.appState('active');await h.button('SPRÓBUJ PONOWNIE').props.onPress();await flush();h.fix(0);h.render();
- for(let meters=7;meters<=1512;meters+=7) h.fix(meters);
+ await flush();assert.ok(h.checkpoint()?.distanceMeters>0);assert.equal(h.backgroundSession()?.mode,'BACKGROUND');
+ h.appState('active');await flush();h.render();assert.equal(h.status(),'READY');await h.button('WZNÓW MISJĘ').props.onPress();await flush();h.fix(10);h.render();
+ for(let meters=17;meters<=1522;meters+=7) h.fix(meters);
  await flush();assert.equal(h.awards(),1, `status=${h.status()} distance=${h.distance()}`);assert.equal(h.removals(),2);
 });
 for(const [name,on,time,granted,clear,expected] of [
