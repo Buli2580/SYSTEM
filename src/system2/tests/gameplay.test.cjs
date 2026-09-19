@@ -1598,6 +1598,15 @@ test('abandoned attempt recovery has no XP and does not fabricate Rematch',async
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];const before=(await h.db.loadSystemState()).player.totalRealXp;await h.db.beginQuestAttempt(id,'killed');const db=h.reload();const s=await db.loadSystemState();
  assert.equal(s.player.totalRealXp,before);assert.equal((await db.listQuestAttempts())[0].result,'ABANDONED');assert.equal(s.story.rematchQuestIds.length,0);await db.beginQuestAttempt(id,'fresh');
 });
+test('background quest attempt survives database reinitialization and remains resumable',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('walk_'));
+ await h.db.beginQuestAttempt(id,'background-active');
+ await h.db.saveBackgroundQuestSession({questId:id,attemptId:'background-active',mode:'BACKGROUND',extendedGoal:false,updatedAt:new Date(h.clock.now).toISOString()});
+ const db=h.reload();await db.loadSystemState();
+ const attempt=(await db.listQuestAttempts()).find(a=>a.attempt_id==='background-active');
+ assert.ok(attempt);assert.equal(attempt.result,null);
+ const session=await db.loadBackgroundQuestSession();assert.equal(session.attemptId,'background-active');assert.equal(session.mode,'BACKGROUND');
+});
 test('Boss staged progression survives restart; requires future day and awards exactly once',async t=>{
  const h=await worldLinkHarness(t);let s=await h.db.startBossProtocol();assert.ok(s.story.boss);assert.equal(await h.db.getQuestAccess('wall_walk_v1'),'LOCKED');
  await assert.rejects(h.db.completeVerifiedQuest({questId:'wall_walk_v1',verificationType:'GPS_DISTANCE',durationSeconds:1000,distanceMeters:2000,verificationScore:87}));
