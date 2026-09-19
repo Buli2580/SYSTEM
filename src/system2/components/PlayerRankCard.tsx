@@ -1,0 +1,2 @@
+import {Text,View} from 'react-native';import {pageStyles as s} from './SystemPage';
+export default function PlayerRankCard({global,country,friends}:{global?:number|null;country?:number|null;friends?:number|null}){const v=(n?:number|null)=>n&&n>0?'#'+n:'—';return <View style={s.panel}><Text style={s.label}>SYSTEM RANK</Text><Text style={s.body}>GLOBAL {v(global)}   ·   COUNTRY {v(country)}   ·   FRIENDS {v(friends)}</Text></View>;}
