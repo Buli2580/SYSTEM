@@ -1,0 +1,1 @@
+export type SocialPrivacySettings={profile:'PUBLIC'|'FRIENDS'|'PRIVATE';activity:'PUBLIC'|'FRIENDS'|'PRIVATE';showCity:boolean;showPresence:boolean;allowFriendRequests:boolean};export const DEFAULT_SOCIAL_PRIVACY:SocialPrivacySettings={profile:'PRIVATE',activity:'FRIENDS',showCity:false,showPresence:false,allowFriendRequests:true};

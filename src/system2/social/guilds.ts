@@ -1,0 +1,1 @@
+export type GuildRole='OWNER'|'OFFICER'|'MEMBER';export type Guild={id:string;name:string;tag:string;ownerId:string;memberCount:number;level:number;xp:number;visibility:'PUBLIC'|'INVITE_ONLY'};export function canManageGuild(r:GuildRole){return r==='OWNER'||r==='OFFICER';}export function guildLevel(xp:number){return Math.max(1,Math.floor(Math.sqrt(Math.max(0,xp)/1000))+1);}

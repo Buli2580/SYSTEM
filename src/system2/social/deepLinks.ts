@@ -1,0 +1,1 @@
+export function playerDeepLink(id:string){return '/player/'+encodeURIComponent(id);}export function socialSharePath(id:string){return 'system://player/'+encodeURIComponent(id);}

@@ -1,0 +1,1 @@
+export type PresenceState='ONLINE'|'AWAY'|'OFFLINE';export function derivePresence(lastSeenAt?:string,now=Date.now()):PresenceState{if(!lastSeenAt)return'OFFLINE';const a=now-new Date(lastSeenAt).getTime();return a<120000?'ONLINE':a<900000?'AWAY':'OFFLINE';}

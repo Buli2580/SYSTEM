@@ -1,0 +1,1 @@
+export type ReportReason='CHEATING'|'HARASSMENT'|'SPAM'|'IMPERSONATION'|'INAPPROPRIATE_PROFILE'|'OTHER';export type PlayerReport={targetId:string;reason:ReportReason;details?:string};export function validateReport(r:PlayerReport){return r.targetId.length>0&&(r.details?.trim().length??0)<=500;}

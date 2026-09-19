@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');for(const p of ['guilds.ts','raids.ts','privacySettings.ts','offlineQueue.ts','moderation.ts','presence.ts','seasons.ts','deepLinks.ts'])assert.ok(fs.existsSync(require.resolve('../social/'+p)));console.log('social world contract: PASS');
