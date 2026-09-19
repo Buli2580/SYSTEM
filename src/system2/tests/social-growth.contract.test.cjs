@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');for(const p of ['reputation.ts','matchmaking.ts','rivalries.ts','stats.ts','sponsorChallenges.ts','networkHealth.ts','pagination.ts','audit.ts'])assert.ok(fs.existsSync(require.resolve('../social/'+p)));console.log('social growth contract: PASS');
