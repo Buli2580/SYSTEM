@@ -4,16 +4,18 @@
 import type { SkillKey, Rank, QuestDifficulty } from '../core/types';
 
 export type GoalType =
-  | 'GET_FITTER'
-  | 'LOSE_WEIGHT'
+  | 'FITNESS'
+  | 'WEIGHT_LOSS'
   | 'WALK_MORE'
-  | 'RUN_5K'
-  | 'BUILD_DISCIPLINE'
-  | 'LEARN_SKILL'
+  | 'RUNNING'
+  | 'STRENGTH'
+  | 'DISCIPLINE'
+  | 'FOCUS'
+  | 'LEARNING'
   | 'STUDY'
-  | 'READ_MORE'
-  | 'SAVE_MONEY'
-  | 'BUILD_PROJECT'
+  | 'PRODUCTIVITY'
+  | 'SAVING_MONEY'
+  | 'HABIT'
   | 'CUSTOM';
 
 export type GoalStatus =
@@ -21,7 +23,7 @@ export type GoalStatus =
   | 'ACTIVE'
   | 'PAUSED'
   | 'COMPLETED'
-  | 'ABANDONED';
+  | 'ARCHIVED';
 
 export type GoalPriority =
   | 'LOW'
@@ -35,7 +37,7 @@ export type GoalDifficulty =
   | 'HARD'
   | 'EXTREME';
 
-export type GoalPhaseStatus =
+export type GoalPhaseStatusType =
   | 'LOCKED'
   | 'ACTIVE'
   | 'COMPLETED'
@@ -54,7 +56,7 @@ export type MilestoneStatus =
   | 'COMPLETED'
   | 'CLAIMED';
 
-export type DifficultyAdjustment =
+export type DifficultyAdjustmentDirection =
   | 'EASIER'
   | 'STABLE'
   | 'HARDER';
@@ -81,7 +83,7 @@ export type QuestFeedbackType =
   | 'TOO_HARD'
   | 'NOT_FOR_ME';
 
-export type DifficultyAdjustmentSignal =
+export type DifficultyAdjustmentSignalType =
   | 'QUEST_COMPLETION_RATE'
   | 'RECENT_STREAK'
   | 'ABANDONED_QUESTS'
@@ -116,9 +118,12 @@ export interface Goal {
   difficulty: GoalDifficulty;
   motivation: string;
   preferredSchedule: PreferredSchedule;
+  preferredFrequency: number;
+  preferredTimeCommitment: number;
   constraints: GoalConstraints;
   progress: number;
   progressTarget: number;
+  unit: string;
   milestones: GoalMilestone[];
   phases: GoalPhase[];
   linkedQuestIds: string[];
@@ -126,7 +131,7 @@ export interface Goal {
   primary: boolean;
   startedAt?: string;
   completedAt?: string;
-  abandonedAt?: string;
+  archivedAt?: string;
   pausedAt?: string;
   pausedReason?: string;
 }
@@ -180,7 +185,7 @@ export interface GoalPhase {
   title: string;
   description: string;
   order: number;
-  status: GoalPhaseStatus;
+  status: GoalPhaseStatusType;
   milestones: string[]; // milestone IDs
   startedAt?: string;
   completedAt?: string;
@@ -203,7 +208,7 @@ export interface DifficultyAdjustment {
 }
 
 export interface DifficultyAdjustmentSignal {
-  type: DifficultyAdjustmentSignal;
+  type: DifficultyAdjustmentSignalType;
   value: number;
   threshold: number;
   description: string;
