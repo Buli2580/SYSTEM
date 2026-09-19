@@ -122,7 +122,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.metricLabel
                 }
               >
-                TARGET
+                CEL
               </Text>
 
               <Text
@@ -140,7 +140,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.metricLabel
                 }
               >
-                SKILL
+                CECHA
               </Text>
 
               <Text
@@ -158,7 +158,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.metricLabel
                 }
               >
-                VERIFY
+                WERYFIKACJA
               </Text>
 
               <Text
@@ -268,7 +268,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                TIME
+                CZAS
               </Text>
             </View>
 
@@ -464,7 +464,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 styles.completeTitle
               }
             >
-              VERIFIED
+              POTWIERDZONA
             </Text>
 
             <Text
