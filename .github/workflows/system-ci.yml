@@ -35,6 +35,9 @@ jobs:
       - name: Expo config
         run: npx expo config --type public > /tmp/expo-config.txt
 
+      - name: Google Play readiness
+        run: node scripts/check-play-readiness.mjs
+
       - name: TypeScript
         run: npx tsc --noEmit --incremental false
 

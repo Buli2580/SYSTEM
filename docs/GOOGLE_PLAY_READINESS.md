@@ -29,9 +29,16 @@ The app now shows a prominent in-app disclosure before requesting location permi
 
 Play Console still requires:
 1. Sensitive permissions declaration for background location.
-2. A short Android video showing: starting a movement quest -> in-app disclosure -> Android permission prompt -> app in background -> distance continues -> return to SYSTEM.
-3. The store description must visibly explain the background-location quest feature.
-4. Privacy policy URL must be public and final.
+2. Foreground Service declaration for the `location` service type used during an active movement quest.
+3. A short Android video showing: starting a movement quest -> in-app disclosure -> Android permission prompt -> visible ongoing SYSTEM notification -> app in background -> distance continues -> return to SYSTEM.
+4. The store description must visibly explain the background-location quest feature.
+5. Privacy policy URL must be public and final.
+
+Suggested FGS description:
+"SYSTEM uruchamia usługę lokalizacji wyłącznie po ręcznym rozpoczęciu misji ruchowej. Usługa mierzy dystans i utrzymuje weryfikację misji po wygaszeniu ekranu. Użytkownik widzi stałe powiadomienie i pomiar kończy się po zakończeniu lub przerwaniu misji."
+
+User impact if interrupted:
+"Przerwanie usługi może spowodować utratę części dystansu i uniemożliwić prawidłowe zweryfikowanie aktywnej misji."
 
 ## Data Safety inventory
 Review in Play Console against the actual production build:
@@ -62,5 +69,6 @@ Internal-test notes:
 - Public production privacy-policy URL.
 - Public external account-deletion request URL.
 - Play App Signing / upload credentials.
-- Complete Data Safety and background-location declaration in Play Console.
+- Complete Data Safety, background-location and Foreground Service declarations in Play Console.
+- From 30 September 2026, verify that the package name is registered to the verified developer account as required by Android developer verification.
 - Add internal tester Google accounts.
