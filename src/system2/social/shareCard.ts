@@ -1,0 +1,1 @@
+import type {PublicPlayerProfile} from './types';export type ShareCard={headline:string;lines:string[];safeId:string};export function buildPlayerShareCard(p:PublicPlayerProfile):ShareCard{return{headline:'SYSTEM // PLAYER '+p.rank,lines:[p.displayName,'LEVEL '+p.level,'REAL XP '+p.realXp.toLocaleString(),'STREAK '+p.streak,'QUESTS '+p.verifiedQuestCount],safeId:p.playerId};}
