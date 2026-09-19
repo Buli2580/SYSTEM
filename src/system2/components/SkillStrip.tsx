@@ -60,7 +60,7 @@ export default function SkillStrip({
               </Text>
 
               <View style={styles.bar}>
-                <View style={styles.barFill} />
+                <View style={[styles.barFill, { width: `${Math.max(0, Math.min(100, skill.xpToNextLevel > 0 ? (skill.xp / skill.xpToNextLevel) * 100 : 100))}%` }]} />
               </View>
             </View>
           );
@@ -142,7 +142,6 @@ const styles = StyleSheet.create({
   },
 
   barFill: {
-    width: '4%',
     height: '100%',
     backgroundColor: SYSTEM_COLORS.cyan,
   },
