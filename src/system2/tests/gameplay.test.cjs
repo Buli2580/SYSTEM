@@ -217,6 +217,8 @@ function screenHarness(t, options = {}) {
   let checkpoint = options.checkpoint ?? null;
   let backgroundSession = options.backgroundSession ?? null;
   let backgroundStarted = false;
+  let disclosureCount = 0;
+  let backgroundPermissionRequests = 0;
   const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
   const react = {
     useState(initial) {
@@ -264,6 +266,13 @@ function screenHarness(t, options = {}) {
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
     'react-native': {
       AppState: appState,
+      Alert: {
+        alert(_title, _message, buttons = []) {
+          disclosureCount++;
+          const action = buttons.find(button => button?.text === 'KONTYNUUJ');
+          action?.onPress?.();
+        },
+      },
       Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s },
     },
     'expo-router': {
@@ -278,7 +287,11 @@ function screenHarness(t, options = {}) {
       Accuracy: { BestForNavigation: 1 },
       ActivityType: { Fitness: 1 },
       requestForegroundPermissionsAsync: () => options.permission?.promise ?? Promise.resolve({ status: 'granted' }),
-      requestBackgroundPermissionsAsync: () => options.backgroundPermission?.promise ?? Promise.resolve({ status: 'granted' }),
+      getBackgroundPermissionsAsync: () => Promise.resolve({ status: options.backgroundAlreadyGranted ? 'granted' : 'undetermined' }),
+      requestBackgroundPermissionsAsync: () => {
+        backgroundPermissionRequests++;
+        return options.backgroundPermission?.promise ?? Promise.resolve({ status: 'granted' });
+      },
       isBackgroundLocationAvailableAsync: async () => true,
       hasStartedLocationUpdatesAsync: async () => backgroundStarted,
       startLocationUpdatesAsync: async () => { backgroundStarted = true; },
@@ -337,6 +350,7 @@ function screenHarness(t, options = {}) {
     status: () => slots[0].value,
     distance: () => slots[2].value,
     starts: () => starts, removals: () => removals, awards: () => awards, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
+    disclosureCount: () => disclosureCount, backgroundPermissionRequests: () => backgroundPermissionRequests,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
     appState: state => { appState.currentState = state; appStateListener?.(state); },
@@ -406,6 +420,24 @@ for (const saveError of [false, true]) {
     assert.equal(h.awards(), 1);
   });
 }
+
+test('background location disclosure is shown before the first background permission request', async t => {
+  const h = screenHarness(t);
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();
+  assert.equal(h.disclosureCount(), 1);
+  assert.equal(h.backgroundPermissionRequests(), 1);
+});
+
+test('already granted background location skips repeated disclosure', async t => {
+  const h = screenHarness(t, { backgroundAlreadyGranted: true });
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();
+  assert.equal(h.disclosureCount(), 0);
+  assert.equal(h.backgroundPermissionRequests(), 1);
+});
 
 test('permission dialog and transient AppState before GPS subscription do not stop STARTING', async t => {
   const permission = deferred();
