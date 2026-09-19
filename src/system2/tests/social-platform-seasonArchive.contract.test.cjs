@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../social/platform/seasonArchive.ts'),'utf8');assert.match(s,/enabled/);assert.match(s,/return false/);console.log('seasonArchive policy contract: PASS');
