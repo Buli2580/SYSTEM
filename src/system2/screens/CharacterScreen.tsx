@@ -99,7 +99,7 @@ export default function CharacterScreen() {
       <Progress value={skill.xp} max={skill.xpToNextLevel} />
       {selected === key && <Text style={s.body}>{SKILL_META[key].description} XP przyznają wyłącznie dostępne, zweryfikowane aktywności SYSTEMU.</Text>}
     </Pressable>; })}
-    <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} />\n    <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />
+    <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />
   </SystemPage>;
 }
 function Progress({ value, max }: { value: number; max: number }) {
