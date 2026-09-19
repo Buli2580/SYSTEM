@@ -23,7 +23,7 @@ jobs:
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
-      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m"
 
     steps:
       - name: Checkout
@@ -54,6 +54,16 @@ jobs:
 
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean
+
+      - name: Limit test APK to arm64
+        shell: bash
+        run: |
+          if grep -q '^reactNativeArchitectures=' android/gradle.properties; then
+            sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' android/gradle.properties
+          else
+            echo 'reactNativeArchitectures=arm64-v8a' >> android/gradle.properties
+          fi
+          grep '^reactNativeArchitectures=' android/gradle.properties
 
       - name: Build debug APK
         working-directory: android
