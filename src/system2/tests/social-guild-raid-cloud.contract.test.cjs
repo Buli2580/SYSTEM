@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../../supabase/migrations/20260919110000_social_guilds_raids.sql'),'utf8');for(const x of ['guild_members','raid_contributions','create_guild','join_guild','contribute_raid_damage','INVALID_DAMAGE'])assert.match(s,new RegExp(x));console.log('guild raid cloud contract: PASS');
