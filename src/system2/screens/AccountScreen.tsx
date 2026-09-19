@@ -14,12 +14,11 @@ import {
 } from '../cloud/auth';
 import { fetchCloudState } from '../cloud/state';
 import {
-  getLeaderboard,
   getMySocialProfile,
   updateMySocialProfile,
-  type LeaderboardEntry,
   type SocialProfile,
 } from '../cloud/social';
+import { flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
 
 const inputStyle = {
   color: '#fff',
@@ -31,12 +30,14 @@ const inputStyle = {
   marginTop: 10,
 } as const;
 
+type SyncStats = { pending: number; synced: number; failed: number };
+
 export default function AccountScreen() {
   const router = useRouter();
   const { player } = useSystem();
   const [session, setSession] = useState<CloudSession | null>(null);
   const [social, setSocial] = useState<SocialProfile | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [syncStats, setSyncStats] = useState<SyncStats>({ pending: 0, synced: 0, failed: 0 });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [handle, setHandle] = useState('');
@@ -47,7 +48,7 @@ export default function AccountScreen() {
   const [region, setRegion] = useState('');
   const [city, setCity] = useState('');
   const [isPublic, setIsPublic] = useState(false);
-  const [status, setStatus] = useState('SYSTEM CLOUD // OFFLINE');
+  const [status, setStatus] = useState('SYSTEM CLOUD // NIEPOŁĄCZONY');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -64,12 +65,15 @@ export default function AccountScreen() {
     setIsPublic(profile.visibility === 'public');
   }
 
+  async function refreshSyncStats() {
+    setSyncStats(await getLocalCloudSyncStatus());
+  }
+
   async function loadOnline(current: CloudSession) {
     const profile = await getMySocialProfile();
     fillSocial(profile);
-    const top = await getLeaderboard('WORLD', null, 10);
-    setLeaderboard(top);
-    setStatus('SYSTEM CLOUD // ONLINE');
+    await refreshSyncStats();
+    setStatus('SYSTEM CLOUD // POŁĄCZONY');
     setSession(current);
   }
 
@@ -93,15 +97,14 @@ export default function AccountScreen() {
     void (async () => {
       try {
         const current = await getValidSession();
-        if (!active || !current) return;
+        if (!active) return;
+        await refreshSyncStats();
+        if (!current) return;
         setSession(current);
         const profile = await getMySocialProfile();
         if (!active) return;
         fillSocial(profile);
-        const top = await getLeaderboard('WORLD', null, 10);
-        if (!active) return;
-        setLeaderboard(top);
-        setStatus('SYSTEM CLOUD // ONLINE');
+        setStatus('SYSTEM CLOUD // POŁĄCZONY');
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : 'Nie udało się odczytać sesji SYSTEM CLOUD.');
       }
@@ -112,6 +115,8 @@ export default function AccountScreen() {
   async function signIn() {
     const current = await signInWithPassword(email, password);
     await loadOnline(current);
+    const result = await flushCloudOutbox(50);
+    setSyncStats({ pending: result.pending, synced: (await getLocalCloudSyncStatus()).synced, failed: result.failed });
     setPassword('');
   }
 
@@ -119,7 +124,7 @@ export default function AccountScreen() {
     const result = await signUpWithPassword(email, password, player.displayName);
     if (!result.session) {
       setStatus(result.confirmationRequired
-        ? 'KONTO UTWORZONE // SPRAWDŹ E-MAIL I POTWIERDŹ REJESTRACJĘ'
+        ? 'KONTO UTWORZONE // POTWIERDŹ REJESTRACJĘ W E-MAILU'
         : 'KONTO UTWORZONE // ZALOGUJ SIĘ');
       setPassword('');
       return;
@@ -131,7 +136,7 @@ export default function AccountScreen() {
   async function saveSocial() {
     const normalizedHandle = handle.trim().toLowerCase();
     if (isPublic && !/^[a-z0-9_]{3,24}$/.test(normalizedHandle)) {
-      throw new Error('Publiczny profil wymaga handle 3–24 znaki: a-z, 0-9 lub _.');
+      throw new Error('Publiczny profil wymaga nazwy użytkownika o długości 3–24 znaków: a–z, 0–9 lub _.');
     }
     const profile = await updateMySocialProfile({
       handle: normalizedHandle || null,
@@ -144,37 +149,44 @@ export default function AccountScreen() {
       city_label: city.trim() || null,
     });
     fillSocial(profile);
-    setLeaderboard(await getLeaderboard('WORLD', null, 10));
-    setStatus(isPublic ? 'PUBLIC PROFILE // ONLINE' : 'PRIVATE PROFILE // ONLINE');
+    setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
   }
 
   async function checkCloud() {
     const state = await fetchCloudState();
     const level = Number(state.state.player?.real_level ?? 1);
-    setStatus('CLOUD STATE OK // SCHEMA ' + state.schemaVersion + ' // LV.' + level);
+    setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
+  }
+
+  async function syncNow() {
+    const result = await flushCloudOutbox(100);
+    const stats = await getLocalCloudSyncStatus();
+    setSyncStats(stats);
+    setStatus(result.pending === 0
+      ? 'SYNCHRONIZACJA // WSZYSTKO WYSŁANE'
+      : 'SYNCHRONIZACJA // OCZEKUJE ' + result.pending);
   }
 
   async function logout() {
     await signOutCloud();
     setSession(null);
     setSocial(null);
-    setLeaderboard([]);
-    setStatus('SYSTEM CLOUD // OFFLINE');
+    setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY');
   }
 
-  return <SystemPage title="SYSTEM ONLINE" subtitle="CLOUD IDENTITY // SOCIAL FOUNDATION">
+  return <SystemPage title="SYSTEM ONLINE" subtitle="KONTO // CHMURA // SPOŁECZNOŚĆ">
     <View style={s.panel}>
       <Text style={s.label}>STATUS</Text>
       <Text style={s.title}>{status}</Text>
       <Text style={s.body}>
-        Lokalny SQLite nadal działa offline. Konto online jest dodatkową warstwą — nie kasuje lokalnego progresu.
+        SYSTEM działa lokalnie także bez internetu. Konto online jest dodatkową warstwą i nie usuwa progresu zapisanego w telefonie.
       </Text>
       <Action label="← WRÓĆ" onPress={() => router.back()} />
     </View>
 
     {!session ? <View style={s.panel}>
-      <Text style={s.label}>CLOUD ACCOUNT</Text>
-      <Text style={s.title}>Zaloguj lub utwórz konto</Text>
+      <Text style={s.label}>KONTO ONLINE</Text>
+      <Text style={s.title}>Zaloguj się lub utwórz konto</Text>
       <TextInput
         accessibilityLabel="E-mail SYSTEM CLOUD"
         autoCapitalize="none"
@@ -197,30 +209,41 @@ export default function AccountScreen() {
         placeholderTextColor="#8397a3"
         style={inputStyle}
       />
-      <Action label="ZALOGUJ" disabled={busy || !email || password.length < 8} onPress={() => { void run(signIn); }} />
+      <Action label="ZALOGUJ SIĘ" disabled={busy || !email || password.length < 8} onPress={() => { void run(signIn); }} />
       <Action label="UTWÓRZ KONTO" disabled={busy || !email || password.length < 8} onPress={() => { void run(signUp); }} />
     </View> : <>
       <View style={s.panel}>
-        <Text style={s.label}>CLOUD ID</Text>
-        <Text style={s.title}>{session.user.email ?? 'SYSTEM PLAYER'}</Text>
+        <Text style={s.label}>TOŻSAMOŚĆ W CHMURZE</Text>
+        <Text style={s.title}>{session.user.email ?? 'GRACZ SYSTEMU'}</Text>
         <Text style={s.body}>{session.user.id}</Text>
-        <Action label="SPRAWDŹ CLOUD STATE" disabled={busy} onPress={() => { void run(checkCloud); }} />
-        <Action label="WYLOGUJ SYSTEM CLOUD" disabled={busy} onPress={() => { void run(logout); }} />
+        <Action label="SPRAWDŹ STAN CHMURY" disabled={busy} onPress={() => { void run(checkCloud); }} />
+        <Action label="RANKINGI I GRACZE →" disabled={busy} onPress={() => router.push('/leaderboard')} />
+        <Action label="WYLOGUJ SIĘ" disabled={busy} onPress={() => { void run(logout); }} />
       </View>
 
       <View style={s.panel}>
-        <Text style={s.label}>SOCIAL PROFILE</Text>
-        <Text style={s.title}>{social?.visibility === 'public' ? 'PUBLIC // VISIBLE' : 'PRIVATE // HIDDEN'}</Text>
-        <TextInput accessibilityLabel="Handle" autoCapitalize="none" autoCorrect={false} maxLength={24}
-          value={handle} onChangeText={setHandle} placeholder="handle" placeholderTextColor="#8397a3" style={inputStyle} />
+        <Text style={s.label}>SYNCHRONIZACJA Z TELEFONU</Text>
+        <Text style={s.title}>{syncStats.pending === 0 ? 'BRAK OCZEKUJĄCYCH ZDARZEŃ' : syncStats.pending + ' ZDARZEŃ OCZEKUJE'}</Text>
+        <Text style={s.body}>
+          Wysłane: {syncStats.synced} · po błędzie: {syncStats.failed}. SYSTEM wysyła wyłącznie podsumowania zweryfikowanych zdarzeń — bez surowych tras GPS i zdjęć.
+        </Text>
+        <Action label="SYNCHRONIZUJ TERAZ" disabled={busy || syncStats.pending === 0} onPress={() => { void run(syncNow); }} />
+      </View>
+
+      <View style={s.panel}>
+        <Text style={s.label}>PROFIL SPOŁECZNOŚCIOWY</Text>
+        <Text style={s.title}>{social?.visibility === 'public' ? 'PUBLICZNY // WIDOCZNY' : 'PRYWATNY // UKRYTY'}</Text>
+        <TextInput accessibilityLabel="Nazwa użytkownika" autoCapitalize="none" autoCorrect={false} maxLength={24}
+          value={handle} onChangeText={setHandle} placeholder="nazwa użytkownika" placeholderTextColor="#8397a3" style={inputStyle} />
         <TextInput accessibilityLabel="Publiczna nazwa" maxLength={40}
           value={publicName} onChangeText={setPublicName} placeholder="publiczna nazwa" placeholderTextColor="#8397a3" style={inputStyle} />
-        <TextInput accessibilityLabel="Bio" maxLength={240} multiline
-          value={bio} onChangeText={setBio} placeholder="bio" placeholderTextColor="#8397a3"
+        <TextInput accessibilityLabel="Opis profilu" maxLength={240} multiline
+          value={bio} onChangeText={setBio} placeholder="krótki opis" placeholderTextColor="#8397a3"
           style={[inputStyle, { minHeight: 88, paddingTop: 14, textAlignVertical: 'top' }]} />
-        <Text style={[s.label, { marginTop: 16 }]}>PUBLIC PROFILE / LEADERBOARD</Text>
+        <Text style={[s.label, { marginTop: 16 }]}>WIDOCZNOŚĆ W RANKINGACH</Text>
         <Switch accessibilityLabel="Profil publiczny" value={isPublic} disabled={busy} onValueChange={setIsPublic} />
-        <Text style={[s.label, { marginTop: 16 }]}>RANKING LOCATION // OPCJONALNE</Text>
+        <Text style={[s.label, { marginTop: 16 }]}>LOKALIZACJA RANKINGU // OPCJONALNIE</Text>
+        <Text style={s.body}>Wpisujesz ją samodzielnie. SYSTEM nie pobiera miasta z trasy GPS.</Text>
         <TextInput accessibilityLabel="Kontynent" autoCapitalize="characters" maxLength={2}
           value={continent} onChangeText={setContinent} placeholder="EU" placeholderTextColor="#8397a3" style={inputStyle} />
         <TextInput accessibilityLabel="Kraj" autoCapitalize="characters" maxLength={2}
@@ -228,17 +251,8 @@ export default function AccountScreen() {
         <TextInput accessibilityLabel="Region" maxLength={32}
           value={region} onChangeText={setRegion} placeholder="np. pomorskie" placeholderTextColor="#8397a3" style={inputStyle} />
         <TextInput accessibilityLabel="Miasto" maxLength={80}
-          value={city} onChangeText={setCity} placeholder="miasto" placeholderTextColor="#8397a3" style={inputStyle} />
+          value={city} onChangeText={setCity} placeholder="np. Lębork" placeholderTextColor="#8397a3" style={inputStyle} />
         <Action label="ZAPISZ PROFIL ONLINE" disabled={busy} onPress={() => { void run(saveSocial); }} />
-      </View>
-
-      <View style={s.panel}>
-        <Text style={s.label}>WORLD LEADERBOARD // TOP 10</Text>
-        {leaderboard.length === 0
-          ? <Text style={s.body}>Brak publicznych graczy. Pierwszy publiczny profil otworzy ranking.</Text>
-          : leaderboard.map(entry => <Text key={entry.user_id} style={s.body}>
-            #{entry.rank_position} @{entry.handle ?? 'player'} · LV.{entry.real_level} · {entry.real_total_xp} XP
-          </Text>)}
       </View>
     </>}
 

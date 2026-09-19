@@ -2,7 +2,7 @@ import type { RunnableQuest } from './types';
 
 export const FOCUS_PROTOCOL_QUEST: RunnableQuest = {
   id: 'focus_protocol_v1',
-  title: 'FOCUS PROTOCOL',
+  title: 'PROTOKÓŁ SKUPIENIA',
   description: 'Skup się przez 10 minut bez przerwy. Pozostaw aplikację na pierwszym planie i ekran misji otwarty. Przejście do tła lub wyjście z misji przerywa próbę.',
   category: 'MAIN', difficulty: 'EASY', order: 2, primarySkill: 'WIL', secondarySkills: [],
   verification: { type: 'TIMER', minimumDurationSeconds: 600, verificationScoreRequired: 100 },

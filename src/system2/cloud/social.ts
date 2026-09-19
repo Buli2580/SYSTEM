@@ -108,6 +108,26 @@ export async function followPlayer(userId: string): Promise<void> {
   }, session.accessToken);
 }
 
+export async function searchPlayers(query: string, limit = 20): Promise<SocialProfile[]> {
+  const session = await requireSession();
+  const term = query.trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24);
+  if (term.length < 2) return [];
+  return cloudRequest<SocialProfile[]>('/rest/v1/rpc/search_players', {
+    method: 'POST',
+    body: JSON.stringify({ p_query: term, p_limit: Math.max(1, Math.min(limit, 50)) }),
+  }, session.accessToken);
+}
+
+export async function getFollowingIds(): Promise<string[]> {
+  const session = await requireSession();
+  const rows = await cloudRequest<{ followed_id: string }[]>(
+    '/rest/v1/follows?follower_id=eq.' + encodeURIComponent(session.user.id) + '&select=followed_id&limit=500',
+    { method: 'GET' },
+    session.accessToken,
+  );
+  return rows.map(row => row.followed_id);
+}
+
 export async function unfollowPlayer(userId: string): Promise<void> {
   const session = await requireSession();
   const query = '?follower_id=eq.' + encodeURIComponent(session.user.id) +

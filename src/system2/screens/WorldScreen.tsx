@@ -17,10 +17,10 @@ export default function WorldScreen() {
   const router = useRouter();
   const { ready, worldUnlocked } = useSystem();
   // Do not mount the tracking hook/map until the persisted unlock is ready.
-  if (!ready || !worldUnlocked) return <SystemPage title="SYSTEM WORLD" subtitle="WORLD PROTOCOL">
+  if (!ready || !worldUnlocked) return <SystemPage title="SYSTEM WORLD" subtitle="PROTOKÓŁ ŚWIATA">
     <View style={pageStyles.panel}>
-      <Text style={pageStyles.label}>WORLD LOCKED</Text>
-      <Text style={pageStyles.body}>Complete Awakening to unlock SYSTEM WORLD.</Text>
+      <Text style={pageStyles.label}>ŚWIAT ZABLOKOWANY</Text>
+      <Text style={pageStyles.body}>Ukończ Przebudzenie, aby odblokować SYSTEM WORLD.</Text>
       <Pressable onPress={() => router.replace('/quests')}><Text style={pageStyles.link}>PRZEJDŹ DO QUESTÓW →</Text></Pressable>
     </View>
   </SystemPage>;
@@ -36,34 +36,34 @@ function OnlineWorld() {
   const signalState = world.signal?.status ?? 'LOCKED';
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
     <View style={styles.heading}>
-      <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD STATUS: ONLINE</Text>
-      <Text style={styles.body}>WORLD EXPLORATION · SECTORS DISCOVERED {world.sectorIds.length}</Text>
-      <Text style={styles.body}>TOTAL DISTANCE {(player.totalDistanceMeters / 1000).toFixed(2)} KM · VERIFIED QUESTS</Text>
+      <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>STATUS ŚWIATA: ONLINE</Text>
+      <Text style={styles.body}>EKSPLORACJA ŚWIATA · ODKRYTE SEKTORY {world.sectorIds.length}</Text>
+      <Text style={styles.body}>ŁĄCZNY DYSTANS {(player.totalDistanceMeters / 1000).toFixed(2)} KM · ZWERYFIKOWANE MISJE</Text>
     </View>
     <View style={styles.map}>
       {world.fix ? <WorldMap fix={world.fix} sectorIds={world.sectorIds} signal={world.signal} follow={follow} centerRequest={centerRequest} /> :
-        <View style={styles.empty}><Text style={styles.label}>{world.status === 'STARTING' ? 'STARTING // GPS' : 'INITIALIZE WORLD'}</Text>
+        <View style={styles.empty}><Text style={styles.label}>{world.status === 'STARTING' ? 'URUCHAMIANIE // GPS' : 'URUCHOM ŚWIAT'}</Text>
           <Text style={styles.body}>Odkrywaj świat z aktywnym ekranem aplikacji.</Text></View>}
       <View style={styles.mapControls}>
-        <Button label="CENTER" disabled={!world.fix} onPress={() => setCenterRequest(n => n + 1)} />
-        <Button label={`FOLLOW PLAYER ${follow ? 'ON' : 'OFF'}`} onPress={() => setFollow(value => !value)} />
+        <Button label="WYŚRODKUJ" disabled={!world.fix} onPress={() => setCenterRequest(n => n + 1)} />
+        <Button label={`ŚLEDŹ GRACZA ${follow ? 'WŁ.' : 'WYŁ.'}`} onPress={() => setFollow(value => !value)} />
       </View>
       <DiscoveryToast text={world.feedback} id={world.feedbackId} />
     </View>
     <ScrollView style={{ maxHeight: 260 }} contentContainerStyle={styles.hud}>
       <Text style={styles.label}>GPS {world.status} · {world.fix ? `±${Math.round(world.fix.coords.accuracy ?? 0)} M` : '--'}</Text>
-      <Text style={styles.small}>PLAYER SECTOR {world.fix ? locationToSector(world.fix.coords) : '--'} · PLAYER ● CYAN</Text>
-      <Text style={styles.body}>{signalState === 'LOCATED' ? 'UNKNOWN SIGNAL LOCATED' : `FIRST SIGNAL: ${signalState}`}
+      <Text style={styles.small}>SEKTOR GRACZA {world.fix ? locationToSector(world.fix.coords) : '--'} · GRACZ ● TURKUS</Text>
+      <Text style={styles.body}>{signalState === 'LOCATED' ? 'NIEZNANY SYGNAŁ ZLOKALIZOWANY' : `PIERWSZY SYGNAŁ: ${signalState}`}
         {world.signal && world.fix && signalState !== 'LOCATED' ? ` · ${Math.round(signalDistance(world.fix, world.signal))} M` : ''}</Text>
-      {world.signal?.status === 'DETECTED' && <Text style={styles.small}>SIGNAL DETECTED · PROTOTYPE SIGNAL ● VIOLET</Text>}
+      {world.signal?.status === 'DETECTED' && <Text style={styles.small}>SYGNAŁ WYKRYTY · SYGNAŁ PROTOTYPOWY ● FIOLET</Text>}
       {world.signalError && <Text style={styles.error}>Nieprawidłowy zapis sygnału. Użyj RELOCATE SIGNAL po uruchomieniu GPS.</Text>}
       {world.error && <Text style={styles.error}>{world.error}</Text>}
       <View style={styles.actions}>
-        {active ? <Button label="PAUSE GPS" onPress={world.pause} /> : <Button label={world.status === 'STARTING' ? 'STARTING…' : world.status === 'PAUSED' ? 'INITIALIZE WORLD' : 'SPRÓBUJ PONOWNIE'} disabled={world.status === 'STARTING'} onPress={() => { void world.start(); }} />}
+        {active ? <Button label="WSTRZYMAJ GPS" onPress={world.pause} /> : <Button label={world.status === 'STARTING' ? 'URUCHAMIANIE…' : world.status === 'PAUSED' ? 'URUCHOM ŚWIAT' : 'SPRÓBUJ PONOWNIE'} disabled={world.status === 'STARTING'} onPress={() => { void world.start(); }} />}
         {world.permanentDenial && <Button label="USTAWIENIA" onPress={() => { void Linking.openSettings().catch(() => undefined); }} />}
-        {signalState !== 'LOCATED' && <Button label={world.scanning ? 'SCANNING…' : world.signal || world.signalError ? 'RELOCATE SIGNAL' : 'SCAN FOR SIGNAL'} disabled={!active || world.scanning} onPress={() => { void world.scan(Boolean(world.signal || world.signalError)); }} />}
+        {signalState !== 'LOCATED' && <Button label={world.scanning ? 'SKANOWANIE…' : world.signal || world.signalError ? 'PRZENIEŚ SYGNAŁ' : 'SZUKAJ SYGNAŁU'} disabled={!active || world.scanning} onPress={() => { void world.scan(Boolean(world.signal || world.signalError)); }} />}
       </View>
-      <Text style={styles.small}>Do not enter private or unsafe areas.</Text>
+      <Text style={styles.small}>Nie wchodź na teren prywatny ani w miejsca, które mogą być niebezpieczne.</Text>
       {lastReward?.id === 'first_world_signal_v1' && <RewardSummary receipt={lastReward} />}
     </ScrollView>
     <BottomNavigation />

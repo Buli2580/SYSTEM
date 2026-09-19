@@ -50,3 +50,22 @@ export async function submitSyncEvent(input: {
     }),
   }, session.accessToken);
 }
+
+
+export type RemoteSyncStatus = {
+  total: number;
+  received: number;
+  processing: number;
+  processed: number;
+  rejected: number;
+  latest_event_at: string | null;
+};
+
+export async function getRemoteSyncStatus(): Promise<RemoteSyncStatus> {
+  const session = await requireAccessToken();
+  const rows = await cloudRequest<RemoteSyncStatus[]>('/rest/v1/rpc/get_sync_status', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  }, session.accessToken);
+  return rows[0] ?? { total: 0, received: 0, processing: 0, processed: 0, rejected: 0, latest_event_at: null };
+}

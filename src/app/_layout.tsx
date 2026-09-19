@@ -1,3 +1,4 @@
+import '../system2/background/locationTask';
 import StoryNotice from '../system2/components/StoryNotice';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

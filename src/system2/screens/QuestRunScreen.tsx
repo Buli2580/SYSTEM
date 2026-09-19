@@ -9,6 +9,7 @@ import type { RunnableQuest } from '../quests/types';
 import { useQuestRun } from '../quests/useQuestRun';
 import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
+import { difficultyPl, verificationPl } from '../i18n/pl';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -68,13 +69,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.systemLabel}
             >
-              SYSTEM // QUEST
+              SYSTEM // MISJA
             </Text>
 
             <Text
               style={styles.screenTitle}
             >
-              {quest.category === 'BOSS' ? 'BOSS PROTOCOL' : quest.category === 'DAILY' ? 'DAILY PROTOCOL' : `AWAKENING ${quest.order}/${AWAKENING_QUESTS.length}`}
+              {quest.category === 'BOSS' ? 'PROTOKÓŁ BOSSA' : quest.category === 'DAILY' ? 'PROTOKÓŁ DZIENNY' : `PRZEBUDZENIE ${quest.order}/${AWAKENING_QUESTS.length}`}
             </Text>
           </View>
         </View>
@@ -88,13 +89,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.category}
             >
-              {quest.verification.type}
+              {verificationPl(quest.verification.type)}
             </Text>
 
             <Text
               style={styles.difficulty}
             >
-              {quest.difficulty}
+              {difficultyPl(quest.difficulty)}
             </Text>
           </View>
 
@@ -165,17 +166,17 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.metricCyan
                 }
               >
-                {isMulti ? 'GPS + TIMER' : isTimer ? 'TIMER' : 'GPS'}
+                {isMulti ? 'GPS + CZAS' : isTimer ? 'CZAS' : 'GPS'}
               </Text>
             </View>
           </View>
         </View>
 
         {!!quest.activityType && <View style={styles.questCard}>
-          <Text style={styles.category}>ACTIVITY MATCH // {!activity || activity.features.durationSeconds < 30 ? 'CHECKING' : activity.verdict === 'VERIFIED' ? 'GOOD' : 'LOW CONFIDENCE'}</Text>
-          <Text style={styles.description}>CURRENT {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · AVG {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
-          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
-          <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
+          <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
+          <Text style={styles.description}>TERAZ {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · ŚREDNIO {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
+          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · KROKI — · KADENCJA —</Text>
+          <Text style={styles.description}>TYLKO GPS // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
         <View
           style={styles.tracker}
@@ -183,7 +184,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text
             style={styles.trackerLabel}
           >
-            {isTimer ? 'FOCUS // POZOSTAŁY CZAS' : 'LIVE DISTANCE'}
+            {isTimer ? 'SKUPIENIE // POZOSTAŁY CZAS' : 'DYSTANS NA ŻYWO'}
           </Text>
 
           <View
@@ -241,7 +242,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                {isTimer ? 'TIME LEFT' : 'M LEFT'}
+                {isTimer ? 'POZOSTAŁY CZAS' : 'M DO CELU'}
               </Text>
             </View>
 
@@ -279,7 +280,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveValue
                 }
               >
-                {isTimer ? (status === 'TRACKING' ? 'ON' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
+                {isTimer ? (status === 'TRACKING' ? 'WŁ.' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
               </Text>
 
               <Text
@@ -287,7 +288,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                {isTimer ? 'FOCUS' : 'GPS ±M'}
+                {isTimer ? 'SKUPIENIE' : 'GPS ±M'}
               </Text>
             </View>
           </View>
@@ -295,14 +296,14 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           {(status === 'CHECKING' || status === 'STARTING') && (
             <View style={styles.trackingBox}>
               <Text style={styles.trackingText}>
-                {status === 'CHECKING' ? 'SPRAWDZANIE ZAPISU...' : isTimer ? 'URUCHAMIANIE TIMERA...' : 'OCZEKIWANIE NA GPS...'}
+                {status === 'CHECKING' ? 'SPRAWDZANIE ZAPISU…' : isTimer ? 'URUCHAMIANIE CZASU…' : 'OCZEKIWANIE NA GPS…'}
               </Text>
             </View>
           )}
 
           {status === 'LOCKED' && <View style={styles.errorBox}>
-            <Text style={styles.errorTitle}>QUEST LOCKED</Text>
-            <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
+            <Text style={styles.errorTitle}>MISJA ZABLOKOWANA</Text>
+            <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu dziennego. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Przebudzenia, aby rozpocząć tę próbę.'}</Text>
             <Pressable onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
           </View>}
 
@@ -315,11 +316,19 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
+          {status === 'READY' && distance > 0 && quest.verification.type !== 'TIMER' && <View style={styles.trackingBox}>
+            <Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text>
+            <Text style={styles.description}>
+              {quest.verification.type === 'MULTI'
+                ? 'Dystans i czas aktywnej próby mogą być liczone w tle. Po powrocie SYSTEM odczyta najnowszy zweryfikowany postęp.'
+                : 'Możesz wygasić ekran albo przejść do innej aplikacji. Aktywna misja nadal liczy zweryfikowany dystans w tle.'}
+            </Text>
+          </View>}
           {status === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
             <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
             <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
           </Pressable>}
-          {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
+          {rematch && <Text style={styles.retry}>WIADOMOŚĆ SYSTEMU // REWANŻ DOSTĘPNY</Text>}
           {status === 'READY' && ready && (
             <Pressable accessibilityRole="button"
               style={
@@ -334,7 +343,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.startButtonText
                 }
               >
-                {rematch ? 'BEGIN REMATCH' : 'ROZPOCZNIJ QUEST'}
+                {rematch ? 'ROZPOCZNIJ REWANŻ' : distance > 0 ? 'WZNÓW MISJĘ' : 'ROZPOCZNIJ MISJĘ'}
               </Text>
 
               <Text
@@ -365,7 +374,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                {isTimer ? `${quest.title} // ACTIVE` : isMulti ? 'FINAL TRIAL // ACTIVE' : 'SYSTEM MONITORUJE RUCH'}
+                {isTimer ? `${quest.title} // AKTYWNA` : isMulti ? 'OSTATNIA PRÓBA // AKTYWNA' : 'SYSTEM MONITORUJE AKTYWNOŚĆ · TŁO WŁ.'}
               </Text>
             </View>
           )}
@@ -382,7 +391,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                SYSTEM // VERIFYING...
+                SYSTEM // WERYFIKACJA…
               </Text>
             </View>
           )}
@@ -390,11 +399,11 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           {(status === 'DENIED' || status === 'ERROR') && (
             <View style={styles.errorBox}>
               <Text style={styles.errorTitle}>
-                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'ATTEMPT ENDED // SYSTEM ANALYSIS'}
+                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'PRÓBA ZAKOŃCZONA // ANALIZA SYSTEMU'}
               </Text>
               <Text style={styles.errorText}>{error}</Text>
               <Pressable onPress={() => { void retryQuest(); }}>
-                <Text style={styles.retry}>{rematch ? 'BEGIN REMATCH' : 'SPRÓBUJ PONOWNIE'}</Text>
+                <Text style={styles.retry}>{rematch ? 'ROZPOCZNIJ REWANŻ' : 'SPRÓBUJ PONOWNIE'}</Text>
               </Pressable>
             </View>
           )}
@@ -410,7 +419,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text
             style={styles.rewardTitle}
           >
-            POTENTIAL REWARD
+            MOŻLIWA NAGRODA
           </Text>
 
           <View
@@ -429,7 +438,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.reward}
             >
-              +{quest.rewards.gameEnergy ?? 0} ENERGY
+              +{quest.rewards.gameEnergy ?? 0} ENERGII
             </Text>
           </View>
         </View>
@@ -447,7 +456,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 styles.completeSmall
               }
             >
-              QUEST COMPLETE
+              MISJA UKOŃCZONA
             </Text>
 
             <Text

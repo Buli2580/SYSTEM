@@ -35,10 +35,10 @@ export default function AwakeningCelebration() {
   return <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={() => { void finish(); }}>
     {visible && <View style={styles.root}>
       <Animated.View entering={FadeIn.duration(700)} style={styles.core} />
-      <Animated.Text entering={FadeIn.delay(200).duration(700)} style={styles.title}>AWAKENING COMPLETE</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(1500).duration(700)} style={styles.line}>SYSTEM ACCESS EXPANDED</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(2900).duration(700)} style={styles.line}>WORLD PROTOCOL UNLOCKED</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(3600).duration(600)} style={styles.reward}>CHAPTER 01 VERIFIED // REWARD SAVED</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(200).duration(700)} style={styles.title}>PRZEBUDZENIE UKOŃCZONE</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(1500).duration(700)} style={styles.line}>DOSTĘP DO SYSTEMU ROZSZERZONY</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(2900).duration(700)} style={styles.line}>PROTOKÓŁ ŚWIATA ODBLOKOWANY</Animated.Text>
+      <Animated.Text entering={FadeIn.delay(3600).duration(600)} style={styles.reward}>ROZDZIAŁ 01 POTWIERDZONY // NAGRODA ZAPISANA</Animated.Text>
       {error && <><Text style={styles.error}>{error}</Text>
         <Pressable onPress={() => { void finish(); }}><Text style={styles.line}>SPRÓBUJ PONOWNIE</Text></Pressable></>}
     </View>}

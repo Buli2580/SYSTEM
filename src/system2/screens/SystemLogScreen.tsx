@@ -9,6 +9,7 @@ import { loadSystemLog, listQuestAttempts } from '../storage/database';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { activityName } from '../identity/history';
 import type { VerifiedEvent } from '../core';
+import { activityTypePl, verdictPl, verificationPl } from '../i18n/pl';
 export default function SystemLogScreen() {
   const [events, setEvents] = useState<VerifiedEvent[]>([]), [error, setError] = useState<string | null>(null), [loading, setLoading] = useState(true);
   const [attempts,setAttempts]=useState<QuestAttempt[]>([]);
@@ -20,17 +21,17 @@ export default function SystemLogScreen() {
     finally { if (id === request.current) setLoading(false); }
   }, []);
   useFocusEffect(useCallback(() => { void load(); return () => { request.current++; }; }, [load]));
-  return <SystemPage title="SYSTEM LOG" subtitle="OSTATNIE 50 ACTIVITY EVENTS">
+  return <SystemPage title="HISTORIA SYSTEMU" subtitle="OSTATNIE 50 ZDARZEŃ AKTYWNOŚCI">
     <Action label="← POSTAĆ" onPress={() => router.replace('/character')} />
     {error ? <SystemError message={error} retry={() => { void load(); }} /> : loading ? <Text style={s.body}>ODCZYTYWANIE…</Text> : events.length === 0 ? <Text style={s.body}>Twoja historia zacznie się od pierwszej zweryfikowanej aktywności.</Text> : events.map(event => <View key={event.id} style={s.panel}>
       <Text style={s.title}>{activityName(event.questId)}</Text><Text style={s.body}>{new Date(event.createdAt).toLocaleString()}</Text>
-      <Text style={s.label}>{event.verificationType} // {event.activity?.verdict ?? 'VERIFIED'}</Text><Text style={s.body}>+{event.realXpAwarded} REAL XP · +{event.gameEnergyAwarded} ENERGY</Text>
+      <Text style={s.label}>{verificationPl(event.verificationType)} // {verdictPl(event.activity?.verdict)}</Text><Text style={s.body}>+{event.realXpAwarded} REAL XP · +{event.gameEnergyAwarded} ENERGII</Text>
       <Text style={s.body}>{Object.entries(event.skillXpAwarded).map(([key, xp]) => `+${xp} ${key} XP`).join(' · ')}</Text>
-      {event.activity && <Text style={s.body}>VERIFICATION · {event.activity.activityTypeDetected} · {event.activity.verdict} · {event.activity.verificationScore}/100 · {event.activity.sensorSources.join(' + ')}</Text>}
+      {event.activity && <Text style={s.body}>WERYFIKACJA · {activityTypePl(event.activity.activityTypeDetected)} · {verdictPl(event.activity.verdict)} · {event.activity.verificationScore}/100 · {event.activity.sensorSources.join(' + ')}</Text>}
       {event.distanceMeters !== undefined && <Text style={s.body}>{Math.round(event.distanceMeters)} M</Text>}
-      {event.durationSeconds !== undefined && <Text style={s.body}>{Math.floor(event.durationSeconds / 60)} MIN {Math.floor(event.durationSeconds % 60)} SEC</Text>}
+      {event.durationSeconds !== undefined && <Text style={s.body}>{Math.floor(event.durationSeconds / 60)} MIN {Math.floor(event.durationSeconds % 60)} S</Text>}
     </View>)}
-    {attempts.length>0&&<Text style={s.title}>QUEST ATTEMPTS</Text>}
-    {attempts.map(a=><View key={a.attempt_id} style={s.panel}><Text style={s.label}>{a.result??'ACTIVE'} // {activityName(a.quest_id)}</Text><Text style={s.body}>{new Date(a.started_at).toLocaleString()} · {Math.floor(a.duration)} SEC · {Math.round(a.distance)} M</Text><Text style={s.body}>{a.eligible?'REMATCH ELIGIBLE':a.reason??''}</Text></View>)}
+    {attempts.length>0&&<Text style={s.title}>PRÓBY MISJI</Text>}
+    {attempts.map(a=><View key={a.attempt_id} style={s.panel}><Text style={s.label}>{a.result === 'COMPLETED' ? 'UKOŃCZONA' : a.result === 'FAILED' ? 'NIEUDANA' : a.result === 'REJECTED' ? 'ODRZUCONA' : a.result === 'INTERRUPTED' ? 'PRZERWANA' : a.result === 'ABANDONED' ? 'PORZUCONA' : 'AKTYWNA'} // {activityName(a.quest_id)}</Text><Text style={s.body}>{new Date(a.started_at).toLocaleString()} · {Math.floor(a.duration)} S · {Math.round(a.distance)} M</Text><Text style={s.body}>{a.eligible?'MOŻLIWY REWANŻ':a.reason??''}</Text></View>)}
   </SystemPage>;
 }

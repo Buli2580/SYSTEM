@@ -22,7 +22,9 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       "package": "com.anonymous.SYSTEM"
     },
@@ -43,7 +45,17 @@
       "expo-audio",
       "expo-video",
       "expo-sqlite",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "SYSTEM używa lokalizacji podczas aktywnej misji, także gdy ekran jest wygaszony lub aplikacja działa w tle.",
+          "locationWhenInUsePermission": "SYSTEM używa lokalizacji do mierzenia dystansu i weryfikacji aktywnych misji.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

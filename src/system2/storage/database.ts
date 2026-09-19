@@ -3,7 +3,7 @@ import { BOSS_ID, attemptKind } from '../story/catalog';
 import type { StoryState, StoryEvent, QuestAttempt, AttemptResult, AttemptReason } from '../story/types';
 import { dayKey } from '../daily/calendar';
 import { classifyActivity } from '../activity/classifier';
-import type { ActivityEvidence } from '../activity/types';
+import type { ActivityEvidence, ActivityFeatures } from '../activity/types';
 import { dailyState, ensureDailyAccess, awardProtocols, currentStreak, type DailyState } from './daily';
 import { DEFAULT_ACTIVITIES } from '../daily/templates';
 import { getQuest } from '../quests/catalog';
@@ -23,6 +23,33 @@ import type { QuestEvidence } from '../quests/types';
 import { awardAwakeningIfEligible } from './chapter';
 
 export type CompleteQuestInput = QuestEvidence;
+export type QuestCheckpoint = {
+  questId: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  verificationScore: number;
+  extendedGoal: boolean;
+  activityFeatures?: ActivityFeatures;
+  updatedAt: string;
+};
+
+export type StoredLocationPoint = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
+  mocked: boolean;
+};
+
+export type BackgroundQuestSession = {
+  questId: string;
+  attemptId: string;
+  mode: 'FOREGROUND' | 'BACKGROUND';
+  extendedGoal: boolean;
+  lastPoint?: StoredLocationPoint;
+  lastObservedTimestamp?: number;
+  updatedAt: string;
+};
 export type SystemSnapshot = {
   story: StoryState | null;
   daily: DailyState | null;
@@ -70,7 +97,23 @@ export async function initSystemDatabase() {
       const db = await getDatabase();
       await migrateDatabase(db);
       await db.withExclusiveTransactionAsync(async txn => {
-        await txn.runAsync("UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL",new Date(Date.now()).toISOString());
+        const activeRow = await txn.getFirstAsync<{ value: string }>(
+          'SELECT value FROM app_state WHERE key=?',
+          BACKGROUND_QUEST_SESSION_KEY,
+        );
+        const activeBackground = parseBackgroundQuestSession(activeRow?.value);
+        if (activeBackground?.attemptId) {
+          await txn.runAsync(
+            "UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL AND attempt_id<>?",
+            new Date(Date.now()).toISOString(),
+            activeBackground.attemptId,
+          );
+        } else {
+          await txn.runAsync(
+            "UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL",
+            new Date(Date.now()).toISOString(),
+          );
+        }
       });
     })().catch(error => {
       initializationPromise = null;
@@ -223,6 +266,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
         event.id, quest.id, JSON.stringify(event), now
       );
+      await enqueueCloudOutboxEvent(txn, event);
       const snapshot = await snapshotInTransaction(txn);
       result = { awarded: true, ...snapshot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
@@ -320,7 +364,7 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['cloud_outbox', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -383,6 +427,166 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    if(changed.changes&&eligible) await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
  });
 }
+const BACKGROUND_QUEST_SESSION_KEY = 'background_quest_session';
+
+function validStoredPoint(value: unknown): value is StoredLocationPoint {
+  if (!value || typeof value !== 'object') return false;
+  const point = value as Partial<StoredLocationPoint>;
+  return typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 &&
+    typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180 &&
+    typeof point.accuracy === 'number' && Number.isFinite(point.accuracy) && point.accuracy >= 0 && point.accuracy <= 100 &&
+    typeof point.timestamp === 'number' && Number.isFinite(point.timestamp) &&
+    typeof point.mocked === 'boolean';
+}
+
+function parseBackgroundQuestSession(raw?: string): BackgroundQuestSession | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<BackgroundQuestSession>;
+    if (typeof value.questId !== 'string' || typeof value.attemptId !== 'string' ||
+        !['FOREGROUND','BACKGROUND'].includes(value.mode ?? '') ||
+        typeof value.extendedGoal !== 'boolean' || typeof value.updatedAt !== 'string' ||
+        (value.lastPoint !== undefined && !validStoredPoint(value.lastPoint)) ||
+        (value.lastObservedTimestamp !== undefined &&
+          (typeof value.lastObservedTimestamp !== 'number' || !Number.isFinite(value.lastObservedTimestamp)))) return null;
+    return value as BackgroundQuestSession;
+  } catch {
+    return null;
+  }
+}
+
+export function loadBackgroundQuestSession(): Promise<BackgroundQuestSession | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+    );
+    const session = parseBackgroundQuestSession(row?.value);
+    if (!session && row) await txn.runAsync('DELETE FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY);
+    return session;
+  });
+}
+
+export function saveBackgroundQuestSession(session: BackgroundQuestSession) {
+  if (!session.questId || !session.attemptId || !['FOREGROUND','BACKGROUND'].includes(session.mode) ||
+      (session.lastPoint && !validStoredPoint(session.lastPoint))) {
+    return Promise.reject(new Error('Nieprawidłowy stan pomiaru w tle.'));
+  }
+  const safe: BackgroundQuestSession = {
+    questId: session.questId,
+    attemptId: session.attemptId,
+    mode: session.mode,
+    extendedGoal: Boolean(session.extendedGoal),
+    ...(session.lastPoint ? { lastPoint: { ...session.lastPoint } } : {}),
+    ...(session.lastObservedTimestamp !== undefined ? { lastObservedTimestamp: session.lastObservedTimestamp } : {}),
+    updatedAt: session.updatedAt,
+  };
+  return profileTransaction(txn => txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    BACKGROUND_QUEST_SESSION_KEY, JSON.stringify(safe)
+  ));
+}
+
+export function updateBackgroundQuestSession(
+  questId: string,
+  patch: Partial<Omit<BackgroundQuestSession, 'questId' | 'attemptId'>>,
+): Promise<BackgroundQuestSession | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+    );
+    const current = parseBackgroundQuestSession(row?.value);
+    if (!current || current.questId !== questId) return null;
+    const next: BackgroundQuestSession = {
+      ...current,
+      ...patch,
+      questId: current.questId,
+      attemptId: current.attemptId,
+      updatedAt: new Date().toISOString(),
+    };
+    if (next.lastPoint && !validStoredPoint(next.lastPoint)) throw new Error('Nieprawidłowy punkt GPS.');
+    await txn.runAsync(
+      'UPDATE app_state SET value=? WHERE key=?',
+      JSON.stringify(next), BACKGROUND_QUEST_SESSION_KEY
+    );
+    return next;
+  });
+}
+
+export function clearBackgroundQuestSession(questId?: string) {
+  return profileTransaction(async txn => {
+    if (questId) {
+      const row = await txn.getFirstAsync<{ value: string }>(
+        'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+      );
+      const current = parseBackgroundQuestSession(row?.value);
+      if (current && current.questId !== questId) return;
+    }
+    await txn.runAsync('DELETE FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY);
+  });
+}
+
+function questCheckpointKey(questId: string) { return 'quest_checkpoint:' + questId; }
+
+function isFiniteNonNegative(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function parseQuestCheckpoint(raw: string | undefined, questId: string): QuestCheckpoint | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<QuestCheckpoint>;
+    if (value.questId !== questId || !isFiniteNonNegative(value.distanceMeters) ||
+        !isFiniteNonNegative(value.durationSeconds) || !isFiniteNonNegative(value.verificationScore) ||
+        (value.verificationScore ?? 101) > 100 || typeof value.extendedGoal !== 'boolean' ||
+        typeof value.updatedAt !== 'string') return null;
+    return {
+      questId,
+      distanceMeters: value.distanceMeters!,
+      durationSeconds: value.durationSeconds!,
+      verificationScore: value.verificationScore!,
+      extendedGoal: value.extendedGoal!,
+      ...(value.activityFeatures ? { activityFeatures: value.activityFeatures } : {}),
+      updatedAt: value.updatedAt!,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function loadQuestCheckpoint(questId: string): Promise<QuestCheckpoint | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key=?', questCheckpointKey(questId));
+    const checkpoint = parseQuestCheckpoint(row?.value, questId);
+    if (!checkpoint && row) await txn.runAsync('DELETE FROM app_state WHERE key=?', questCheckpointKey(questId));
+    return checkpoint;
+  });
+}
+
+export function saveQuestCheckpoint(checkpoint: QuestCheckpoint) {
+  const quest = getQuest(checkpoint.questId);
+  if (!quest || quest.verification.type === 'TIMER') return clearQuestCheckpoint(checkpoint.questId);
+  if (!isFiniteNonNegative(checkpoint.distanceMeters) || checkpoint.distanceMeters <= 0 ||
+      !isFiniteNonNegative(checkpoint.durationSeconds) || !isFiniteNonNegative(checkpoint.verificationScore) ||
+      checkpoint.verificationScore > 100) return Promise.reject(new Error('Nieprawidłowy zapis postępu misji.'));
+  const safe: QuestCheckpoint = {
+    questId: checkpoint.questId,
+    distanceMeters: checkpoint.distanceMeters,
+    durationSeconds: checkpoint.durationSeconds,
+    verificationScore: checkpoint.verificationScore,
+    extendedGoal: Boolean(checkpoint.extendedGoal),
+    ...(checkpoint.activityFeatures ? { activityFeatures: { ...checkpoint.activityFeatures } } : {}),
+    updatedAt: checkpoint.updatedAt,
+  };
+  return profileTransaction(txn => txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    questCheckpointKey(checkpoint.questId), JSON.stringify(safe)
+  ));
+}
+
+export function clearQuestCheckpoint(questId: string) {
+  return profileTransaction(txn => txn.runAsync('DELETE FROM app_state WHERE key=?', questCheckpointKey(questId)));
+}
+
 export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
 export function loadChronicle() { return profileTransaction(txn=>txn.getAllAsync<StoryEvent>("SELECT * FROM story_events WHERE type NOT IN ('REMATCH_AVAILABLE','REMATCH_COMPLETED') ORDER BY created_at DESC,id DESC LIMIT 50")); }
 export function consumeStoryEvent(id:string) { return profileTransaction(txn=>txn.runAsync('UPDATE story_events SET consumed=1 WHERE id=?',id)); }
@@ -394,4 +598,112 @@ export function startBossProtocol() {
    await storyEvent(txn,'boss_started','BOSS_STARTED','THE FIRST WALL // BOSS STARTED');
    return snapshotInTransaction(txn);
  });
+}
+
+
+export type CloudOutboxRow = {
+  event_key: string;
+  entity_type: string;
+  entity_id: string | null;
+  payload: string;
+  client_created_at: string;
+  schema_version: number;
+  attempts: number;
+  last_attempt_at: string | null;
+  last_error: string | null;
+  synced_at: string | null;
+};
+
+function cloudEvidencePayload(event: VerifiedEvent) {
+  return {
+    quest_id: event.questId,
+    verification_type: event.verificationType,
+    verification_score: event.verificationScore,
+    ...(event.distanceMeters !== undefined ? { distance_meters: event.distanceMeters } : {}),
+    ...(event.durationSeconds !== undefined ? { duration_seconds: event.durationSeconds } : {}),
+    ...(event.steps !== undefined ? { steps: event.steps } : {}),
+    ...(event.activity ? {
+      activity: {
+        expected: event.activity.activityTypeExpected,
+        detected: event.activity.activityTypeDetected,
+        verdict: event.activity.verdict,
+        score: event.activity.verificationScore,
+        reason_codes: event.activity.reasonCodes,
+        features: event.activity.features,
+        sensors: event.activity.sensors,
+        sensor_sources: event.activity.sensorSources,
+      },
+    } : {}),
+  };
+}
+
+async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: VerifiedEvent) {
+  if (!event.verified) return;
+  await txn.runAsync(
+    `INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
+     VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING`,
+    'verified:' + event.id,
+    'VERIFIED_EVENT',
+    event.questId,
+    JSON.stringify(cloudEvidencePayload(event)),
+    event.createdAt,
+  );
+}
+
+export function backfillCloudOutbox() {
+  return profileTransaction(async txn => {
+    const marker = await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', 'cloud_outbox_backfill_v1');
+    if (marker) return;
+    const rows = await txn.getAllAsync<{ payload: string }>(
+      'SELECT payload FROM verified_events ORDER BY created_at ASC, id ASC LIMIT 500'
+    );
+    for (const row of rows) {
+      try {
+        const event = JSON.parse(row.payload) as VerifiedEvent;
+        if (event?.verified === true && typeof event.id === 'string' && typeof event.questId === 'string') {
+          await enqueueCloudOutboxEvent(txn, event);
+        }
+      } catch {
+        // A malformed legacy log entry must not block startup or later sync.
+      }
+    }
+    await txn.runAsync(
+      "INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'"
+    );
+  });
+}
+
+export function listPendingCloudOutbox(limit = 25) {
+  const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
+  return profileTransaction(txn => txn.getAllAsync<CloudOutboxRow>(
+    `SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
+    safeLimit,
+  ));
+}
+
+export function markCloudOutboxSynced(eventKey: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET synced_at=?,last_error=NULL,last_attempt_at=? WHERE event_key=?',
+    new Date().toISOString(), new Date().toISOString(), eventKey,
+  ));
+}
+
+export function markCloudOutboxAttempt(eventKey: string, error: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET attempts=attempts+1,last_attempt_at=?,last_error=? WHERE event_key=? AND synced_at IS NULL',
+    new Date().toISOString(), error.slice(0, 300), eventKey,
+  ));
+}
+
+export function cloudOutboxStats() {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ pending: number; synced: number; failed: number }>(
+      `SELECT
+        SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) AS synced,
+        SUM(CASE WHEN synced_at IS NULL AND attempts > 0 THEN 1 ELSE 0 END) AS failed
+       FROM cloud_outbox`
+    );
+    return { pending: row?.pending ?? 0, synced: row?.synced ?? 0, failed: row?.failed ?? 0 };
+  });
 }
