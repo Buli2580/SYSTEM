@@ -592,6 +592,44 @@ export function testerHealthCheck(): Promise<LocalHealth> {
   });
 }
 
+const CLOUD_USER_BINDING_KEY = 'cloud_user_binding_v1';
+
+export function getCloudUserBinding(): Promise<string | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    return row?.value ?? null;
+  });
+}
+
+export function ensureCloudUserBinding(userId: string): Promise<void> {
+  const normalized = userId.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(normalized)) {
+    return Promise.reject(new Error('Nieprawidłowy identyfikator konta SYSTEM CLOUD.'));
+  }
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    if (!row) {
+      await txn.runAsync(
+        'INSERT INTO app_state(key,value) VALUES(?,?)',
+        CLOUD_USER_BINDING_KEY,
+        normalized,
+      );
+      return;
+    }
+    if (row.value !== normalized) {
+      throw new Error(
+        'Ten lokalny profil jest już połączony z innym kontem SYSTEM CLOUD. Aby użyć innego konta, najpierw wyczyść lokalne dane SYSTEMU.',
+      );
+    }
+  });
+}
+
 export type CloudOutboxRow = {
   event_key: string; entity_type: string; entity_id: string | null; payload: string;
   client_created_at: string; schema_version: number; attempts: number;
@@ -624,10 +662,53 @@ export function backfillCloudOutbox() {
     for (const row of rows) {
       try { const event = parseEvent(row.payload); if (event.verified) await enqueueCloudOutboxEvent(txn, event); } catch { /* malformed legacy event */ }
     }
-    await txn.runAsync("INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'");
+    await txn.runAsync(
+      "INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'"
+    );
   });
 }
-export function listPendingCloudOutbox(limit = 25) { const safe=Math.max(1,Math.min(Math.floor(limit),100)); return profileTransaction(txn=>txn.getAllAsync<CloudOutboxRow>('SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?',safe)); }
-export function markCloudOutboxSynced(key:string) { const now=new Date().toISOString(); return profileTransaction(txn=>txn.runAsync('UPDATE cloud_outbox SET synced_at=?,last_error=NULL,last_attempt_at=? WHERE event_key=?',now,now,key)); }
-export function markCloudOutboxAttempt(key:string,error:string) { return profileTransaction(txn=>txn.runAsync('UPDATE cloud_outbox SET attempts=attempts+1,last_attempt_at=?,last_error=? WHERE event_key=? AND synced_at IS NULL',new Date().toISOString(),error.slice(0,300),key)); }
-export function cloudOutboxStats() { return profileTransaction(async txn=>{ const row=await txn.getFirstAsync<{pending:number;synced:number;failed:number}>(`SELECT SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) pending,SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) synced,SUM(CASE WHEN synced_at IS NULL AND attempts>0 THEN 1 ELSE 0 END) failed FROM cloud_outbox`); return {pending:row?.pending??0,synced:row?.synced??0,failed:row?.failed??0}; }); }
+
+export function listPendingCloudOutbox(limit = 25) {
+  const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
+  return profileTransaction(txn => txn.getAllAsync<CloudOutboxRow>(
+    `SELECT * FROM cloud_outbox
+     WHERE synced_at IS NULL
+       AND (
+         attempts = 0 OR last_attempt_at IS NULL OR
+         (attempts = 1 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 60) OR
+         (attempts = 2 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 300) OR
+         (attempts = 3 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 900) OR
+         (attempts = 4 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 3600) OR
+         (attempts >= 5 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 21600)
+       )
+     ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
+    safeLimit,
+  ));
+}
+
+export function markCloudOutboxSynced(eventKey: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET synced_at=?,last_error=NULL,last_attempt_at=? WHERE event_key=?',
+    new Date().toISOString(), new Date().toISOString(), eventKey,
+  ));
+}
+
+export function markCloudOutboxAttempt(eventKey: string, error: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET attempts=attempts+1,last_attempt_at=?,last_error=? WHERE event_key=? AND synced_at IS NULL',
+    new Date().toISOString(), error.slice(0, 300), eventKey,
+  ));
+}
+
+export function cloudOutboxStats() {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ pending: number; synced: number; failed: number }>(
+      `SELECT
+        SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) AS synced,
+        SUM(CASE WHEN synced_at IS NULL AND attempts > 0 THEN 1 ELSE 0 END) AS failed
+       FROM cloud_outbox`
+    );
+    return { pending: row?.pending ?? 0, synced: row?.synced ?? 0, failed: row?.failed ?? 0 };
+  });
+}

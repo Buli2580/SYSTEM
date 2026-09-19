@@ -26,6 +26,12 @@ type LocationTaskData = { locations?: Location.LocationObject[] };
 
 let taskQueue: Promise<void> = Promise.resolve();
 
+async function stopOrphanedLocationTask() {
+  if (await Location.hasStartedLocationUpdatesAsync(SYSTEM_BACKGROUND_LOCATION_TASK).catch(() => false)) {
+    await Location.stopLocationUpdatesAsync(SYSTEM_BACKGROUND_LOCATION_TASK).catch(() => undefined);
+  }
+}
+
 function usableBackgroundLocation(location: Location.LocationObject) {
   const point = storedLocationPoint(location);
   return point ? location : null;
@@ -62,7 +68,11 @@ async function completeInBackground(
 
 async function processLocations(rawLocations: Location.LocationObject[]) {
   const session = await loadBackgroundQuestSession();
-  if (!session || rawLocations.length === 0) return;
+  if (!session) {
+    await stopOrphanedLocationTask();
+    return;
+  }
+  if (rawLocations.length === 0) return;
 
   const locations = rawLocations
     .filter(location => Boolean(usableBackgroundLocation(location)))
@@ -82,6 +92,7 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   const quest = getQuest(session.questId);
   if (!quest || quest.verification.type === 'TIMER') {
     await clearBackgroundQuestSession(session.questId);
+    await stopOrphanedLocationTask();
     return;
   }
 
@@ -95,9 +106,12 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
 
   if (quest.activityType) {
     const window = createActivityWindow();
-    if (anchor) window.seed(anchor, Math.max(Date.now(), anchor.timestamp));
+    // Background providers may deliver a valid batch late. Validate each native
+    // fix against its own recorded timestamp; segment rules still reject gaps,
+    // teleports, mocks and impossible speed.
+    if (anchor) window.seed(anchor, anchor.timestamp);
     for (const location of locations) {
-      window.add(location, Math.max(Date.now(), location.timestamp));
+      window.add(location, location.timestamp);
     }
     const features = mergeActivityFeatures(checkpoint.activityFeatures, window.features());
     const activity = classifyActivity(quest.activityType, features);
@@ -135,7 +149,10 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   let score = checkpoint.verificationScore;
 
   for (const location of locations) {
-    if (lastObserved !== undefined && location.timestamp > lastObserved) {
+    // Native background delivery can repeat an older fix in a later batch.
+    // Never move the observation clock backwards or count the same segment twice.
+    if (lastObserved !== undefined && location.timestamp <= lastObserved) continue;
+    if (lastObserved !== undefined) {
       duration += Math.min(15, Math.max(0, (location.timestamp - lastObserved) / 1000));
     }
     lastObserved = location.timestamp;

@@ -1,5 +1,7 @@
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config';
 
+const CLOUD_REQUEST_TIMEOUT_MS = 15_000;
+
 export class CloudRequestError extends Error {
   status: number;
   code?: string;
@@ -30,19 +32,42 @@ export async function cloudRequest<T>(
   if (init.body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (accessToken) headers.set('Authorization', 'Bearer ' + accessToken);
 
-  const response = await fetch(SUPABASE_URL + path, { ...init, headers });
-  const text = await response.text();
-  let payload: unknown = null;
-  if (text) {
-    try { payload = JSON.parse(text); } catch { payload = text; }
-  }
+  const controller = init.signal ? null : new AbortController();
+  const timeout = controller
+    ? setTimeout(() => controller.abort(), CLOUD_REQUEST_TIMEOUT_MS)
+    : null;
 
-  if (!response.ok) {
-    const code = payload && typeof payload === 'object'
-      ? String((payload as Record<string, unknown>).code ?? '')
-      : undefined;
-    throw new CloudRequestError(errorMessage(payload, 'SYSTEM CLOUD request failed.'), response.status, code || undefined);
-  }
+  try {
+    const response = await fetch(SUPABASE_URL + path, {
+      ...init,
+      headers,
+      signal: init.signal ?? controller?.signal,
+    });
+    const text = await response.text();
+    let payload: unknown = null;
+    if (text) {
+      try { payload = JSON.parse(text); } catch { payload = text; }
+    }
 
-  return payload as T;
+    if (!response.ok) {
+      const code = payload && typeof payload === 'object'
+        ? String((payload as Record<string, unknown>).code ?? '')
+        : undefined;
+      throw new CloudRequestError(
+        errorMessage(payload, 'Żądanie SYSTEM CLOUD nie powiodło się.'),
+        response.status,
+        code || undefined,
+      );
+    }
+
+    return payload as T;
+  } catch (cause) {
+    if (cause instanceof CloudRequestError) throw cause;
+    if (cause instanceof Error && cause.name === 'AbortError') {
+      throw new CloudRequestError('SYSTEM CLOUD nie odpowiedział na czas.', 0, 'TIMEOUT');
+    }
+    throw new CloudRequestError('Brak połączenia z SYSTEM CLOUD.', 0, 'NETWORK_ERROR');
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }

@@ -15,7 +15,8 @@ export function storedLocationPoint(location: Location.LocationObject): StoredLo
       !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
       !Number.isFinite(longitude) || Math.abs(longitude) > 180 ||
       !Number.isFinite(accuracy) || accuracy < 0 || accuracy > 50 ||
-      !Number.isFinite(location.timestamp)) return null;
+      !Number.isFinite(location.timestamp) || location.timestamp <= 0 ||
+      location.timestamp > Date.now() + 60_000) return null;
   return { latitude, longitude, accuracy, timestamp: location.timestamp, mocked: false };
 }
 
@@ -48,6 +49,9 @@ export async function prepareQuestBackgroundTracking(input: {
   extendedGoal: boolean;
 }) {
   const existing = await loadBackgroundQuestSession();
+  if (existing && (existing.questId !== input.questId || existing.attemptId !== input.attemptId)) {
+    throw new Error('Inna misja ruchowa korzysta już z pomiaru GPS w tle.');
+  }
   await saveBackgroundQuestSession({
     questId: input.questId,
     attemptId: input.attemptId,

@@ -227,7 +227,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                TIME
+                CZAS
               </Text>
             </View>
 
@@ -354,7 +354,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 styles.completeTitle
               }
             >
-              VERIFIED
+              POTWIERDZONA
             </Text>
 
             <Text

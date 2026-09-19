@@ -19,7 +19,7 @@ import {
   updateMySocialProfile,
   type SocialProfile,
 } from '../cloud/social';
-import { flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
+import { ensureCurrentCloudBinding, flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
 
 type SyncStats = { pending: number; synced: number; failed: number };
 
@@ -71,6 +71,13 @@ export default function AccountScreen() {
   async function refreshSyncStats() { setSyncStats(await getLocalCloudSyncStatus()); }
 
   async function loadOnline(current: CloudSession) {
+    try {
+      await ensureCurrentCloudBinding();
+    } catch (cause) {
+      await signOutCloud().catch(() => undefined);
+      setSession(null);
+      throw cause;
+    }
     const profile = await getMySocialProfile();
     fillSocial(profile);
     await refreshSyncStats();
@@ -101,6 +108,17 @@ export default function AccountScreen() {
         if (!active) return;
         await refreshSyncStats();
         if (!current) return;
+        try {
+          await ensureCurrentCloudBinding();
+        } catch (cause) {
+          await signOutCloud().catch(() => undefined);
+          if (active) {
+            setSession(null);
+            setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY');
+          }
+          throw cause;
+        }
+        if (!active) return;
         setSession(current);
         const profile = await getMySocialProfile();
         if (!active) return;

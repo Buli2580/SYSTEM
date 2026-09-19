@@ -430,6 +430,14 @@ export function useQuestRun(quest: RunnableQuest) {
         return;
       }
       if (!active()) return;
+      if (!isTimer) {
+        const backgroundOwner = await loadBackgroundQuestSession();
+        if (!active()) return;
+        if (backgroundOwner && backgroundOwner.questId !== quest.id) {
+          fail('Inna misja ruchowa jest już aktywna w tle. Wróć do niej i zakończ albo przerwij pomiar przed uruchomieniem kolejnej.');
+          return;
+        }
+      }
       const existingAttemptId = attemptRef.current;
       const attemptId = existingAttemptId ?? `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       attemptRef.current = attemptId;

@@ -15,6 +15,7 @@ import type { PlayerAchievementState } from '../achievements/types';
 import { reconcileAchievements } from '../achievements/reconcile';
 import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
 import { flushCloudOutbox } from '../cloud/sync';
+import { stopQuestBackgroundTracking } from '../background/locationService';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -135,6 +136,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
     setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null);
     try {
+      // Stop native tracking before deleting the persisted owner.
+      await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
       setAchievementState(EMPTY_ACHIEVEMENT_STATE); setAchievementError(null);
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());

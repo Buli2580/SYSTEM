@@ -24,7 +24,7 @@ export default function SettingsScreen() {
   }
   function cancelReset() { guard.current.cancel(); setResetStep(0); setConfirmation(''); }
   return <SystemPage title="WIĘCEJ" subtitle="USTAWIENIA SYSTEMU">
-    <View style={s.panel}><Text style={s.label}>SYSTEM ID // LOCAL IDENTITY</Text><Text style={s.title}>{player.displayName}</Text>
+    <View style={s.panel}><Text style={s.label}>SYSTEM ID // TOŻSAMOŚĆ LOKALNA</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
       <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /><Action label="SYSTEM ONLINE // HUB →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI // SYSTEM ONLINE →" onPress={() => router.push('/leaderboard')} /><Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} /></View>
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
@@ -59,8 +59,8 @@ export default function SettingsScreen() {
     {error && <SystemError message={error} retry={() => setError(null)} />}
     <Modal visible={__DEV__ && resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, backgroundColor: '#030709' }}>
-        <Text style={s.title}>RESET SYSTEM DATA // {resetStep}/2</Text>
-        <Text style={s.body}>Usuniesz REAL XP, skille, questy, World, historię, ustawienia i avatar. Tej operacji nie można cofnąć. Oryginalne zdjęcia w galerii pozostaną.</Text>
+        <Text style={s.title}>RESET DANYCH SYSTEMU // {resetStep}/2</Text>
+        <Text style={s.body}>Usuniesz REAL XP, cechy, misje, WORLD, historię, ustawienia i avatar. Tej operacji nie można cofnąć. Oryginalne zdjęcia w galerii pozostaną.</Text>
         {resetStep === 1 ? <Action label="ROZUMIEM — PRZEJDŹ DO POTWIERDZENIA" danger onPress={() => { guard.current.confirmWarning(); setResetStep(2); }} /> : <>
           <Text style={s.body}>Aby potwierdzić drugi raz, wpisz RESET.</Text>
           <TextInput accessibilityLabel="Wpisz RESET" value={confirmation} onChangeText={setConfirmation} autoCapitalize="characters" style={{ color: '#fff', minHeight: 52, borderBottomWidth: 1, borderBottomColor: '#ffb9b9' }} />
