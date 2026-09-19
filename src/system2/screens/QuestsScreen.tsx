@@ -6,7 +6,7 @@ import SystemPage from '../components/SystemPage';
 import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus, getBlockingPrerequisite } from '../quests/catalog';
 import { useSystem } from '../state/SystemProvider';
 import QuestCard from '../components/QuestCard';
-import DailyProgressCard from '../components/DailyProgressCard';
+import DailyProgressCardHF from '../components/DailyProgressCardHF';
 import ProgressionDashboard from '../components/ProgressionDashboard';
 import { telemetry } from '../telemetry/TelemetryProvider';
 
@@ -52,6 +52,20 @@ export default function QuestsScreen() {
     <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
       <ProgressionDashboard player={player} lastReward={lastReward} />
 
+      {/* DEV MARKER: HF DAILY RUNTIME ACTIVE */}
+      <View style={styles.devMarker}>
+        <Text style={styles.devMarkerText}>HF DAILY RUNTIME ACTIVE</Text>
+      </View>
+
+      <DailyProgressCardHF
+        daily={daily}
+        completedQuestIds={completedQuestIds}
+        activeQuestId={activeQuestId}
+        getQuest={getQuest}
+        onQuestPress={handleQuestPress}
+        playerProfile={player}
+      />
+
       {progress.completed < progress.total && (
         <View style={styles.panel}>
           <Text style={styles.sectionTitle}>AWAKENING PROGRESS</Text>
@@ -69,12 +83,13 @@ export default function QuestsScreen() {
         </View>
       )}
 
-      <DailyProgressCard
+      <DailyProgressCardHF
         daily={daily}
         completedQuestIds={completedQuestIds}
         activeQuestId={activeQuestId}
         getQuest={getQuest}
         onQuestPress={handleQuestPress}
+        playerProfile={player}
       />
 
       <View style={styles.panel}>
@@ -209,5 +224,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     marginTop: 20,
+  },
+  devMarker: {
+    padding: 8,
+    backgroundColor: '#ffb400',
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#ff8800',
+  },
+  devMarkerText: {
+    color: '#030709',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });

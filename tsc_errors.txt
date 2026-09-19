@@ -1,0 +1,11 @@
+src/system2/components/SystemBoot.tsx(122,5): error TS1005: ')' expected.
+src/system2/components/SystemBoot.tsx(131,5): error TS1005: ')' expected.
+src/system2/components/SystemBoot.tsx(142,5): error TS2657: JSX expressions must have one parent element.
+src/system2/components/SystemBoot.tsx(151,10): error TS17008: JSX element 'View' has no corresponding closing tag.
+src/system2/components/SystemBoot.tsx(156,9): error TS17002: Expected corresponding JSX closing tag for 'View'.
+src/system2/components/SystemBoot.tsx(193,7): error TS1005: ')' expected.
+src/system2/components/SystemBoot.tsx(207,5): error TS1128: Declaration or statement expected.
+src/system2/components/SystemBoot.tsx(208,3): error TS1109: Expression expected.
+src/system2/screens/FieldQuestRunScreen.tsx(62,2): error TS1128: Declaration or statement expected.
+src/system2/screens/FieldQuestRunScreen.tsx(62,15): error TS1005: ';' expected.
+src/system2/screens/FieldQuestRunScreen.tsx(298,1): error TS1128: Declaration or statement expected.

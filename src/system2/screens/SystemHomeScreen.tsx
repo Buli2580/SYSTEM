@@ -11,11 +11,14 @@ import { buildDailyProgressModel } from '../daily/progression';
 import { calculateStreakState, getStreakStatusText } from '../daily/streak';
 import { buildWeeklyChallengeProgressModel } from '../weekly/challenges';
 import { getBossById } from '../boss/catalog';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { determineNextAction } from '../gameplay/nextAction';
 import BossCard from '../components/BossCard';
 import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
 import StreakCard from '../components/StreakCard';
+import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import { usePresentation, PresentationEventPresets } from '../presentation/PresentationContext';
+import { useMusic, useSFX } from '../audio/AudioEngine';
 
 import {
     Pressable,
@@ -39,14 +42,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-    Canvas,
-    Circle,
-    LinearGradient,
-    Rect,
-    vec,
-} from '@shopify/react-native-skia';
-
-import {
     getPlayerProgressPercent,
     SKILL_KEYS,
     SKILL_META,
@@ -55,46 +50,6 @@ import {
 } from '../core';
 
 import { useSystem } from '../state/SystemProvider';
-
-function SystemBackground() {
-  const { width, height } = useWindowDimensions();
-
-  return (
-    <Canvas style={StyleSheet.absoluteFill}>
-      <Rect
-        x={0}
-        y={0}
-        width={width}
-        height={height}
-      >
-        <LinearGradient
-          start={vec(0, 0)}
-          end={vec(width, height)}
-          colors={[
-            '#020708',
-            '#031114',
-            '#010506',
-            '#000000',
-          ]}
-        />
-      </Rect>
-
-      <Circle
-        cx={width * 0.88}
-        cy={height * 0.15}
-        r={width * 0.55}
-        color="rgba(0,229,255,0.025)"
-      />
-
-      <Circle
-        cx={width * 0.03}
-        cy={height * 0.7}
-        r={width * 0.7}
-        color="rgba(0,229,255,0.018)"
-      />
-    </Canvas>
-  );
-}
 
 function PlayerCore() {
   const { player } = useSystem();
@@ -371,9 +326,40 @@ export default function SystemHomeScreen() {
     );
   }
 
+  const { setMusicState } = useMusic();
+  const { playSFX } = useSFX();
+  const { triggerPreset, showToast } = usePresentation();
+
+  // Sync music state with game state
+  useEffect(() => {
+    if (awakeningCompleted && !worldUnlocked) {
+      setMusicState('EXPLORE');
+    } else if (worldUnlocked && !awakeningCompleted) {
+      setMusicState('HOME');
+    } else if (activeBoss) {
+      setMusicState('BOSS');
+    } else if (awakeningCompleted && worldUnlocked) {
+      setMusicState('EXPLORE');
+    } else {
+      setMusicState('HOME');
+    }
+  }, [awakeningCompleted, worldUnlocked, activeBoss, setMusicState]);
+
+  // Trigger presentation events for major state changes
+  useEffect(() => {
+    if (lastReward && !seenRewardsRef.current.has(lastReward.id)) {
+      triggerPreset('questComplete', lastReward.id, 'Quest', lastReward);
+      playSFX('QUEST_COMPLETE');
+      seenRewardsRef.current.add(lastReward.id);
+    }
+  }, [lastReward]);
+
+  // Track seen rewards
+  const seenRewardsRef = useRef(new Set<string>());
+
   return (
     <SystemScreen style={styles.root}>
-      <SystemBackground />
+      <SystemAmbientBackground mode={worldUnlocked ? 'ACTIVE' : 'CALM'} intensity={1} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

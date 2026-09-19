@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 const steps = [
   `CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS quest_completions (quest_id TEXT PRIMARY KEY NOT NULL, completed_at TEXT NOT NULL);
@@ -25,6 +25,12 @@ const steps = [
   `CREATE TABLE IF NOT EXISTS boss_detailed(id TEXT PRIMARY KEY NOT NULL, max_hp INTEGER NOT NULL, current_hp INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('LOCKED', 'AVAILABLE', 'ACTIVE', 'DEFEATED')), reward_xp INTEGER NOT NULL, reward_energy INTEGER NOT NULL, started_at TEXT, defeated_at TEXT);
    CREATE TABLE IF NOT EXISTS weekly_challenges(id TEXT PRIMARY KEY NOT NULL, week_key TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0, completed INTEGER NOT NULL DEFAULT 0, reward_claimed INTEGER NOT NULL DEFAULT 0);
    CREATE INDEX IF NOT EXISTS weekly_challenges_week ON weekly_challenges(week_key);`,
+  `CREATE TABLE IF NOT EXISTS daily_hf_progress(day_key TEXT PRIMARY KEY NOT NULL, xp_earned INTEGER NOT NULL DEFAULT 0, completions INTEGER NOT NULL DEFAULT 0, remaining INTEGER NOT NULL DEFAULT 50, active_slots INTEGER NOT NULL DEFAULT 5, refill_count INTEGER NOT NULL DEFAULT 0, last_completed_at TEXT, created_at TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS daily_hf_milestones(day_key TEXT NOT NULL, milestone INTEGER NOT NULL, achieved_at TEXT NOT NULL, PRIMARY KEY(day_key, milestone));
+   CREATE TABLE IF NOT EXISTS daily_hf_share_log(id TEXT PRIMARY KEY NOT NULL, day_key TEXT NOT NULL, share_type TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS daily_hf_share_log_day ON daily_hf_share_log(day_key);
+   CREATE TABLE IF NOT EXISTS daily_instances_refill(id TEXT PRIMARY KEY NOT NULL, original_id TEXT NOT NULL, refill_count INTEGER NOT NULL DEFAULT 0, refilled_at TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS daily_instances_refill_original ON daily_instances_refill(original_id);`,
 ];
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;');

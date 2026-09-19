@@ -11,6 +11,9 @@ import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import type { BossDetailed, WeeklyChallengeState } from '../storage/database';
+import type { PlayerAchievementState } from '../achievements/types';
+import * as achievementStorage from '../achievements/storage';
+import { initializeAuth, onAuthStateChange, onConnectionStateChange, fetchCloudData, getCurrentAuthState, getCurrentUser, getConnectionState, type CloudAuthMode, type CloudConnectionState } from '../cloud';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -33,6 +36,15 @@ type SystemContextValue = db.SystemSnapshot & {
   weeklyChallenges: WeeklyChallengeState[];
   loadWeeklyChallenges: () => Promise<void>;
   updateWeeklyChallenge: (state: WeeklyChallengeState) => Promise<void>;
+  // Achievements
+  achievementState: PlayerAchievementState;
+  loadAchievements: () => Promise<void>;
+  refreshAchievements: () => Promise<void>;
+  // Cloud
+  cloudAuthMode: CloudAuthMode;
+  cloudConnectionState: CloudConnectionState;
+  cloudUser: { id: string; email: string } | null;
+  refreshCloud: () => Promise<void>;
 };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
@@ -48,10 +60,36 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [lastReward, setLastReward] = useState<RewardReceipt | null>(null);
   const [activeBoss, setActiveBoss] = useState<BossDetailed | null>(null);
   const [weeklyChallenges, setWeeklyChallenges] = useState<WeeklyChallengeState[]>([]);
+  const [achievementState, setAchievementState] = useState<PlayerAchievementState>({
+    achievements: {},
+    titles: { titles: {}, activeTitleId: 'UNAWAKENED' },
+    lastEvaluatedAt: new Date().toISOString(),
+  });
+  const [cloudAuthMode, setCloudAuthMode] = useState<CloudAuthMode>('GUEST');
+  const [cloudConnectionState, setCloudConnectionState] = useState<CloudConnectionState>('OFFLINE');
+  const [cloudUser, setCloudUser] = useState<{ id: string; email: string } | null>(null);
   const seenRewards = useRef(new Set<string>());
   const refreshRef = useRef<Promise<void> | null>(null);
   const generation = useRef(0);
   const resetting = useRef(false);
+
+  useEffect(() => {
+    initializeAuth().then(() => {
+      setCloudAuthMode(getCurrentAuthState());
+      const user = getCurrentUser();
+      if (user) setCloudUser({ id: user.id, email: user.email });
+    });
+    const unsubAuth = onAuthStateChange((mode, user) => {
+      setCloudAuthMode(mode);
+      setCloudUser(user ? { id: user.id, email: user.email } : null);
+    });
+    const unsubConn = onConnectionStateChange(setCloudConnectionState);
+    return () => { unsubAuth(); unsubConn(); };
+  }, []);
+
+  const refreshCloud = useCallback(async () => {
+    await fetchCloudData();
+  }, []);
   useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
   useEffect(() => {
     if (!ready) return;
@@ -147,6 +185,36 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const loadAchievements = useCallback(async () => {
+    const state = await achievementStorage.loadAchievementsState();
+    const titlesState = await achievementStorage.loadTitlesState();
+    const achievementsWithId: Record<string, import('../achievements/types').AchievementProgress> = {};
+    for (const [id, progress] of Object.entries(state)) {
+      achievementsWithId[id] = { ...progress, achievementId: id };
+    }
+    setAchievementState({
+      achievements: achievementsWithId,
+      titles: titlesState,
+      lastEvaluatedAt: new Date().toISOString(),
+    });
+  }, []);
+
+  const refreshAchievements = useCallback(async () => {
+    const [state, titlesState] = await Promise.all([
+      achievementStorage.loadAchievementsState(),
+      achievementStorage.loadTitlesState(),
+    ]);
+    const achievementsWithId: Record<string, import('../achievements/types').AchievementProgress> = {};
+    for (const [id, progress] of Object.entries(state)) {
+      achievementsWithId[id] = { ...progress, achievementId: id };
+    }
+    setAchievementState({
+      achievements: achievementsWithId,
+      titles: titlesState,
+      lastEvaluatedAt: new Date().toISOString(),
+    });
+  }, []);
+
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: name => apply(db.finishOnboarding(name)), updateIdentity: patch => apply(db.updateIdentity(patch)),
@@ -156,6 +224,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     activeBoss, loadBoss, updateBoss,
     // Weekly Challenges
     weeklyChallenges, loadWeeklyChallenges, updateWeeklyChallenge,
+    // Achievements
+    achievementState, loadAchievements, refreshAchievements,
+    // Cloud
+    cloudAuthMode, cloudConnectionState, cloudUser, refreshCloud,
   }}>{children}</SystemContext.Provider>;
 }
 export function useSystem() {
