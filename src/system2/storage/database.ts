@@ -97,7 +97,23 @@ export async function initSystemDatabase() {
       const db = await getDatabase();
       await migrateDatabase(db);
       await db.withExclusiveTransactionAsync(async txn => {
-        await txn.runAsync("UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL",new Date(Date.now()).toISOString());
+        const activeRow = await txn.getFirstAsync<{ value: string }>(
+          'SELECT value FROM app_state WHERE key=?',
+          BACKGROUND_QUEST_SESSION_KEY,
+        );
+        const activeBackground = parseBackgroundQuestSession(activeRow?.value);
+        if (activeBackground?.attemptId) {
+          await txn.runAsync(
+            "UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL AND attempt_id<>?",
+            new Date(Date.now()).toISOString(),
+            activeBackground.attemptId,
+          );
+        } else {
+          await txn.runAsync(
+            "UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL",
+            new Date(Date.now()).toISOString(),
+          );
+        }
       });
     })().catch(error => {
       initializationPromise = null;
