@@ -214,6 +214,7 @@ function screenHarness(t, options = {}) {
   let removals = 0;
   let starts = 0;
   let awards = 0;
+  let checkpoint = options.checkpoint ?? null;
   const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
   const react = {
     useState(initial) {
@@ -282,7 +283,15 @@ function screenHarness(t, options = {}) {
       },
     },
     '../state/SystemProvider': { useSystem: () => context },
-    '../storage/database': { getQuestAccess: async () => options.access ?? 'AVAILABLE', recordActivityAttempt: async () => {}, beginQuestAttempt: async (_quest,id) => id, endQuestAttempt: async () => {} },
+    '../storage/database': {
+      getQuestAccess: async () => options.access ?? 'AVAILABLE',
+      recordActivityAttempt: async () => {},
+      beginQuestAttempt: async (_quest,id) => id,
+      endQuestAttempt: async () => {},
+      loadQuestCheckpoint: async () => checkpoint,
+      saveQuestCheckpoint: async value => { checkpoint = JSON.parse(JSON.stringify(value)); },
+      clearQuestCheckpoint: async () => { checkpoint = null; },
+    },
   }, clock);
   const Screen = load('screens/QuestRunScreen').default;
   function render() {
@@ -309,7 +318,7 @@ function screenHarness(t, options = {}) {
     render, button,
     status: () => slots[0].value,
     distance: () => slots[2].value,
-    starts: () => starts, removals: () => removals, awards: () => awards,
+    starts: () => starts, removals: () => removals, awards: () => awards, checkpoint: () => checkpoint,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
     appState: state => { appState.currentState = state; appStateListener?.(state); },
@@ -442,6 +451,27 @@ test('background with a watcher but before the first fix removes the watcher', a
   h.fix(0);
   assert.equal(h.status(), 'ERROR');
 });
+
+test('GPS distance checkpoint survives leaving the app and resumes without resetting meters', async t => {
+  const h = screenHarness(t);
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  h.fix(0);
+  for (let meters = 10; meters <= 220; meters += 10) h.fix(meters);
+  await flush();
+  const savedBefore = h.distance();
+  assert.ok(savedBefore >= 200 && savedBefore < 500);
+  h.appState('background');
+  await flush();
+  assert.ok(h.checkpoint());
+  assert.equal(Math.round(h.checkpoint().distanceMeters), Math.round(savedBefore));
+  h.appState('active'); h.render();
+  await h.button('SPRÓBUJ PONOWNIE').props.onPress();
+  await flush(); h.render();
+  assert.equal(Math.round(h.distance()), Math.round(savedBefore));
+  assert.ok(h.button('WZNÓW MISJĘ') || h.status() === 'STARTING' || h.status() === 'TRACKING');
+});
+
 
 const focusEvidence = { questId: 'focus_protocol_v1', verificationType: 'TIMER', verificationScore: 100, durationSeconds: 600 };
 

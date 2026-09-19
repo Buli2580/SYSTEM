@@ -3,7 +3,7 @@ import { BOSS_ID, attemptKind } from '../story/catalog';
 import type { StoryState, StoryEvent, QuestAttempt, AttemptResult, AttemptReason } from '../story/types';
 import { dayKey } from '../daily/calendar';
 import { classifyActivity } from '../activity/classifier';
-import type { ActivityEvidence } from '../activity/types';
+import type { ActivityEvidence, ActivityFeatures } from '../activity/types';
 import { dailyState, ensureDailyAccess, awardProtocols, currentStreak, type DailyState } from './daily';
 import { DEFAULT_ACTIVITIES } from '../daily/templates';
 import { getQuest } from '../quests/catalog';
@@ -23,6 +23,15 @@ import type { QuestEvidence } from '../quests/types';
 import { awardAwakeningIfEligible } from './chapter';
 
 export type CompleteQuestInput = QuestEvidence;
+export type QuestCheckpoint = {
+  questId: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  verificationScore: number;
+  extendedGoal: boolean;
+  activityFeatures?: ActivityFeatures;
+  updatedAt: string;
+};
 export type SystemSnapshot = {
   story: StoryState | null;
   daily: DailyState | null;
@@ -384,6 +393,68 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    if(changed.changes&&eligible) await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
  });
 }
+function questCheckpointKey(questId: string) { return 'quest_checkpoint:' + questId; }
+
+function isFiniteNonNegative(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function parseQuestCheckpoint(raw: string | undefined, questId: string): QuestCheckpoint | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<QuestCheckpoint>;
+    if (value.questId !== questId || !isFiniteNonNegative(value.distanceMeters) ||
+        !isFiniteNonNegative(value.durationSeconds) || !isFiniteNonNegative(value.verificationScore) ||
+        (value.verificationScore ?? 101) > 100 || typeof value.extendedGoal !== 'boolean' ||
+        typeof value.updatedAt !== 'string') return null;
+    return {
+      questId,
+      distanceMeters: value.distanceMeters!,
+      durationSeconds: value.durationSeconds!,
+      verificationScore: value.verificationScore!,
+      extendedGoal: value.extendedGoal!,
+      ...(value.activityFeatures ? { activityFeatures: value.activityFeatures } : {}),
+      updatedAt: value.updatedAt!,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function loadQuestCheckpoint(questId: string): Promise<QuestCheckpoint | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key=?', questCheckpointKey(questId));
+    const checkpoint = parseQuestCheckpoint(row?.value, questId);
+    if (!checkpoint && row) await txn.runAsync('DELETE FROM app_state WHERE key=?', questCheckpointKey(questId));
+    return checkpoint;
+  });
+}
+
+export function saveQuestCheckpoint(checkpoint: QuestCheckpoint) {
+  const quest = getQuest(checkpoint.questId);
+  if (!quest || quest.verification.type === 'TIMER') return clearQuestCheckpoint(checkpoint.questId);
+  if (!isFiniteNonNegative(checkpoint.distanceMeters) || checkpoint.distanceMeters <= 0 ||
+      !isFiniteNonNegative(checkpoint.durationSeconds) || !isFiniteNonNegative(checkpoint.verificationScore) ||
+      checkpoint.verificationScore > 100) return Promise.reject(new Error('Nieprawidłowy zapis postępu misji.'));
+  const safe: QuestCheckpoint = {
+    questId: checkpoint.questId,
+    distanceMeters: checkpoint.distanceMeters,
+    durationSeconds: checkpoint.durationSeconds,
+    verificationScore: checkpoint.verificationScore,
+    extendedGoal: Boolean(checkpoint.extendedGoal),
+    ...(checkpoint.activityFeatures ? { activityFeatures: { ...checkpoint.activityFeatures } } : {}),
+    updatedAt: checkpoint.updatedAt,
+  };
+  return profileTransaction(txn => txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    questCheckpointKey(checkpoint.questId), JSON.stringify(safe)
+  ));
+}
+
+export function clearQuestCheckpoint(questId: string) {
+  return profileTransaction(txn => txn.runAsync('DELETE FROM app_state WHERE key=?', questCheckpointKey(questId)));
+}
+
 export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
 export function loadChronicle() { return profileTransaction(txn=>txn.getAllAsync<StoryEvent>("SELECT * FROM story_events WHERE type NOT IN ('REMATCH_AVAILABLE','REMATCH_COMPLETED') ORDER BY created_at DESC,id DESC LIMIT 50")); }
 export function consumeStoryEvent(id:string) { return profileTransaction(txn=>txn.runAsync('UPDATE story_events SET consumed=1 WHERE id=?',id)); }

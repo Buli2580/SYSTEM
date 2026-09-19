@@ -1,7 +1,7 @@
 import type { AttemptResult, AttemptReason } from '../story/types';
-import { createActivityWindow } from '../activity/features';
+import { createActivityWindow, mergeActivityFeatures } from '../activity/features';
 import { classifyActivity, verdictMessage } from '../activity/classifier';
-import type { ActivityEvidence } from '../activity/types';
+import type { ActivityEvidence, ActivityFeatures } from '../activity/types';
 import type { RewardReceipt } from '../core/rewards';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,7 +12,7 @@ import * as Location from 'expo-location';
 import type { RunnableQuest, QuestEvidence } from './types';
 import { createFocusTimer } from '../verification/timer';
 import { distanceBetween, isUsableLocation, verifiedSegment, verificationScoreForAccuracy } from '../verification/gps';
-import { getQuestAccess, recordActivityAttempt, beginQuestAttempt, endQuestAttempt } from '../storage/database';
+import { getQuestAccess, recordActivityAttempt, beginQuestAttempt, endQuestAttempt, loadQuestCheckpoint, saveQuestCheckpoint, clearQuestCheckpoint, type QuestCheckpoint } from '../storage/database';
 import { buildEvidence } from '../verification/evidence';
 import { useSystem } from '../state/SystemProvider';
 
@@ -46,6 +46,10 @@ export function useQuestRun(quest: RunnableQuest) {
   const startupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activityWindow = useRef<ReturnType<typeof createActivityWindow> | null>(null);
+  const activityBaseRef = useRef<ActivityFeatures | null>(null);
+  const activityRef = useRef<ActivityEvidence | null>(null);
+  const checkpointRef = useRef<QuestCheckpoint | null>(null);
+  const checkpointWriteRef = useRef({ distance: 0, at: 0 });
   const [activity, setActivity] = useState<ActivityEvidence | null>(null);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [extendedGoal, setExtendedGoal] = useState(false);
@@ -69,6 +73,25 @@ export function useQuestRun(quest: RunnableQuest) {
     pendingEnd.current = [id,result,reason,seconds,distanceRef.current];
     void flushAttempt().then(() => refreshPlayer()).catch(() => undefined); // retry writing before any next attempt
   }, [flushAttempt, refreshPlayer]);
+
+  const persistCheckpoint = useCallback(async (force = false) => {
+    if (quest.verification.type === 'TIMER' || distanceRef.current <= 0) return;
+    const now = Date.now();
+    if (!force && distanceRef.current - checkpointWriteRef.current.distance < 10 &&
+        now - checkpointWriteRef.current.at < 5000) return;
+    const checkpoint: QuestCheckpoint = {
+      questId: quest.id,
+      distanceMeters: distanceRef.current,
+      durationSeconds: quest.verification.type === 'MULTI' ? 0 : Math.max(0, activityRef.current?.features.durationSeconds ?? 0),
+      verificationScore: activityRef.current?.verificationScore ?? scoreRef.current,
+      extendedGoal: extendedRef.current,
+      ...(activityRef.current ? { activityFeatures: activityRef.current.features } : {}),
+      updatedAt: new Date(now).toISOString(),
+    };
+    checkpointRef.current = checkpoint;
+    checkpointWriteRef.current = { distance: checkpoint.distanceMeters, at: now };
+    await saveQuestCheckpoint(checkpoint);
+  }, [quest.id, quest.verification.type]);
   const chooseExtendedGoal = (value:boolean) => {
     if (statusRef.current !== 'READY' || quest.category !== 'DAILY' || !quest.activityType) return;
     extendedRef.current = value; setExtendedGoal(value);
@@ -114,7 +137,30 @@ export function useQuestRun(quest: RunnableQuest) {
     try {
       await awaitWithTimeout(flushAttempt());
       const access = await awaitWithTimeout(getQuestAccess(quest.id));
+      let checkpoint: QuestCheckpoint | null = null;
+      if (access === 'AVAILABLE' && quest.verification.type !== 'TIMER') {
+        checkpoint = await awaitWithTimeout(loadQuestCheckpoint(quest.id));
+      } else if (access === 'COMPLETED' || access === 'LOCKED') {
+        await awaitWithTimeout(clearQuestCheckpoint(quest.id));
+      }
       if (!focusedRef.current || session !== sessionRef.current) return;
+      checkpointRef.current = checkpoint;
+      activityBaseRef.current = checkpoint?.activityFeatures ?? null;
+      distanceRef.current = checkpoint?.distanceMeters ?? 0;
+      scoreRef.current = checkpoint?.verificationScore ?? 100;
+      extendedRef.current = checkpoint?.extendedGoal ?? false;
+      checkpointWriteRef.current = { distance: checkpoint?.distanceMeters ?? 0, at: Date.now() };
+      setDistance(checkpoint?.distanceMeters ?? 0);
+      setDuration(0);
+      setExtendedGoal(checkpoint?.extendedGoal ?? false);
+      if (quest.activityType && checkpoint?.activityFeatures) {
+        const restored = classifyActivity(quest.activityType, checkpoint.activityFeatures);
+        activityRef.current = restored;
+        setActivity(restored);
+      } else {
+        activityRef.current = null;
+        setActivity(null);
+      }
       setAlreadyCompleted(access === 'COMPLETED');
       transition(access === 'COMPLETED' ? 'COMPLETED' : access === 'LOCKED' ? 'LOCKED' : 'READY');
       if (access === 'COMPLETED') void refreshPlayer();
@@ -123,17 +169,20 @@ export function useQuestRun(quest: RunnableQuest) {
         fail('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
       }
     }
-  }, [stopVerification, transition, fail, refreshPlayer, quest.id, flushAttempt]);
+  }, [stopVerification, transition, fail, refreshPlayer, quest.id, quest.activityType, quest.verification.type, flushAttempt]);
 
   useFocusEffect(useCallback(() => {
     focusedRef.current = true;
     void checkCompletion();
     return () => {
-      if (['STARTING','TRACKING'].includes(statusRef.current)) endAttempt('INTERRUPTED','LEFT_SCREEN');
+      if (['STARTING','TRACKING'].includes(statusRef.current)) {
+        void persistCheckpoint(true).catch(() => undefined);
+        endAttempt('INTERRUPTED','LEFT_SCREEN');
+      }
       focusedRef.current = false;
       stopVerification();
     };
-  }, [checkCompletion, stopVerification, endAttempt]));
+  }, [checkCompletion, stopVerification, endAttempt, persistCheckpoint]));
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
@@ -144,11 +193,17 @@ export function useQuestRun(quest: RunnableQuest) {
         ? state !== 'active' && ['STARTING', 'TRACKING'].includes(statusRef.current)
         : state === 'background' && trackingActiveRef.current === true;
       if (interrupted) {
-        fail('Pomiar przerwany po przejściu do tła. Rozpocznij ponownie i pozostaw ekran misji otwarty.', false, 'INTERRUPTED', 'BACKGROUND');
+        if (!isTimer) void persistCheckpoint(true).catch(() => undefined);
+        const message = isTimer
+          ? 'Pomiar czasu został przerwany po wyjściu z aplikacji. Wróć do misji i rozpocznij czas od nowa.'
+          : quest.verification.type === 'MULTI'
+            ? 'Pomiar został wstrzymany. Zapisaliśmy potwierdzony dystans; po powrocie wznowisz od tych metrów, ale czas etapu ruszy od zera.'
+            : 'Pomiar został wstrzymany. Zapisaliśmy potwierdzony dystans; po powrocie wznowisz misję od tych metrów.';
+        fail(message, false, 'INTERRUPTED', 'BACKGROUND');
       }
     });
     return () => subscription.remove();
-  }, [fail, isTimer]);
+  }, [fail, isTimer, persistCheckpoint, quest.verification.type]);
 
   // Both verifiers enter the same completion pipeline; only their evidence differs.
   const finishQuest = useCallback(async (evidence: QuestEvidence) => {
@@ -164,6 +219,9 @@ export function useQuestRun(quest: RunnableQuest) {
     setDuration(evidence.durationSeconds);
     try {
       const result = await awaitWithTimeout(completeVerifiedQuest(evidence));
+      await awaitWithTimeout(clearQuestCheckpoint(quest.id));
+      checkpointRef.current = null;
+      activityBaseRef.current = null;
       if (attemptRef.current === evidence.attemptId) attemptRef.current = null;
       if (!focusedRef.current || session !== sessionRef.current) return;
       setAlreadyCompleted(!result.awarded);
@@ -175,7 +233,7 @@ export function useQuestRun(quest: RunnableQuest) {
         fail('Nie udało się potwierdzić zapisu nagrody. Sprawdź zapis ponownie. Jeśli misja nie została zapisana, rozpocznij nową próbę.');
       }
     }
-  }, [completeVerifiedQuest, fail, stopVerification, transition, hasTimer]);
+  }, [completeVerifiedQuest, fail, stopVerification, transition, hasTimer, quest.id]);
 
   useEffect(() => {
     if (status !== 'TRACKING') return;
@@ -214,7 +272,9 @@ export function useQuestRun(quest: RunnableQuest) {
     if (quest.activityType && activityWindow.current) {
       const window = activityWindow.current;
       window.add(location);
-      const result = classifyActivity(quest.activityType, window.features());
+      const mergedFeatures = mergeActivityFeatures(activityBaseRef.current, window.features());
+      const result = classifyActivity(quest.activityType, mergedFeatures);
+      activityRef.current = result;
       setActivity(result); setCurrentSpeed(window.currentSpeed());
       if (isUsableLocation(location)) lastFixTimeRef.current = Date.now();
       if (statusRef.current === 'STARTING' && isUsableLocation(location)) {
@@ -223,10 +283,14 @@ export function useQuestRun(quest: RunnableQuest) {
       }
       distanceRef.current = result.features.distanceMeters;
       setDistance(distanceRef.current); setDuration(Math.floor(result.features.durationSeconds));
+      void persistCheckpoint().catch(() => undefined);
       if (quest.verification.type !== 'TIMER' && distanceRef.current >= quest.verification.minimumDistanceMeters * (extendedRef.current ? 1.25 : 1)) {
         if (result.verdict !== 'VERIFIED') {
           if (quest.category === 'DAILY') void awaitWithTimeout(recordActivityAttempt(quest.id, result)).then(() => refreshPlayer()).catch(() => undefined);
-          fail((result.verdict === 'SUSPICIOUS' ? 'ACTIVITY REQUIRES VERIFICATION — ' : 'QUEST NOT VERIFIED — ') + verdictMessage(result), false, result.verdict, result.verdict === 'REJECTED' ? 'VERIFICATION_REJECTED' : 'LOW_CONFIDENCE'); return; }
+          void clearQuestCheckpoint(quest.id).catch(() => undefined);
+          checkpointRef.current = null;
+          activityBaseRef.current = null;
+          fail((result.verdict === 'SUSPICIOUS' ? 'AKTYWNOŚĆ WYMAGA PONOWNEJ WERYFIKACJI — ' : 'MISJA NIEZALICZONA — ') + verdictMessage(result), false, result.verdict, result.verdict === 'REJECTED' ? 'VERIFICATION_REJECTED' : 'LOW_CONFIDENCE'); return; }
         void finishQuest({ questId: quest.id, verificationType: 'GPS_DISTANCE', distanceMeters: distanceRef.current,
           durationSeconds: result.features.durationSeconds, verificationScore: result.verificationScore, activity: result });
       }
@@ -268,6 +332,7 @@ export function useQuestRun(quest: RunnableQuest) {
       verificationScoreForAccuracy(location.coords.accuracy));
     distanceRef.current += segment;
     setDistance(distanceRef.current);
+    void persistCheckpoint().catch(() => undefined);
     const seconds = hasTimer ? timerRef.current?.sample().seconds ?? 0
       : Math.max(1, Math.floor((Date.now() - startTimeRef.current!) / 1000));
     const evidence = buildEvidence(quest, distanceRef.current, seconds, scoreRef.current);
@@ -283,12 +348,22 @@ export function useQuestRun(quest: RunnableQuest) {
     setActiveQuestId(quest.id);
     const session = sessionRef.current;
     const active = () => focusedRef.current && session === sessionRef.current;
-    distanceRef.current = 0;
-    scoreRef.current = 100;
+    const checkpoint = quest.verification.type === 'TIMER' ? null : checkpointRef.current;
+    distanceRef.current = checkpoint?.distanceMeters ?? 0;
+    scoreRef.current = checkpoint?.verificationScore ?? 100;
     startTimeRef.current = null; trackingSince.current = null;
+    activityBaseRef.current = checkpoint?.activityFeatures ?? null;
     activityWindow.current = quest.activityType ? createActivityWindow() : null;
-    setActivity(null); setCurrentSpeed(0);
-    setDistance(0);
+    if (quest.activityType && checkpoint?.activityFeatures) {
+      const restored = classifyActivity(quest.activityType, checkpoint.activityFeatures);
+      activityRef.current = restored;
+      setActivity(restored);
+    } else {
+      activityRef.current = null;
+      setActivity(null);
+    }
+    setCurrentSpeed(0);
+    setDistance(distanceRef.current);
     setDuration(0);
     setAccuracy(null);
     startupTimerRef.current = setTimeout(() => {
@@ -316,7 +391,7 @@ export function useQuestRun(quest: RunnableQuest) {
       if (!active()) { void endQuestAttempt(attemptId,'ABANDONED','PROCESS_ENDED').catch(() => undefined); return; }
       if (isTimer) {
         if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
-          fail('Uruchom FOCUS PROTOCOL na pierwszym planie.');
+          fail('Uruchom protokół skupienia na pierwszym planie.');
           return;
         }
         if (startupTimerRef.current) clearTimeout(startupTimerRef.current);

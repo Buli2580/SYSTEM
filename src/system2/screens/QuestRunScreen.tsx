@@ -316,6 +316,14 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
+          {status === 'READY' && distance > 0 && quest.verification.type !== 'TIMER' && <View style={styles.trackingBox}>
+            <Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text>
+            <Text style={styles.description}>
+              {quest.verification.type === 'MULTI'
+                ? 'Dystans zostanie wznowiony od zapisanej wartości. Wymagany czas etapu rozpocznie się od zera.'
+                : 'Możesz wyjść z aplikacji i wrócić później. Potwierdzony dystans pozostanie zapisany.'}
+            </Text>
+          </View>}
           {status === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
             <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
             <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
@@ -335,7 +343,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.startButtonText
                 }
               >
-                {rematch ? 'ROZPOCZNIJ REWANŻ' : 'ROZPOCZNIJ MISJĘ'}
+                {rematch ? 'ROZPOCZNIJ REWANŻ' : distance > 0 ? 'WZNÓW MISJĘ' : 'ROZPOCZNIJ MISJĘ'}
               </Text>
 
               <Text
