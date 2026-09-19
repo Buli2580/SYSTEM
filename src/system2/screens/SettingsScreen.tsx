@@ -11,6 +11,7 @@ import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import { createResetConfirmation } from '../identity/reset';
 import { requestBackgroundLocationAccess } from '../background/locationService';
+import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
@@ -39,6 +40,11 @@ export default function SettingsScreen() {
         setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
       }); }} />
       <Action label="WŁĄCZ LOKALIZACJĘ W TLE" disabled={busy} onPress={() => { void run(async () => {
+        const disclosureAccepted = await confirmBackgroundLocationDisclosure();
+        if (!disclosureAccepted) {
+          setPermission('Lokalizacja w tle nie została włączona.');
+          return;
+        }
         const foreground = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
         if (!foreground.granted) {
           setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
@@ -54,6 +60,10 @@ export default function SettingsScreen() {
     <BetaSettings />
     <View style={s.panel}><Text style={s.label}>DATA</Text><Text style={s.body}>Profil, questy, World i preferencje są zapisane lokalnie w SQLite. Avatar pozostaje w katalogu aplikacji. Funkcje SYSTEM ONLINE są oddzielone od lokalnego progresu i wymagają zalogowania. Odinstalowanie aplikacji może usunąć lokalny progres.</Text>
       {__DEV__ && <Action label="RESET SYSTEM DATA // DEVELOPMENT" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />}
+    </View>
+    <View style={s.panel}><Text style={s.label}>PRYWATNOŚĆ</Text>
+      <Text style={s.body}>Sprawdź, jakie dane SYSTEM przetwarza, do czego używa lokalizacji oraz jak działa żądanie usunięcia danych.</Text>
+      <Action label="POLITYKA PRYWATNOŚCI →" onPress={() => router.push('/privacy')} />
     </View>
     <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM 2.0 // MVP BUILD</Text><Text style={s.body}>Wersja aplikacji: {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'niedostępna'} · BUILD {Constants.nativeBuildVersion ?? Constants.expoConfig?.android?.versionCode ?? 'DEV'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}

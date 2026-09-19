@@ -22,6 +22,7 @@ import {
   requestBackgroundLocationAccess,
   stopQuestBackgroundTracking,
 } from '../background/locationService';
+import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 
 type RunStatus = 'CHECKING' | 'READY' | 'STARTING' | 'TRACKING' | 'COMPLETING' | 'COMPLETED' | 'DENIED' | 'ERROR' | 'LOCKED';
 
@@ -457,6 +458,12 @@ export function useQuestRun(quest: RunnableQuest) {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         trackingSince.current = performance.now();
       transition('TRACKING');
+        return;
+      }
+      const disclosureAccepted = await confirmBackgroundLocationDisclosure();
+      if (!active()) return;
+      if (!disclosureAccepted) {
+        fail('Lokalizacja w tle nie została włączona. Misja ruchowa nie została rozpoczęta.', true);
         return;
       }
       const permission = await Location.requestForegroundPermissionsAsync();
