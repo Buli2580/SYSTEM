@@ -5,6 +5,7 @@ import {
   listPendingCloudOutbox,
   markCloudOutboxAttempt,
   markCloudOutboxSynced,
+  ensureCloudUserBinding,
 } from '../storage/database';
 import { getValidSession } from './auth';
 import { CloudRequestError } from './http';
@@ -34,6 +35,7 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
     return { authenticated: false, sent: 0, pending: stats.pending, failed: stats.failed };
   }
 
+  await ensureCloudUserBinding(session.user.id);
   await backfillCloudOutbox();
   const installId = await getInstallId();
   const rows = await listPendingCloudOutbox(limit);
@@ -67,4 +69,11 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
 export async function getLocalCloudSyncStatus() {
   await backfillCloudOutbox();
   return cloudOutboxStats();
+}
+
+
+export async function ensureCurrentCloudBinding(): Promise<void> {
+  const session = await getValidSession();
+  if (!session) throw new Error('Najpierw zaloguj SYSTEM CLOUD.');
+  await ensureCloudUserBinding(session.user.id);
 }

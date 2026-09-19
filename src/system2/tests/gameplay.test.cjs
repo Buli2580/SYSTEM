@@ -1616,6 +1616,20 @@ test('abandoned attempt recovery has no XP and does not fabricate Rematch',async
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];const before=(await h.db.loadSystemState()).player.totalRealXp;await h.db.beginQuestAttempt(id,'killed');const db=h.reload();const s=await db.loadSystemState();
  assert.equal(s.player.totalRealXp,before);assert.equal((await db.listQuestAttempts())[0].result,'ABANDONED');assert.equal(s.story.rematchQuestIds.length,0);await db.beginQuestAttempt(id,'fresh');
 });
+test('local profile cloud binding cannot silently switch accounts and reset clears the binding',async t=>{
+ const h=await dailyHarness(t);
+ const userA='11111111-1111-4111-8111-111111111111';
+ const userB='22222222-2222-4222-8222-222222222222';
+ await h.db.ensureCloudUserBinding(userA);
+ assert.equal(await h.db.getCloudUserBinding(),userA);
+ await h.db.ensureCloudUserBinding(userA);
+ await assert.rejects(()=>h.db.ensureCloudUserBinding(userB),/innym kontem SYSTEM CLOUD/);
+ await h.db.resetSystemData(true);
+ assert.equal(await h.db.getCloudUserBinding(),null);
+ await h.db.ensureCloudUserBinding(userB);
+ assert.equal(await h.db.getCloudUserBinding(),userB);
+});
+
 test('background quest attempt survives database reinitialization and remains resumable',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('walk_'));
  await h.db.beginQuestAttempt(id,'background-active');

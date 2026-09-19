@@ -601,6 +601,44 @@ export function startBossProtocol() {
 }
 
 
+const CLOUD_USER_BINDING_KEY = 'cloud_user_binding_v1';
+
+export function getCloudUserBinding(): Promise<string | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    return row?.value ?? null;
+  });
+}
+
+export function ensureCloudUserBinding(userId: string): Promise<void> {
+  const normalized = userId.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(normalized)) {
+    return Promise.reject(new Error('Nieprawidłowy identyfikator konta SYSTEM CLOUD.'));
+  }
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    if (!row) {
+      await txn.runAsync(
+        'INSERT INTO app_state(key,value) VALUES(?,?)',
+        CLOUD_USER_BINDING_KEY,
+        normalized,
+      );
+      return;
+    }
+    if (row.value !== normalized) {
+      throw new Error(
+        'Ten lokalny profil jest już połączony z innym kontem SYSTEM CLOUD. Aby użyć innego konta, najpierw wyczyść lokalne dane SYSTEMU.',
+      );
+    }
+  });
+}
+
 export type CloudOutboxRow = {
   event_key: string;
   entity_type: string;
