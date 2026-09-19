@@ -466,6 +466,24 @@ test('background with a watcher but before the first fix hands off without fabri
   assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
 });
 
+test('a second GPS quest cannot replace an active background quest after restart', async t => {
+  const owner = {
+    questId: 'daily:2026-09-18:walk_protocol_1',
+    attemptId: 'background-owner',
+    mode: 'BACKGROUND',
+    extendedGoal: false,
+    updatedAt: new Date().toISOString(),
+  };
+  const h = screenHarness(t, { backgroundSession: owner });
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); h.render();
+  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.starts(), 0);
+  assert.equal(h.backgroundSession()?.questId, owner.questId);
+  assert.equal(h.backgroundSession()?.attemptId, owner.attemptId);
+});
+
 test('GPS distance checkpoint survives background and returns with the same meters', async t => {
   const h = screenHarness(t);
   await flush(); h.render();

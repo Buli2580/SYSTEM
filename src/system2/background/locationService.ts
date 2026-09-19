@@ -48,6 +48,9 @@ export async function prepareQuestBackgroundTracking(input: {
   extendedGoal: boolean;
 }) {
   const existing = await loadBackgroundQuestSession();
+  if (existing && (existing.questId !== input.questId || existing.attemptId !== input.attemptId)) {
+    throw new Error('Inna misja ruchowa korzysta już z pomiaru GPS w tle.');
+  }
   await saveBackgroundQuestSession({
     questId: input.questId,
     attemptId: input.attemptId,

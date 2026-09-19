@@ -24,14 +24,14 @@ export default function SettingsScreen() {
   }
   function cancelReset() { guard.current.cancel(); setResetStep(0); setConfirmation(''); }
   return <SystemPage title="WIĘCEJ" subtitle="USTAWIENIA SYSTEMU">
-    <View style={s.panel}><Text style={s.label}>SYSTEM ID // LOCAL IDENTITY</Text><Text style={s.title}>{player.displayName}</Text>
+    <View style={s.panel}><Text style={s.label}>SYSTEM ID // TOŻSAMOŚĆ LOKALNA</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
       <Action label="SYSTEM ONLINE // KONTO I PROFIL →" onPress={() => router.push('/account')} />
       <Action label="HISTORIA SYSTEMU →" onPress={() => router.push('/system-log')} /></View>
     <View style={s.panel}><Text style={s.label}>WIBRACJE</Text>
       <Switch accessibilityLabel="Wibracje włączone lub wyłączone" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>DŹWIĘK</Text><Switch accessibilityLabel="Dźwięk włączony lub wyłączony" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
-      <Text style={s.body}>Dźwięk ukończenia lub level-up. Jeden efekt dla jednej nagrody.</Text>
+      <Text style={s.body}>Dźwięk ukończenia misji lub awansu poziomu. Jeden efekt dla jednej nagrody.</Text>
     </View>
     <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
@@ -53,15 +53,15 @@ export default function SettingsScreen() {
       <Action label="USTAWIENIA SYSTEMOWE APLIKACJI" onPress={() => { void run(() => Linking.openSettings()); }} />
     </View>
     <BetaSettings />
-    <View style={s.panel}><Text style={s.label}>DANE</Text><Text style={s.body}>Profil, questy, World i preferencje nadal są zapisane lokalnie w SQLite i pozostają dostępne offline. SYSTEM ONLINE dodaje opcjonalne konto, publiczny profil i zaplecze chmurowe bez kasowania lokalnego progresu.</Text>
+    <View style={s.panel}><Text style={s.label}>DANE</Text><Text style={s.body}>Profil, misje, WORLD i preferencje nadal są zapisane lokalnie w SQLite i pozostają dostępne offline. SYSTEM ONLINE dodaje opcjonalne konto, publiczny profil i zaplecze chmurowe bez kasowania lokalnego progresu.</Text>
       <Action label="WYCZYŚĆ DANE SYSTEMU" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />
     </View>
-    <View style={s.panel}><Text style={s.label}>O APLIKACJI</Text><Text style={s.title}>SYSTEM 2.0 // ONLINE FOUNDATION</Text><Text style={s.body}>Wersja aplikacji: {Constants.expoConfig?.version ?? 'niedostępna'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
+    <View style={s.panel}><Text style={s.label}>O APLIKACJI</Text><Text style={s.title}>SYSTEM 2.0 // FUNDAMENT ONLINE</Text><Text style={s.body}>Wersja aplikacji: {Constants.expoConfig?.version ?? 'niedostępna'}</Text><Text style={s.body}>Mapa WORLD: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}
     <Modal visible={resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, backgroundColor: '#030709' }}>
-        <Text style={s.title}>RESET SYSTEM DATA // {resetStep}/2</Text>
-        <Text style={s.body}>Usuniesz REAL XP, skille, questy, World, historię, ustawienia i avatar. Tej operacji nie można cofnąć. Oryginalne zdjęcia w galerii pozostaną.</Text>
+        <Text style={s.title}>RESET DANYCH SYSTEMU // {resetStep}/2</Text>
+        <Text style={s.body}>Usuniesz REAL XP, cechy, misje, WORLD, historię, ustawienia i avatar. Tej operacji nie można cofnąć. Oryginalne zdjęcia w galerii pozostaną.</Text>
         {resetStep === 1 ? <Action label="ROZUMIEM — PRZEJDŹ DO POTWIERDZENIA" danger onPress={() => { guard.current.confirmWarning(); setResetStep(2); }} /> : <>
           <Text style={s.body}>Aby potwierdzić drugi raz, wpisz RESET.</Text>
           <TextInput accessibilityLabel="Wpisz RESET" value={confirmation} onChangeText={setConfirmation} autoCapitalize="characters" style={{ color: '#fff', minHeight: 52, borderBottomWidth: 1, borderBottomColor: '#ffb9b9' }} />

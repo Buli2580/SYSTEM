@@ -43,7 +43,7 @@ function OnlineWorld() {
     <View style={styles.map}>
       {world.fix ? <WorldMap fix={world.fix} sectorIds={world.sectorIds} signal={world.signal} follow={follow} centerRequest={centerRequest} /> :
         <View style={styles.empty}><Text style={styles.label}>{world.status === 'STARTING' ? 'URUCHAMIANIE // GPS' : 'URUCHOM ŚWIAT'}</Text>
-          <Text style={styles.body}>Odkrywaj świat z aktywnym ekranem aplikacji.</Text></View>}
+          <Text style={styles.body}>Mapa świata działa podczas otwartego ekranu WORLD. Aktywne misje ruchowe mogą mierzyć dystans w tle.</Text></View>}
       <View style={styles.mapControls}>
         <Button label="WYŚRODKUJ" disabled={!world.fix} onPress={() => setCenterRequest(n => n + 1)} />
         <Button label={`ŚLEDŹ GRACZA ${follow ? 'WŁ.' : 'WYŁ.'}`} onPress={() => setFollow(value => !value)} />
@@ -56,7 +56,7 @@ function OnlineWorld() {
       <Text style={styles.body}>{signalState === 'LOCATED' ? 'NIEZNANY SYGNAŁ ZLOKALIZOWANY' : `PIERWSZY SYGNAŁ: ${signalState}`}
         {world.signal && world.fix && signalState !== 'LOCATED' ? ` · ${Math.round(signalDistance(world.fix, world.signal))} M` : ''}</Text>
       {world.signal?.status === 'DETECTED' && <Text style={styles.small}>SYGNAŁ WYKRYTY · SYGNAŁ PROTOTYPOWY ● FIOLET</Text>}
-      {world.signalError && <Text style={styles.error}>Nieprawidłowy zapis sygnału. Użyj RELOCATE SIGNAL po uruchomieniu GPS.</Text>}
+      {world.signalError && <Text style={styles.error}>Nieprawidłowy zapis sygnału. Użyj opcji „Przenieś sygnał” po uruchomieniu GPS.</Text>}
       {world.error && <Text style={styles.error}>{world.error}</Text>}
       <View style={styles.actions}>
         {active ? <Button label="WSTRZYMAJ GPS" onPress={world.pause} /> : <Button label={world.status === 'STARTING' ? 'URUCHAMIANIE…' : world.status === 'PAUSED' ? 'URUCHOM ŚWIAT' : 'SPRÓBUJ PONOWNIE'} disabled={world.status === 'STARTING'} onPress={() => { void world.start(); }} />}

@@ -44,3 +44,6 @@ example
 
 .env
 server/.env
+
+# Legacy avatar server runtime output
+/server/generated/

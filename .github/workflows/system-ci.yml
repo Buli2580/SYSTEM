@@ -41,5 +41,8 @@ jobs:
       - name: Gameplay tests
         run: node --test src/system2/tests/gameplay.test.cjs
 
+      - name: Legacy server syntax
+        run: node --check server/server.js
+
       - name: Diff check
         run: git diff --check
