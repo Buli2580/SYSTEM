@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 7;
 const steps = [
   `CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS quest_completions (quest_id TEXT PRIMARY KEY NOT NULL, completed_at TEXT NOT NULL);
@@ -31,12 +31,6 @@ const steps = [
    CREATE INDEX IF NOT EXISTS daily_hf_share_log_day ON daily_hf_share_log(day_key);
    CREATE TABLE IF NOT EXISTS daily_instances_refill(id TEXT PRIMARY KEY NOT NULL, original_id TEXT NOT NULL, refill_count INTEGER NOT NULL DEFAULT 0, refilled_at TEXT NOT NULL);
    CREATE INDEX IF NOT EXISTS daily_instances_refill_original ON daily_instances_refill(original_id);`,
-  `CREATE TABLE IF NOT EXISTS achievements (id TEXT PRIMARY KEY NOT NULL, state TEXT NOT NULL CHECK(state IN ('LOCKED','IN_PROGRESS','UNLOCKED','CLAIMED')), current_progress INTEGER NOT NULL DEFAULT 0, max_progress INTEGER NOT NULL DEFAULT 0, unlocked_at TEXT, claimed_at TEXT, updated_at INTEGER NOT NULL);
-   CREATE INDEX IF NOT EXISTS idx_achievements_state ON achievements(state);
-   CREATE TABLE IF NOT EXISTS player_titles (id TEXT PRIMARY KEY NOT NULL, unlocked INTEGER NOT NULL DEFAULT 0, unlocked_at TEXT, is_active INTEGER NOT NULL DEFAULT 0);
-   CREATE TABLE IF NOT EXISTS achievement_events (id TEXT PRIMARY KEY NOT NULL, type TEXT NOT NULL, achievement_id TEXT, title_id TEXT, payload TEXT, created_at INTEGER NOT NULL);
-   CREATE INDEX IF NOT EXISTS idx_achievement_events_type ON achievement_events(type);
-   CREATE INDEX IF NOT EXISTS idx_achievement_events_achievement ON achievement_events(achievement_id);`,
 ];
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;');

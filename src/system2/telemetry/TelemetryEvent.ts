@@ -17,10 +17,7 @@ export type TelemetryEvent =
   | 'boss_stage_completed'
   | 'boss_defeated'
   | 'rematch_started'
-  | 'rematch_completed'
-  | 'achievement_unlocked'
-  | 'achievement_progressed'
-  | 'title_unlocked';
+  | 'rematch_completed';
 
 export type TelemetryProperties = Record<string, string | number | boolean | undefined>;
 
