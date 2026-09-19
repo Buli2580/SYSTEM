@@ -11,14 +11,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-test-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-apk:
     name: Android debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
 
     steps:
       - name: Checkout
@@ -36,9 +41,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Validate Expo config
         run: npx expo config --type public > /tmp/expo-config.txt
@@ -48,9 +57,15 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
+        shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          timeout --signal=TERM 12m ./gradlew :app:assembleDebug \
+            --no-daemon \
+            --build-cache \
+            --parallel \
+            --console=plain \
+            --stacktrace
 
       - name: Prepare APK
         run: |
