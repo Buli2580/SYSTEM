@@ -10,6 +10,7 @@ import { useSystem } from '../state/SystemProvider';
 import { SKILL_KEYS, SKILL_META, type SkillKey } from '../core';
 import { dominantSkill } from '../identity/model';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
+import { titlePl } from '../i18n/pl';
 
 export default function CharacterScreen() {
   const { player, titles, updateIdentity } = useSystem();
@@ -41,36 +42,36 @@ export default function CharacterScreen() {
     await updateIdentity({ avatarUri: uri });
     removeOwnedAvatar(player.avatarUri);
   }
-  return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY">
+  return <SystemPage title="POSTAĆ" subtitle="TOŻSAMOŚĆ SYSTEMU">
     <View style={[s.panel, { alignItems: 'center' }]}>
       <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} />
-      <Text style={s.title}>{player.displayName}</Text><Text style={s.label}>{player.currentTitle}</Text>
+      <Text style={s.title}>{player.displayName}</Text><Text style={s.label}>{titlePl(player.currentTitle)}</Text>
       <Text style={[s.value, { fontSize: 40 }]}>REAL LEVEL {player.realLevel}</Text>
-      <Text style={s.body}>RANK {player.rank} · EVOLUTION STAGE {player.avatarEvolution}</Text>
+      <Text style={s.body}>RANGA {player.rank} · ETAP EWOLUCJI {player.avatarEvolution}</Text>
       <Text style={s.body}>{player.realXp} / {player.realXpToNextLevel} REAL XP</Text>
       <Progress value={player.realXp} max={player.realXpToNextLevel} />
-      <Text style={s.body}>DOMINANT SKILL · {dominantSkill(player)}</Text><Text style={s.label}>ARCHETYPE // UNFORMED</Text>
+      <Text style={s.body}>DOMINUJĄCA CECHA · {dominantSkill(player)}</Text><Text style={s.label}>ARCHETYP // NIEUKSZTAŁTOWANY</Text>
     </View>
     <View style={s.panel}>
-      <Text style={s.label}>SYSTEM NAME</Text>
-      <TextInput accessibilityLabel="Zmień SYSTEM NAME" value={name} onChangeText={setName} maxLength={24} style={{ color: '#fff', minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#417480' }} />
-      <Action label="ZAPISZ SYSTEM NAME" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
+      <Text style={s.label}>NAZWA W SYSTEMIE</Text>
+      <TextInput accessibilityLabel="Zmień nazwę w SYSTEMIE" value={name} onChangeText={setName} maxLength={24} style={{ color: '#fff', minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#417480' }} />
+      <Action label="ZAPISZ NAZWĘ" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
       <Action label="AVATAR Z GALERII" disabled={busy} onPress={() => { void run(() => chooseAvatar(false)); }} />
       <Action label="ZRÓB ZDJĘCIE" disabled={busy} onPress={() => { void run(() => chooseAvatar(true)); }} />
       {player.avatarUri && <Action label="USUŃ AVATAR" disabled={busy} onPress={() => { void run(async () => { await updateIdentity({ avatarUri: null }); removeOwnedAvatar(player.avatarUri); }); }} />}
       {error && <SystemError message={error} retry={() => setError(null)} />}
     </View>
-    <View style={s.panel}><Text style={s.label}>ZDOBYTE TITLES</Text>
-      {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${title}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
+    <View style={s.panel}><Text style={s.label}>ZDOBYTE TYTUŁY</Text>
+      {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${titlePl(title)}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
     </View>
-    <Text style={s.title}>7 REAL SKILLS</Text>
+    <Text style={s.title}>7 CECH REAL</Text>
     {SKILL_KEYS.map(key => { const skill = player.stats[key]; return <Pressable key={key} accessibilityRole="button" accessibilityLabel={`${key}, poziom ${skill.level}, szczegóły`} onPress={() => setSelected(selected === key ? null : key)} style={s.panel}>
       <Text style={s.label}>{key} // {SKILL_META[key].name}</Text><Text style={s.title}>LV. {skill.level}</Text>
       <Text style={s.body}>{skill.xp} / {skill.xpToNextLevel} XP · do awansu {skill.xpToNextLevel - skill.xp} XP</Text>
       <Progress value={skill.xp} max={skill.xpToNextLevel} />
       {selected === key && <Text style={s.body}>{SKILL_META[key].description} XP przyznają wyłącznie dostępne, zweryfikowane aktywności SYSTEMU.</Text>}
     </Pressable>; })}
-    <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />
+    <Action label="HISTORIA SYSTEMU →" onPress={() => router.push('/system-log')} />
   </SystemPage>;
 }
 function Progress({ value, max }: { value: number; max: number }) {

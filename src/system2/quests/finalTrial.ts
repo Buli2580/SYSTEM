@@ -1,7 +1,7 @@
 import type { RunnableQuest } from './types';
 
 export const FINAL_TRIAL_QUEST: RunnableQuest = {
-  id: 'final_trial_v1', title: 'FINAL TRIAL',
+  id: 'final_trial_v1', title: 'OSTATNIA PRÓBA',
   description: 'Przejdź 600 metrów i utrzymaj aktywną próbę przez co najmniej 10 minut. SYSTEM wymaga obu warunków. Pozostaw ekran misji otwarty i GPS włączony.',
   category: 'MAIN', difficulty: 'NORMAL', order: 3,
   primarySkill: 'VIT', secondarySkills: ['WIL'],

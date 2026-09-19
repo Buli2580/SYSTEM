@@ -22,17 +22,17 @@ export default function SettingsScreen() {
     finally { lock.current = false; setBusy(false); }
   }
   function cancelReset() { guard.current.cancel(); setResetStep(0); setConfirmation(''); }
-  return <SystemPage title="WIĘCEJ" subtitle="SYSTEM SETTINGS">
+  return <SystemPage title="WIĘCEJ" subtitle="USTAWIENIA SYSTEMU">
     <View style={s.panel}><Text style={s.label}>SYSTEM ID // LOCAL IDENTITY</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
       <Action label="SYSTEM ONLINE // KONTO I PROFIL →" onPress={() => router.push('/account')} />
-      <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} /></View>
-    <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
-      <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
-      <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
+      <Action label="HISTORIA SYSTEMU →" onPress={() => router.push('/system-log')} /></View>
+    <View style={s.panel}><Text style={s.label}>WIBRACJE</Text>
+      <Switch accessibilityLabel="Wibracje włączone lub wyłączone" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
+      <Text style={s.label}>DŹWIĘK</Text><Switch accessibilityLabel="Dźwięk włączony lub wyłączony" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
       <Text style={s.body}>Dźwięk ukończenia lub level-up. Jeden efekt dla jednej nagrody.</Text>
     </View>
-    <View style={s.panel}><Text style={s.label}>PERMISSIONS</Text><Text style={s.body}>GPS działa tylko podczas aktywnego pomiaru na pierwszym planie.</Text>
+    <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>GPS działa tylko podczas aktywnego pomiaru na pierwszym planie.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
       <Action label="SPRAWDŹ / PONÓW ZGODĘ GPS" disabled={busy} onPress={() => { void run(async () => {
         const result = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
@@ -41,10 +41,10 @@ export default function SettingsScreen() {
       <Action label="USTAWIENIA SYSTEMOWE APLIKACJI" onPress={() => { void run(() => Linking.openSettings()); }} />
     </View>
     <BetaSettings />
-    <View style={s.panel}><Text style={s.label}>DATA</Text><Text style={s.body}>Profil, questy, World i preferencje nadal są zapisane lokalnie w SQLite i pozostają dostępne offline. SYSTEM ONLINE dodaje opcjonalne konto, publiczny profil i zaplecze chmurowe bez kasowania lokalnego progresu.</Text>
-      <Action label="RESET SYSTEM DATA" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />
+    <View style={s.panel}><Text style={s.label}>DANE</Text><Text style={s.body}>Profil, questy, World i preferencje nadal są zapisane lokalnie w SQLite i pozostają dostępne offline. SYSTEM ONLINE dodaje opcjonalne konto, publiczny profil i zaplecze chmurowe bez kasowania lokalnego progresu.</Text>
+      <Action label="WYCZYŚĆ DANE SYSTEMU" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />
     </View>
-    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM 2.0 // ONLINE FOUNDATION</Text><Text style={s.body}>Wersja aplikacji: {Constants.expoConfig?.version ?? 'niedostępna'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
+    <View style={s.panel}><Text style={s.label}>O APLIKACJI</Text><Text style={s.title}>SYSTEM 2.0 // ONLINE FOUNDATION</Text><Text style={s.body}>Wersja aplikacji: {Constants.expoConfig?.version ?? 'niedostępna'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}
     <Modal visible={resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, backgroundColor: '#030709' }}>

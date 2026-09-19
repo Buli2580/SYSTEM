@@ -11,13 +11,13 @@ function template(id: string, title: string, skill: SkillKey, target: number, xp
  progress: 0, progressTarget: target, createdAt: '2026-09-18T00:00:00.000Z', arc: 'DAILY' };
 }
 export const DAILY_TEMPLATES = [
- template('walk_protocol_1','WALK PROTOCOL I','VIT',1500,80,70,8,'WALK'),
- template('run_protocol_1','RUN PROTOCOL I','VIT',1000,100,90,10,'RUN'),
- template('ride_protocol_1','RIDE PROTOCOL I','VIT',3000,100,80,10,'BIKE'),
- template('focus_session','FOCUS SESSION','WIL',900,60,60,5),
- template('learn_something','LEARN SOMETHING','INT',1200,60,60,5),
- template('create','CREATE','CRE',1200,50,50,5),
- template('organize','ORGANIZE','RES',900,50,50,5),
+ template('walk_protocol_1','PROTOKÓŁ MARSZU I','VIT',1500,80,70,8,'WALK'),
+ template('run_protocol_1','PROTOKÓŁ BIEGU I','VIT',1000,100,90,10,'RUN'),
+ template('ride_protocol_1','PROTOKÓŁ ROWEROWY I','VIT',3000,100,80,10,'BIKE'),
+ template('focus_session','SESJA SKUPIENIA','WIL',900,60,60,5),
+ template('learn_something','NAUCZ SIĘ CZEGOŚ','INT',1200,60,60,5),
+ template('create','TWÓRZ','CRE',1200,50,50,5),
+ template('organize','UPORZĄDKUJ','RES',900,50,50,5),
 ];
 export function dailyQuest(id: string): RunnableQuest | undefined {
  const match = /^daily:(\d{4}-\d{2}-\d{2}):([a-z0-9_]+)$/.exec(id);

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
-import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
+import { PRZEBUDZENIE_QUESTS, PRZEBUDZENIE_NAGRODA_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useCallback } from 'react';
 
 import {
@@ -47,6 +47,7 @@ import {
 } from '../core';
 
 import { useSystem } from '../state/SystemProvider';
+import { questStatusPl, titlePl } from '../i18n/pl';
 
 function SystemBackground() {
   const { width, height } = useWindowDimensions();
@@ -199,7 +200,7 @@ function PlayerCore() {
       </View>
 
       <Text style={styles.playerCoreText}>
-        PLAYER CORE
+        RDZEŃ GRACZA
       </Text>
     </View>
   );
@@ -303,11 +304,11 @@ export default function SystemHomeScreen() {
     return (
       <View style={styles.loadingRoot}>
         <Text style={styles.loadingSmall}>
-          {error ? 'SYSTEM // BŁĄD ZAPISU' : 'SYSTEM // INITIALIZING'}
+          {error ? 'SYSTEM // BŁĄD ZAPISU' : 'SYSTEM // URUCHAMIANIE'}
         </Text>
 
         <Text style={styles.loadingTitle}>
-          AWAKENING
+          PRZEBUDZENIE
         </Text>
         {error && (
           <SystemError message={error} retry={() => { void refreshPlayer(); }} />
@@ -335,7 +336,7 @@ export default function SystemHomeScreen() {
             </Text>
 
             <Text style={styles.awakening}>
-              AWAKENING
+              PRZEBUDZENIE
             </Text>
           </View>
 
@@ -360,7 +361,7 @@ export default function SystemHomeScreen() {
                   styles.identityLabel
                 }
               >
-                REAL IDENTITY
+                TOŻSAMOŚĆ REAL
               </Text>
 
               <Text
@@ -368,7 +369,7 @@ export default function SystemHomeScreen() {
                   styles.awakeningActive
                 }
               >
-                {player.displayName} // {player.currentTitle}
+                {player.displayName} // {titlePl(player.currentTitle)}
               </Text>
             </View>
 
@@ -378,7 +379,7 @@ export default function SystemHomeScreen() {
                   styles.originText
                 }
               >
-                ORIGIN 0
+                POCZĄTEK 0
               </Text>
             </View>
           </View>
@@ -394,7 +395,7 @@ export default function SystemHomeScreen() {
                   styles.realRankLabel
                 }
               >
-                REAL RANK
+                RANGA REAL
               </Text>
 
               <View style={styles.levelRow}>
@@ -436,7 +437,7 @@ export default function SystemHomeScreen() {
                   styles.evolutionLabel
                 }
               >
-                EVOLUTION
+                EWOLUCJA
               </Text>
 
               <Text
@@ -444,7 +445,7 @@ export default function SystemHomeScreen() {
                   styles.evolutionValue
                 }
               >
-                STAGE{' '}
+                ETAP{' '}
                 {player.avatarEvolution}
               </Text>
             </View>
@@ -535,7 +536,7 @@ export default function SystemHomeScreen() {
                   styles.quickLabel
                 }
               >
-                VERIFIED
+                POTWIERDZONE
               </Text>
             </View>
 
@@ -559,7 +560,7 @@ export default function SystemHomeScreen() {
                   styles.quickLabel
                 }
               >
-                ENERGY
+                ENERGIA
               </Text>
             </View>
           </View>
@@ -569,11 +570,11 @@ export default function SystemHomeScreen() {
 
         <View style={styles.skillsHeader}>
           <Text style={styles.skillsTitle}>
-            7 REAL SKILLS
+            7 CECH REAL
           </Text>
 
           <Text style={styles.buildText}>
-            BUILD
+            ROZWÓJ
           </Text>
         </View>
 
@@ -602,10 +603,10 @@ export default function SystemHomeScreen() {
           })}
         </ScrollView>
 
-        {/* MAIN QUEST */}
+        {/* GŁÓWNA MISJA */}
 
         <SectionTitle
-          code="01 // ACTIVE OBJECTIVE"
+          code="01 // AKTYWNY CEL"
           title="GŁÓWNA MISJA"
         />
 
@@ -619,7 +620,7 @@ export default function SystemHomeScreen() {
                   styles.questCategory
                 }
               >
-                MAIN QUEST
+                GŁÓWNA MISJA
               </Text>
 
               <View
@@ -632,7 +633,7 @@ export default function SystemHomeScreen() {
                     styles.availableText
                   }
                 >
-                  {story?.bossComplete ? 'SIGNAL LOST' : 'AVAILABLE'}
+                  {story?.bossComplete ? 'SYGNAŁ UTRACONY' : 'DOSTĘPNA'}
                 </Text>
               </View>
             </View>
@@ -646,7 +647,7 @@ export default function SystemHomeScreen() {
                 styles.questDescription
               }
             >
-              {awakeningCompleted ? `${objective.subtitle} Daily ${daily?.completed ?? 0}/3 · Weekly ${Math.min(5,daily?.weeklyCompleted ?? 0)}/5` : 'Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.'}
+              {awakeningCompleted ? `${objective.subtitle} Dziennie ${daily?.completed ?? 0}/3 · Tygodniowo ${Math.min(5,daily?.weeklyCompleted ?? 0)}/5` : 'Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.'}
             </Text>
 
             <View style={styles.questStats}>
@@ -656,7 +657,7 @@ export default function SystemHomeScreen() {
                     styles.questStatLabel
                   }
                 >
-                  PROGRESS
+                  POSTĘP
                 </Text>
 
                 <Text
@@ -674,7 +675,7 @@ export default function SystemHomeScreen() {
                     styles.questStatLabel
                   }
                 >
-                  REWARD
+                  NAGRODA
                 </Text>
 
                 <Text
@@ -682,7 +683,7 @@ export default function SystemHomeScreen() {
                     styles.questReward
                   }
                 >
-                  +{awakeningCompleted ? objective.reward : AWAKENING_REWARD_XP} REAL XP
+                  +{awakeningCompleted ? objective.reward : PRZEBUDZENIE_NAGRODA_XP} REAL XP
                 </Text>
               </View>
 
@@ -692,7 +693,7 @@ export default function SystemHomeScreen() {
                     styles.questStatLabel
                   }
                 >
-                  VERIFY
+                  WERYFIKACJA
                 </Text>
 
                 <Text
@@ -700,7 +701,7 @@ export default function SystemHomeScreen() {
                     styles.questStatValue
                   }
                 >
-                  REQUIRED
+                  WYMAGANA
                 </Text>
               </View>
             </View>
@@ -723,14 +724,14 @@ export default function SystemHomeScreen() {
               />
             </View>
 
-            {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/story')}><Text style={styles.startQuestText}>STORY / CHRONICLE →</Text></Pressable>}
-            {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
+            {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/story')}><Text style={styles.startQuestText}>HISTORIA / KRONIKA →</Text></Pressable>}
+            {!awakeningCompleted && PRZEBUDZENIE_QUESTS.map(quest => (
               <Pressable key={quest.id} style={styles.startQuestButton}
                 disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
                 onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
                 <Text style={styles.startQuestText}>{quest.title}</Text>
                 <Text style={styles.startQuestText}>
-                  {getQuestStatus(quest.id, completedQuestIds, activeQuestId)}
+                  {questStatusPl(getQuestStatus(quest.id, completedQuestIds, activeQuestId))}
                 </Text>
               </Pressable>
             ))}
@@ -742,7 +743,7 @@ export default function SystemHomeScreen() {
         {/* WORLD */}
 
         <SectionTitle
-          code="02 // WORLD SIGNAL"
+          code="02 // SYGNAŁ ŚWIATA"
           title="SYSTEM WORLD"
         />
 
@@ -757,11 +758,11 @@ export default function SystemHomeScreen() {
 
           <View style={styles.worldContent}>
             <Text style={styles.locked}>
-              {worldUnlocked ? 'WORLD ONLINE' : 'LOCKED'}
+              {worldUnlocked ? 'ŚWIAT ONLINE' : 'ZABLOKOWANY'}
             </Text>
 
             <Text style={styles.gateTitle}>
-              {worldUnlocked ? 'EXPLORE SYSTEM WORLD' : 'WORLD LOCKED'}
+              {worldUnlocked ? 'ODKRYWAJ SYSTEM WORLD' : 'ŚWIAT ZABLOKOWANY'}
             </Text>
 
             <Text
@@ -769,7 +770,7 @@ export default function SystemHomeScreen() {
                 styles.gateDescription
               }
             >
-              {worldUnlocked ? 'Odkrywaj sektory i uruchom SCAN FOR SIGNAL, aby odnaleźć pierwszy sygnał.' : 'Ukończ Pierwsze Przebudzenie, aby odblokować dostęp do SYSTEM WORLD.'}
+              {worldUnlocked ? 'Odkrywaj sektory i uruchom wyszukiwanie sygnału, aby odnaleźć pierwszy ślad.' : 'Ukończ Pierwsze Przebudzenie, aby odblokować dostęp do SYSTEM WORLD.'}
             </Text>
           </View>
         </Pressable>
@@ -780,7 +781,7 @@ export default function SystemHomeScreen() {
               styles.protocolSmall
             }
           >
-            SYSTEM PROTOCOL // 2.0
+            PROTOKÓŁ SYSTEMU // 2.0
           </Text>
 
           <Text
