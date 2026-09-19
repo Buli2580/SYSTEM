@@ -41,6 +41,6 @@ export default function StoryScreen() {
   <View style={s.panel}><Text style={s.label}>CHAPTER 03 // UNKNOWN // LOCKED</Text></View>
   {!!error&&<Text style={s.body}>{error}</Text>}
   <Text style={s.title}>CHRONICLE</Text>
-  {entries.map(event=><View key={event.id} style={s.panel}><Text style={s.label}>{event.type.replaceAll('_',' ')}</Text><Text style={s.title}>{event.title}</Text>{!!event.subtitle&&<Text style={s.body}>{event.subtitle}</Text>}<Text style={s.body}>{new Date(event.created_at).toLocaleString()}</Text></View>)}
+    {entries.length === 0 ? <View style={s.panel}><Text style={s.body}>Chronicle zacznie się od pierwszego wydarzenia fabularnego.</Text></View> : entries.map(event=><View key={event.id} style={s.panel}><Text style={s.label}>{event.type.replaceAll('_',' ')}</Text><Text style={s.title}>{event.title}</Text>{!!event.subtitle&&<Text style={s.body}>{event.subtitle}</Text>}<Text style={s.body}>{new Date(event.created_at).toLocaleString()}</Text></View>)}
  </SystemPage>;
 }

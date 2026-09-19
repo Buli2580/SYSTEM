@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
+import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useCallback } from 'react';
 
@@ -32,62 +33,15 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-    Canvas,
-    Circle,
-    LinearGradient,
-    Rect,
-    vec,
-} from '@shopify/react-native-skia';
-
-import {
     getPlayerProgressPercent,
+    getSkillProgressPercent,
     SKILL_KEYS,
     SKILL_META,
     SYSTEM_COLORS,
-    type SkillKey
+    type SkillProgress
 } from '../core';
 
 import { useSystem } from '../state/SystemProvider';
-
-function SystemBackground() {
-  const { width, height } = useWindowDimensions();
-
-  return (
-    <Canvas style={StyleSheet.absoluteFill}>
-      <Rect
-        x={0}
-        y={0}
-        width={width}
-        height={height}
-      >
-        <LinearGradient
-          start={vec(0, 0)}
-          end={vec(width, height)}
-          colors={[
-            '#020708',
-            '#031114',
-            '#010506',
-            '#000000',
-          ]}
-        />
-      </Rect>
-
-      <Circle
-        cx={width * 0.88}
-        cy={height * 0.15}
-        r={width * 0.55}
-        color="rgba(0,229,255,0.025)"
-      />
-
-      <Circle
-        cx={width * 0.03}
-        cy={height * 0.7}
-        r={width * 0.7}
-        color="rgba(0,229,255,0.018)"
-      />
-    </Canvas>
-  );
-}
 
 function WorldSignalBeacon({ active }: { active: boolean }) {
   const pulse = useSharedValue(0);
@@ -237,31 +191,22 @@ function PlayerCore() {
 
 function SkillCard({
   skill,
-  level,
-  xp,
-  xpToNextLevel,
 }: {
-  skill: SkillKey;
-  level: number;
-  xp: number;
-  xpToNextLevel: number;
+  skill: SkillProgress;
 }) {
-  const meta = SKILL_META[skill];
+  const meta = SKILL_META[skill.key];
 
-  const progress =
-    xpToNextLevel > 0
-      ? Math.min(100, (xp / xpToNextLevel) * 100)
-      : 0;
+  const progress = getSkillProgressPercent(skill) * 100;
 
   return (
     <View style={styles.skillCard}>
       <View style={styles.skillTop}>
         <Text style={styles.skillCode}>
-          {skill}
+          {skill.key}
         </Text>
 
         <Text style={styles.skillLevel}>
-          {level}
+          {skill.level}
         </Text>
       </View>
 
@@ -284,7 +229,7 @@ function SkillCard({
       </View>
 
       <Text style={styles.skillXp}>
-        {xp} / {xpToNextLevel} XP
+        {skill.xp} / {skill.xpToNextLevel} XP
       </Text>
     </View>
   );
@@ -348,7 +293,7 @@ export default function SystemHomeScreen() {
 
   return (
     <SystemScreen style={styles.root}>
-      <SystemBackground />
+      <SystemAmbientBackground intensity="hero" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -501,7 +446,7 @@ export default function SystemHomeScreen() {
               </Text>
             </View>
 
-            <View style={styles.realXpTrack}>
+            <View accessibilityRole="progressbar" accessibilityLabel={`Real XP ${player.realXp} z ${player.realXpToNextLevel}`} accessibilityValue={{ min: 0, max: 100, now: Math.round(realProgress) }} style={styles.realXpTrack}>
               <View
                 style={[
                   styles.realXpFill,
@@ -615,12 +560,7 @@ export default function SystemHomeScreen() {
             return (
               <SkillCard
                 key={skill}
-                skill={skill}
-                level={data.level}
-                xp={data.xp}
-                xpToNextLevel={
-                  data.xpToNextLevel
-                }
+                skill={data}
               />
             );
           })}
@@ -753,18 +693,20 @@ export default function SystemHomeScreen() {
               onPress={() => router.push('/story')}>
               <Text style={styles.startQuestText}>STORY / CHRONICLE →</Text>
             </Pressable>}
-            {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
-              <Pressable key={quest.id}
+            {!awakeningCompleted && AWAKENING_QUESTS.map(quest => {
+              const status = getQuestStatus(quest.id, completedQuestIds, activeQuestId);
+              const locked = status === 'LOCKED';
+              return <Pressable key={quest.id}
                 accessibilityRole="button"
-                style={({ pressed }) => [styles.startQuestButton, pressed && styles.startQuestButtonPressed, getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED' && { opacity: 0.45 }]}
-                disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
+                accessibilityLabel={`${quest.title} — ${status}`}
+                accessibilityState={{ disabled: locked }}
+                style={({ pressed }) => [styles.startQuestButton, pressed && styles.startQuestButtonPressed, locked && styles.lockedQuestButton]}
+                disabled={locked}
                 onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
-                <Text style={styles.startQuestText}>{quest.title}</Text>
-                <Text style={styles.startQuestText}>
-                  {getQuestStatus(quest.id, completedQuestIds, activeQuestId)}
-                </Text>
-              </Pressable>
-            ))}
+                <Text style={[styles.startQuestText, locked && styles.lockedQuestTitle]}>{quest.title}</Text>
+                {locked && <View style={[styles.questStatusBadge, styles.lockedQuestBadge]}><Text style={[styles.questStatusText, styles.lockedQuestText]}>{status}</Text></View>}
+              </Pressable>;
+            })}
           </View>
         </Animated.View>
 
@@ -1411,7 +1353,7 @@ const styles = StyleSheet.create({
 
   questContent: {
     flex: 1,
-    padding: 23,
+    padding: 20,
   },
 
   questHeader: {
@@ -1447,20 +1389,20 @@ const styles = StyleSheet.create({
     fontSize: 29,
     lineHeight: 34,
     fontWeight: '900',
-    marginTop: 25,
+    marginTop: 18,
   },
 
   questDescription: {
     color: SYSTEM_COLORS.textMuted,
     fontSize: 14,
     lineHeight: 22,
-    marginTop: 14,
+    marginTop: 11,
   },
 
   questStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 28,
+    marginTop: 21,
   },
 
   questStatLabel: {
@@ -1489,7 +1431,7 @@ const styles = StyleSheet.create({
     height: 7,
     backgroundColor: '#09272D',
     borderRadius: 999,
-    marginTop: 24,
+    marginTop: 18,
     overflow: 'hidden',
   },
 
@@ -1500,15 +1442,15 @@ const styles = StyleSheet.create({
   },
 
   startQuestButton: {
-    height: 78,
+    minHeight: 62,
     borderRadius: 20,
     backgroundColor:
       SYSTEM_COLORS.cyan,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 27,
-    marginTop: 27,
+    paddingHorizontal: 20,
+    marginTop: 20,
     transform: [{ scale: 1 }],
   },
 
@@ -1523,6 +1465,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: 2.5,
+    flexShrink: 1,
+  },
+
+  lockedQuestButton: {
+    backgroundColor: '#102329',
+    borderWidth: 1,
+    borderColor: SYSTEM_COLORS.line,
+  },
+
+  lockedQuestTitle: {
+    color: SYSTEM_COLORS.text,
+  },
+
+  questStatusBadge: {
+    flexShrink: 0,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#001015',
+    backgroundColor: 'rgba(0,16,21,0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    marginLeft: 12,
+  },
+
+  lockedQuestBadge: {
+    borderColor: SYSTEM_COLORS.textMuted,
+    backgroundColor: 'rgba(113,128,134,0.12)',
+  },
+
+  questStatusText: {
+    color: '#001015',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
+
+  lockedQuestText: {
+    color: SYSTEM_COLORS.textMuted,
   },
 
   startQuestArrow: {

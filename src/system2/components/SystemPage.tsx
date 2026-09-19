@@ -6,11 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
 import BottomNavigation from './BottomNavigation';
+import SystemAmbientBackground from './SystemAmbientBackground';
 
-export default function SystemPage({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+export default function SystemPage({ title, subtitle, children, intensity = 'quiet' }: { title: string; subtitle: string; children: ReactNode; intensity?: 'quiet' | 'default' | 'hero' | 'world' }) {
   const insets = useSafeAreaInsets();
   const { ready, error, refreshPlayer } = useSystem();
   return <SystemScreen style={styles.root}>
+    <SystemAmbientBackground intensity={intensity} />
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: 150 + insets.bottom }]}>
       <Text style={styles.code}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
