@@ -437,8 +437,8 @@ function cloudEvidencePayload(event: VerifiedEvent) {
 async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: VerifiedEvent) {
   if (!event.verified) return;
   await txn.runAsync(
-    \`INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
-     VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING\`,
+    `INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
+     VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING`,
     'verified:' + event.id,
     'VERIFIED_EVENT',
     event.questId,
@@ -473,7 +473,7 @@ export function backfillCloudOutbox() {
 export function listPendingCloudOutbox(limit = 25) {
   const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
   return profileTransaction(txn => txn.getAllAsync<CloudOutboxRow>(
-    \`SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?\`,
+    `SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
     safeLimit,
   ));
 }
@@ -495,11 +495,11 @@ export function markCloudOutboxAttempt(eventKey: string, error: string) {
 export function cloudOutboxStats() {
   return profileTransaction(async txn => {
     const row = await txn.getFirstAsync<{ pending: number; synced: number; failed: number }>(
-      \`SELECT
+      `SELECT
         SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) AS pending,
         SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) AS synced,
         SUM(CASE WHEN synced_at IS NULL AND attempts > 0 THEN 1 ELSE 0 END) AS failed
-       FROM cloud_outbox\`
+       FROM cloud_outbox`
     );
     return { pending: row?.pending ?? 0, synced: row?.synced ?? 0, failed: row?.failed ?? 0 };
   });
