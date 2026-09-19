@@ -5,7 +5,7 @@ export type ActivityPreferences = { walking: boolean; running: boolean; cycling:
 export const DEFAULT_ACTIVITIES: ActivityPreferences = { walking: true, running: false, cycling: false };
 function template(id: string, title: string, skill: SkillKey, target: number, xp: number, skillXp: number, energy: number, activity?: 'WALK' | 'RUN' | 'BIKE'): RunnableQuest {
  return { id, title, primarySkill: skill, secondarySkills: [], category: 'DAILY', difficulty: 'NORMAL', order: 0,
- description: activity ? `Potwierdź ${target} m aktywności ${activity}. Pomiar GPS działa tylko na pierwszym planie.` : `Aktywna sesja ${target / 60} minut. Timer potwierdza czas w SYSTEMIE, nie jakość pracy ani zdobytą wiedzę.`,
+ description: activity ? `Potwierdź ${target} m aktywności ${activity}. Pomiar GPS działa także przy wygaszonym ekranie i podczas pracy aplikacji w tle.` : `Aktywna sesja ${target / 60} minut. Timer potwierdza czas w SYSTEMIE, nie jakość pracy ani zdobytą wiedzę.`,
  verification: activity ? { type: 'GPS_DISTANCE', minimumDistanceMeters: target, verificationScoreRequired: 70 } : { type: 'TIMER', minimumDurationSeconds: target, verificationScoreRequired: 100 },
  activityType: activity, verificationStrength: 'STANDARD', rewards: { realXp: xp, skillXp: { [skill]: skillXp }, gameEnergy: energy },
  progress: 0, progressTarget: target, createdAt: '2026-09-18T00:00:00.000Z', arc: 'DAILY' };

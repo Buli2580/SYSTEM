@@ -320,8 +320,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text>
             <Text style={styles.description}>
               {quest.verification.type === 'MULTI'
-                ? 'Dystans zostanie wznowiony od zapisanej wartości. Wymagany czas etapu rozpocznie się od zera.'
-                : 'Możesz wyjść z aplikacji i wrócić później. Potwierdzony dystans pozostanie zapisany.'}
+                ? 'Dystans i czas aktywnej próby mogą być liczone w tle. Po powrocie SYSTEM odczyta najnowszy zweryfikowany postęp.'
+                : 'Możesz wygasić ekran albo przejść do innej aplikacji. Aktywna misja nadal liczy zweryfikowany dystans w tle.'}
             </Text>
           </View>}
           {status === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
@@ -374,7 +374,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                {isTimer ? `${quest.title} // AKTYWNA` : isMulti ? 'OSTATNIA PRÓBA // AKTYWNA' : 'SYSTEM MONITORUJE AKTYWNOŚĆ'}
+                {isTimer ? `${quest.title} // AKTYWNA` : isMulti ? 'OSTATNIA PRÓBA // AKTYWNA' : 'SYSTEM MONITORUJE AKTYWNOŚĆ · TŁO WŁ.'}
               </Text>
             </View>
           )}

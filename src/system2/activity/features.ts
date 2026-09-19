@@ -8,6 +8,13 @@ export function createActivityWindow() {
  let count = 0, accuracySum = 0, maxAccuracy = 0, mocked = false, speedSum = 0, squareSum = 0;
  let segments = 0, maxSpeed = 0, previousSpeed = 0, accelerations = 0, stops = 0, currentSpeed = 0;
  const histogram = new Array<number>(161).fill(0);
+ function seed(point: LocationObject, now = Math.max(Date.now(), point.timestamp)) {
+   if (!isUsableLocation(point, now)) return false;
+   anchor = point;
+   first = point.timestamp;
+   last = point.timestamp;
+   return true;
+ }
  function add(point: LocationObject, now = Date.now()) {
    count++; mocked ||= point.mocked === true;
    if (!isUsableLocation(point, now)) { rejected++; return; }
@@ -40,7 +47,7 @@ export function createActivityWindow() {
      gpsGaps: gaps, rejectedSamples: rejected, teleportCount: teleports, sampleCount: count,
      meanAccuracy: count > rejected ? accuracySum / (count - rejected) : 100, maxAccuracy, mocked };
  }
- return { add, features, currentSpeed: () => currentSpeed };
+ return { seed, add, features, currentSpeed: () => currentSpeed };
 }
 
 

@@ -32,6 +32,24 @@ export type QuestCheckpoint = {
   activityFeatures?: ActivityFeatures;
   updatedAt: string;
 };
+
+export type StoredLocationPoint = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
+  mocked: boolean;
+};
+
+export type BackgroundQuestSession = {
+  questId: string;
+  attemptId: string;
+  mode: 'FOREGROUND' | 'BACKGROUND';
+  extendedGoal: boolean;
+  lastPoint?: StoredLocationPoint;
+  lastObservedTimestamp?: number;
+  updatedAt: string;
+};
 export type SystemSnapshot = {
   story: StoryState | null;
   daily: DailyState | null;
@@ -393,6 +411,104 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    if(changed.changes&&eligible) await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
  });
 }
+const BACKGROUND_QUEST_SESSION_KEY = 'background_quest_session';
+
+function validStoredPoint(value: unknown): value is StoredLocationPoint {
+  if (!value || typeof value !== 'object') return false;
+  const point = value as Partial<StoredLocationPoint>;
+  return typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 &&
+    typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180 &&
+    typeof point.accuracy === 'number' && Number.isFinite(point.accuracy) && point.accuracy >= 0 && point.accuracy <= 100 &&
+    typeof point.timestamp === 'number' && Number.isFinite(point.timestamp) &&
+    typeof point.mocked === 'boolean';
+}
+
+function parseBackgroundQuestSession(raw?: string): BackgroundQuestSession | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<BackgroundQuestSession>;
+    if (typeof value.questId !== 'string' || typeof value.attemptId !== 'string' ||
+        !['FOREGROUND','BACKGROUND'].includes(value.mode ?? '') ||
+        typeof value.extendedGoal !== 'boolean' || typeof value.updatedAt !== 'string' ||
+        (value.lastPoint !== undefined && !validStoredPoint(value.lastPoint)) ||
+        (value.lastObservedTimestamp !== undefined &&
+          (typeof value.lastObservedTimestamp !== 'number' || !Number.isFinite(value.lastObservedTimestamp)))) return null;
+    return value as BackgroundQuestSession;
+  } catch {
+    return null;
+  }
+}
+
+export function loadBackgroundQuestSession(): Promise<BackgroundQuestSession | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+    );
+    const session = parseBackgroundQuestSession(row?.value);
+    if (!session && row) await txn.runAsync('DELETE FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY);
+    return session;
+  });
+}
+
+export function saveBackgroundQuestSession(session: BackgroundQuestSession) {
+  if (!session.questId || !session.attemptId || !['FOREGROUND','BACKGROUND'].includes(session.mode) ||
+      (session.lastPoint && !validStoredPoint(session.lastPoint))) {
+    return Promise.reject(new Error('Nieprawidłowy stan pomiaru w tle.'));
+  }
+  const safe: BackgroundQuestSession = {
+    questId: session.questId,
+    attemptId: session.attemptId,
+    mode: session.mode,
+    extendedGoal: Boolean(session.extendedGoal),
+    ...(session.lastPoint ? { lastPoint: { ...session.lastPoint } } : {}),
+    ...(session.lastObservedTimestamp !== undefined ? { lastObservedTimestamp: session.lastObservedTimestamp } : {}),
+    updatedAt: session.updatedAt,
+  };
+  return profileTransaction(txn => txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    BACKGROUND_QUEST_SESSION_KEY, JSON.stringify(safe)
+  ));
+}
+
+export function updateBackgroundQuestSession(
+  questId: string,
+  patch: Partial<Omit<BackgroundQuestSession, 'questId' | 'attemptId'>>,
+): Promise<BackgroundQuestSession | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+    );
+    const current = parseBackgroundQuestSession(row?.value);
+    if (!current || current.questId !== questId) return null;
+    const next: BackgroundQuestSession = {
+      ...current,
+      ...patch,
+      questId: current.questId,
+      attemptId: current.attemptId,
+      updatedAt: new Date().toISOString(),
+    };
+    if (next.lastPoint && !validStoredPoint(next.lastPoint)) throw new Error('Nieprawidłowy punkt GPS.');
+    await txn.runAsync(
+      'UPDATE app_state SET value=? WHERE key=?',
+      JSON.stringify(next), BACKGROUND_QUEST_SESSION_KEY
+    );
+    return next;
+  });
+}
+
+export function clearBackgroundQuestSession(questId?: string) {
+  return profileTransaction(async txn => {
+    if (questId) {
+      const row = await txn.getFirstAsync<{ value: string }>(
+        'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+      );
+      const current = parseBackgroundQuestSession(row?.value);
+      if (current && current.questId !== questId) return;
+    }
+    await txn.runAsync('DELETE FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY);
+  });
+}
+
 function questCheckpointKey(questId: string) { return 'quest_checkpoint:' + questId; }
 
 function isFiniteNonNegative(value: unknown) {

@@ -215,6 +215,8 @@ function screenHarness(t, options = {}) {
   let starts = 0;
   let awards = 0;
   let checkpoint = options.checkpoint ?? null;
+  let backgroundSession = options.backgroundSession ?? null;
+  let backgroundStarted = false;
   const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
   const react = {
     useState(initial) {
@@ -274,7 +276,13 @@ function screenHarness(t, options = {}) {
     },
     'expo-location': {
       Accuracy: { BestForNavigation: 1 },
+      ActivityType: { Fitness: 1 },
       requestForegroundPermissionsAsync: () => options.permission?.promise ?? Promise.resolve({ status: 'granted' }),
+      requestBackgroundPermissionsAsync: () => options.backgroundPermission?.promise ?? Promise.resolve({ status: 'granted' }),
+      isBackgroundLocationAvailableAsync: async () => true,
+      hasStartedLocationUpdatesAsync: async () => backgroundStarted,
+      startLocationUpdatesAsync: async () => { backgroundStarted = true; },
+      stopLocationUpdatesAsync: async () => { backgroundStarted = false; },
       hasServicesEnabledAsync: async () => true,
       async watchPositionAsync(_, onLocation, onError) {
         starts++; callback = onLocation; gpsError = onError;
@@ -291,6 +299,16 @@ function screenHarness(t, options = {}) {
       loadQuestCheckpoint: async () => checkpoint,
       saveQuestCheckpoint: async value => { checkpoint = JSON.parse(JSON.stringify(value)); },
       clearQuestCheckpoint: async () => { checkpoint = null; },
+      loadBackgroundQuestSession: async () => backgroundSession,
+      saveBackgroundQuestSession: async value => { backgroundSession = JSON.parse(JSON.stringify(value)); },
+      updateBackgroundQuestSession: async (questId, patch) => {
+        if (!backgroundSession || backgroundSession.questId !== questId) return null;
+        backgroundSession = { ...backgroundSession, ...patch, updatedAt: new Date(clock.now).toISOString() };
+        return backgroundSession;
+      },
+      clearBackgroundQuestSession: async questId => {
+        if (!questId || backgroundSession?.questId === questId) backgroundSession = null;
+      },
     },
   }, clock);
   const Screen = load('screens/QuestRunScreen').default;
@@ -318,7 +336,7 @@ function screenHarness(t, options = {}) {
     render, button,
     status: () => slots[0].value,
     distance: () => slots[2].value,
-    starts: () => starts, removals: () => removals, awards: () => awards, checkpoint: () => checkpoint,
+    starts: () => starts, removals: () => removals, awards: () => awards, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
     appState: state => { appState.currentState = state; appStateListener?.(state); },
@@ -415,44 +433,40 @@ test('permission dialog and transient AppState before GPS subscription do not st
   assert.equal(h.awards(), 0);
 });
 
-test('real background removes an established GPS watcher and retry starts without remounting', async t => {
+test('real background hands GPS off without failing and foreground can resume without remounting', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
   await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
   h.appState('background');
-  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.status(), 'TRACKING');
   assert.equal(h.removals(), 1);
-  h.appState('background');
-  assert.equal(h.removals(), 1);
-  h.appState('active'); h.render();
-  h.button('SPRÓBUJ PONOWNIE').props.onPress();
   await flush();
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  h.appState('active');
+  await flush(); h.render();
+  assert.equal(h.status(), 'READY');
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
   assert.equal(h.starts(), 2);
-  assert.equal(h.status(), 'STARTING');
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
-  h.error();
-  assert.equal(h.removals(), 2);
-  assert.equal(h.status(), 'ERROR');
-  h.appState('background');
-  assert.equal(h.removals(), 2);
 });
 
-test('background with a watcher but before the first fix removes the watcher', async t => {
+test('background with a watcher but before the first fix hands off without fabricating distance', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
   await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
   assert.equal(h.status(), 'STARTING');
   h.appState('background');
-  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.status(), 'STARTING');
   assert.equal(h.removals(), 1);
-  h.fix(0);
-  assert.equal(h.status(), 'ERROR');
+  await flush();
+  assert.equal(h.checkpoint(), null);
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
 });
 
-test('GPS distance checkpoint survives leaving the app and resumes without resetting meters', async t => {
+test('GPS distance checkpoint survives background and returns with the same meters', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
   await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
@@ -465,11 +479,12 @@ test('GPS distance checkpoint survives leaving the app and resumes without reset
   await flush();
   assert.ok(h.checkpoint());
   assert.equal(Math.round(h.checkpoint().distanceMeters), Math.round(savedBefore));
-  h.appState('active'); h.render();
-  await h.button('SPRÓBUJ PONOWNIE').props.onPress();
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  h.appState('active');
   await flush(); h.render();
+  assert.equal(h.status(), 'READY');
   assert.equal(Math.round(h.distance()), Math.round(savedBefore));
-  assert.ok(h.button('WZNÓW MISJĘ') || h.status() === 'STARTING' || h.status() === 'TRACKING');
+  assert.ok(h.button('WZNÓW MISJĘ'));
 });
 
 
@@ -551,21 +566,13 @@ test('FOCUS PROTOCOL verifies automatically at 600 monotonic seconds, never at 5
   assert.equal(h.awards(), 1);
 });
 
-test('focus background invalidates progress and retry requires a fresh full ten minutes', async t => {
+test('focus timer keeps counting while the app is backgrounded', async t => {
   const h = screenHarness(t, { questId: 'focus_protocol_v1' });
   await flush(); h.render();
   await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
   h.render(); h.advance(599);
   h.appState('background');
-  assert.equal(h.status(), 'ERROR');
-  h.advance(1000);
-  assert.equal(h.awards(), 0);
-  h.appState('active'); h.render();
-  h.button('SPRÓBUJ PONOWNIE').props.onPress();
-  await flush(); h.render();
   assert.equal(h.status(), 'TRACKING');
-  h.advance(599);
-  assert.equal(h.awards(), 0);
   h.advance(1);
   await flush();
   assert.equal(h.status(), 'COMPLETED');
@@ -748,16 +755,17 @@ test('MULTI waits for 600 meters after time is satisfied with only 450 meters', 
   assert.equal(h.status(), 'COMPLETED');
 });
 
-test('MULTI background or leaving the screen cancels both measurements', async t => {
+test('MULTI hands movement off on background or screen leave instead of invalidating the attempt', async t => {
   for (const interrupt of ['background', 'leave']) {
     const h = screenHarness(t, { questId: 'final_trial_v1' });
     await flush(); h.render();
     await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
     h.fix(0); h.render(); h.fix(10);
     if (interrupt === 'leave') h.leave(); else h.appState('background');
-    h.advance(1000); h.fix(610); await flush();
+    await flush();
     assert.equal(h.awards(), 0);
     assert.equal(h.removals(), 1);
+    assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
   }
 });
 
