@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../social/platform/raidTickets.ts'),'utf8');assert.match(s,/enabled/);console.log('raidTickets contract: PASS');

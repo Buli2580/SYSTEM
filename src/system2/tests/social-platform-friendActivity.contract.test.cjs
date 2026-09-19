@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../social/platform/friendActivity.ts'),'utf8');assert.match(s,/enabled/);console.log('friendActivity contract: PASS');

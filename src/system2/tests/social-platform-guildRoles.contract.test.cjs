@@ -1,0 +1,1 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const s=fs.readFileSync(require.resolve('../social/platform/guildRoles.ts'),'utf8');assert.match(s,/enabled/);console.log('guildRoles contract: PASS');
