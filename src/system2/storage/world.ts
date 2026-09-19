@@ -62,7 +62,7 @@ export function locateSignal(location: LocationObject, revision: number, active:
     requireFix(fix, active);
     const signal = await readSignal(db);
     requireFix(fix, active);
-    if (!signal || !validSignal(signal)) throw new Error('Nieprawidłowy zapis sygnału. Użyj RELOCATE SIGNAL.');
+    if (!signal || !validSignal(signal)) throw new Error('Nieprawidłowy zapis sygnału. Użyj opcji „Przenieś sygnał”.');
     if (signal.status === 'LOCATED' || signal.revision !== revision || !signalReached(fix, signal)) return { awarded: false, signal };
     const now = new Date().toISOString();
     const event: VerifiedEvent = {

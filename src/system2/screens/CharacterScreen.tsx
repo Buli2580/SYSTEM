@@ -40,19 +40,19 @@ export default function CharacterScreen() {
     await updateIdentity({ avatarUri: uri });
     removeOwnedAvatar(player.avatarUri);
   }
-  return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY">
+  return <SystemPage title="POSTAĆ" subtitle="TOŻSAMOŚĆ SYSTEMU">
     <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
     <View style={s.panel}>
-      <Text style={s.label}>SYSTEM NAME</Text>
-      <TextInput accessibilityLabel="Zmień SYSTEM NAME" value={name} onChangeText={setName} maxLength={24} style={{ color: '#fff', minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#417480' }} />
-      <Action label="ZAPISZ SYSTEM NAME" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
+      <Text style={s.label}>NAZWA W SYSTEMIE</Text>
+      <TextInput accessibilityLabel="Zmień nazwę w SYSTEMIE" value={name} onChangeText={setName} maxLength={24} style={{ color: '#fff', minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#417480' }} />
+      <Action label="ZAPISZ NAZWĘ" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
       <Action label="AVATAR Z GALERII" disabled={busy} onPress={() => { void run(() => chooseAvatar(false)); }} />
       <Action label="ZRÓB ZDJĘCIE" disabled={busy} onPress={() => { void run(() => chooseAvatar(true)); }} />
       {player.avatarUri && <Action label="USUŃ AVATAR" disabled={busy} onPress={() => { void run(async () => { await updateIdentity({ avatarUri: null }); removeOwnedAvatar(player.avatarUri); }); }} />}
       {error && <SystemError message={error} retry={() => setError(null)} />}
     </View>
-    <View style={s.panel}><Text style={s.label}>ZDOBYTE TITLES</Text>
-      {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${title}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
+    <View style={s.panel}><Text style={s.label}>ZDOBYTE TYTUŁY</Text>
+      {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${titlePl(title)}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
     </View>
     <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} />
     <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />

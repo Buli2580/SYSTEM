@@ -117,13 +117,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.systemLabel}
             >
-              SYSTEM // QUEST
+              SYSTEM // MISJA
             </Text>
 
             <Text
               style={styles.screenTitle}
             >
-              {quest.category === 'BOSS' ? 'BOSS PROTOCOL' : quest.category === 'DAILY' ? 'DAILY PROTOCOL' : `AWAKENING ${quest.order}/${AWAKENING_QUESTS.length}`}
+              {quest.category === 'BOSS' ? 'PROTOKÓŁ BOSSA' : quest.category === 'DAILY' ? 'PROTOKÓŁ DZIENNY' : `PRZEBUDZENIE ${quest.order}/${AWAKENING_QUESTS.length}`}
             </Text>
           </View>
         </View>
@@ -136,16 +136,16 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         />
 
         {!!quest.activityType && <View style={styles.questCard}>
-          <Text style={styles.category}>ACTIVITY MATCH // {!activity || activity.features.durationSeconds < 30 ? 'CHECKING' : activity.verdict === 'VERIFIED' ? 'GOOD' : 'LOW CONFIDENCE'}</Text>
-          <Text style={styles.description}>CURRENT {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · AVG {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
-          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
-          <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
+          <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
+          <Text style={styles.description}>TERAZ {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · ŚREDNIO {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
+          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · KROKI — · KADENCJA —</Text>
+          <Text style={styles.description}>TYLKO GPS // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
         {showLiveTracker && <View style={styles.tracker}>
           <Text
             style={styles.trackerLabel}
           >
-            {isTimer ? 'FOCUS // POZOSTAŁY CZAS' : 'LIVE DISTANCE'}
+            {isTimer ? 'SKUPIENIE // POZOSTAŁY CZAS' : 'DYSTANS NA ŻYWO'}
           </Text>
 
           <View
@@ -201,7 +201,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                {isTimer ? 'TIME LEFT' : 'M LEFT'}
+                {isTimer ? 'POZOSTAŁY CZAS' : 'M DO CELU'}
               </Text>
             </View>
 
@@ -239,7 +239,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveValue
                 }
               >
-                {isTimer ? (renderStatus === 'TRACKING' ? 'ON' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
+                {isTimer ? (renderStatus === 'TRACKING' ? 'WŁ.' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
               </Text>
 
               <Text
@@ -247,7 +247,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                {isTimer ? 'FOCUS' : 'GPS ±M'}
+                {isTimer ? 'SKUPIENIE' : 'GPS ±M'}
               </Text>
             </View>
           </View>
@@ -270,7 +270,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                {isTimer ? `${quest.title} // ACTIVE` : isMulti ? 'FINAL TRIAL // ACTIVE' : 'SYSTEM MONITORUJE RUCH'}
+                {isTimer ? `${quest.title} // AKTYWNA` : isMulti ? 'OSTATNIA PRÓBA // AKTYWNA' : 'SYSTEM MONITORUJE AKTYWNOŚĆ · TŁO WŁ.'}
               </Text>
             </View>
           )}
@@ -287,7 +287,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                SYSTEM // VERIFYING...
+                SYSTEM // WERYFIKACJA…
               </Text>
             </View>
           )}
@@ -346,7 +346,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 styles.completeSmall
               }
             >
-              QUEST COMPLETE
+              MISJA UKOŃCZONA
             </Text>
 
             <Text

@@ -10,6 +10,7 @@ import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import { createResetConfirmation } from '../identity/reset';
+import { requestBackgroundLocationAccess } from '../background/locationService';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
@@ -22,7 +23,7 @@ export default function SettingsScreen() {
     finally { lock.current = false; setBusy(false); }
   }
   function cancelReset() { guard.current.cancel(); setResetStep(0); setConfirmation(''); }
-  return <SystemPage title="WIĘCEJ" subtitle="SYSTEM SETTINGS">
+  return <SystemPage title="WIĘCEJ" subtitle="USTAWIENIA SYSTEMU">
     <View style={s.panel}><Text style={s.label}>SYSTEM ID // LOCAL IDENTITY</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
       <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /><Action label="SYSTEM ONLINE // HUB →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI // SYSTEM ONLINE →" onPress={() => router.push('/leaderboard')} /><Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} /></View>
@@ -31,11 +32,22 @@ export default function SettingsScreen() {
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
       <Text style={s.body}>Dźwięk ukończenia lub level-up. Jeden efekt dla jednej nagrody.</Text>
     </View>
-    <View style={s.panel}><Text style={s.label}>PERMISSIONS</Text><Text style={s.body}>GPS działa tylko podczas aktywnego pomiaru na pierwszym planie.</Text>
+    <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
       <Action label="SPRAWDŹ / PONÓW ZGODĘ GPS" disabled={busy} onPress={() => { void run(async () => {
         const result = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
-        setPermission(result.granted ? 'Lokalizacja: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
+        setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
+      }); }} />
+      <Action label="WŁĄCZ LOKALIZACJĘ W TLE" disabled={busy} onPress={() => { void run(async () => {
+        const foreground = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
+        if (!foreground.granted) {
+          setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
+          return;
+        }
+        const granted = await awaitWithTimeout(requestBackgroundLocationAccess());
+        setPermission(granted
+          ? 'Lokalizacja w tle: włączona. Misje ruchowe mogą działać przy wygaszonym ekranie.'
+          : 'Lokalizacja w tle: brak zgody. W ustawieniach wybierz dostęp do lokalizacji „zawsze”, jeśli telefon udostępnia tę opcję.');
       }); }} />
       <Action label="USTAWIENIA SYSTEMOWE APLIKACJI" onPress={() => { void run(() => Linking.openSettings()); }} />
     </View>

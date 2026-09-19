@@ -23,6 +23,8 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
@@ -50,10 +52,11 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "SYSTEM używa GPS do weryfikacji ruchu podczas aktywnej misji.",
-          "isAndroidBackgroundLocationEnabled": false,
-          "isAndroidForegroundServiceEnabled": false,
-          "isIosBackgroundLocationEnabled": false
+          "locationAlwaysAndWhenInUsePermission": "SYSTEM używa lokalizacji podczas aktywnej misji, także gdy ekran jest wygaszony lub aplikacja działa w tle.",
+          "locationWhenInUsePermission": "SYSTEM używa lokalizacji do mierzenia dystansu i weryfikacji aktywnych misji.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ]
     ],

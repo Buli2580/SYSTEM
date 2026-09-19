@@ -14,6 +14,7 @@ import type { RewardReceipt } from '../core/rewards';
 import type { PlayerAchievementState } from '../achievements/types';
 import { reconcileAchievements } from '../achievements/reconcile';
 import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
+import { flushCloudOutbox } from '../cloud/sync';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -92,7 +93,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         const next = await awaitWithTimeout(db.loadSystemState());
         const health = await awaitWithTimeout(db.testerHealthCheck());
         if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); void syncAchievements(next.player, epoch); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); void syncAchievements(next.player, epoch); setReady(true); void flushCloudOutbox().catch(() => undefined); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
@@ -119,7 +120,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); void syncAchievements(result.player, epoch); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) { setSnapshot(result); void flushCloudOutbox().catch(() => undefined); void syncAchievements(result.player, epoch); if (result.receipt) presentReward(result.receipt); }
     return result;
   }, [presentReward, syncAchievements]);
   const apply = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
