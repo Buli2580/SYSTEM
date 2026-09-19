@@ -183,12 +183,12 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
 }
 
 if (!TaskManager.isTaskDefined(SYSTEM_BACKGROUND_LOCATION_TASK)) {
-  TaskManager.defineTask<LocationTaskData>(SYSTEM_BACKGROUND_LOCATION_TASK, ({ data, error }) => {
+  TaskManager.defineTask<LocationTaskData>(SYSTEM_BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     if (error || !data?.locations?.length) return;
     const locations = data.locations;
     taskQueue = taskQueue
       .then(() => processLocations(locations))
       .catch(() => undefined);
-    return taskQueue;
+    await taskQueue;
   });
 }
