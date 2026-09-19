@@ -1,0 +1,1 @@
+export function decodeCursor(c?:string){const n=Number(c);return Number.isFinite(n)&&n>=0?Math.floor(n):0;}export function pageSlice<T>(rows:T[],cursor?:string,size=25){const s=decodeCursor(cursor),items=rows.slice(s,s+size);return{items,nextCursor:s+items.length<rows.length?String(s+items.length):null};}

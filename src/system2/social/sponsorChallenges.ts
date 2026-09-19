@@ -1,0 +1,1 @@
+export type SponsorChallenge={id:string;sponsorId:string;title:string;target:number;metric:'QUESTS'|'DISTANCE'|'STREAK';premiumOnly:boolean;startsAt:string;endsAt:string;rewardLabel:string};export function sponsorChallengeEligible(c:SponsorChallenge,premium:boolean,now=new Date().toISOString()){return(!c.premiumOnly||premium)&&c.startsAt<=now&&now<c.endsAt;}

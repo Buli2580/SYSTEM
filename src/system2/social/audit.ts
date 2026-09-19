@@ -1,0 +1,1 @@
+export type SocialAuditAction='FOLLOW'|'UNFOLLOW'|'BLOCK'|'UNBLOCK'|'FRIEND_REQUEST'|'FRIEND_ACCEPT'|'REPORT'|'PROFILE_VISIBILITY';export type SocialAuditRecord={id:string;actorId:string;action:SocialAuditAction;targetId?:string;createdAt:string;metadata?:Record<string,string|number|boolean>};

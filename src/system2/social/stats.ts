@@ -1,0 +1,1 @@
+export function percentile(position:number,total:number){if(total<=1)return 100;return Math.max(0,Math.min(100,100-((position-1)/(total-1))*100));}export function movement(previous:number|null,current:number|null){return previous==null||current==null?null:previous-current;}

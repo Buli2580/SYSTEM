@@ -1,0 +1,1 @@
+export type Rivalry={playerA:string;playerB:string;category:string;scoreA:number;scoreB:number;startedAt:string};export function rivalryLeader(r:Rivalry){return r.scoreA===r.scoreB?null:r.scoreA>r.scoreB?r.playerA:r.playerB;}export function rivalryGap(r:Rivalry){return Math.abs(r.scoreA-r.scoreB);}

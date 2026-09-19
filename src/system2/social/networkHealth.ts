@@ -1,0 +1,1 @@
+export type NetworkHealth='ONLINE'|'DEGRADED'|'OFFLINE';export function networkHealth(x:{reachable:boolean;lastSyncAt?:string;now?:number}):NetworkHealth{if(!x.reachable)return'OFFLINE';if(!x.lastSyncAt)return'DEGRADED';return(x.now??Date.now())-new Date(x.lastSyncAt).getTime()>300000?'DEGRADED':'ONLINE';}
