@@ -1,0 +1,16 @@
+{
+  "build": {
+    "device-test": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "play-internal": {
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  }
+}

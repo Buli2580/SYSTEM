@@ -19,6 +19,7 @@ import {
   type SocialProfile,
 } from '../cloud/social';
 import { ensureCurrentCloudBinding, flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
+import { requestAccountDeletion } from '../cloud/account';
 
 const inputStyle = {
   color: '#fff',
@@ -51,6 +52,7 @@ export default function AccountScreen() {
   const [status, setStatus] = useState('SYSTEM CLOUD // NIEPOŁĄCZONY');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const lock = useRef(false);
 
   function fillSocial(profile: SocialProfile) {
@@ -237,6 +239,22 @@ export default function AccountScreen() {
         <Action label="SPRAWDŹ STAN CHMURY" disabled={busy} onPress={() => { void run(checkCloud); }} />
         <Action label="RANKINGI I GRACZE →" disabled={busy} onPress={() => router.push('/leaderboard')} />
         <Action label="WYLOGUJ SIĘ" disabled={busy} onPress={() => { void run(logout); }} />
+      </View>
+
+      <View style={s.panel}>
+        <Text style={s.label}>PRYWATNOŚĆ I KONTO</Text>
+        <Action label="POLITYKA PRYWATNOŚCI →" disabled={busy} onPress={() => router.push('/privacy')} />
+        {!deleteConfirm
+          ? <Action label="ZAŻĄDAJ USUNIĘCIA KONTA" danger disabled={busy} onPress={() => setDeleteConfirm(true)} />
+          : <>
+            <Text style={s.body}>To utworzy żądanie usunięcia konta SYSTEM CLOUD i powiązanych danych. Operacja nie usuwa danych natychmiast — żądanie trafia do obsługi usunięcia.</Text>
+            <Action label="POTWIERDŹ ŻĄDANIE USUNIĘCIA" danger disabled={busy} onPress={() => { void run(async () => {
+              await requestAccountDeletion();
+              setDeleteConfirm(false);
+              setStatus('USUNIĘCIE KONTA // ŻĄDANIE ZAPISANE');
+            }); }} />
+            <Action label="ANULUJ" disabled={busy} onPress={() => setDeleteConfirm(false)} />
+          </>}
       </View>
 
       <View style={s.panel}>

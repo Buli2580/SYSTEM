@@ -11,6 +11,7 @@ import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import { createResetConfirmation } from '../identity/reset';
 import { requestBackgroundLocationAccess } from '../background/locationService';
+import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
@@ -40,6 +41,11 @@ export default function SettingsScreen() {
         setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
       }); }} />
       <Action label="WŁĄCZ LOKALIZACJĘ W TLE" disabled={busy} onPress={() => { void run(async () => {
+        const disclosureAccepted = await confirmBackgroundLocationDisclosure();
+        if (!disclosureAccepted) {
+          setPermission('Lokalizacja w tle nie została włączona.');
+          return;
+        }
         const foreground = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
         if (!foreground.granted) {
           setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
@@ -55,6 +61,10 @@ export default function SettingsScreen() {
     <BetaSettings />
     <View style={s.panel}><Text style={s.label}>DANE</Text><Text style={s.body}>Profil, misje, WORLD i preferencje nadal są zapisane lokalnie w SQLite i pozostają dostępne offline. SYSTEM ONLINE dodaje opcjonalne konto, publiczny profil i zaplecze chmurowe bez kasowania lokalnego progresu.</Text>
       <Action label="WYCZYŚĆ DANE SYSTEMU" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />
+    </View>
+    <View style={s.panel}><Text style={s.label}>PRYWATNOŚĆ</Text>
+      <Text style={s.body}>Sprawdź, jakie dane SYSTEM przetwarza, do czego używa lokalizacji oraz jak działa żądanie usunięcia danych.</Text>
+      <Action label="POLITYKA PRYWATNOŚCI →" onPress={() => router.push('/privacy')} />
     </View>
     <View style={s.panel}><Text style={s.label}>O APLIKACJI</Text><Text style={s.title}>SYSTEM 2.0 // FUNDAMENT ONLINE</Text><Text style={s.body}>Wersja aplikacji: {Constants.expoConfig?.version ?? 'niedostępna'}</Text><Text style={s.body}>Mapa WORLD: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}

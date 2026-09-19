@@ -24,7 +24,8 @@
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
-      "package": "com.anonymous.SYSTEM"
+      "package": "pl.systemworld.app",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
