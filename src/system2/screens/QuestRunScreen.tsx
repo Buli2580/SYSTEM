@@ -173,10 +173,10 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         </View>
 
         {!!quest.activityType && <View style={styles.questCard}>
-          <Text style={styles.category}>ACTIVITY MATCH // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'POTWIERDZONE' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
-          <Text style={styles.description}>CURRENT {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · AVG {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
-          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
-          <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
+          <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
+          <Text style={styles.description}>TERAZ {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · ŚREDNIO {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
+          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · KROKI — · KADENCJA —</Text>
+          <Text style={styles.description}>TYLKO GPS // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
         <View
           style={styles.tracker}
