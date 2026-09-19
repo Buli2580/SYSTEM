@@ -32,8 +32,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Expo config
+        run: npx expo config --type public > /tmp/expo-config.txt
+
       - name: TypeScript
         run: npx tsc --noEmit --incremental false
 
       - name: Gameplay tests
         run: node --test src/system2/tests/gameplay.test.cjs
+
+      - name: Diff check
+        run: git diff --check
