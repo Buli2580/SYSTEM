@@ -58,7 +58,11 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Nieznany błąd synchronizacji.';
       await markCloudOutboxAttempt(row.event_key, message);
-      if (cause instanceof CloudRequestError && (cause.status === 401 || cause.status === 403)) break;
+      if (
+        cause instanceof CloudRequestError &&
+        (cause.status === 0 || cause.status === 401 || cause.status === 403 ||
+          cause.status === 429 || cause.status >= 500)
+      ) break;
     }
   }
 

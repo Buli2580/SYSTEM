@@ -38,6 +38,7 @@ export type SignUpResult = {
 };
 
 let refreshPromise: Promise<CloudSession> | null = null;
+let authGeneration = 0;
 
 function sessionFromPayload(payload: AuthPayload): CloudSession | null {
   const source = payload.session ?? payload;
@@ -120,6 +121,8 @@ export async function signUpWithPassword(
   password: string,
   displayName: string,
 ): Promise<SignUpResult> {
+  const generation = ++authGeneration;
+  refreshPromise = null;
   const safeEmail = email.trim().toLowerCase();
   if (!safeEmail || !safeEmail.includes('@')) throw new Error('Podaj poprawny e-mail.');
   if (password.length < 8) throw new Error('Hasło musi mieć co najmniej 8 znaków.');
@@ -134,6 +137,7 @@ export async function signUpWithPassword(
     }),
   });
 
+  if (generation !== authGeneration) throw new Error('Sesja logowania została zastąpiona nowszą operacją.');
   const session = sessionFromPayload(payload);
   if (session) await persistSession(session);
   return {
@@ -144,21 +148,27 @@ export async function signUpWithPassword(
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<CloudSession> {
+  const generation = ++authGeneration;
+  refreshPromise = null;
   const payload = await cloudRequest<AuthPayload>('/auth/v1/token?grant_type=password', {
     method: 'POST',
     body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
   });
+  if (generation !== authGeneration) throw new Error('Sesja logowania została zastąpiona nowszą operacją.');
   const session = sessionFromPayload(payload);
   if (!session) throw new Error('SYSTEM CLOUD nie zwrócił sesji.');
   await persistSession(session);
   return session;
 }
 
-async function refreshSession(session: CloudSession): Promise<CloudSession> {
+async function refreshSession(session: CloudSession, generation: number): Promise<CloudSession> {
   const payload = await cloudRequest<AuthPayload>('/auth/v1/token?grant_type=refresh_token', {
     method: 'POST',
     body: JSON.stringify({ refresh_token: session.refreshToken }),
   });
+  if (generation !== authGeneration) {
+    throw new Error('Odświeżenie starej sesji zostało anulowane.');
+  }
   const refreshed = sessionFromPayload(payload);
   if (!refreshed) {
     await persistSession(null);
@@ -174,19 +184,23 @@ export async function getValidSession(): Promise<CloudSession | null> {
   if (session.expiresAt - Date.now() > 120_000) return session;
 
   if (!refreshPromise) {
-    refreshPromise = refreshSession(session).finally(() => {
-      refreshPromise = null;
+    const generation = authGeneration;
+    const operation = refreshSession(session, generation);
+    const tracked = operation.finally(() => {
+      if (refreshPromise === tracked) refreshPromise = null;
     });
+    refreshPromise = tracked;
   }
   return refreshPromise;
 }
 
 export async function signOutCloud(): Promise<void> {
+  const generation = ++authGeneration;
+  refreshPromise = null;
   const session = await loadStoredSession();
   try {
     if (session) await cloudRequest('/auth/v1/logout', { method: 'POST' }, session.accessToken);
   } finally {
-    refreshPromise = null;
-    await persistSession(null);
+    if (generation === authGeneration) await persistSession(null);
   }
 }

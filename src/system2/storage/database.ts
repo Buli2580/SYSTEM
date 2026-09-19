@@ -714,7 +714,17 @@ export function backfillCloudOutbox() {
 export function listPendingCloudOutbox(limit = 25) {
   const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
   return profileTransaction(txn => txn.getAllAsync<CloudOutboxRow>(
-    `SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
+    `SELECT * FROM cloud_outbox
+     WHERE synced_at IS NULL
+       AND (
+         attempts = 0 OR last_attempt_at IS NULL OR
+         (attempts = 1 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 60) OR
+         (attempts = 2 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 300) OR
+         (attempts = 3 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 900) OR
+         (attempts = 4 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 3600) OR
+         (attempts >= 5 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 21600)
+       )
+     ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
     safeLimit,
   ));
 }
