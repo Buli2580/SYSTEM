@@ -1,41 +1,4 @@
-// Mock for react-native-reanimated to be used in tests
-const mockReanimated = {
-  // Animated components - return strings so they can be used as JSX elements
-  View: 'View',
-  Text: 'Text',
-  Image: 'Image',
-  
-  // Animated functions and hooks - minimal implementations that don't break the code
-  useSharedValue: (initialValue) => ({
-    value: initialValue,
-  }),
-  useAnimatedStyle: () => ({}),
-  useAnimatedProps: () => ({}),
-  useDerivedValue: () => ({}),
-  useAnimatedRef: () => ({}),
-  withTiming: (toValue, config, callback) => toValue,
-  withSpring: (toValue, config, callback) => toValue,
-  withDecay: (config, callback) => {},
-  withSequence: (...args) => args,
-  withRepeat: (...args) => args,
-  cancelAnimation: () => {},
-  interpolate: () => 0,
-  Easing: {
-    linear: () => 'linear',
-    ease: () => 'ease',
-    in: () => 'in',
-    out: () => 'out',
-    inOut: () => 'inOut',
-  },
-  runOnJS: (fn) => fn,
-  useAnimatedGestureHandler: () => ({}),
-  useAnimatedScrollHandler: () => ({}),
-  useAnimatedStyle: () => ({}),
-  useAnimatedProps: () => ({}),
-  useAnimatedRef: () => ({}),
-  useDerivedValue: () => ({}),
-  useAnimatedReaction: () => ({}),
-};
-
-// Export for use in test harness
-module.exports = mockReanimated;
+const chain={duration:()=>chain,delay:()=>chain,springify:()=>chain,damping:()=>chain,stiffness:()=>chain};
+const mockReanimated={View:'View',Text:'Text',Image:'Image',ScrollView:'ScrollView',createAnimatedComponent:(c)=>c,useSharedValue:(value)=>({value}),useAnimatedStyle:()=>({}),useAnimatedProps:()=>({}),useDerivedValue:(fn)=>({value:typeof fn==='function'?fn():undefined}),useAnimatedRef:()=>({}),useAnimatedReaction:()=>{},useAnimatedGestureHandler:()=>({}),useAnimatedScrollHandler:()=>({}),withTiming:(v,_c,cb)=>{if(cb)cb(true);return v},withSpring:(v,_c,cb)=>{if(cb)cb(true);return v},withDecay:()=>0,withSequence:(...v)=>v[v.length-1],withRepeat:(v)=>v,cancelAnimation:()=>{},interpolate:()=>0,runOnJS:(fn)=>fn,Easing:{linear:(v)=>v,ease:(v)=>v,in:(fn)=>fn,out:(fn)=>fn,inOut:(fn)=>fn},FadeIn:chain,FadeInUp:chain,FadeOut:chain,FadeOutDown:chain,SlideInDown:chain,SlideOutDown:chain};
+mockReanimated.default=mockReanimated;
+module.exports=mockReanimated;
