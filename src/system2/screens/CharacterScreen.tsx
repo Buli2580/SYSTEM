@@ -54,6 +54,7 @@ export default function CharacterScreen() {
     <View style={s.panel}><Text style={s.label}>ZDOBYTE TITLES</Text>
       {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${title}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
     </View>
+    <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} />
     <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />
   </SystemPage>;
 }
