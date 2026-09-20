@@ -1,0 +1,1 @@
+export type SponsorExposure={day:string;views:number;opens:number};export function sponsorCanShow(e:SponsorExposure,dailyCap=2){return e.views<Math.max(0,dailyCap)}export function sponsorEngagement(e:SponsorExposure){return e.views>0?Math.min(1,e.opens/e.views):0;}
