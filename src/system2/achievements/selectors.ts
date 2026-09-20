@@ -34,7 +34,7 @@ export interface EvaluatedAchievement {
 export function getProgressValue(profile: PlayerProfile, key: ProgressKey): number {
   switch (key) {
     case 'questsCompleted':
-      return 0;
+      return profile.verifiedQuestCount;
     case 'sectorsDiscovered':
       return profile.discoveredSectors;
     case 'signalsLocated':
@@ -52,7 +52,7 @@ export function getProgressValue(profile: PlayerProfile, key: ProgressKey): numb
     case 'bossEncounters':
       return 0;
     case 'fieldQuestsDistance':
-      return profile.totalDistanceMeters;
+      return profile.totalDistanceMeters / 1000;
     case 'fieldQuestsCompleted':
       return 0;
     case 'extraMileCompleted':
@@ -115,8 +115,8 @@ function checkPrerequisites(achievement: AchievementDefinition, completedQuestId
 }
 
 function determineState(
-  achievement: AchievementDefinition, 
-  isComplete: boolean, 
+  _achievement: AchievementDefinition,
+  isComplete: boolean,
   currentValue: number
 ): AchievementProgress['state'] {
   if (isComplete) {
@@ -228,7 +228,7 @@ export function getNextAchievements(
   extraProgress: Record<string, number> = {},
   limit: number = 5
 ): AchievementDefinition[] {
-  const evaluated = evaluateAllAchievements(profile, completedQuestIds, {});
+  const evaluated = evaluateAllAchievements(profile, completedQuestIds, extraProgress);
   
   return evaluated
     .filter(e => e.progress.state === 'IN_PROGRESS' || e.progress.state === 'LOCKED')
