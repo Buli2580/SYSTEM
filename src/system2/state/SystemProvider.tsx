@@ -102,14 +102,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) { setSnapshot(result); await reconcileAchievements(result.player); await refreshAchievements(); if (result.receipt) presentReward(result.receipt); }
     return result;
-  }, [presentReward]);
+  }, [presentReward, refreshAchievements]);
   const apply = useCallback(async (operation: Promise<db.SystemSnapshot>) => {
     const epoch = ++generation.current; refreshRef.current = null;
     const next = await awaitWithTimeout(operation);
-    if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); }
-  }, []);
+    if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); await reconcileAchievements(next.player); await refreshAchievements(); }
+  }, [refreshAchievements]);
   const resetData = useCallback(async (confirmed: true) => {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
@@ -119,10 +119,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());
-      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true);
+      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); await reconcileAchievements(next.player); await refreshAchievements(); setReady(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
-  }, []);
+  }, [refreshAchievements]);
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(db.updateIdentity(patch)),
