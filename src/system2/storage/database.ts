@@ -28,6 +28,8 @@ import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
 import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
+import type { AIGameMasterResponse } from '../ai/types';
+import { candidatesFromAI } from '../ai/bridge';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -790,6 +792,70 @@ export function createPlayerGoal(input: GoalInput) {
 }
 export function updateGoalStatus(id: string, status: GoalStatus) {
  return profileTransaction(async txn => { await changeGoalStatus(txn,id,status); return snapshotInTransaction(txn); });
+}
+
+export function applyAIDailyPlan(plan: AIGameMasterResponse) {
+ return profileTransaction(async txn => {
+   const snapshot = await snapshotInTransaction(txn);
+   const daily = snapshot.daily;
+   if (!daily || daily.clockAnomaly || daily.clear || plan.source !== 'ai') return snapshot;
+
+   const markerKey = 'ai_daily_applied:' + daily.dayKey;
+   if (await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', markerKey)) return snapshot;
+
+   const touched = await txn.getFirstAsync(
+     `SELECT d.id FROM daily_instances d
+      WHERE d.day_key=? AND (
+        EXISTS(SELECT 1 FROM quest_completions c WHERE c.quest_id=d.id)
+        OR EXISTS(SELECT 1 FROM quest_attempts a WHERE a.quest_id=d.id)
+      ) LIMIT 1`,
+     daily.dayKey,
+   );
+   if (touched) return snapshot;
+
+   const input = await generationInput(
+     txn,
+     snapshot.player,
+     daily.dayKey,
+     snapshot.settings.activities ?? DEFAULT_ACTIVITIES,
+   );
+   input.exclude = [];
+   const candidates = candidatesFromAI(input, plan, 3);
+   if (candidates.length !== 3) return snapshot;
+
+   const old = await txn.getAllAsync<{id:string}>(
+     'SELECT id FROM daily_instances WHERE day_key=?',
+     daily.dayKey,
+   );
+   for (const row of old) {
+     await txn.runAsync('DELETE FROM journey_quests WHERE quest_id=?', row.id);
+     await txn.runAsync('DELETE FROM journey_activity WHERE quest_id=?', row.id);
+   }
+   await txn.runAsync('DELETE FROM daily_rerolls WHERE day_key=?', daily.dayKey);
+   await txn.runAsync('DELETE FROM daily_generation WHERE day_key=?', daily.dayKey);
+   await txn.runAsync('DELETE FROM daily_instances WHERE day_key=?', daily.dayKey);
+
+   for (const candidate of candidates) await persistCandidate(txn, candidate);
+
+   await txn.runAsync(
+     'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+     markerKey,
+     JSON.stringify({
+       source: plan.source,
+       model: plan.model ?? null,
+       briefing: plan.briefing,
+       generatedAt: new Date().toISOString(),
+     }),
+   );
+   await storyEvent(
+     txn,
+     'ai_daily_applied:' + daily.dayKey,
+     'DAILY_GENERATED',
+     'AI GAME MASTER // LOADOUT',
+     plan.briefing.slice(0, 240),
+   );
+   return snapshotInTransaction(txn);
+ });
 }
 
 export function rerollDailyQuest(id:string) { return profileTransaction(async txn=>{
