@@ -116,3 +116,24 @@ test('legacy campaign preview never carries authoritative XP', () => {
   assert.equal(Object.hasOwn(generated[0], 'xp'), false);
   assert.equal(generated[0].source, 'GAME_MASTER_PREVIEW');
 });
+
+
+test('Game Master goal bridge creates a bounded canonical goal without rewards', () => {
+  const load = loader();
+  const { buildStarterCampaign } = load('gameMaster/planner');
+  const { campaignGoalToInput, campaignGoalAlreadyExists } = load('gameMaster/goalBridge');
+  const { validateGoal } = load('goals/model');
+  const campaign = buildStarterCampaign('zbudować stabilny projekt usługowy');
+  const input = campaignGoalToInput(campaign);
+  assert.equal(input.category, 'PRODUCTIVITY');
+  assert.equal(input.priority, 2);
+  assert.ok(input.title.length <= 80);
+  assert.equal(validateGoal(input).title, input.title);
+  assert.equal(Object.hasOwn(input, 'xp'), false);
+  assert.equal(Object.hasOwn(input, 'rewards'), false);
+  assert.equal(campaignGoalAlreadyExists(campaign, []), false);
+  assert.equal(campaignGoalAlreadyExists(campaign, [{
+    id:'1', category:input.category, title:input.title.toUpperCase(), description:'',
+    priority:2, createdAt:'2026-09-20T00:00:00.000Z', status:'ACTIVE'
+  }]), true);
+});
