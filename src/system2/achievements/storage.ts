@@ -269,6 +269,16 @@ export async function recordAchievementEvent(
   );
 }
 
+export async function resetAchievementData(): Promise<void> {
+  await ensureAchievementsDatabase();
+  const db = await getDatabase();
+  await db.withExclusiveTransactionAsync(async txn => {
+    await txn.runAsync(`DELETE FROM ${ACHIEVEMENT_EVENTS_TABLE}`);
+    await txn.runAsync(`DELETE FROM ${TITLES_TABLE}`);
+    await txn.runAsync(`DELETE FROM ${ACHIEVEMENTS_TABLE}`);
+  });
+}
+
 export async function getRecentAchievementEvents(limit: number = 50): Promise<AchievementEventRecord[]> {
   await ensureAchievementsDatabase();
   const db = await getDatabase();
