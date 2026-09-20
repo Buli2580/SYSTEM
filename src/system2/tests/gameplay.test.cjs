@@ -2092,6 +2092,9 @@ function providerUI(db,dev=false,achievementMocks={}) {
   'react-native':{AppState:{addEventListener:()=>({remove(){}}),currentState:'active'}},
   '../storage/database':db,
   '../cloud/sync':{flushCloudOutbox:async()=>({authenticated:false,sent:0,pending:0,failed:0})},
+  '../ai':{requestDailyAIGameMaster:async()=>({
+    quests:[],director:{mode:'normal',difficultyBias:0,headline:'DAILY DIRECTIVE',message:'TEST'},briefing:'',source:'fallback'
+  })},
   '../background/locationService':{stopQuestBackgroundTracking:async()=>{}},
   '../achievements/reconcile':{reconcileAchievements:async()=>{}},
   '../achievements/storage':{loadAchievementsState:async()=>({}),loadTitlesState:async()=>({titles:{},activeTitleId:null})},
