@@ -9,6 +9,7 @@ on:
       - master
       - "agent/**"
       - "chore/**"
+      - "feature/system-ai-game-master-1.0"
 
 permissions:
   contents: read
@@ -43,6 +44,9 @@ jobs:
 
       - name: Gameplay tests
         run: node --test src/system2/tests/gameplay.test.cjs
+
+      - name: AI Game Master tests
+        run: node --test src/system2/tests/ai-game-master.test.cjs
 
       - name: Cloud processor SQL and mobile tests
         run: |
