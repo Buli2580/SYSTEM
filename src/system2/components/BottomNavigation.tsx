@@ -43,7 +43,7 @@ export default function BottomNavigation() {
 
       <NavItem
         label="POSTAĆ"
-        active={pathname === '/character' || pathname === '/system-log'}
+        active={pathname === '/character' || pathname === '/system-log' || pathname === '/achievements'}
         onPress={() => router.replace('/character')}
         shape="diamond"
       />
