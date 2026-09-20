@@ -25,6 +25,42 @@ function json(data: unknown, status = 200) {
   });
 }
 
+async function requireAuthenticatedUser(req: Request) {
+  const authorization = req.headers.get('authorization') ?? '';
+  if (!authorization.toLowerCase().startsWith('bearer ')) {
+    throw new Response(JSON.stringify({ error: 'AUTH_REQUIRED' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase auth environment is unavailable');
+
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+    headers: {
+      authorization,
+      apikey: anonKey,
+      accept: 'application/json',
+    },
+  });
+  if (!response.ok) {
+    throw new Response(JSON.stringify({ error: 'INVALID_SESSION' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    });
+  }
+  const user = await response.json();
+  if (!user || typeof user.id !== 'string' || !user.id) {
+    throw new Response(JSON.stringify({ error: 'INVALID_SESSION' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    });
+  }
+  return user.id as string;
+}
+
 function normalize(text: string) {
   return text
     .toLowerCase()
@@ -331,11 +367,13 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
+    await requireAuthenticatedUser(req);
     const body = await req.json();
     if (body?.action !== 'generate_daily') return json({ error: 'Unknown action' }, 400);
     if (!body?.context?.player) return json({ error: 'Missing player context' }, 400);
     return json(await callProvider(body.context));
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error(error);
     return json({ error: 'AI_GAME_MASTER_FAILED' }, 500);
   }
