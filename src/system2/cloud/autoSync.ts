@@ -1,5 +1,5 @@
 import { AppState, type AppStateStatus } from 'react-native';
-import { flushCloudOutbox, getCloudSyncStatus } from './sync';
+import { flushCloudOutbox, getLocalCloudSyncStatus } from './sync';
 
 export type AutoSyncState = 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
 export type AutoSyncListener = (state: AutoSyncState) => void;
@@ -31,7 +31,7 @@ export class AutoCloudSync {
     this.listener?.('syncing');
     try {
       await flushCloudOutbox();
-      const status = await getCloudSyncStatus();
+      const status = await getLocalCloudSyncStatus();
       this.listener?.(status.pending === 0 ? 'synced' : 'offline');
     } catch {
       this.listener?.('error');
