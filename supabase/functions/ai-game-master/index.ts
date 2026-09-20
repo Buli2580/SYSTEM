@@ -46,16 +46,25 @@ function similarity(a: string, b: string) {
 
 function safeQuest(q: any, recent: string[], accepted: string[]) {
   if (!q || typeof q !== 'object') return false;
-  if (typeof q.key !== 'string' || q.key.length < 3) return false;
-  if (typeof q.title !== 'string' || q.title.length < 3 || q.title.length > 80) return false;
-  if (typeof q.description !== 'string' || q.description.length < 5 || q.description.length > 280) return false;
+  if (typeof q.key !== 'string' || q.key.length < 3 || q.key.length > 120) return false;
+  if (typeof q.title !== 'string' || q.title.trim().length < 3 || q.title.length > 80) return false;
+  if (typeof q.description !== 'string' || q.description.trim().length < 5 || q.description.length > 280) return false;
+  if (typeof q.reason !== 'string' || q.reason.trim().length < 3 || q.reason.length > 180) return false;
   if (!ALLOWED_CATEGORIES.includes(q.category)) return false;
   if (!ALLOWED_DIFFICULTIES.includes(q.difficulty)) return false;
   if (!ALLOWED_DAILY_VERIFICATION.includes(q.verification)) return false;
   if (!ALLOWED_TEMPLATE_HINTS.includes(q.templateHint)) return false;
   if (!Number.isFinite(q.estimatedMinutes) || q.estimatedMinutes < 1 || q.estimatedMinutes > 180) return false;
   if (!Number.isFinite(q.expiresInHours) || q.expiresInHours < 1 || q.expiresInHours > 72) return false;
-  if (!Array.isArray(q.tags) || q.tags.length > 8) return false;
+  if (!Array.isArray(q.tags) || q.tags.length > 8 ||
+      q.tags.some((tag: unknown) => typeof tag !== 'string' || !tag.trim() || tag.length > 32)) return false;
+  if (q.target !== undefined) {
+    if (!q.target || typeof q.target !== 'object') return false;
+    if (!['minutes','meters','count'].includes(q.target.kind)) return false;
+    if (!Number.isFinite(q.target.value) || q.target.value <= 0 || q.target.value > 100_000) return false;
+    if (q.verification === 'gps' && q.target.kind !== 'meters') return false;
+    if (q.verification === 'timer' && q.target.kind !== 'minutes') return false;
+  }
 
   const blocked = [
     /self[-\s]?harm/i,
@@ -69,6 +78,9 @@ function safeQuest(q: any, recent: string[], accepted: string[]) {
     /ukrad/i,
     /włam/i,
     /publiczn.*upok/i,
+    /bez snu|nie śpij|sleep deprivation/i,
+    /odwodn|bez wody/i,
+    /prowadź.*samoch|drive.*while/i,
   ];
   const full = `${q.title} ${q.description}`;
   if (blocked.some(rx => rx.test(full))) return false;

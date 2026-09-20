@@ -11,6 +11,7 @@ const CATEGORIES = new Set<AIQuestCategory>([
 ]);
 const DIFFICULTIES = new Set<AIQuestDifficulty>(['easy','medium','hard']);
 const VERIFICATION = new Set<AIQuestVerification>(['manual','timer','gps']);
+const TARGET_KINDS = new Set(['minutes','meters','count']);
 
 const BLOCKED = [
   /self[-\s]?harm/i,
@@ -23,7 +24,25 @@ const BLOCKED = [
   /mandat/i,
   /ukrad/i,
   /włam/i,
+  /publiczn.*upok/i,
+  /bez snu|nie śpij|sleep deprivation/i,
+  /odwodn|bez wody/i,
+  /prowadź.*samoch|drive.*while/i,
 ];
+
+function validTarget(
+  target: unknown,
+  verification: AIQuestVerification,
+): boolean {
+  if (target === undefined) return true;
+  if (!target || typeof target !== 'object') return false;
+  const value = target as { kind?: unknown; value?: unknown };
+  if (typeof value.kind !== 'string' || !TARGET_KINDS.has(value.kind)) return false;
+  if (typeof value.value !== 'number' || !Number.isFinite(value.value) || value.value <= 0 || value.value > 100_000) return false;
+  if (verification === 'gps' && value.kind !== 'meters') return false;
+  if (verification === 'timer' && value.kind !== 'minutes') return false;
+  return true;
+}
 
 export function validateAIGameMasterResponse(
   value: unknown,
@@ -33,22 +52,28 @@ export function validateAIGameMasterResponse(
   const r = value as AIGameMasterResponse;
   if (!Array.isArray(r.quests) || !r.quests.length || r.quests.length > 8) return null;
   if (!r.director || typeof r.briefing !== 'string') return null;
+  if (r.source !== 'ai' && r.source !== 'fallback') return null;
+  if (r.model !== undefined && (typeof r.model !== 'string' || r.model.length > 120)) return null;
   if (!['normal','recovery','challenge'].includes(r.director.mode)) return null;
   if (![-1,0,1].includes(r.director.difficultyBias)) return null;
-  if (typeof r.director.headline !== 'string' || typeof r.director.message !== 'string') return null;
+  if (typeof r.director.headline !== 'string' || !r.director.headline.trim() || r.director.headline.length > 80) return null;
+  if (typeof r.director.message !== 'string' || !r.director.message.trim() || r.director.message.length > 220) return null;
 
   const seen: string[] = [];
   for (const q of r.quests) {
     if (!q || typeof q !== 'object') return null;
-    if (typeof q.key !== 'string' || q.key.length < 3) return null;
-    if (typeof q.title !== 'string' || q.title.length < 3 || q.title.length > 80) return null;
-    if (typeof q.description !== 'string' || q.description.length < 5 || q.description.length > 280) return null;
+    if (typeof q.key !== 'string' || q.key.length < 3 || q.key.length > 120) return null;
+    if (typeof q.title !== 'string' || q.title.trim().length < 3 || q.title.length > 80) return null;
+    if (typeof q.description !== 'string' || q.description.trim().length < 5 || q.description.length > 280) return null;
+    if (typeof q.reason !== 'string' || q.reason.trim().length < 3 || q.reason.length > 180) return null;
     if (!CATEGORIES.has(q.category)) return null;
     if (!DIFFICULTIES.has(q.difficulty)) return null;
     if (!VERIFICATION.has(q.verification)) return null;
     if (!Number.isFinite(q.estimatedMinutes) || q.estimatedMinutes < 1 || q.estimatedMinutes > 180) return null;
     if (!Number.isFinite(q.expiresInHours) || q.expiresInHours < 1 || q.expiresInHours > 72) return null;
-    if (!Array.isArray(q.tags) || q.tags.length > 8) return null;
+    if (!Array.isArray(q.tags) || q.tags.length > 8 ||
+        q.tags.some(tag => typeof tag !== 'string' || !tag.trim() || tag.length > 32)) return null;
+    if (!validTarget(q.target, q.verification)) return null;
     if (q.templateHint !== undefined &&
         (typeof q.templateHint !== 'string' || !/^[a-z0-9_]{3,60}$/.test(q.templateHint))) return null;
 
@@ -61,7 +86,19 @@ export function validateAIGameMasterResponse(
 
   return {
     ...r,
-    briefing: r.briefing.slice(0, 180),
-    source: r.source === 'fallback' ? 'fallback' : 'ai',
+    briefing: r.briefing.trim().slice(0, 180),
+    director: {
+      ...r.director,
+      headline: r.director.headline.trim(),
+      message: r.director.message.trim(),
+    },
+    quests: r.quests.map(q => ({
+      ...q,
+      key: q.key.trim(),
+      title: q.title.trim(),
+      description: q.description.trim(),
+      reason: q.reason.trim(),
+      tags: q.tags.map(tag => tag.trim()),
+    })),
   };
 }
