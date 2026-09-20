@@ -56,7 +56,17 @@ function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return databasePromise;
 }
 
-initAchievementsDatabase().catch(console.error);
+let initializationPromise: Promise<void> | null = null;
+
+function ensureAchievementsDatabase(): Promise<void> {
+  if (!initializationPromise) {
+    initializationPromise = initAchievementsDatabase().catch(error => {
+      initializationPromise = null;
+      throw error;
+    });
+  }
+  return initializationPromise;
+}
 
 export type AchievementRow = {
   id: string;
@@ -69,6 +79,7 @@ export type AchievementRow = {
 };
 
 export async function loadAchievementsState(): Promise<Record<string, { state: 'LOCKED' | 'IN_PROGRESS' | 'UNLOCKED' | 'CLAIMED'; currentProgress: number; maxProgress: number; unlockedAt?: string; claimedAt?: string }>> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
     id: string;
@@ -101,6 +112,7 @@ export async function saveAchievementProgress(achievementId: string, progress: {
   unlockedAt?: string;
   claimedAt?: string;
 }): Promise<void> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
   const now = Date.now();
   
@@ -157,6 +169,7 @@ export async function updateAchievementProgress(achievementId: string, currentPr
 }
 
 export async function loadTitlesState(): Promise<PlayerTitleState> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
     id: string;
@@ -183,9 +196,8 @@ export async function loadTitlesState(): Promise<PlayerTitleState> {
 }
 
 export async function saveTitleState(titleId: string, state: { unlocked: boolean; isActive?: boolean }): Promise<void> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
-  const now = new Date().toISOString();
-  
   await db.runAsync(
     `INSERT INTO player_titles (id, unlocked, unlocked_at, is_active)
      VALUES (?, ?, ?, ?)
@@ -205,6 +217,7 @@ export async function unlockTitle(titleId: string): Promise<void> {
 }
 
 export async function setActiveTitle(titleId: string): Promise<void> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
   await db.withExclusiveTransactionAsync(async txn => {
     await txn.runAsync('UPDATE player_titles SET is_active = 0');
@@ -216,6 +229,7 @@ export async function setActiveTitle(titleId: string): Promise<void> {
 }
 
 export async function getActiveTitle(): Promise<string | null> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ id: string }>(
     'SELECT id FROM player_titles WHERE is_active = 1 LIMIT 1'
@@ -228,9 +242,11 @@ export type AchievementEventRecord = {
   type: string;
   achievement_id: string | null;
   title_id: string | null;
-  payload: string;
+  payload: Record<string, unknown>;
   created_at: number;
 };
+
+type AchievementEventRow = Omit<AchievementEventRecord, 'payload'> & { payload: string };
 
 export async function recordAchievementEvent(
   type: string,
@@ -238,6 +254,7 @@ export async function recordAchievementEvent(
   titleId: string | null,
   payload: Record<string, unknown>
 ): Promise<void> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
   const id = `event_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   await db.runAsync(
@@ -248,8 +265,9 @@ export async function recordAchievementEvent(
 }
 
 export async function getRecentAchievementEvents(limit: number = 50): Promise<AchievementEventRecord[]> {
+  await ensureAchievementsDatabase();
   const db = await getDatabase();
-  const rows = await db.getAllAsync<AchievementEventRecord>(
+  const rows = await db.getAllAsync<AchievementEventRow>(
     `SELECT * FROM achievement_events ORDER BY created_at DESC LIMIT ?`,
     limit
   );
