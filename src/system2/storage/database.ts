@@ -30,6 +30,7 @@ import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, type Setting
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
 import type { AIGameMasterResponse } from '../ai/types';
 import { candidatesFromAI } from '../ai/bridge';
+import { clearAIConsequenceDebt, readAIConsequenceState } from './aiState';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -69,6 +70,7 @@ export type BackgroundQuestSession = {
   updatedAt: string;
 };
 export type SystemSnapshot = {
+  systemDebt: 0 | 1 | 2 | 3;
   goals: PlayerGoal[]; journeys: Journey[]; journeyQuestIds: Record<string,string>; recentActivity: readonly RecentActivity[]; progression: ProgressionState | null;
   failedQuestIds?: string[];
   story: StoryState | null;
@@ -203,10 +205,11 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   if (daily) await bindJourneyQuests(db, daily.questIds, goals, journeys);
   const recentActivity = (await generationInput(db, chapter.player, daily?.dayKey ?? dayKey(), preferences.activities ?? DEFAULT_ACTIVITIES)).history;
   const progression = await readProgression(db, new Date(Date.now()).toISOString());
+  const consequence = await readAIConsequenceState(db);
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
   const failed = await db.getAllAsync<{ quest_id: string }>("SELECT DISTINCT quest_id FROM quest_attempts WHERE result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS') AND quest_id NOT IN (SELECT quest_id FROM quest_completions)");
   return {
-    goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
+    systemDebt: consequence.systemDebt, goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
     failedQuestIds: failed.map(row => row.quest_id), daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
@@ -253,6 +256,7 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
           const storyPlayer = await completeStoryActivity(txn, player, quest, evidence);
           const journeyPlayer = await advanceJourney(txn, storyPlayer, quest, now);
           const protocolPlayer = await awardProtocols(txn, journeyPlayer, quest.id, now);
+          if (templateFor(quest.id)?.id === 'focus_return') await clearAIConsequenceDebt(txn);
           return applyProgression(txn, protocolPlayer, quest, evidence, 'quest_' + quest.id, now);
         },
         async result(awarded, before, event) {

@@ -5,13 +5,13 @@ import type { ActivityPreferences } from '../daily/templates';
 import { dayOrdinal, deterministicPick } from '../daily/calendar';
 import { QUEST_TEMPLATES, DIFFICULTY, generatedQuest, type GeneratedDifficulty, type QuestTemplate, type QuestTheme } from './templates';
 export type RecentActivity={templateId?:string;category?:QuestTheme;difficulty?:string;day:string;result:'COMPLETED'|'FAILED'|'OFFERED'};
-export type GenerationInput={journeys?:readonly Journey[];player:PlayerProfile;goals:readonly PlayerGoal[];day:string;history:readonly RecentActivity[];prefs:ActivityPreferences;weeklyCompleted:number;weeklyClear:boolean;exclude?:readonly string[];maximumDifficulty?:GeneratedDifficulty};
+export type GenerationInput={journeys?:readonly Journey[];player:PlayerProfile;goals:readonly PlayerGoal[];day:string;history:readonly RecentActivity[];prefs:ActivityPreferences;weeklyCompleted:number;weeklyClear:boolean;systemDebt?:0|1|2|3;exclude?:readonly string[];maximumDifficulty?:GeneratedDifficulty};
 export type Candidate={quest:NonNullable<ReturnType<typeof generatedQuest>>;reason:string;templateId:string;category:QuestTheme;recovery:boolean};
 export function adaptiveDifficulty(input:GenerationInput):{difficulty:GeneratedDifficulty;recovery:boolean} {
  const recent=input.history.filter(h=>h.result!=='OFFERED'&&dayOrdinal(input.day)-dayOrdinal(h.day)>=0&&dayOrdinal(input.day)-dayOrdinal(h.day)<=7).slice(0,6);
  const failures=recent.filter(h=>h.result==='FAILED').length,success=recent.filter(h=>h.result==='COMPLETED').length;
  const lastSuccess=input.history.find(h=>h.result==='COMPLETED');
- const recovery=failures>=2||(!!lastSuccess&&dayOrdinal(input.day)-dayOrdinal(lastSuccess.day)>=4);
+ const recovery=(input.systemDebt??0)>0||failures>=2||(!!lastSuccess&&dayOrdinal(input.day)-dayOrdinal(lastSuccess.day)>=4);
  if(recovery||input.player.realLevel<3)return {difficulty:'EASY',recovery};
  const recentHard=recent.filter(h=>h.difficulty==='HARD').length;
  return {difficulty:input.player.realLevel>=8&&input.player.rank!=='E'&&success>=4&&failures===0&&input.player.streak>=3&&recentHard<3?'HARD':'NORMAL',recovery:false};

@@ -35,7 +35,7 @@ export default function QuestsScreen() {
       <Text style={styles.title}>{system.aiLoading ? 'ANALIZA GRACZA...' : system.aiGameMaster?.director.headline ?? 'DAILY DIRECTOR'}</Text>
       <Text style={styles.body}>{system.aiGameMaster?.director.message ?? 'SYSTEM analizuje cele, serię i ostatnie wyniki bez zmiany zasad nagród.'}</Text>
       {!!system.aiGameMaster?.briefing && <Text style={styles.body}>{system.aiGameMaster.briefing}</Text>}
-      {system.aiGameMaster?.director.mode === 'recovery' && <Text style={styles.body}>SYSTEM DEBT aktywny — priorytetem jest Recovery Protocol.</Text>}
+      {system.systemDebt > 0 && <Text style={styles.body}>SYSTEM DEBT {system.systemDebt} aktywny — poprzedni Daily Protocol nie został domknięty. Recovery Protocol ma priorytet; zdobyte wcześniej XP pozostaje bez zmian.</Text>}
       {!!system.aiError && <Text style={styles.body}>{system.aiError}</Text>}
       <Action label={system.aiLoading ? 'AI ANALIZUJE...' : 'ODŚWIEŻ AI DIRECTOR →'} onPress={() => { if (!system.aiLoading) void system.refreshAIGameMaster(); }} />
     </View>

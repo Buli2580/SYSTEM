@@ -44,6 +44,7 @@ const EMPTY_ACHIEVEMENT_STATE: PlayerAchievementState = { achievements: {}, titl
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<db.SystemSnapshot>(() => ({
+    systemDebt: 0,
     goals: [], journeys: [], journeyQuestIds: {}, recentActivity: [], progression: null,
     story: null, daily: null, player: createNewPlayer(), completedQuestIds: [], awakeningCompleted: false, worldUnlocked: false,
     awakeningPending: false, onboardingComplete: false, settings: DEFAULT_SETTINGS, titles: ['UNAWAKENED'],
