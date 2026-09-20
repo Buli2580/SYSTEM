@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { SYSTEM_COLORS as C } from '../core';
 
 export function formatQuestTime(seconds: number) {
@@ -20,7 +20,7 @@ function Condition({ label, value, progress }: { label: string; value: string; p
   const safeProgress = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;
   return <View style={styles.condition}>
     <Text style={styles.label}>{label} · {value} {safeProgress >= 1 ? '✓' : ''}</Text>
-    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max: 100, now: Math.round(safeProgress * 100) }} style={styles.track}><View style={[styles.fill, { width: `${safeProgress * 100}%` }]} /></View>
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max: 100, now: Math.round(safeProgress * 100) }} style={styles.track}><View style={[styles.fill, { width: `${safeProgress * 100}%` as DimensionValue }]} /></View>
   </View>;
 }
 const styles = StyleSheet.create({
