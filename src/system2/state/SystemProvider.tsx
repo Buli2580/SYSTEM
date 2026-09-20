@@ -11,6 +11,7 @@ import { DEFAULT_SETTINGS, type Settings } from '../identity/model';
 import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
+import type { PlayerAchievementState } from '../achievements/types';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -25,6 +26,8 @@ type SystemContextValue = db.SystemSnapshot & {
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
   lastReward: RewardReceipt | null; notificationError: string | null;
+  achievementState: PlayerAchievementState;
+  refreshAchievements: () => Promise<void>;
 };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
