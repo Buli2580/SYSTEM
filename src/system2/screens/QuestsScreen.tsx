@@ -24,6 +24,16 @@ export default function QuestsScreen() {
       <Text style={styles.body}>{nextAction.detail}</Text>
       <Action label="CONTINUE →" onPress={openNextAction}/>
     </View>
+    <View style={styles.panel}>
+      <Text style={styles.label}>AI GAME MASTER // {system.aiGameMaster?.source === 'ai' ? 'ONLINE' : 'SAFE FALLBACK'}</Text>
+      <Text style={styles.title}>{system.aiLoading ? 'ANALIZA GRACZA...' : system.aiGameMaster?.director.headline ?? 'DAILY DIRECTOR'}</Text>
+      <Text style={styles.body}>{system.aiGameMaster?.director.message ?? 'SYSTEM analizuje cele, serię i ostatnie wyniki bez zmiany zasad nagród.'}</Text>
+      {!!system.aiGameMaster?.briefing && <Text style={styles.body}>{system.aiGameMaster.briefing}</Text>}
+      {system.aiGameMaster?.director.mode === 'recovery' && <Text style={styles.body}>SYSTEM DEBT aktywny — priorytetem jest Recovery Protocol.</Text>}
+      {!!system.aiError && <Text style={styles.body}>{system.aiError}</Text>}
+      <Action label={system.aiLoading ? 'AI ANALIZUJE...' : 'ODŚWIEŻ AI DIRECTOR →'} onPress={() => { if (!system.aiLoading) void system.refreshAIGameMaster(); }} />
+    </View>
+    <Action label="CELE →" onPress={() => router.push('/goals')} />
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
     {awakeningCompleted && daily && <View style={styles.panel}>

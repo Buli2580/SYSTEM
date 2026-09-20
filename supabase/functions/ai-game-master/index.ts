@@ -108,7 +108,7 @@ function promptFor(context: any) {
   return `You are SYSTEM AI GAME MASTER.
 Return ONLY valid JSON. No markdown.
 
-Create 4 quests for this player.
+Create exactly 3 quests for this player.
 
 PLAYER:
 level=${context?.player?.level ?? 1}
@@ -129,7 +129,7 @@ RULES:
 - If systemDebt > 0, include exactly one easy recovery quest.
 - Never prescribe medication, starvation, dangerous exercise, illegal acts, gambling, loans, spending money, public humiliation, or self-harm.
 - Do not assign XP, levels, money, prizes, rank points, or rewards.
-- verification must be only manual, timer, or gps.
+- For daily runtime quests, verification must be only timer or gps. Do not use manual.
 - difficulty must be only easy, medium, hard.
 - categories only: ${ALLOWED_CATEGORIES.join(', ')}.
 - estimatedMinutes 1..180.
@@ -204,7 +204,7 @@ async function callProvider(context: any) {
         const ok = safeQuest(q, recent, accepted);
         if (ok) accepted.push(`${q.title} ${q.description}`);
         return ok;
-      }).slice(0, 6)
+      }).slice(0, 3)
     : [];
 
   if (!quests.length) return fallback(context);
