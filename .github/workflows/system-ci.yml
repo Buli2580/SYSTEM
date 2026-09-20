@@ -44,6 +44,11 @@ jobs:
       - name: Gameplay tests
         run: node --test src/system2/tests/gameplay.test.cjs
 
+      - name: Cloud processor SQL and mobile tests
+        run: |
+          npm ci --prefix supabase/tests --ignore-scripts
+          npm test --prefix supabase/tests
+
       - name: Legacy server syntax
         run: node --check server/server.js
 

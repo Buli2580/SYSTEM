@@ -2224,3 +2224,32 @@ test('cycling completion cannot unlock walking or running achievements', async t
   const stored=await h.load('achievements/storage').loadAchievementsState();
   assert.equal(stored.walk_1km.state,'LOCKED');assert.equal(stored.run_5km.state,'LOCKED');
 });
+
+test('cloud backfill includes later daily bonuses and retries without duplicating events', async t => {
+  const h=await dailyHarness(t);
+  await h.db.backfillCloudOutbox();
+  h.sql.prepare("INSERT OR REPLACE INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true')").run();
+  for(let day=0;day<2;day++) {
+    const s=await h.db.loadSystemState();
+    for(const id of s.daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+    h.clock.now+=86400000;
+  }
+  await h.db.backfillCloudOutbox();
+  const count=()=>h.sql.prepare('SELECT count(*) n FROM cloud_outbox').get().n;
+  const n=count();
+  assert.equal(n,h.sql.prepare('SELECT count(*) n FROM verified_events').get().n);
+  assert.equal(h.sql.prepare("SELECT count(*) n FROM cloud_outbox WHERE entity_id LIKE 'daily_clear:%'").get().n,2);
+  assert.equal(h.sql.prepare("SELECT count(*) n FROM cloud_outbox WHERE entity_id LIKE 'weekly_complete:%'").get().n,1);
+  await h.db.backfillCloudOutbox();assert.equal(count(),n);
+  const payload=JSON.parse(h.sql.prepare("SELECT payload FROM cloud_outbox WHERE entity_id LIKE 'daily_clear:%' LIMIT 1").get().payload);
+  assert.equal(payload.verification_type,'MULTI');assert.equal(payload.realXpAwarded,undefined);
+});
+
+test('cloud outbox includes story completion claims without copying local rewards', async t => {
+  const h=await dailyHarness(t);
+  h.sql.prepare("INSERT INTO story_progress(id,completed_at) VALUES('extra_mile_v1','2026-09-18T12:00:00Z')").run();
+  await h.db.backfillCloudOutbox();await h.db.backfillCloudOutbox();
+  const rows=h.sql.prepare("SELECT * FROM cloud_outbox WHERE event_key='verified:story:extra_mile_v1'").all();
+  assert.equal(rows.length,1);
+  assert.deepEqual(JSON.parse(rows[0].payload),{quest_id:'extra_mile_v1',verification_type:'MULTI',verification_score:100});
+});
