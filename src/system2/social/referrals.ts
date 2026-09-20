@@ -1,0 +1,1 @@
+export type ReferralState={code:string;invited:number;activated:number;rewarded:number};export function referralConversion(s:ReferralState){return s.invited>0?s.activated/s.invited:0}export function claimableReferralRewards(s:ReferralState,rewardEvery=3){return Math.max(0,Math.floor(s.activated/Math.max(1,rewardEvery))-s.rewarded);}
