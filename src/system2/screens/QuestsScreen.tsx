@@ -6,12 +6,24 @@ import SystemPage, { pageStyles as styles } from '../components/SystemPage';
 import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useSystem } from '../state/SystemProvider';
 import { QuestMissionCard } from '../components/QuestExperience';
+import { getNextAction } from '../quests/nextAction';
 
 export default function QuestsScreen() {
   const router = useRouter();
-  const { completedQuestIds, activeQuestId, failedQuestIds = [], daily, awakeningCompleted, story } = useSystem();
+  const system = useSystem();
+  const { completedQuestIds, activeQuestId, failedQuestIds = [], daily, awakeningCompleted, story } = system;
   const progress = getAwakeningProgress(completedQuestIds);
+  const nextAction = getNextAction({ player: system.player, completedQuestIds, failedQuestIds, activeQuestId, awakeningCompleted, daily, story, achievements: system.achievementState });
+  const openNextAction = () => nextAction.route === '/quest' && nextAction.questId
+    ? router.push({ pathname: '/quest', params: { questId: nextAction.questId } })
+    : router.push(nextAction.route);
   return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
+    <View style={styles.panel}>
+      <Text style={styles.label}>SYSTEM // NEXT ACTION</Text>
+      <Text style={styles.title}>{nextAction.title}</Text>
+      <Text style={styles.body}>{nextAction.detail}</Text>
+      <Action label="CONTINUE →" onPress={openNextAction}/>
+    </View>
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
     {awakeningCompleted && daily && <View style={styles.panel}>
