@@ -166,6 +166,7 @@ export default function LeaderboardScreen() {
 
       <View style={s.panel}>
         <Text style={s.label}>ZNAJDŹ GRACZA</Text>
+        <Action label="OTWÓRZ WYSZUKIWARKĘ GRACZY →" onPress={() => router.push('/player-search')} />
         <TextInput accessibilityLabel="Szukaj po nazwie użytkownika" autoCapitalize="none" autoCorrect={false}
           value={query} onChangeText={setQuery} placeholder="np. buli2580" placeholderTextColor="#8397a3" style={inputStyle} />
         <Action label="SZUKAJ" disabled={busy || query.trim().length < 2} onPress={() => { void run(searchNow); }} />
