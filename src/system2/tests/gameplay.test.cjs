@@ -2124,6 +2124,22 @@ test('SystemProvider late refresh cannot overwrite committed reward',async()=>{
   release(state);await stale;ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
  }finally{h.close();}
 });
+test('SystemProvider reuses persisted AI Daily and manual refresh cannot replace accepted quests',async()=>{
+ const player=loader({})('core').createNewPlayer('AI CACHE');
+ const director={mode:'normal',difficultyBias:0,headline:'CACHED DAILY',message:'Persisted plan'};
+ const state={...startupFixture(),player,systemDebt:0,awakeningCompleted:true,
+  daily:{dayKey:'2026-09-20',weekKey:'2026-W38',questIds:[],suspiciousQuestIds:[],completed:0,weeklyCompleted:0,clear:false,weeklyClear:false,clockAnomaly:false},
+  aiDaily:{dayKey:'2026-09-20',source:'ai',briefing:'cached briefing',director,generatedAt:'2026-09-20T10:00:00.000Z'}};
+ let requests=0;
+ const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>state,testerHealthCheck:async()=>({ok:true,issues:[]})};
+ const h=providerUI(db,false,{'../ai':{requestDailyAIGameMaster:async()=>{requests++;throw new Error('must not regenerate');}}});
+ try{
+  h.render();await flush();await flush();let ctx=h.render();
+  assert.equal(ctx.aiGameMaster.briefing,'cached briefing');assert.equal(requests,0);
+  await ctx.refreshAIGameMaster();await flush();ctx=h.render();
+  assert.equal(ctx.aiGameMaster.director.headline,'CACHED DAILY');assert.equal(requests,0);
+ }finally{h.close();}
+});
 
 test('earned achievements remain unlocked after streak loss', () => {
   const load = loader({}), engine = load('achievements/engine');

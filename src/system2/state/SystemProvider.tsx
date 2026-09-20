@@ -94,7 +94,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const runAIGameMaster = useCallback(async (next: db.SystemSnapshot, epoch: number, force = false) => {
     const day = next.daily?.dayKey;
     if (!next.awakeningCompleted || !day || next.daily?.clockAnomaly || resetting.current) return;
-    if (!force && next.aiDaily?.dayKey === day) {
+    // Once a canonical AI loadout is persisted for a day it is immutable. Manual refresh may retry only before a plan is accepted.
+    if (next.aiDaily?.dayKey === day) {
       aiDayRef.current = day;
       setAIError(null);
       setAIGameMaster({
