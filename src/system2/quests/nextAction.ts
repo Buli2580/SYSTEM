@@ -1,6 +1,6 @@
 import type { PlayerProfile } from '../core';
 import type { PlayerAchievementState } from '../achievements/types';
-import type { DailyState } from '../daily/types';
+import type { DailyState } from '../storage/daily';
 import type { StoryState } from '../story/types';
 import { AWAKENING_QUESTS, getQuest } from './catalog';
 
