@@ -41,7 +41,7 @@ const EMPTY_ACHIEVEMENT_STATE: PlayerAchievementState = { achievements: {}, titl
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<db.SystemSnapshot>(() => ({
-    systemDebt: 0,
+    systemDebt: 0, aiDaily: null,
     goals: [], journeys: [], journeyQuestIds: {}, recentActivity: [], progression: null,
     story: null, daily: null, player: createNewPlayer(), completedQuestIds: [], awakeningCompleted: false, worldUnlocked: false,
     awakeningPending: false, onboardingComplete: false, settings: DEFAULT_SETTINGS, titles: ['UNAWAKENED'],
@@ -94,6 +94,18 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const runAIGameMaster = useCallback(async (next: db.SystemSnapshot, epoch: number, force = false) => {
     const day = next.daily?.dayKey;
     if (!next.awakeningCompleted || !day || next.daily?.clockAnomaly || resetting.current) return;
+    if (!force && next.aiDaily?.dayKey === day) {
+      aiDayRef.current = day;
+      setAIError(null);
+      setAIGameMaster({
+        quests: [],
+        director: next.aiDaily.director,
+        briefing: next.aiDaily.briefing,
+        source: next.aiDaily.source,
+        ...(next.aiDaily.model ? { model: next.aiDaily.model } : {}),
+      });
+      return;
+    }
     if (!force && aiDayRef.current === day) return;
     aiDayRef.current = day;
     setAILoading(true);

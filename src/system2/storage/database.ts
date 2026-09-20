@@ -61,8 +61,18 @@ export type BackgroundQuestSession = {
   lastObservedTimestamp?: number;
   updatedAt: string;
 };
+export type AIDailyCache = {
+  dayKey: string;
+  source: 'ai';
+  model?: string;
+  briefing: string;
+  director: AIGameMasterResponse['director'];
+  generatedAt: string;
+};
+
 export type SystemSnapshot = {
   systemDebt: 0 | 1 | 2 | 3;
+  aiDaily?: AIDailyCache | null;
   goals: PlayerGoal[]; journeys: Journey[]; journeyQuestIds: Record<string,string>; recentActivity: readonly RecentActivity[]; progression: ProgressionState | null;
   failedQuestIds?: string[];
   story: StoryState | null;
@@ -81,6 +91,45 @@ export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakening
 async function completedQuestIds(db: SQLite.SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ quest_id: string }>('SELECT quest_id FROM quest_completions');
   return rows.map(row => row.quest_id);
+}
+
+function validAIDirector(value: unknown): value is AIGameMasterResponse['director'] {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return ['normal','recovery','challenge'].includes(String(row.mode)) &&
+    [-1,0,1].includes(Number(row.difficultyBias)) &&
+    typeof row.headline === 'string' && row.headline.length <= 80 &&
+    typeof row.message === 'string' && row.message.length <= 220;
+}
+
+async function readAIDailyCache(db: SQLite.SQLiteDatabase, day: string): Promise<AIDailyCache | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM app_state WHERE key=?',
+    'ai_daily_applied:' + day,
+  );
+  if (!row) return null;
+  try {
+    const parsed = JSON.parse(row.value) as Record<string, unknown>;
+    if (parsed.source !== 'ai') return null;
+    const director = validAIDirector(parsed.director)
+      ? parsed.director
+      : {
+          mode: 'normal' as const,
+          difficultyBias: 0 as const,
+          headline: 'DAILY DIRECTIVE',
+          message: 'SYSTEM korzysta z zapisanej dziennej konfiguracji AI.',
+        };
+    return {
+      dayKey: day,
+      source: 'ai',
+      ...(typeof parsed.model === 'string' && parsed.model.length <= 120 ? { model: parsed.model } : {}),
+      briefing: typeof parsed.briefing === 'string' ? parsed.briefing.slice(0, 180) : '',
+      director,
+      generatedAt: typeof parsed.generatedAt === 'string' ? parsed.generatedAt : '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function hydrateAIQuestPresentations(db: SQLite.SQLiteDatabase) {
@@ -219,10 +268,11 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const recentActivity = (await generationInput(db, chapter.player, daily?.dayKey ?? dayKey(), preferences.activities ?? DEFAULT_ACTIVITIES)).history;
   const progression = await readProgression(db, new Date(Date.now()).toISOString());
   const consequence = await readAIConsequenceState(db);
+  const aiDaily = daily ? await readAIDailyCache(db, daily.dayKey) : null;
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
   const failed = await db.getAllAsync<{ quest_id: string }>("SELECT DISTINCT quest_id FROM quest_attempts WHERE result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS') AND quest_id NOT IN (SELECT quest_id FROM quest_completions)");
   return {
-    systemDebt: consequence.systemDebt, goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
+    systemDebt: consequence.systemDebt, aiDaily, goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
     failedQuestIds: failed.map(row => row.quest_id), daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
@@ -847,6 +897,7 @@ export function applyAIDailyPlan(plan: AIGameMasterResponse) {
        source: plan.source,
        model: plan.model ?? null,
        briefing: plan.briefing,
+       director: plan.director,
        generatedAt: new Date().toISOString(),
      }),
    );
