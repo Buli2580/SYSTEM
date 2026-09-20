@@ -13,7 +13,7 @@ import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import type { PlayerAchievementState } from '../achievements/types';
 import { reconcileAchievements } from '../achievements/reconcile';
-import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
+import { loadAchievementsState, loadTitlesState, resetAchievementData } from '../achievements/storage';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -125,6 +125,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null);
     try {
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
+      await awaitWithTimeout(resetAchievementData());
+      setAchievementState(EMPTY_ACHIEVEMENT_STATE);
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());
       seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); await syncAchievements(next.player); setReady(true);
