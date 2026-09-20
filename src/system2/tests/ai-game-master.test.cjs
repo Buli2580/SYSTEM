@@ -23,7 +23,7 @@ function loader() {
       throw new Error('Unexpected dependency: ' + name);
     };
     vm.runInNewContext(source, {
-      module, exports: module.exports, require: requireMock, console, Date, Set, Math, JSON,
+      module, exports: module.exports, require: requireMock, console, Date, Set, Math, JSON, Intl,
     }, { filename: resolved });
     return module.exports;
   }
@@ -127,6 +127,34 @@ test('difficulty only considers the four most recent quest outcomes', () => {
     ],
   };
   assert.equal(difficultyBias(context), 1);
+});
+
+test('AI context prioritizes active goals and preserves planning metadata', () => {
+  const { buildAIGameMasterContext } = loader()('ai/runtime');
+  const snapshot = {
+    player: { realLevel: 4, rank: 'E', streak: 2 },
+    systemDebt: 0,
+    recentActivity: [],
+    goals: [
+      {
+        id: 'low', title: 'Czytaj', description: 'Czytaj regularnie', target: '12 książek',
+        targetDate: '2026-12-31', priority: 1, status: 'ACTIVE',
+      },
+      {
+        id: 'done', title: 'Stary cel', description: 'Nie planuj go', target: '1',
+        targetDate: '2026-01-01', priority: 3, status: 'COMPLETED',
+      },
+      {
+        id: 'high', title: 'Niemiecki', description: 'Codzienna nauka', target: 'B1',
+        targetDate: '2027-03-01', priority: 3, status: 'ACTIVE',
+      },
+    ],
+  };
+  const context = buildAIGameMasterContext(snapshot);
+  assert.deepEqual(Array.from(context.goals, goal => goal.id), ['high', 'low']);
+  assert.match(context.goals[0].description, /Docelowy rezultat: B1/);
+  assert.match(context.goals[0].description, /Termin: 2027-03-01/);
+  assert.match(context.goals[0].description, /Priorytet: 3\/3/);
 });
 
 test('SYSTEM debt is bounded and recovery clears it', () => {
