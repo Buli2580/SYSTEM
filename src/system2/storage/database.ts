@@ -387,3 +387,43 @@ export function testerHealthCheck(): Promise<LocalHealth> {
     } catch { return { ok: false, schema: null, issues: [{ code: 'STORAGE_UNAVAILABLE' }] }; }
   });
 }
+
+export type CloudOutboxRow = {
+  event_key: string; entity_type: string; entity_id: string | null; payload: string;
+  client_created_at: string; schema_version: number; attempts: number;
+  last_attempt_at: string | null; last_error: string | null; synced_at: string | null;
+};
+
+function cloudEvidencePayload(event: VerifiedEvent) {
+  return {
+    quest_id: event.questId, verification_type: event.verificationType, verification_score: event.verificationScore,
+    ...(event.distanceMeters !== undefined ? { distance_meters: event.distanceMeters } : {}),
+    ...(event.durationSeconds !== undefined ? { duration_seconds: event.durationSeconds } : {}),
+    ...(event.steps !== undefined ? { steps: event.steps } : {}),
+  };
+}
+
+async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: VerifiedEvent) {
+  if (!event.verified) return;
+  await txn.runAsync(
+    `INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
+     VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING`,
+    'verified:' + event.id, 'VERIFIED_EVENT', event.questId, JSON.stringify(cloudEvidencePayload(event)), event.createdAt,
+  );
+}
+
+export function backfillCloudOutbox() {
+  return profileTransaction(async txn => {
+    const marker = await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', 'cloud_outbox_backfill_v1');
+    if (marker) return;
+    const rows = await txn.getAllAsync<{ payload: string }>('SELECT payload FROM verified_events ORDER BY created_at ASC, id ASC LIMIT 500');
+    for (const row of rows) {
+      try { const event = parseEvent(row.payload); if (event.verified) await enqueueCloudOutboxEvent(txn, event); } catch { /* malformed legacy event */ }
+    }
+    await txn.runAsync("INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'");
+  });
+}
+export function listPendingCloudOutbox(limit = 25) { const safe=Math.max(1,Math.min(Math.floor(limit),100)); return profileTransaction(txn=>txn.getAllAsync<CloudOutboxRow>('SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?',safe)); }
+export function markCloudOutboxSynced(key:string) { const now=new Date().toISOString(); return profileTransaction(txn=>txn.runAsync('UPDATE cloud_outbox SET synced_at=?,last_error=NULL,last_attempt_at=? WHERE event_key=?',now,now,key)); }
+export function markCloudOutboxAttempt(key:string,error:string) { return profileTransaction(txn=>txn.runAsync('UPDATE cloud_outbox SET attempts=attempts+1,last_attempt_at=?,last_error=? WHERE event_key=? AND synced_at IS NULL',new Date().toISOString(),error.slice(0,300),key)); }
+export function cloudOutboxStats() { return profileTransaction(async txn=>{ const row=await txn.getFirstAsync<{pending:number;synced:number;failed:number}>(`SELECT SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) pending,SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) synced,SUM(CASE WHEN synced_at IS NULL AND attempts>0 THEN 1 ELSE 0 END) failed FROM cloud_outbox`); return {pending:row?.pending??0,synced:row?.synced??0,failed:row?.failed??0}; }); }
