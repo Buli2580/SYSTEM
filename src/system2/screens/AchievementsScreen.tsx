@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, type DimensionValue } from 'react-native';
 import { useSystem } from '../state/SystemProvider';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import SystemError from '../components/SystemError';
@@ -27,7 +27,7 @@ export default function AchievementsScreen() {
     {visible.map(def => { const item=evaluated[def.id], complete=['UNLOCKED','CLAIMED'].includes(item.state), pct=achievementPercent(item); return <View key={def.id} style={s.panel} accessibilityRole="summary" accessibilityLabel={def.name+', '+item.currentProgress+' z '+item.maxProgress}>
       <Text style={s.label}>{def.category} · {def.tier ?? 'COMMON'} · {complete?'UNLOCKED':item.state}</Text><Text style={s.title}>{def.name}</Text><Text style={s.body}>{def.description}</Text>
       <Text style={s.body}>{item.currentProgress.toLocaleString()} / {item.maxProgress.toLocaleString()} · {pct}%</Text>
-      <View accessibilityRole="progressbar" accessibilityValue={{min:0,max:item.maxProgress,now:item.currentProgress}} style={{height:5,backgroundColor:'#17333e',borderRadius:4,marginTop:10}}><View style={{height:5,width:pct+'%',backgroundColor:'#62efff',borderRadius:4}} /></View>
+      <View accessibilityRole="progressbar" accessibilityValue={{min:0,max:item.maxProgress,now:item.currentProgress}} style={{height:5,backgroundColor:'#17333e',borderRadius:4,marginTop:10}}><View style={{height:5,width: `${pct}%` as DimensionValue,backgroundColor:'#62efff',borderRadius:4}} /></View>
     </View>; })}
   </SystemPage>;
 }
