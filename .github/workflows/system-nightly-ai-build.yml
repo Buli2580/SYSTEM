@@ -159,3 +159,46 @@ jobs:
             echo "- Architecture: arm64-v8a"
             echo "- Artifact: SYSTEM-NIGHTLY-${GITHUB_SHA}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  copy-apk-to-e:
+    name: Copy APK to E drive
+    if: github.event_name != 'pull_request'
+    needs: build-apk
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+
+    steps:
+      - name: Prepare E drive folders
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "E:\SYSTEM\BUILDS\incoming" | Out-Null
+          New-Item -ItemType Directory -Force -Path "E:\SYSTEM\BUILDS\archive" | Out-Null
+
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: SYSTEM-NIGHTLY-${{ github.sha }}
+          path: E:\SYSTEM\BUILDS\incoming
+
+      - name: Save APK on E drive
+        shell: powershell
+        run: |
+          $apk = Get-ChildItem "E:\SYSTEM\BUILDS\incoming" -Recurse -Filter *.apk | Select-Object -First 1
+          if (-not $apk) { throw "APK artifact not found." }
+
+          $shortSha = "${{ github.sha }}".Substring(0, 8)
+          $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+          $archive = "E:\SYSTEM\BUILDS\archive\SYSTEM-$timestamp-$shortSha.apk"
+          $latest = "E:\SYSTEM\BUILDS\SYSTEM-latest.apk"
+
+          Copy-Item $apk.FullName $archive -Force
+          Copy-Item $apk.FullName $latest -Force
+
+          Write-Host "Saved archive: $archive"
+          Write-Host "Updated latest: $latest"
+
+      - name: Cleanup incoming folder
+        if: always()
+        shell: powershell
+        run: |
+          Remove-Item "E:\SYSTEM\BUILDS\incoming\*" -Recurse -Force -ErrorAction SilentlyContinue
