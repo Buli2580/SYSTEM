@@ -29,6 +29,7 @@ export function evaluateAchievementState(
   profile: PlayerProfile,
   previous: Record<string, AchievementProgress> = {},
   now = new Date().toISOString(),
+  counters: Record<string, number> = {},
 ): AchievementEvaluation {
   const progress: Record<string, AchievementProgress> = {};
   const newlyUnlocked: string[] = [];
@@ -42,14 +43,14 @@ export function evaluateAchievementState(
     let changed = false;
     for (const definition of ACHIEVEMENTS) {
       const old = previous[definition.id];
-      const current = Math.max(0, Math.min(definition.target, valueFor(profile, definition.progressKey, { ...previous, ...progress })));
+      const current = Math.max(0, Math.min(definition.target, (counters[definition.progressKey] ?? valueFor(profile, definition.progressKey, { ...previous, ...progress }))));
       const prerequisitesMet = (definition.requiredAchievements ?? []).every(id => unlocked.has(id));
       const complete = current >= definition.target && prerequisitesMet;
       const wasUnlocked = old?.state === 'UNLOCKED' || old?.state === 'CLAIMED';
       const state: AchievementProgress['state'] = old?.state === 'CLAIMED'
-        ? 'CLAIMED' : complete ? 'UNLOCKED' : current > 0 ? 'IN_PROGRESS' : 'LOCKED';
+        ? 'CLAIMED' : wasUnlocked || complete ? 'UNLOCKED' : current > 0 ? 'IN_PROGRESS' : 'LOCKED';
       progress[definition.id] = {
-        achievementId: definition.id, state, currentProgress: current, maxProgress: definition.target,
+        achievementId: definition.id, state, currentProgress: wasUnlocked ? definition.target : current, maxProgress: definition.target,
         unlockedAt: wasUnlocked ? old?.unlockedAt : complete ? now : undefined, claimedAt: old?.claimedAt,
       };
       if (complete && !unlocked.has(definition.id)) { unlocked.add(definition.id); changed = true; }
