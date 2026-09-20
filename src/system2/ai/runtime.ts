@@ -45,6 +45,16 @@ function recentQuestSummary(snapshot: SystemSnapshot): RecentQuestSummary[] {
   });
 }
 
+function goalPlanningDescription(goal: SystemSnapshot['goals'][number]) {
+  const details = [
+    goal.description || undefined,
+    goal.target ? `Docelowy rezultat: ${goal.target}` : undefined,
+    goal.targetDate ? `Termin: ${goal.targetDate}` : undefined,
+    `Priorytet: ${goal.priority}/3`,
+  ].filter(Boolean);
+  return details.join(' · ');
+}
+
 export function buildAIGameMasterContext(snapshot: SystemSnapshot): AIGameMasterContext {
   const resolved = Intl.DateTimeFormat().resolvedOptions();
   return {
@@ -59,11 +69,12 @@ export function buildAIGameMasterContext(snapshot: SystemSnapshot): AIGameMaster
     },
     goals: snapshot.goals
       .filter(goal => goal.status === 'ACTIVE')
+      .sort((a, b) => b.priority - a.priority)
       .slice(0, 10)
       .map(goal => ({
         id: goal.id,
         title: goal.title,
-        description: goal.description || undefined,
+        description: goalPlanningDescription(goal),
       })),
     recentQuests: recentQuestSummary(snapshot),
     nowIso: new Date().toISOString(),
