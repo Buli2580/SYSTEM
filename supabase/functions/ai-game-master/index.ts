@@ -1,11 +1,18 @@
-﻿
-type Json = Record<string, unknown>;
-
 const ALLOWED_CATEGORIES = [
   'fitness','health','productivity','learning','exploration','social','recovery'
-];
-const ALLOWED_DIFFICULTIES = ['easy','medium','hard'];
-const ALLOWED_VERIFICATION = ['manual','timer','gps'];
+] as const;
+
+const ALLOWED_DIFFICULTIES = ['easy','medium','hard'] as const;
+const ALLOWED_DAILY_VERIFICATION = ['timer','gps'] as const;
+const ALLOWED_TEMPLATE_HINTS = [
+  'walk_reset','walk_fresh','walk_break','walk_route','run_easy','ride_easy',
+  'focus_strength','focus_mobility','focus_begin','focus_morning','focus_evening','focus_distraction','focus_return',
+  'focus_priority','focus_backlog','focus_plan','focus_draft','focus_review',
+  'learn_read','learn_recall','learn_language','learn_question','learn_explain',
+  'focus_social_plan','focus_social_message','focus_social_listen','focus_social_thanks',
+  'organize_space','organize_tomorrow','organize_routine','organize_files',
+  'create_note','focus_direction','create_sketch','focus_reflect'
+] as const;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -31,10 +38,10 @@ function similarity(a: string, b: string) {
   const A = new Set(normalize(a).split(' ').filter(Boolean));
   const B = new Set(normalize(b).split(' ').filter(Boolean));
   if (!A.size || !B.size) return 0;
-  let i = 0;
-  for (const t of A) if (B.has(t)) i++;
+  let intersection = 0;
+  for (const token of A) if (B.has(token)) intersection += 1;
   const union = new Set([...A, ...B]).size;
-  return union ? i / union : 0;
+  return union ? intersection / union : 0;
 }
 
 function safeQuest(q: any, recent: string[], accepted: string[]) {
@@ -44,71 +51,126 @@ function safeQuest(q: any, recent: string[], accepted: string[]) {
   if (typeof q.description !== 'string' || q.description.length < 5 || q.description.length > 280) return false;
   if (!ALLOWED_CATEGORIES.includes(q.category)) return false;
   if (!ALLOWED_DIFFICULTIES.includes(q.difficulty)) return false;
-  if (!ALLOWED_VERIFICATION.includes(q.verification)) return false;
+  if (!ALLOWED_DAILY_VERIFICATION.includes(q.verification)) return false;
+  if (!ALLOWED_TEMPLATE_HINTS.includes(q.templateHint)) return false;
   if (!Number.isFinite(q.estimatedMinutes) || q.estimatedMinutes < 1 || q.estimatedMinutes > 180) return false;
   if (!Number.isFinite(q.expiresInHours) || q.expiresInHours < 1 || q.expiresInHours > 72) return false;
+  if (!Array.isArray(q.tags) || q.tags.length > 8) return false;
 
   const blocked = [
-    /self[-\s]?harm/i,/samobĂłj/i,/gĹ‚odĂłw/i,/nie jedz/i,/hazard/i,/poĹĽycz/i,/ukrad/i,/wĹ‚am/i
+    /self[-\s]?harm/i,
+    /samobój/i,
+    /głodów/i,
+    /nie jedz/i,
+    /lek(ów|i)? bez/i,
+    /hazard/i,
+    /pożycz/i,
+    /mandat/i,
+    /ukrad/i,
+    /włam/i,
+    /publiczn.*upok/i,
   ];
   const full = `${q.title} ${q.description}`;
   if (blocked.some(rx => rx.test(full))) return false;
-  if (recent.some(r => similarity(full, r) >= 0.72)) return false;
-  if (accepted.some(r => similarity(full, r) >= 0.72)) return false;
+  if (recent.some(item => similarity(full, item) >= 0.72)) return false;
+  if (accepted.some(item => similarity(full, item) >= 0.72)) return false;
   return true;
 }
 
 function fallback(context: any) {
   const debt = Number(context?.player?.systemDebt || 0);
+  const recovery = {
+    key: `recovery-${Date.now()}`,
+    title: 'Recovery Protocol',
+    description: 'Wróć do działania jednym małym, wykonalnym krokiem.',
+    category: 'recovery',
+    difficulty: 'easy',
+    verification: 'timer',
+    estimatedMinutes: 10,
+    templateHint: 'focus_return',
+    target: { kind: 'minutes', value: 10 },
+    reason: 'Misja powrotu po niewykonanych zadaniach.',
+    expiresInHours: 24,
+    tags: ['recovery','system-debt'],
+  };
+  const normal = [
+    {
+      key: `daily-${Date.now()}-0`,
+      title: 'Focus Sprint',
+      description: 'Pracuj nad jednym ważnym zadaniem bez rozpraszaczy.',
+      category: 'productivity',
+      difficulty: 'easy',
+      verification: 'timer',
+      estimatedMinutes: 20,
+      templateHint: 'focus_priority',
+      target: { kind: 'minutes', value: 20 },
+      reason: 'Buduje regularność i skupienie.',
+      expiresInHours: 18,
+      tags: ['focus','daily'],
+    },
+    {
+      key: `daily-${Date.now()}-1`,
+      title: 'Learning Burst',
+      description: 'Przerób jeden konkretny fragment materiału i zapisz najważniejszy wniosek.',
+      category: 'learning',
+      difficulty: 'easy',
+      verification: 'timer',
+      estimatedMinutes: 15,
+      templateHint: 'learn_read',
+      target: { kind: 'minutes', value: 15 },
+      reason: 'Rozwija aktywny cel.',
+      expiresInHours: 18,
+      tags: ['learning','daily'],
+    },
+    {
+      key: `daily-${Date.now()}-2`,
+      title: 'Reset Walk',
+      description: 'Przejdź spokojną, bezpieczną trasę w równym tempie.',
+      category: 'fitness',
+      difficulty: 'easy',
+      verification: 'gps',
+      estimatedMinutes: 15,
+      templateHint: 'walk_reset',
+      target: { kind: 'meters', value: 600 },
+      reason: 'Dodaje ruch bez przeciążenia.',
+      expiresInHours: 18,
+      tags: ['movement','daily'],
+    },
+  ];
   return {
-    quests: debt > 0
-      ? [{
-          key: `recovery-${Date.now()}`,
-          title: 'Recovery Protocol',
-          description: 'Wykonaj 15 minut spokojnego marszu i zakoĹ„cz jedno maĹ‚e zalegĹ‚e zadanie.',
-          category: 'recovery',
-          difficulty: 'easy',
-          verification: 'timer',
-          estimatedMinutes: 15,
-          target: { kind: 'minutes', value: 15 },
-          reason: 'Misja powrotu po niewykonanych zadaniach.',
-          expiresInHours: 24,
-          tags: ['recovery','system-debt'],
-        }]
-      : [{
-          key: `daily-${Date.now()}-0`,
-          title: 'Focus Sprint',
-          description: 'Przez 20 minut pracuj nad jednym waĹĽnym zadaniem bez rozpraszaczy.',
-          category: 'productivity',
-          difficulty: 'easy',
-          verification: 'timer',
-          estimatedMinutes: 20,
-          target: { kind: 'minutes', value: 20 },
-          reason: 'Buduje regularnoĹ›Ä‡.',
-          expiresInHours: 18,
-          tags: ['focus','daily'],
-        }],
+    quests: debt > 0 ? [recovery, ...normal] : normal,
     director: {
       mode: debt > 0 ? 'recovery' : 'normal',
       difficultyBias: debt > 0 ? -1 : 0,
       headline: debt > 0 ? 'RECOVERY PROTOCOL' : 'DAILY DIRECTIVE',
       message: debt > 0
-        ? 'Najpierw usuĹ„ SYSTEM DEBT.'
-        : 'SYSTEM przygotowaĹ‚ dzisiejszÄ… misjÄ™.',
+        ? 'Najpierw usuń SYSTEM DEBT.'
+        : 'SYSTEM przygotował dzisiejszy zestaw misji.',
     },
-    briefing: 'SYSTEM dziaĹ‚a w trybie fallback.',
+    briefing: 'SYSTEM działa w trybie bezpiecznego fallbacku.',
     source: 'fallback',
   };
 }
 
 function promptFor(context: any) {
-  const recent = (context?.recentQuests ?? []).slice(-50).map((q: any) => q.title);
-  const goals = (context?.goals ?? []).slice(0, 10).map((g: any) => g.title);
+  const recent = (context?.recentQuests ?? []).slice(-50).map((q: any) => ({
+    title: q.title,
+    category: q.category,
+    completed: q.completed,
+    failed: q.failed,
+  }));
+  const goals = (context?.goals ?? []).slice(0, 10).map((g: any) => ({
+    title: g.title,
+    description: g.description,
+  }));
+  const locale = context?.player?.locale || 'pl-PL';
 
-  return `You are SYSTEM AI GAME MASTER.
+  return `You are SYSTEM AI GAME MASTER for a real-life RPG app.
 Return ONLY valid JSON. No markdown.
+Write titles, descriptions, reasons and briefing in locale: ${locale}.
 
-Create exactly 3 quests for this player.
+Create 5 candidate daily quests. The app will safely select exactly 3.
+The app, not you, controls verification thresholds, XP, rewards and final difficulty.
 
 PLAYER:
 level=${context?.player?.level ?? 1}
@@ -117,49 +179,66 @@ streak=${context?.player?.streak ?? 0}
 completionRate7d=${context?.player?.completionRate7d ?? 0}
 systemDebt=${context?.player?.systemDebt ?? 0}
 
-GOALS:
+ACTIVE GOALS:
 ${JSON.stringify(goals)}
 
-RECENT QUEST TITLES - do not repeat or closely paraphrase:
+RECENT QUESTS - do not repeat or closely paraphrase:
 ${JSON.stringify(recent)}
+
+TEMPLATE HINTS - every quest must choose exactly one:
+${ALLOWED_TEMPLATE_HINTS.join(', ')}
 
 RULES:
 - Make quests achievable in ordinary daily life.
-- Mix categories when possible.
-- If systemDebt > 0, include exactly one easy recovery quest.
-- Never prescribe medication, starvation, dangerous exercise, illegal acts, gambling, loans, spending money, public humiliation, or self-harm.
-- Do not assign XP, levels, money, prizes, rank points, or rewards.
-- For daily runtime quests, verification must be only timer or gps. Do not use manual.
-- difficulty must be only easy, medium, hard.
+- Personalize them to active goals and recent behavior.
+- Mix categories and wording.
+- If systemDebt > 0, candidate #1 must be an easy recovery quest with templateHint "focus_return".
+- Never prescribe medication, starvation, dangerous exercise, illegal acts, gambling, loans, spending money, public humiliation or self-harm.
+- Never assign XP, levels, money, prizes, rank points, punishments or rewards.
+- verification only: timer or gps.
+- difficulty only: easy, medium, hard. The app can lower it.
 - categories only: ${ALLOWED_CATEGORIES.join(', ')}.
 - estimatedMinutes 1..180.
 - expiresInHours 1..72.
-- Avoid duplicate or near-duplicate quests.
+- Avoid duplicate and near-duplicate quests.
+- Use walk/run/ride template hints for GPS movement and focus/learn/organize/create/social hints for timer tasks.
 
 JSON SHAPE:
 {
   "quests": [{
     "key": "unique-string",
     "title": "short title",
-    "description": "clear action",
+    "description": "clear concrete action",
     "category": "fitness|health|productivity|learning|exploration|social|recovery",
     "difficulty": "easy|medium|hard",
-    "verification": "manual|timer|gps",
+    "verification": "timer|gps",
     "estimatedMinutes": 20,
+    "templateHint": "focus_priority",
     "target": {"kind":"minutes|meters|count","value":20},
-    "reason": "one short reason",
+    "reason": "why this fits the player",
     "expiresInHours": 18,
     "tags": ["tag"]
   }],
   "director": {
     "mode": "normal|recovery|challenge",
     "difficultyBias": -1,
-    "headline": "short system headline",
-    "message": "short system message"
+    "headline": "short SYSTEM headline",
+    "message": "short SYSTEM message"
   },
   "briefing": "max 180 chars",
   "source": "ai"
 }`;
+}
+
+function parseModelJson(content: string) {
+  const trimmed = content.trim();
+  const unfenced = trimmed
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  const first = unfenced.indexOf('{');
+  const last = unfenced.lastIndexOf('}');
+  if (first < 0 || last <= first) throw new Error('Missing JSON object');
+  return JSON.parse(unfenced.slice(first, last + 1));
 }
 
 async function callProvider(context: any) {
@@ -179,12 +258,12 @@ async function callProvider(context: any) {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.85,
-      max_tokens: 1800,
+      temperature: 0.82,
+      max_tokens: 2200,
       messages: [
         {
           role: 'system',
-          content: 'Return only valid JSON. Follow all safety and schema rules exactly.'
+          content: 'Return only valid JSON. Follow the schema and safety rules exactly. Never invent rewards.'
         },
         { role: 'user', content: promptFor(context) }
       ],
@@ -196,26 +275,38 @@ async function callProvider(context: any) {
   const content = data?.choices?.[0]?.message?.content;
   if (typeof content !== 'string') throw new Error('Missing AI content');
 
-  const parsed = JSON.parse(content);
-  const recent = (context?.recentQuests ?? []).slice(-50).map((q: any) => `${q.title} ${q.description ?? ''}`);
+  const parsed = parseModelJson(content);
+  const recent = (context?.recentQuests ?? []).slice(-50)
+    .map((q: any) => `${q.title} ${q.description ?? ''}`);
   const accepted: string[] = [];
   const quests = Array.isArray(parsed?.quests)
     ? parsed.quests.filter((q: any) => {
         const ok = safeQuest(q, recent, accepted);
         if (ok) accepted.push(`${q.title} ${q.description}`);
         return ok;
-      }).slice(0, 3)
+      }).slice(0, 6)
     : [];
 
-  if (!quests.length) return fallback(context);
+  if (quests.length < 3) return fallback(context);
+
+  const mode = ['normal','recovery','challenge'].includes(parsed?.director?.mode)
+    ? parsed.director.mode
+    : Number(context?.player?.systemDebt || 0) > 0 ? 'recovery' : 'normal';
+  const difficultyBias = [-1,0,1].includes(parsed?.director?.difficultyBias)
+    ? parsed.director.difficultyBias
+    : 0;
 
   return {
     quests,
-    director: parsed.director ?? {
-      mode: 'normal',
-      difficultyBias: 0,
-      headline: 'DAILY DIRECTIVE',
-      message: 'SYSTEM prepared new missions.',
+    director: {
+      mode,
+      difficultyBias,
+      headline: typeof parsed?.director?.headline === 'string'
+        ? parsed.director.headline.slice(0, 80)
+        : 'DAILY DIRECTIVE',
+      message: typeof parsed?.director?.message === 'string'
+        ? parsed.director.message.slice(0, 220)
+        : 'SYSTEM przygotował nowe misje.',
     },
     briefing: typeof parsed.briefing === 'string' ? parsed.briefing.slice(0, 180) : '',
     source: 'ai',
@@ -231,11 +322,9 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     if (body?.action !== 'generate_daily') return json({ error: 'Unknown action' }, 400);
     if (!body?.context?.player) return json({ error: 'Missing player context' }, 400);
-
     return json(await callProvider(body.context));
   } catch (error) {
     console.error(error);
     return json({ error: 'AI_GAME_MASTER_FAILED' }, 500);
   }
 });
-

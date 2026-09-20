@@ -18,6 +18,7 @@ export interface AIQuestProposal {
   difficulty: AIQuestDifficulty;
   verification: AIQuestVerification;
   estimatedMinutes: number;
+  templateHint?: string;
   target?: {
     kind: 'minutes' | 'meters' | 'count';
     value: number;

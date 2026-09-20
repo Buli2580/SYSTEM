@@ -6,13 +6,17 @@ import { FIRST_MOVEMENT_QUEST } from './firstMovement';
 import { FOCUS_PROTOCOL_QUEST } from './focusProtocol';
 import { FINAL_TRIAL_QUEST } from './finalTrial';
 import type { RunnableQuest, QuestEvidence, QuestAvailability } from './types';
+import { applyAIQuestPresentation } from '../ai/registry';
 
 export const AWAKENING_CHAPTER_ID = 'awakening_chapter_1';
 export const AWAKENING_REWARD_XP = 300;
 export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PROTOCOL_QUEST, FINAL_TRIAL_QUEST, ...BOSS_QUESTS];
 export const AWAKENING_QUESTS = QUESTS.filter(quest => quest.arc === 'AWAKENING' && quest.chapter === 1)
   .sort((a, b) => a.order - b.order);
-export function getQuest(id: string) { return QUESTS.find(quest => quest.id === id) ?? dailyQuest(id); }
+export function getQuest(id: string) {
+  const quest = QUESTS.find(candidate => candidate.id === id) ?? dailyQuest(id);
+  return quest ? applyAIQuestPresentation(quest) : undefined;
+}
 
 export function prerequisitesCompleted(quest: RunnableQuest, completedIds: readonly string[]) {
   if (quest.category === 'DAILY' || quest.category === 'BOSS') return AWAKENING_QUESTS.every(q => completedIds.includes(q.id));

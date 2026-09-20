@@ -1,5 +1,5 @@
 import { dayOrdinal } from '../daily/calendar';
-import { generateLoadout, type Candidate, type GenerationInput } from '../generation/engine';
+import { adaptiveDifficulty, generateLoadout, type Candidate, type GenerationInput } from '../generation/engine';
 import {
   DIFFICULTY,
   QUEST_TEMPLATES,
@@ -15,10 +15,12 @@ const THEMES: Record<AIQuestCategory, readonly QuestTheme[]> = {
   health: ['LIFESTYLE', 'FITNESS'],
   productivity: ['PRODUCTIVITY', 'DISCIPLINE'],
   learning: ['LEARNING'],
-  exploration: ['FITNESS'],
+  exploration: ['FITNESS', 'GENERAL'],
   social: ['SOCIAL'],
   recovery: ['DISCIPLINE', 'GENERAL'],
 };
+
+const ORDER: Record<GeneratedDifficulty, number> = { EASY: 0, NORMAL: 1, HARD: 2 };
 
 function enabled(template: QuestTemplate, input: GenerationInput) {
   if (!template.activity) return true;
@@ -37,15 +39,23 @@ function offCooldown(template: QuestTemplate, input: GenerationInput) {
   );
 }
 
-function canonicalDifficulty(input: GenerationInput, proposal: AIQuestProposal): GeneratedDifficulty {
-  const desired: GeneratedDifficulty =
-    proposal.difficulty === 'hard' ? 'HARD' :
-    proposal.difficulty === 'medium' ? 'NORMAL' :
-    'EASY';
+function requestedDifficulty(proposal: AIQuestProposal): GeneratedDifficulty {
+  return proposal.difficulty === 'hard' ? 'HARD' :
+    proposal.difficulty === 'medium' ? 'NORMAL' : 'EASY';
+}
 
-  if (input.player.realLevel >= DIFFICULTY[desired].minLevel) return desired;
-  if (input.player.realLevel >= DIFFICULTY.NORMAL.minLevel) return 'NORMAL';
-  return 'EASY';
+function canonicalDifficulty(input: GenerationInput, proposal: AIQuestProposal): GeneratedDifficulty {
+  const requested = requestedDifficulty(proposal);
+  const localPolicy = adaptiveDifficulty(input).difficulty;
+  let result = ORDER[requested] <= ORDER[localPolicy] ? requested : localPolicy;
+  if (input.maximumDifficulty && ORDER[result] > ORDER[input.maximumDifficulty]) {
+    result = input.maximumDifficulty;
+  }
+  while (input.player.realLevel < DIFFICULTY[result].minLevel) {
+    result = result === 'HARD' ? 'NORMAL' : 'EASY';
+    if (result === 'EASY') break;
+  }
+  return result;
 }
 
 function verificationScore(template: QuestTemplate, proposal: AIQuestProposal) {
@@ -58,7 +68,7 @@ function chooseTemplate(
   input: GenerationInput,
   proposal: AIQuestProposal,
   used: Set<string>,
-  recoveryMode: boolean,
+  forceRecovery: boolean,
 ) {
   const themes = THEMES[proposal.category];
   const candidates = QUEST_TEMPLATES
@@ -66,12 +76,15 @@ function chooseTemplate(
     .filter(template => enabled(template, input))
     .filter(template => offCooldown(template, input))
     .filter(template => input.player.realLevel >= template.minimumLevel)
-    .filter(template => recoveryMode || proposal.category === 'recovery'
-      ? template.id === 'focus_return' || themes.includes(template.category)
-      : template.id !== 'focus_return');
+    .filter(template => forceRecovery
+      ? template.id === 'focus_return'
+      : proposal.category === 'recovery'
+        ? template.id === 'focus_return' || themes.includes(template.category)
+        : template.id !== 'focus_return');
 
   candidates.sort((a, b) => {
     const score = (template: QuestTemplate) =>
+      (template.id === proposal.templateHint ? 1000 : 0) +
       (themes.includes(template.category) ? 200 : 0) +
       verificationScore(template, proposal) +
       (proposal.category === 'recovery' && template.id === 'focus_return' ? 500 : 0) -
@@ -81,6 +94,16 @@ function chooseTemplate(
   return candidates[0];
 }
 
+function safeText(text: string, max: number) {
+  return text.replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function verificationCopy(quest: NonNullable<ReturnType<typeof generatedQuest>>) {
+  return quest.verification.type === 'GPS_DISTANCE'
+    ? `GPS potwierdza minimum ${Math.round(quest.verification.minimumDistanceMeters)} m.`
+    : `Timer SYSTEMU potwierdza minimum ${Math.round(quest.verification.minimumDurationSeconds / 60)} min sesji.`;
+}
+
 export function candidatesFromAI(
   input: GenerationInput,
   response: AIGameMasterResponse,
@@ -88,7 +111,7 @@ export function candidatesFromAI(
 ): Candidate[] {
   const picked: Candidate[] = [];
   const used = new Set<string>();
-  const recoveryMode = response.director.mode === 'recovery';
+  const recoveryMode = (input.systemDebt ?? 0) > 0 || response.director.mode === 'recovery';
 
   const proposals = response.quests.slice().sort((a, b) => {
     if (recoveryMode) {
@@ -100,22 +123,31 @@ export function candidatesFromAI(
 
   for (const proposal of proposals) {
     if (picked.length >= count) break;
-    const template = chooseTemplate(input, proposal, used, recoveryMode && picked.length === 0);
+    const forceRecovery = recoveryMode && picked.length === 0;
+    const template = chooseTemplate(input, proposal, used, forceRecovery);
     if (!template) continue;
-    const difficulty = proposal.category === 'recovery'
+    const difficulty = forceRecovery || proposal.category === 'recovery'
       ? 'EASY'
       : canonicalDifficulty(input, proposal);
-    const quest = generatedQuest(
+    const baseQuest = generatedQuest(
       `daily:${input.day}:g1_${template.id}_${difficulty.toLowerCase()}`,
     );
-    if (!quest) continue;
+    if (!baseQuest) continue;
+
+    const mayPersonalize = !forceRecovery || proposal.category === 'recovery';
+    const quest = mayPersonalize ? {
+      ...baseQuest,
+      title: safeText(proposal.title, 72) || baseQuest.title,
+      description: `${safeText(proposal.description, 230)} ${verificationCopy(baseQuest)}`.slice(0, 380),
+    } : baseQuest;
+
     used.add(template.id);
     picked.push({
       quest,
-      reason: `AI GAME MASTER · ${proposal.reason.slice(0, 180)}`,
+      reason: `AI GAME MASTER · ${safeText(proposal.reason, 180)}`,
       templateId: template.id,
       category: template.category,
-      recovery: proposal.category === 'recovery' || (recoveryMode && template.id === 'focus_return'),
+      recovery: forceRecovery || proposal.category === 'recovery',
     });
   }
 
