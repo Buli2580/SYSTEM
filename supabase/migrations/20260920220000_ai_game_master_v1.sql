@@ -11,11 +11,15 @@ create table if not exists public.ai_player_state (
 create table if not exists public.ai_quest_history (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null references auth.users(id) on delete cascade,
-  quest_key text not null,
-  title text not null,
+  quest_key text not null check (char_length(quest_key) between 3 and 120),
+  title text not null check (char_length(title) between 3 and 80),
   description text,
-  category text,
-  difficulty text,
+  category text check (
+    category is null or category in ('fitness','health','productivity','learning','exploration','social','recovery')
+  ),
+  difficulty text check (
+    difficulty is null or difficulty in ('easy','medium','hard')
+  ),
   source text not null default 'ai' check (source in ('ai','fallback')),
   generated_at timestamptz not null default now(),
   completed_at timestamptz,
@@ -29,28 +33,12 @@ create index if not exists ai_quest_history_account_generated_idx
 alter table public.ai_player_state enable row level security;
 alter table public.ai_quest_history enable row level security;
 
+-- Mobile clients may read their own AI metadata, but consequence/history writes
+-- remain server-authoritative. Future Edge Functions can write with a service role.
 create policy "ai_player_state_select_own"
   on public.ai_player_state for select
   using (auth.uid() = account_id);
 
-create policy "ai_player_state_update_own"
-  on public.ai_player_state for update
-  using (auth.uid() = account_id)
-  with check (auth.uid() = account_id);
-
-create policy "ai_player_state_insert_own"
-  on public.ai_player_state for insert
-  with check (auth.uid() = account_id);
-
 create policy "ai_quest_history_select_own"
   on public.ai_quest_history for select
   using (auth.uid() = account_id);
-
-create policy "ai_quest_history_insert_own"
-  on public.ai_quest_history for insert
-  with check (auth.uid() = account_id);
-
-create policy "ai_quest_history_update_own"
-  on public.ai_quest_history for update
-  using (auth.uid() = account_id)
-  with check (auth.uid() = account_id);
