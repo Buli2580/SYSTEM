@@ -51,19 +51,18 @@ export async function applyMissedDailyConsequence(db: SQLiteDatabase, currentDay
   );
   if (!previous || (state.lastDebtDay && state.lastDebtDay >= previous.day_key)) return state;
 
-  const counts = await db.getFirstAsync<{total:number;completed:number}>(
-    `SELECT COUNT(d.id) AS total,
-      SUM(CASE WHEN c.quest_id IS NOT NULL THEN 1 ELSE 0 END) AS completed
-     FROM daily_instances d
-     LEFT JOIN quest_completions c ON c.quest_id=d.id
-     WHERE d.day_key=?`,
+  const failures = await db.getFirstAsync<{n:number}>(
+    `SELECT COUNT(DISTINCT a.quest_id) AS n
+     FROM quest_attempts a
+     JOIN daily_instances d ON d.id=a.quest_id
+     WHERE d.day_key=? AND a.eligible=1
+       AND a.result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS')`,
     previous.day_key,
   );
-  const total = counts?.total ?? 0;
-  const completed = counts?.completed ?? 0;
+  const eligibleFailures = failures?.n ?? 0;
   let debt = state.systemDebt;
-  if (total > 0 && completed < total) {
-    debt = consequenceForFailedDaily(state.systemDebt, total - completed).systemDebt;
+  if (eligibleFailures > 0) {
+    debt = consequenceForFailedDaily(state.systemDebt, eligibleFailures).systemDebt;
   }
   const next = {
     systemDebt: debt,
