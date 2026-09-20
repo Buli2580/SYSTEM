@@ -33,6 +33,9 @@ export function validateAIGameMasterResponse(
   const r = value as AIGameMasterResponse;
   if (!Array.isArray(r.quests) || !r.quests.length || r.quests.length > 8) return null;
   if (!r.director || typeof r.briefing !== 'string') return null;
+  if (!['normal','recovery','challenge'].includes(r.director.mode)) return null;
+  if (![-1,0,1].includes(r.director.difficultyBias)) return null;
+  if (typeof r.director.headline !== 'string' || typeof r.director.message !== 'string') return null;
 
   const seen: string[] = [];
   for (const q of r.quests) {
@@ -46,6 +49,8 @@ export function validateAIGameMasterResponse(
     if (!Number.isFinite(q.estimatedMinutes) || q.estimatedMinutes < 1 || q.estimatedMinutes > 180) return null;
     if (!Number.isFinite(q.expiresInHours) || q.expiresInHours < 1 || q.expiresInHours > 72) return null;
     if (!Array.isArray(q.tags) || q.tags.length > 8) return null;
+    if (q.templateHint !== undefined &&
+        (typeof q.templateHint !== 'string' || !/^[a-z0-9_]{3,60}$/.test(q.templateHint))) return null;
 
     const full = `${q.title} ${q.description}`;
     if (BLOCKED.some(rx => rx.test(full))) return null;
@@ -54,5 +59,9 @@ export function validateAIGameMasterResponse(
     seen.push(full);
   }
 
-  return r;
+  return {
+    ...r,
+    briefing: r.briefing.slice(0, 180),
+    source: r.source === 'fallback' ? 'fallback' : 'ai',
+  };
 }

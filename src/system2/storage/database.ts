@@ -21,6 +21,7 @@ import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, type Setting
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
 import type { AIGameMasterResponse } from '../ai/types';
 import { candidatesFromAI } from '../ai/bridge';
+import { replaceAIQuestPresentations } from '../ai/registry';
 import { clearAIConsequenceDebt, readAIConsequenceState } from './aiState';
 import { parseEvent } from '../identity/history';
 
@@ -80,6 +81,28 @@ export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakening
 async function completedQuestIds(db: SQLite.SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ quest_id: string }>('SELECT quest_id FROM quest_completions');
   return rows.map(row => row.quest_id);
+}
+
+async function hydrateAIQuestPresentations(db: SQLite.SQLiteDatabase) {
+  const rows = await db.getAllAsync<{ value: string }>(
+    "SELECT value FROM app_state WHERE key LIKE 'ai_daily_presentation:%' ORDER BY key DESC LIMIT 14"
+  );
+  const presentations: { id: string; title: string; description: string }[] = [];
+  for (const row of rows.reverse()) {
+    try {
+      const parsed = JSON.parse(row.value) as { quests?: unknown };
+      if (!Array.isArray(parsed.quests)) continue;
+      for (const item of parsed.quests) {
+        if (!item || typeof item !== 'object') continue;
+        const quest = item as Record<string, unknown>;
+        if (typeof quest.id !== 'string' || typeof quest.title !== 'string' || typeof quest.description !== 'string') continue;
+        presentations.push({ id: quest.id, title: quest.title, description: quest.description });
+      }
+    } catch {
+      // Presentation copy is non-authoritative; corrupt rows fall back to canonical quest copy.
+    }
+  }
+  replaceAIQuestPresentations(presentations);
 }
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -177,6 +200,7 @@ export function getQuestAccess(questId: string): Promise<ReturnType<typeof getQu
 }
 
 async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
+  await hydrateAIQuestPresentations(db);
   const ids = await completedQuestIds(db);
   const chapter = await awardAwakeningIfEligible(db, await readPlayer(db), ids);
   const seen = await db.getFirstAsync('SELECT value FROM app_state WHERE key = ?', 'awakening_presentation_seen');
@@ -766,6 +790,7 @@ export function applyAIDailyPlan(plan: AIGameMasterResponse) {
    if (!daily || daily.clockAnomaly || daily.clear || plan.source !== 'ai') return snapshot;
 
    const markerKey = 'ai_daily_applied:' + daily.dayKey;
+   const presentationKey = 'ai_daily_presentation:' + daily.dayKey;
    if (await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', markerKey)) return snapshot;
 
    const touched = await txn.getFirstAsync(
@@ -801,6 +826,19 @@ export function applyAIDailyPlan(plan: AIGameMasterResponse) {
    await txn.runAsync('DELETE FROM daily_instances WHERE day_key=?', daily.dayKey);
 
    for (const candidate of candidates) await persistCandidate(txn, candidate);
+
+   await txn.runAsync(
+     'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+     presentationKey,
+     JSON.stringify({
+       quests: candidates.map(candidate => ({
+         id: candidate.quest.id,
+         title: candidate.quest.title,
+         description: candidate.quest.description,
+       })),
+     }),
+   );
+   await hydrateAIQuestPresentations(txn);
 
    await txn.runAsync(
      'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
