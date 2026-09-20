@@ -1,3 +1,5 @@
+import { directSystem } from '../director/engine';
+import type { SystemSnapshot } from '../storage/database';
 import type { PlayerProfile } from '../core';
 import type { PlayerAchievementState } from '../achievements/types';
 import type { DailyState } from '../storage/daily';
@@ -5,15 +7,15 @@ import type { StoryState } from '../story/types';
 import { AWAKENING_QUESTS, getQuest } from './catalog';
 
 export type NextAction = {
-  kind: 'RESUME' | 'AWAKENING' | 'DAILY' | 'STORY' | 'BOSS' | 'ACHIEVEMENTS' | 'PROGRESSION';
+  kind: 'RESUME' | 'AWAKENING' | 'DAILY' | 'STORY' | 'BOSS' | 'ACHIEVEMENTS' | 'PROGRESSION' | 'GOAL' | 'JOURNEY';
   title: string;
   detail: string;
-  route: '/quest' | '/quests' | '/story' | '/achievements' | '/character';
+  route: '/quest' | '/quests' | '/story' | '/achievements' | '/character' | '/goals';
   questId?: string;
   priority: number;
 };
 
-type NextActionInput = {
+type NextActionInput = Partial<Pick<SystemSnapshot, 'goals' | 'journeys' | 'journeyQuestIds' | 'recentActivity'>> & {
   player: PlayerProfile;
   completedQuestIds: readonly string[];
   failedQuestIds?: readonly string[];
@@ -43,6 +45,13 @@ export function getNextAction(input: NextActionInput): NextAction {
         priority: 90,
       };
     }
+  }
+
+  if (input.goals) {
+    const directive = directSystem({ ...input, completedQuestIds: [...input.completedQuestIds], daily: input.daily ?? null, story: input.story ?? null,
+      goals: input.goals, journeys: input.journeys ?? [], journeyQuestIds: input.journeyQuestIds ?? {}, recentActivity: input.recentActivity ?? [] }, input.activeQuestId ?? null);
+    if (directive.kind !== 'REST') return { kind: directive.route === '/goals' ? 'GOAL' : directive.journeyId ? 'JOURNEY' : directive.kind === 'CHALLENGE_BOSS' ? 'BOSS' : 'DAILY',
+      title: directive.title, detail: directive.reason, route: directive.route, questId: directive.questId, priority: 85 };
   }
 
   if (input.story?.worldLinkComplete && !input.story.bossComplete) {

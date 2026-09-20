@@ -1,3 +1,12 @@
+import { readGoals, insertGoal, changeGoalStatus } from './goals';
+import type { PlayerGoal, GoalInput, GoalStatus } from '../goals/model';
+import type { Journey } from '../journeys/model';
+import type { RecentActivity } from '../generation/engine';
+import { ensureJourneys, bindJourneyQuests, journeyBindings, advanceJourney } from './journeys';
+import { generationInput, persistCandidate } from './generation';
+import { generateLoadout } from '../generation/engine';
+import { templateFor } from '../generation/templates';
+import { applyProgression, readProgression, type ProgressionState } from './progression';
 import { ensureAchievementSchema } from '../achievements/schema';
 import { validateBirthDate } from '../identity/age';
 import { inspectLocalHealth, type LocalHealth } from './health';
@@ -10,7 +19,7 @@ import { BOSS_ID, attemptKind } from '../story/catalog';
 import type { StoryState, StoryEvent, QuestAttempt, AttemptResult, AttemptReason } from '../story/types';
 import { dayKey } from '../daily/calendar';
 import { classifyActivity } from '../activity/classifier';
-import type { ActivityEvidence } from '../activity/types';
+import type { ActivityEvidence, ActivityFeatures } from '../activity/types';
 import { dailyState, ensureDailyAccess, awardProtocols, currentStreak, type DailyState } from './daily';
 import { DEFAULT_ACTIVITIES } from '../daily/templates';
 import { getQuest } from '../quests/catalog';
@@ -30,7 +39,35 @@ import type { QuestEvidence } from '../quests/types';
 import { awardAwakeningIfEligible } from './chapter';
 
 export type CompleteQuestInput = QuestEvidence & { operationKey?: string };
+export type QuestCheckpoint = {
+  questId: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  verificationScore: number;
+  extendedGoal: boolean;
+  activityFeatures?: ActivityFeatures;
+  updatedAt: string;
+};
+
+export type StoredLocationPoint = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
+  mocked: boolean;
+};
+
+export type BackgroundQuestSession = {
+  questId: string;
+  attemptId: string;
+  mode: 'FOREGROUND' | 'BACKGROUND';
+  extendedGoal: boolean;
+  lastPoint?: StoredLocationPoint;
+  lastObservedTimestamp?: number;
+  updatedAt: string;
+};
 export type SystemSnapshot = {
+  goals: PlayerGoal[]; journeys: Journey[]; journeyQuestIds: Record<string,string>; recentActivity: readonly RecentActivity[]; progression: ProgressionState | null;
   failedQuestIds?: string[];
   story: StoryState | null;
   daily: DailyState | null;
@@ -78,7 +115,23 @@ export async function initSystemDatabase() {
       const db = await getDatabase();
       await migrateDatabase(db);
       await db.withExclusiveTransactionAsync(async txn => {
-        await txn.runAsync("UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL",new Date(Date.now()).toISOString());
+        const activeRow = await txn.getFirstAsync<{ value: string }>(
+          'SELECT value FROM app_state WHERE key=?',
+          BACKGROUND_QUEST_SESSION_KEY,
+        );
+        const activeBackground = parseBackgroundQuestSession(activeRow?.value);
+        if (activeBackground?.attemptId) {
+          await txn.runAsync(
+            "UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL AND attempt_id<>?",
+            new Date(Date.now()).toISOString(),
+            activeBackground.attemptId,
+          );
+        } else {
+          await txn.runAsync(
+            "UPDATE quest_attempts SET result='ABANDONED',reason='PROCESS_ENDED',ended_at=? WHERE result IS NULL",
+            new Date(Date.now()).toISOString(),
+          );
+        }
       });
     })().catch(error => {
       initializationPromise = null;
@@ -142,10 +195,16 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
   const selected = titles.includes(chapter.player.currentTitle as Title) ? chapter.player.currentTitle : titles[titles.length - 1];
   const preferences = parseSettings(settings?.value);
+  const goals = await readGoals(db);
+  const journeys = await ensureJourneys(db, goals);
   const daily = await dailyState(db, chapter.player, chapter.awakeningCompleted, preferences.activities ?? DEFAULT_ACTIVITIES);
+  if (daily) await bindJourneyQuests(db, daily.questIds, goals, journeys);
+  const recentActivity = (await generationInput(db, chapter.player, daily?.dayKey ?? dayKey(), preferences.activities ?? DEFAULT_ACTIVITIES)).history;
+  const progression = await readProgression(db, new Date(Date.now()).toISOString());
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
   const failed = await db.getAllAsync<{ quest_id: string }>("SELECT DISTINCT quest_id FROM quest_attempts WHERE result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS') AND quest_id NOT IN (SELECT quest_id FROM quest_completions)");
   return {
+    goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
     failedQuestIds: failed.map(row => row.quest_id), daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
@@ -189,9 +248,13 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
           bossAccessible: quest?.category === 'BOSS' ? await bossAccess(txn, id) : false });
       }, {
         async apply(player, quest, evidence, now) {
-          return awardProtocols(txn, await completeStoryActivity(txn, player, quest, evidence), quest.id, now);
+          const storyPlayer = await completeStoryActivity(txn, player, quest, evidence);
+          const journeyPlayer = await advanceJourney(txn, storyPlayer, quest, now);
+          const protocolPlayer = await awardProtocols(txn, journeyPlayer, quest.id, now);
+          return applyProgression(txn, protocolPlayer, quest, evidence, 'quest_' + quest.id, now);
         },
         async result(awarded, before, event) {
+          if (awarded && event) await enqueueCloudOutboxEvent(txn, event);
           const snapshot = await snapshotInTransaction(txn);
           return { awarded, ...snapshot, ...(event ? { receipt: rewardReceipt(event.id, before, snapshot.player,
             snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) } : {}) };
@@ -200,7 +263,7 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
     });
     return result!;
   }),
-}, localQuestVerification, () => new Date().toISOString());
+}, localQuestVerification, () => new Date(Date.now()).toISOString());
 
 export async function completeVerifiedQuest(input: CompleteQuestInput): Promise<CompleteQuestResult> {
   const result = await completeQuestUseCase({ evidence: input, operationKey: input.operationKey });
@@ -300,7 +363,9 @@ export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
     await ensureAchievementSchema(txn);
-    for (const table of ['achievement_events', 'player_titles', 'achievements', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    if (await txn.getFirstAsync("SELECT name FROM sqlite_master WHERE type='table' AND name='legacy_player_goals_v8'"))
+      await txn.runAsync('DELETE FROM legacy_player_goals_v8');
+    for (const table of ['progression_claims', 'progression_contributions', 'journey_milestones', 'journey_activity', 'journey_quests', 'journeys', 'legacy_goal_imports', 'player_goals', 'daily_generation', 'daily_rerolls', 'boss_contributions', 'cloud_outbox', 'achievement_events', 'player_titles', 'achievements', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -363,6 +428,166 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    if(changed.changes&&eligible) await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
  });
 }
+const BACKGROUND_QUEST_SESSION_KEY = 'background_quest_session';
+
+function validStoredPoint(value: unknown): value is StoredLocationPoint {
+  if (!value || typeof value !== 'object') return false;
+  const point = value as Partial<StoredLocationPoint>;
+  return typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 &&
+    typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180 &&
+    typeof point.accuracy === 'number' && Number.isFinite(point.accuracy) && point.accuracy >= 0 && point.accuracy <= 100 &&
+    typeof point.timestamp === 'number' && Number.isFinite(point.timestamp) &&
+    typeof point.mocked === 'boolean';
+}
+
+function parseBackgroundQuestSession(raw?: string): BackgroundQuestSession | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<BackgroundQuestSession>;
+    if (typeof value.questId !== 'string' || typeof value.attemptId !== 'string' ||
+        !['FOREGROUND','BACKGROUND'].includes(value.mode ?? '') ||
+        typeof value.extendedGoal !== 'boolean' || typeof value.updatedAt !== 'string' ||
+        (value.lastPoint !== undefined && !validStoredPoint(value.lastPoint)) ||
+        (value.lastObservedTimestamp !== undefined &&
+          (typeof value.lastObservedTimestamp !== 'number' || !Number.isFinite(value.lastObservedTimestamp)))) return null;
+    return value as BackgroundQuestSession;
+  } catch {
+    return null;
+  }
+}
+
+export function loadBackgroundQuestSession(): Promise<BackgroundQuestSession | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+    );
+    const session = parseBackgroundQuestSession(row?.value);
+    if (!session && row) await txn.runAsync('DELETE FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY);
+    return session;
+  });
+}
+
+export function saveBackgroundQuestSession(session: BackgroundQuestSession) {
+  if (!session.questId || !session.attemptId || !['FOREGROUND','BACKGROUND'].includes(session.mode) ||
+      (session.lastPoint && !validStoredPoint(session.lastPoint))) {
+    return Promise.reject(new Error('Nieprawidłowy stan pomiaru w tle.'));
+  }
+  const safe: BackgroundQuestSession = {
+    questId: session.questId,
+    attemptId: session.attemptId,
+    mode: session.mode,
+    extendedGoal: Boolean(session.extendedGoal),
+    ...(session.lastPoint ? { lastPoint: { ...session.lastPoint } } : {}),
+    ...(session.lastObservedTimestamp !== undefined ? { lastObservedTimestamp: session.lastObservedTimestamp } : {}),
+    updatedAt: session.updatedAt,
+  };
+  return profileTransaction(txn => txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    BACKGROUND_QUEST_SESSION_KEY, JSON.stringify(safe)
+  ));
+}
+
+export function updateBackgroundQuestSession(
+  questId: string,
+  patch: Partial<Omit<BackgroundQuestSession, 'questId' | 'attemptId'>>,
+): Promise<BackgroundQuestSession | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+    );
+    const current = parseBackgroundQuestSession(row?.value);
+    if (!current || current.questId !== questId) return null;
+    const next: BackgroundQuestSession = {
+      ...current,
+      ...patch,
+      questId: current.questId,
+      attemptId: current.attemptId,
+      updatedAt: new Date().toISOString(),
+    };
+    if (next.lastPoint && !validStoredPoint(next.lastPoint)) throw new Error('Nieprawidłowy punkt GPS.');
+    await txn.runAsync(
+      'UPDATE app_state SET value=? WHERE key=?',
+      JSON.stringify(next), BACKGROUND_QUEST_SESSION_KEY
+    );
+    return next;
+  });
+}
+
+export function clearBackgroundQuestSession(questId?: string) {
+  return profileTransaction(async txn => {
+    if (questId) {
+      const row = await txn.getFirstAsync<{ value: string }>(
+        'SELECT value FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY
+      );
+      const current = parseBackgroundQuestSession(row?.value);
+      if (current && current.questId !== questId) return;
+    }
+    await txn.runAsync('DELETE FROM app_state WHERE key=?', BACKGROUND_QUEST_SESSION_KEY);
+  });
+}
+
+function questCheckpointKey(questId: string) { return 'quest_checkpoint:' + questId; }
+
+function isFiniteNonNegative(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function parseQuestCheckpoint(raw: string | undefined, questId: string): QuestCheckpoint | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<QuestCheckpoint>;
+    if (value.questId !== questId || !isFiniteNonNegative(value.distanceMeters) ||
+        !isFiniteNonNegative(value.durationSeconds) || !isFiniteNonNegative(value.verificationScore) ||
+        (value.verificationScore ?? 101) > 100 || typeof value.extendedGoal !== 'boolean' ||
+        typeof value.updatedAt !== 'string') return null;
+    return {
+      questId,
+      distanceMeters: value.distanceMeters!,
+      durationSeconds: value.durationSeconds!,
+      verificationScore: value.verificationScore!,
+      extendedGoal: value.extendedGoal!,
+      ...(value.activityFeatures ? { activityFeatures: value.activityFeatures } : {}),
+      updatedAt: value.updatedAt!,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function loadQuestCheckpoint(questId: string): Promise<QuestCheckpoint | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key=?', questCheckpointKey(questId));
+    const checkpoint = parseQuestCheckpoint(row?.value, questId);
+    if (!checkpoint && row) await txn.runAsync('DELETE FROM app_state WHERE key=?', questCheckpointKey(questId));
+    return checkpoint;
+  });
+}
+
+export function saveQuestCheckpoint(checkpoint: QuestCheckpoint) {
+  const quest = getQuest(checkpoint.questId);
+  if (!quest || quest.verification.type === 'TIMER') return clearQuestCheckpoint(checkpoint.questId);
+  if (!isFiniteNonNegative(checkpoint.distanceMeters) || checkpoint.distanceMeters <= 0 ||
+      !isFiniteNonNegative(checkpoint.durationSeconds) || !isFiniteNonNegative(checkpoint.verificationScore) ||
+      checkpoint.verificationScore > 100) return Promise.reject(new Error('Nieprawidłowy zapis postępu misji.'));
+  const safe: QuestCheckpoint = {
+    questId: checkpoint.questId,
+    distanceMeters: checkpoint.distanceMeters,
+    durationSeconds: checkpoint.durationSeconds,
+    verificationScore: checkpoint.verificationScore,
+    extendedGoal: Boolean(checkpoint.extendedGoal),
+    ...(checkpoint.activityFeatures ? { activityFeatures: { ...checkpoint.activityFeatures } } : {}),
+    updatedAt: checkpoint.updatedAt,
+  };
+  return profileTransaction(txn => txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    questCheckpointKey(checkpoint.questId), JSON.stringify(safe)
+  ));
+}
+
+export function clearQuestCheckpoint(questId: string) {
+  return profileTransaction(txn => txn.runAsync('DELETE FROM app_state WHERE key=?', questCheckpointKey(questId)));
+}
+
 export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
 export function loadChronicle() { return profileTransaction(txn=>txn.getAllAsync<StoryEvent>("SELECT * FROM story_events WHERE type NOT IN ('REMATCH_AVAILABLE','REMATCH_COMPLETED') ORDER BY created_at DESC,id DESC LIMIT 50")); }
 export function consumeStoryEvent(id:string) { return profileTransaction(txn=>txn.runAsync('UPDATE story_events SET consumed=1 WHERE id=?',id)); }
@@ -388,18 +613,78 @@ export function testerHealthCheck(): Promise<LocalHealth> {
   });
 }
 
+const CLOUD_USER_BINDING_KEY = 'cloud_user_binding_v1';
+
+export function getCloudUserBinding(): Promise<string | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    return row?.value ?? null;
+  });
+}
+
+export function ensureCloudUserBinding(userId: string): Promise<void> {
+  const normalized = userId.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(normalized)) {
+    return Promise.reject(new Error('Nieprawidłowy identyfikator konta SYSTEM CLOUD.'));
+  }
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?',
+      CLOUD_USER_BINDING_KEY,
+    );
+    if (!row) {
+      await txn.runAsync(
+        'INSERT INTO app_state(key,value) VALUES(?,?)',
+        CLOUD_USER_BINDING_KEY,
+        normalized,
+      );
+      return;
+    }
+    if (row.value !== normalized) {
+      throw new Error(
+        'Ten lokalny profil jest już połączony z innym kontem SYSTEM CLOUD. Aby użyć innego konta, najpierw wyczyść lokalne dane SYSTEMU.',
+      );
+    }
+  });
+}
+
 export type CloudOutboxRow = {
-  event_key: string; entity_type: string; entity_id: string | null; payload: string;
-  client_created_at: string; schema_version: number; attempts: number;
-  last_attempt_at: string | null; last_error: string | null; synced_at: string | null;
+  event_key: string;
+  entity_type: string;
+  entity_id: string | null;
+  payload: string;
+  client_created_at: string;
+  schema_version: number;
+  attempts: number;
+  last_attempt_at: string | null;
+  last_error: string | null;
+  synced_at: string | null;
 };
 
 function cloudEvidencePayload(event: VerifiedEvent) {
   return {
-    quest_id: event.questId, verification_type: event.verificationType, verification_score: event.verificationScore,
+    quest_id: event.questId,
+    completed_day: dayKey(Date.parse(event.createdAt)),
+    verification_type: event.verificationType,
+    verification_score: event.verificationScore,
     ...(event.distanceMeters !== undefined ? { distance_meters: event.distanceMeters } : {}),
     ...(event.durationSeconds !== undefined ? { duration_seconds: event.durationSeconds } : {}),
     ...(event.steps !== undefined ? { steps: event.steps } : {}),
+    ...(event.activity ? {
+      activity: {
+        expected: event.activity.activityTypeExpected,
+        detected: event.activity.activityTypeDetected,
+        verdict: event.activity.verdict,
+        score: event.activity.verificationScore,
+        reason_codes: event.activity.reasonCodes,
+        features: event.activity.features,
+        sensors: event.activity.sensors,
+        sensor_sources: event.activity.sensorSources,
+      },
+    } : {}),
   };
 }
 
@@ -408,22 +693,119 @@ async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: Verifi
   await txn.runAsync(
     `INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
      VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING`,
-    'verified:' + event.id, 'VERIFIED_EVENT', event.questId, JSON.stringify(cloudEvidencePayload(event)), event.createdAt,
+    'verified:' + event.id,
+    'VERIFIED_EVENT',
+    event.questId,
+    JSON.stringify(cloudEvidencePayload(event)),
+    event.createdAt,
   );
 }
 
 export function backfillCloudOutbox() {
   return profileTransaction(async txn => {
-    const marker = await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', 'cloud_outbox_backfill_v1');
-    if (marker) return;
-    const rows = await txn.getAllAsync<{ payload: string }>('SELECT payload FROM verified_events ORDER BY created_at ASC, id ASC LIMIT 500');
+    // Chapter, daily/weekly and world transactions also produce verified events.
+    // Reconcile missing entries on every sync, including after the legacy marker.
+    const rows = await txn.getAllAsync<{ payload: string }>(
+      `SELECT v.payload FROM verified_events v
+       WHERE NOT EXISTS (SELECT 1 FROM cloud_outbox o WHERE o.event_key = 'verified:' || v.id)
+         AND CASE WHEN json_valid(v.payload) THEN
+           json_extract(v.payload, '$.verified') = 1
+           AND json_extract(v.payload, '$.id') = v.id
+           AND json_extract(v.payload, '$.questId') = v.quest_id
+         ELSE 0 END
+       ORDER BY v.created_at ASC, v.id ASC LIMIT 500`
+    );
     for (const row of rows) {
-      try { const event = parseEvent(row.payload); if (event.verified) await enqueueCloudOutboxEvent(txn, event); } catch { /* malformed legacy event */ }
+      const event = JSON.parse(row.payload) as VerifiedEvent;
+      if (event?.verified === true && typeof event.id === 'string' && typeof event.questId === 'string') {
+        await enqueueCloudOutboxEvent(txn, event);
+      }
     }
-    await txn.runAsync("INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'");
+    // Story awards use a separate local journal. Send only a completion claim;
+    // the server must derive eligibility and reward from its own evidence.
+    const story = await txn.getAllAsync<{ id: string; completed_at: string }>(
+      `SELECT s.id,s.completed_at FROM story_progress s
+       WHERE NOT EXISTS (SELECT 1 FROM cloud_outbox o WHERE o.event_key = 'verified:story:' || s.id)
+       ORDER BY s.completed_at,s.id LIMIT 100`
+    );
+    for (const row of story) {
+      await txn.runAsync(
+        `INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
+         VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING`,
+        'verified:story:' + row.id, 'VERIFIED_EVENT', row.id,
+        JSON.stringify({ quest_id: row.id, verification_type: 'MULTI', verification_score: 100 }),
+        row.completed_at,
+      );
+    }
   });
 }
-export function listPendingCloudOutbox(limit = 25) { const safe=Math.max(1,Math.min(Math.floor(limit),100)); return profileTransaction(txn=>txn.getAllAsync<CloudOutboxRow>('SELECT * FROM cloud_outbox WHERE synced_at IS NULL ORDER BY client_created_at ASC,event_key ASC LIMIT ?',safe)); }
-export function markCloudOutboxSynced(key:string) { const now=new Date().toISOString(); return profileTransaction(txn=>txn.runAsync('UPDATE cloud_outbox SET synced_at=?,last_error=NULL,last_attempt_at=? WHERE event_key=?',now,now,key)); }
-export function markCloudOutboxAttempt(key:string,error:string) { return profileTransaction(txn=>txn.runAsync('UPDATE cloud_outbox SET attempts=attempts+1,last_attempt_at=?,last_error=? WHERE event_key=? AND synced_at IS NULL',new Date().toISOString(),error.slice(0,300),key)); }
-export function cloudOutboxStats() { return profileTransaction(async txn=>{ const row=await txn.getFirstAsync<{pending:number;synced:number;failed:number}>(`SELECT SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) pending,SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) synced,SUM(CASE WHEN synced_at IS NULL AND attempts>0 THEN 1 ELSE 0 END) failed FROM cloud_outbox`); return {pending:row?.pending??0,synced:row?.synced??0,failed:row?.failed??0}; }); }
+
+export function listPendingCloudOutbox(limit = 25) {
+  const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
+  return profileTransaction(txn => txn.getAllAsync<CloudOutboxRow>(
+    `SELECT * FROM cloud_outbox
+     WHERE synced_at IS NULL
+       AND (
+         attempts = 0 OR last_attempt_at IS NULL OR
+         (attempts = 1 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 60) OR
+         (attempts = 2 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 300) OR
+         (attempts = 3 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 900) OR
+         (attempts = 4 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 3600) OR
+         (attempts >= 5 AND (julianday('now') - julianday(last_attempt_at)) * 86400 >= 21600)
+       )
+     ORDER BY client_created_at ASC,event_key ASC LIMIT ?`,
+    safeLimit,
+  ));
+}
+
+export function markCloudOutboxSynced(eventKey: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET synced_at=?,last_error=NULL,last_attempt_at=? WHERE event_key=?',
+    new Date().toISOString(), new Date().toISOString(), eventKey,
+  ));
+}
+
+export function markCloudOutboxAttempt(eventKey: string, error: string) {
+  return profileTransaction(txn => txn.runAsync(
+    'UPDATE cloud_outbox SET attempts=attempts+1,last_attempt_at=?,last_error=? WHERE event_key=? AND synced_at IS NULL',
+    new Date().toISOString(), error.slice(0, 300), eventKey,
+  ));
+}
+
+export function cloudOutboxStats() {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ pending: number; synced: number; failed: number }>(
+      `SELECT
+        SUM(CASE WHEN synced_at IS NULL THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN synced_at IS NOT NULL THEN 1 ELSE 0 END) AS synced,
+        SUM(CASE WHEN synced_at IS NULL AND attempts > 0 THEN 1 ELSE 0 END) AS failed
+       FROM cloud_outbox`
+    );
+    return { pending: row?.pending ?? 0, synced: row?.synced ?? 0, failed: row?.failed ?? 0 };
+  });
+}
+
+export function createPlayerGoal(input: GoalInput) {
+ return profileTransaction(async txn => { await insertGoal(txn,input); return snapshotInTransaction(txn); });
+}
+export function updateGoalStatus(id: string, status: GoalStatus) {
+ return profileTransaction(async txn => { await changeGoalStatus(txn,id,status); return snapshotInTransaction(txn); });
+}
+
+export function rerollDailyQuest(id:string) { return profileTransaction(async txn=>{
+ const snapshot=await snapshotInTransaction(txn),daily=snapshot.daily;
+ if(!daily||daily.clockAnomaly||daily.rerollsUsed||!daily.questIds.includes(id)||snapshot.completedQuestIds.includes(id)) throw new Error('Wymiana niedostępna: jeden niewykonany Daily dziennie.');
+ if(await txn.getFirstAsync('SELECT attempt_id FROM quest_attempts WHERE quest_id=? LIMIT 1',id))throw new Error('Rozpoczętej misji nie można wymienić.');
+ const input=await generationInput(txn,snapshot.player,daily.dayKey,snapshot.settings.activities??DEFAULT_ACTIVITIES);
+ input.exclude=daily.questIds.map(id=>templateFor(id)?.id??'');
+ const old=getQuest(id)!;
+ input.maximumDifficulty=old.difficulty==='EXTREME'?'HARD':old.difficulty;
+ const choices=generateLoadout(input,3);
+ const next=choices.find(c=>c.quest.difficulty===old.difficulty)??choices.find(c=>c.quest.difficulty==='EASY')??choices[0];
+ if(!next||next.quest.id===id)throw new Error('Brak odpowiedniego zamiennika. Spróbuj jutro.');
+ await txn.runAsync('INSERT INTO daily_rerolls(day_key,old_id,new_id) VALUES (?,?,?)',daily.dayKey,id,next.quest.id);
+ await txn.runAsync('DELETE FROM daily_instances WHERE id=?',id);
+ await persistCandidate(txn,next);
+ await storyEvent(txn,'reroll:'+daily.dayKey,'QUEST_REROLLED','DAILY REPLACED',old.title+' → '+next.quest.title);
+ return snapshotInTransaction(txn);
+}); }

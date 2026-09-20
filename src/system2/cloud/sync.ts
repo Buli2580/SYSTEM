@@ -5,10 +5,11 @@ import {
   listPendingCloudOutbox,
   markCloudOutboxAttempt,
   markCloudOutboxSynced,
+  ensureCloudUserBinding,
 } from '../storage/database';
 import { getValidSession } from './auth';
 import { CloudRequestError } from './http';
-import { submitSyncEvent } from './state';
+import { processPendingSyncEvents, submitSyncEvent } from './state';
 
 const INSTALL_ID_KEY = 'system.cloud.install.v1';
 
@@ -34,6 +35,7 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
     return { authenticated: false, sent: 0, pending: stats.pending, failed: stats.failed };
   }
 
+  await ensureCloudUserBinding(session.user.id);
   await backfillCloudOutbox();
   const installId = await getInstallId();
   const rows = await listPendingCloudOutbox(limit);
@@ -56,8 +58,22 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Nieznany błąd synchronizacji.';
       await markCloudOutboxAttempt(row.event_key, message);
-      if (cause instanceof CloudRequestError && (cause.status === 401 || cause.status === 403)) break;
+      if (
+        cause instanceof CloudRequestError &&
+        (cause.status === 0 || cause.status === 401 || cause.status === 403 ||
+          cause.status === 429 || cause.status >= 500)
+      ) break;
     }
+  }
+
+  // Uploaded events may still be RECEIVED after a transient server error or
+  // out-of-order offline delivery. Retry them even when the local outbox is empty.
+  // This changes cloud state only; SQLite remains the offline gameplay source.
+  try {
+    await processPendingSyncEvents(limit);
+  } catch (cause) {
+    // Allow the mobile update to run against Online 0.3 during migration rollout.
+    if (!(cause instanceof CloudRequestError && cause.code === 'PGRST202')) throw cause;
   }
 
   const stats = await cloudOutboxStats();
@@ -67,4 +83,11 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
 export async function getLocalCloudSyncStatus() {
   await backfillCloudOutbox();
   return cloudOutboxStats();
+}
+
+
+export async function ensureCurrentCloudBinding(): Promise<void> {
+  const session = await getValidSession();
+  if (!session) throw new Error('Najpierw zaloguj SYSTEM CLOUD.');
+  await ensureCloudUserBinding(session.user.id);
 }

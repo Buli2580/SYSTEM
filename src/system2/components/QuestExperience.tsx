@@ -89,7 +89,7 @@ export function QuestMissionCard({ quest, status, progress, progressTarget, disa
   </Animated.View>;
 }
 
-export function MissionBriefing({ quest, status, onStart, startDisabled }: { quest: RunnableQuest; status: string; onStart?: () => void; startDisabled?: boolean }) {
+export function MissionBriefing({ quest, status, onStart, startDisabled, resume = false }: { quest: RunnableQuest; status: string; onStart?: () => void; startDisabled?: boolean; resume?: boolean }) {
   const displayStatus = questStatusForRun(status);
   const objective = quest.verification.type === 'TIMER' ? `${Math.floor((quest.verification.minimumDurationSeconds ?? 0) / 60)} MIN FOCUS` : quest.verification.type === 'MULTI' ? `${quest.verification.minimumDistanceMeters ?? 0} M + ${Math.floor((quest.verification.minimumDurationSeconds ?? 0) / 60)} MIN` : `${quest.verification.minimumDistanceMeters ?? 0} M`;
   return <View style={styles.briefing}>
@@ -103,8 +103,8 @@ export function MissionBriefing({ quest, status, onStart, startDisabled }: { que
       <Info label="PRIMARY SKILL" value={quest.primarySkill} />
     </View>
     <QuestRewardRow quest={quest} />
-    {onStart && <Pressable accessibilityRole="button" accessibilityLabel="Start mission" accessibilityState={{ disabled: startDisabled }} disabled={startDisabled} onPress={onStart} style={({ pressed }) => [styles.startButton, startDisabled && styles.startButtonDisabled, pressed && styles.startButtonPressed]}>
-      <Text style={styles.startButtonText}>{startDisabled ? 'STARTING...' : 'START MISSION'}</Text><Text style={styles.startArrow}>→</Text>
+    {onStart && <Pressable accessibilityRole="button" accessibilityLabel={resume ? 'Wznów misję' : 'Rozpocznij misję'} accessibilityState={{ disabled: startDisabled }} disabled={startDisabled} onPress={onStart} style={({ pressed }) => [styles.startButton, startDisabled && styles.startButtonDisabled, pressed && styles.startButtonPressed]}>
+      <Text style={styles.startButtonText}>{startDisabled ? 'URUCHAMIANIE…' : resume ? 'WZNÓW MISJĘ' : 'ROZPOCZNIJ MISJĘ'}</Text><Text style={styles.startArrow}>→</Text>
     </Pressable>}
   </View>;
 }

@@ -14,8 +14,13 @@ import type { RewardReceipt } from '../core/rewards';
 import type { PlayerAchievementState } from '../achievements/types';
 import { reconcileAchievements } from '../achievements/reconcile';
 import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
+import { flushCloudOutbox } from '../cloud/sync';
+import { stopQuestBackgroundTracking } from '../background/locationService';
 
 type SystemContextValue = db.SystemSnapshot & {
+  createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<void>;
+  updateGoalStatus: (id: string, status: Parameters<typeof db.updateGoalStatus>[1]) => Promise<void>;
+  rerollDailyQuest: (id: string) => Promise<void>;
   ready: boolean; error: string | null; activeQuestId: string | null;
   setActiveQuestId: Dispatch<SetStateAction<string | null>>;
   acknowledgeAwakening: () => Promise<void>;
@@ -36,6 +41,7 @@ const EMPTY_ACHIEVEMENT_STATE: PlayerAchievementState = { achievements: {}, titl
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<db.SystemSnapshot>(() => ({
+    goals: [], journeys: [], journeyQuestIds: {}, recentActivity: [], progression: null,
     story: null, daily: null, player: createNewPlayer(), completedQuestIds: [], awakeningCompleted: false, worldUnlocked: false,
     awakeningPending: false, onboardingComplete: false, settings: DEFAULT_SETTINGS, titles: ['UNAWAKENED'],
   }));
@@ -92,7 +98,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         const next = await awaitWithTimeout(db.loadSystemState());
         const health = await awaitWithTimeout(db.testerHealthCheck());
         if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); void syncAchievements(next.player, epoch); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); void syncAchievements(next.player, epoch); setReady(true); void flushCloudOutbox().catch(() => undefined); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
@@ -119,7 +125,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); void syncAchievements(result.player, epoch); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) { setSnapshot(result); void syncAchievements(result.player, epoch); void flushCloudOutbox().catch(() => undefined); if (result.receipt) presentReward(result.receipt); }
     return result;
   }, [presentReward, syncAchievements]);
   const apply = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
@@ -134,6 +140,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
     setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null);
     try {
+      await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
       setAchievementState(EMPTY_ACHIEVEMENT_STATE); setAchievementError(null);
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
@@ -145,6 +152,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(() => db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(() => db.updateIdentity(patch)),
+    createPlayerGoal: input => apply(() => db.createPlayerGoal(input)), updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
+    rerollDailyQuest: id => apply(() => db.rerollDailyQuest(id)),
     saveSettings: settings => apply(() => db.saveSettings(settings)), resetData, achievementState, achievementError, refreshAchievements,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;

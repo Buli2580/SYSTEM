@@ -1,5 +1,5 @@
-import SystemHomeScreen from '../screens/SystemHomeScreen';
+import { Redirect } from 'expo-router';
 
-export default function Index() {
-  return <SystemHomeScreen />;
+export default function RetiredRoute() {
+  return <Redirect href="/" />;
 }

@@ -10,6 +10,19 @@ const OpenAI = require("openai");
 const { toFile } = require("openai");
 
 const app = express();
+app.disable("x-powered-by");
+
+const legacyEnabled = process.env.ENABLE_LEGACY_AVATAR_SERVER === "true";
+if (!legacyEnabled) {
+  console.error("Legacy avatar server is disabled. Set ENABLE_LEGACY_AVATAR_SERVER=true only for deliberate testing.");
+  process.exit(1);
+}
+
+const avatarServerToken = process.env.AVATAR_SERVER_TOKEN || "";
+if (!avatarServerToken) {
+  console.error("AVATAR_SERVER_TOKEN is required when the legacy avatar server is enabled.");
+  process.exit(1);
+}
 
 const PORT =
   process.env.PORT || 3000;
@@ -20,7 +33,23 @@ const openai =
       process.env.OPENAI_API_KEY,
   });
 
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map(value => value.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Origin not allowed"));
+  },
+}));
+
+app.use("/api", (req, res, next) => {
+  const token = req.get("x-system-avatar-token") || "";
+  if (token !== avatarServerToken) return res.status(401).json({ error: "UNAUTHORIZED" });
+  next();
+});
 
 app.use(
   express.json({

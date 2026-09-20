@@ -13,14 +13,13 @@ import {
   type CloudSession,
 } from '../cloud/auth';
 import { fetchCloudState } from '../cloud/state';
-import { flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
 import {
   getMySocialProfile,
   updateMySocialProfile,
   type SocialProfile,
 } from '../cloud/social';
-
-type SyncStats = { pending: number; synced: number; failed: number };
+import { ensureCurrentCloudBinding, flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
+import { requestAccountDeletion } from '../cloud/account';
 
 const inputStyle = {
   color: '#fff',
@@ -31,6 +30,8 @@ const inputStyle = {
   paddingHorizontal: 14,
   marginTop: 10,
 } as const;
+
+type SyncStats = { pending: number; synced: number; failed: number };
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -51,6 +52,7 @@ export default function AccountScreen() {
   const [status, setStatus] = useState('SYSTEM CLOUD // NIEPOŁĄCZONY');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const lock = useRef(false);
 
   function fillSocial(profile: SocialProfile) {
@@ -65,9 +67,18 @@ export default function AccountScreen() {
     setIsPublic(profile.visibility === 'public');
   }
 
-  async function refreshSyncStats() { setSyncStats(await getLocalCloudSyncStatus()); }
+  async function refreshSyncStats() {
+    setSyncStats(await getLocalCloudSyncStatus());
+  }
 
   async function loadOnline(current: CloudSession) {
+    try {
+      await ensureCurrentCloudBinding();
+    } catch (cause) {
+      await signOutCloud().catch(() => undefined);
+      setSession(null);
+      throw cause;
+    }
     const profile = await getMySocialProfile();
     fillSocial(profile);
     await refreshSyncStats();
@@ -98,6 +109,17 @@ export default function AccountScreen() {
         if (!active) return;
         await refreshSyncStats();
         if (!current) return;
+        try {
+          await ensureCurrentCloudBinding();
+        } catch (cause) {
+          await signOutCloud().catch(() => undefined);
+          if (active) {
+            setSession(null);
+            setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY');
+          }
+          throw cause;
+        }
+        if (!active) return;
         setSession(current);
         const profile = await getMySocialProfile();
         if (!active) return;
@@ -113,8 +135,8 @@ export default function AccountScreen() {
   async function signIn() {
     const current = await signInWithPassword(email, password);
     await loadOnline(current);
-    await flushCloudOutbox(50);
-    await refreshSyncStats();
+    const result = await flushCloudOutbox(50);
+    setSyncStats({ pending: result.pending, synced: (await getLocalCloudSyncStatus()).synced, failed: result.failed });
     setPassword('');
   }
 
@@ -150,9 +172,20 @@ export default function AccountScreen() {
     setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
   }
 
-  async function checkCloud() { const state = await fetchCloudState(); setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion); }
+  async function checkCloud() {
+    const state = await fetchCloudState();
+    const level = Number(state.state.player?.real_level ?? 1);
+    setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
+  }
 
-  async function syncNow() { const result=await flushCloudOutbox(100); await refreshSyncStats(); setStatus(result.pending===0?'SYNCHRONIZACJA // WSZYSTKO WYSŁANE':'SYNCHRONIZACJA // OCZEKUJE '+result.pending); }
+  async function syncNow() {
+    const result = await flushCloudOutbox(100);
+    const stats = await getLocalCloudSyncStatus();
+    setSyncStats(stats);
+    setStatus(result.pending === 0
+      ? 'SYNCHRONIZACJA // WSZYSTKO WYSŁANE'
+      : 'SYNCHRONIZACJA // OCZEKUJE ' + result.pending);
+  }
 
   async function logout() {
     await signOutCloud();
@@ -210,9 +243,27 @@ export default function AccountScreen() {
       </View>
 
       <View style={s.panel}>
+        <Text style={s.label}>PRYWATNOŚĆ I KONTO</Text>
+        <Action label="POLITYKA PRYWATNOŚCI →" disabled={busy} onPress={() => router.push('/privacy')} />
+        {!deleteConfirm
+          ? <Action label="ZAŻĄDAJ USUNIĘCIA KONTA" danger disabled={busy} onPress={() => setDeleteConfirm(true)} />
+          : <>
+            <Text style={s.body}>To utworzy żądanie usunięcia konta SYSTEM CLOUD i powiązanych danych. Operacja nie usuwa danych natychmiast — żądanie trafia do obsługi usunięcia.</Text>
+            <Action label="POTWIERDŹ ŻĄDANIE USUNIĘCIA" danger disabled={busy} onPress={() => { void run(async () => {
+              await requestAccountDeletion();
+              setDeleteConfirm(false);
+              setStatus('USUNIĘCIE KONTA // ŻĄDANIE ZAPISANE');
+            }); }} />
+            <Action label="ANULUJ" disabled={busy} onPress={() => setDeleteConfirm(false)} />
+          </>}
+      </View>
+
+      <View style={s.panel}>
         <Text style={s.label}>SYNCHRONIZACJA Z TELEFONU</Text>
         <Text style={s.title}>{syncStats.pending === 0 ? 'BRAK OCZEKUJĄCYCH ZDARZEŃ' : syncStats.pending + ' ZDARZEŃ OCZEKUJE'}</Text>
-        <Text style={s.body}>Wysłane: {syncStats.synced} · po błędzie: {syncStats.failed}. Wysyłamy podsumowania zweryfikowanych zdarzeń, bez surowych tras GPS i zdjęć.</Text>
+        <Text style={s.body}>
+          Wysłane: {syncStats.synced} · po błędzie: {syncStats.failed}. SYSTEM wysyła wyłącznie podsumowania zweryfikowanych zdarzeń — bez surowych tras GPS i zdjęć.
+        </Text>
         <Action label="SYNCHRONIZUJ TERAZ" disabled={busy || syncStats.pending === 0} onPress={() => { void run(syncNow); }} />
       </View>
 

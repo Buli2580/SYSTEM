@@ -1,9 +1,10 @@
+import { createGeneratedDaily } from './generation';
 import { applyQuestRewards } from '../core/questEngine';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { type PlayerProfile, type VerifiedEvent } from '../core';
 import { dayKey, dayOrdinal, weekKey, nextStreak, DAILY_RULES } from '../daily/calendar';
-import { generateDaily, dailyQuest, DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
-export type DailyState = { dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
+import { dailyQuest, DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
+export type DailyState = { rerollsUsed?: number; attemptedQuestIds?: string[]; reasons?: Record<string,string>; dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
 async function state(db: SQLiteDatabase, key: string) { return (await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', key))?.value; }
 async function setState(db: SQLiteDatabase, key: string, value: string) { await db.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', key, value); }
 export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlocked: boolean, prefs: ActivityPreferences = DEFAULT_ACTIVITIES, now = Date.now()): Promise<DailyState | null> {
@@ -17,13 +18,16 @@ export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlo
    const exists = await db.getFirstAsync('SELECT day_key FROM daily_sets WHERE day_key = ?', day);
    if (!exists) {
      await db.runAsync('INSERT INTO daily_sets(day_key, created_at) VALUES (?, ?)', day, new Date(now).toISOString());
-     for (const quest of generateDaily(player.id, day, prefs)) await db.runAsync('INSERT INTO daily_instances(id, template_id, day_key, week_key) VALUES (?, ?, ?, ?)', quest.id, quest.templateId!, day, week);
+     await createGeneratedDaily(db, {...player, streak: await currentStreak(db, day, player.streak)}, day, prefs);
    }
  }
  const rows = await db.getAllAsync<{ id: string }>('SELECT id FROM daily_instances WHERE day_key = ? ORDER BY rowid', day);
  const count = async (column: 'day_key' | 'week_key', key: string) => (await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM daily_instances d JOIN quest_completions q ON q.quest_id=d.id WHERE d.${column}=?`, key))?.n ?? 0;
  const attempts = await db.getAllAsync<{ quest_id: string; payload: string }>("SELECT e.quest_id, e.payload FROM verified_events e JOIN daily_instances d ON d.id=e.quest_id WHERE d.day_key=? AND e.id LIKE 'attempt_%'", day);
- return { suspiciousQuestIds: attempts.filter(row => JSON.parse(row.payload).activity?.verdict === 'SUSPICIOUS').map(row => row.quest_id), dayKey: day, weekKey: week, questIds: rows.map(r => r.id), completed: await count('day_key', day), weeklyCompleted: await count('week_key', week),
+ const reasons = await db.getAllAsync<{quest_id:string;reason:string}>('SELECT quest_id,reason FROM daily_generation WHERE day_key=?',day);
+ const attempted = await db.getAllAsync<{quest_id:string}>('SELECT DISTINCT a.quest_id FROM quest_attempts a JOIN daily_instances d ON d.id=a.quest_id WHERE d.day_key=?',day);
+ const rerollsUsed = (await db.getFirstAsync<{n:number}>('SELECT COUNT(*) AS n FROM daily_rerolls WHERE day_key=?',day))?.n ?? 0;
+ return { rerollsUsed, attemptedQuestIds: attempted.map(r=>r.quest_id), reasons: Object.fromEntries(reasons.map(r=>[r.quest_id,r.reason])), suspiciousQuestIds: attempts.filter(row => JSON.parse(row.payload).activity?.verdict === 'SUSPICIOUS').map(row => row.quest_id), dayKey: day, weekKey: week, questIds: rows.map(r => r.id), completed: await count('day_key', day), weeklyCompleted: await count('week_key', week),
  clear: Boolean(await db.getFirstAsync('SELECT bonus_key FROM protocol_bonuses WHERE bonus_key = ?', 'daily_clear:' + day)),
  weeklyClear: Boolean(await db.getFirstAsync('SELECT bonus_key FROM protocol_bonuses WHERE bonus_key = ?', 'weekly_complete:' + week)), clockAnomaly: anomaly };
 }

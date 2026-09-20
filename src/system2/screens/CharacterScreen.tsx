@@ -1,3 +1,4 @@
+import StreakMilestoneCard from '../components/StreakMilestoneCard';
 import { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -9,10 +10,13 @@ import { useSystem } from '../state/SystemProvider';
 import type { SkillKey } from '../core';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 import CharacterProgressPanel from '../components/CharacterProgressPanel';
+import { titlePl } from '../i18n/pl';
 
 export default function CharacterScreen() {
-  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId } = useSystem();
+  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, progression } = useSystem();
   const router = useRouter();
+  const [birthDate, setBirthDate] = useState(player.birthDate ?? '');
+  useEffect(() => setBirthDate(player.birthDate ?? ''), [player.id, player.birthDate]);
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const lock = useRef(false), mounted = useRef(true);
@@ -42,18 +46,23 @@ export default function CharacterScreen() {
   }
   return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY">
     <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
+    {progression && <StreakMilestoneCard days={progression.streak.currentStreak} />}
     <View style={s.panel}>
-      <Text style={s.label}>SYSTEM NAME</Text>
-      <TextInput accessibilityLabel="Zmień SYSTEM NAME" value={name} onChangeText={setName} maxLength={24} style={{ color: '#fff', minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#417480' }} />
-      <Action label="ZAPISZ SYSTEM NAME" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
+      <Text style={s.label}>NAZWA W SYSTEMIE</Text>
+      <TextInput accessibilityLabel="Zmień nazwę w SYSTEMIE" value={name} onChangeText={setName} maxLength={24} style={{ color: '#fff', minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#417480' }} />
+      <Action label="ZAPISZ NAZWĘ" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
+      <Text style={s.label}>DATA URODZENIA · RRRR-MM-DD</Text>
+      <TextInput accessibilityLabel="Data urodzenia" value={birthDate} onChangeText={setBirthDate} maxLength={10} placeholder="RRRR-MM-DD" keyboardType="numbers-and-punctuation" style={{color:'#fff',minHeight:48}} />
+      <Action label="ZAPISZ DATĘ URODZENIA" disabled={busy} onPress={() => { void run(() => updateIdentity({birthDate})); }} />
       <Action label="AVATAR Z GALERII" disabled={busy} onPress={() => { void run(() => chooseAvatar(false)); }} />
       <Action label="ZRÓB ZDJĘCIE" disabled={busy} onPress={() => { void run(() => chooseAvatar(true)); }} />
       {player.avatarUri && <Action label="USUŃ AVATAR" disabled={busy} onPress={() => { void run(async () => { await updateIdentity({ avatarUri: null }); removeOwnedAvatar(player.avatarUri); }); }} />}
       {error && <SystemError message={error} retry={() => setError(null)} />}
     </View>
-    <View style={s.panel}><Text style={s.label}>ZDOBYTE TITLES</Text>
-      {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${title}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
+    <View style={s.panel}><Text style={s.label}>ZDOBYTE TYTUŁY</Text>
+      {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${titlePl(title)}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
     </View>
+    <Action label="CELE →" onPress={() => router.push('/goals')} />
     <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} />
     <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />
   </SystemPage>;

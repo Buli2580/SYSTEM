@@ -51,6 +51,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const showLiveTracker = isLiveQuestStatus(status);
   const renderStatus: string = status;
   const nextAction = getNextAction({
+    ...system,
     player: system.player,
     completedQuestIds: system.completedQuestIds,
     failedQuestIds: system.failedQuestIds,
@@ -83,7 +84,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     startInProgressRef.current = true;
     setStartInProgress(true);
     setQuestAccepted(true);
-    void startQuest()
+    return startQuest()
       .catch(() => undefined)
       .finally(() => {
         startInProgressRef.current = false;
@@ -117,13 +118,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.systemLabel}
             >
-              SYSTEM // QUEST
+              SYSTEM // MISJA
             </Text>
 
             <Text
               style={styles.screenTitle}
             >
-              {quest.category === 'BOSS' ? 'BOSS PROTOCOL' : quest.category === 'DAILY' ? 'DAILY PROTOCOL' : `AWAKENING ${quest.order}/${AWAKENING_QUESTS.length}`}
+              {quest.category === 'BOSS' ? 'PROTOKÓŁ BOSSA' : quest.category === 'DAILY' ? 'PROTOKÓŁ DZIENNY' : `PRZEBUDZENIE ${quest.order}/${AWAKENING_QUESTS.length}`}
             </Text>
           </View>
         </View>
@@ -133,19 +134,20 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           status={status}
           onStart={status === 'READY' && ready ? handleStartQuest : undefined}
           startDisabled={startInProgress || !ready}
+          resume={distance > 0 || duration > 0}
         />
 
         {!!quest.activityType && <View style={styles.questCard}>
-          <Text style={styles.category}>ACTIVITY MATCH // {!activity || activity.features.durationSeconds < 30 ? 'CHECKING' : activity.verdict === 'VERIFIED' ? 'GOOD' : 'LOW CONFIDENCE'}</Text>
-          <Text style={styles.description}>CURRENT {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · AVG {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
-          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
-          <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
+          <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
+          <Text style={styles.description}>TERAZ {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · ŚREDNIO {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
+          <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · KROKI — · KADENCJA —</Text>
+          <Text style={styles.description}>TYLKO GPS // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
         {showLiveTracker && <View style={styles.tracker}>
           <Text
             style={styles.trackerLabel}
           >
-            {isTimer ? 'FOCUS // POZOSTAŁY CZAS' : 'LIVE DISTANCE'}
+            {isTimer ? 'SKUPIENIE // POZOSTAŁY CZAS' : 'DYSTANS NA ŻYWO'}
           </Text>
 
           <View
@@ -201,7 +203,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                {isTimer ? 'TIME LEFT' : 'M LEFT'}
+                {isTimer ? 'POZOSTAŁY CZAS' : 'M DO CELU'}
               </Text>
             </View>
 
@@ -227,7 +229,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                TIME
+                CZAS
               </Text>
             </View>
 
@@ -247,7 +249,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveLabel
                 }
               >
-                {isTimer ? 'FOCUS' : 'GPS ±M'}
+                {isTimer ? 'SKUPIENIE' : 'GPS ±M'}
               </Text>
             </View>
           </View>
@@ -270,7 +272,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                {isTimer ? `${quest.title} // ACTIVE` : isMulti ? 'FINAL TRIAL // ACTIVE' : 'SYSTEM MONITORUJE RUCH'}
+                {isTimer ? `${quest.title} // AKTYWNA` : isMulti ? 'OSTATNIA PRÓBA // AKTYWNA' : 'SYSTEM MONITORUJE AKTYWNOŚĆ · TŁO WŁ.'}
               </Text>
             </View>
           )}
@@ -287,7 +289,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.trackingText
                 }
               >
-                SYSTEM // VERIFYING...
+                SYSTEM // WERYFIKACJA…
               </Text>
             </View>
           )}
@@ -315,6 +317,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </Pressable>}
         </View>}
 
+        {renderStatus === 'READY' && distance > 0 && !isTimer && <View style={styles.trackingBox}><Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text><Text style={styles.description}>Wznów zapisaną próbę. Aktywna misja ruchowa może mierzyć dystans w tle przy wymaganych uprawnieniach.</Text></View>}
         {renderStatus === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)} style={styles.optionButton}>
           <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
           <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
@@ -346,7 +349,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 styles.completeSmall
               }
             >
-              QUEST COMPLETE
+              MISJA UKOŃCZONA
             </Text>
 
             <Text
@@ -354,7 +357,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 styles.completeTitle
               }
             >
-              VERIFIED
+              POTWIERDZONA
             </Text>
 
             <Text
