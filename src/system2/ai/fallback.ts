@@ -8,97 +8,250 @@ import { isTooSimilar } from './repetition';
 
 const TEMPLATES: Omit<AIQuestProposal, 'key'>[] = [
   {
-    title: 'Quick Movement Protocol',
-    description: 'Wykonaj 15 minut szybkiego marszu.',
-    category: 'fitness',
-    difficulty: 'easy',
-    verification: 'timer',
-    estimatedMinutes: 15,
-    target: { kind: 'minutes', value: 15 },
-    reason: 'Krótka aktywność, którą łatwo wykonać nawet w zajęty dzień.',
-    expiresInHours: 18,
-    tags: ['movement', 'daily'],
-  },
-  {
     title: 'Focus Sprint',
-    description: 'Przez 20 minut pracuj nad jednym ważnym zadaniem bez rozpraszaczy.',
+    description: 'Pracuj nad jednym ważnym zadaniem bez przełączania się między aplikacjami.',
     category: 'productivity',
     difficulty: 'easy',
     verification: 'timer',
     estimatedMinutes: 20,
+    templateHint: 'focus_priority',
     target: { kind: 'minutes', value: 20 },
-    reason: 'Buduje regularność i skupienie.',
+    reason: 'Krótki blok skupienia pomaga utrzymać regularność.',
     expiresInHours: 18,
     tags: ['focus', 'daily'],
   },
   {
+    title: 'Next Step',
+    description: 'Rozpisz i wykonaj pierwszy konkretny krok w najważniejszym projekcie.',
+    category: 'productivity',
+    difficulty: 'medium',
+    verification: 'timer',
+    estimatedMinutes: 25,
+    templateHint: 'focus_plan',
+    target: { kind: 'minutes', value: 25 },
+    reason: 'Zmienia duży cel w wykonalne działanie.',
+    expiresInHours: 18,
+    tags: ['planning', 'goal'],
+  },
+  {
     title: 'Learning Burst',
-    description: 'Poświęć 15 minut na naukę rzeczy związanej z jednym z Twoich celów.',
+    description: 'Przerób jeden konkretny fragment materiału i zapisz najważniejszy wniosek.',
     category: 'learning',
     difficulty: 'easy',
     verification: 'timer',
     estimatedMinutes: 15,
+    templateHint: 'learn_read',
     target: { kind: 'minutes', value: 15 },
-    reason: 'Mały, regularny krok w kierunku celu.',
+    reason: 'Mały blok nauki łatwiej utrzymać przez wiele dni.',
     expiresInHours: 18,
-    tags: ['learning', 'goal'],
+    tags: ['learning', 'daily'],
   },
   {
-    title: 'Explore Nearby',
-    description: 'Przejdź co najmniej 1200 metrów trasą, której ostatnio nie wybierałeś.',
+    title: 'Active Recall',
+    description: 'Bez zaglądania do materiałów odtwórz z pamięci najważniejsze informacje z ostatniej nauki.',
+    category: 'learning',
+    difficulty: 'medium',
+    verification: 'timer',
+    estimatedMinutes: 15,
+    templateHint: 'learn_recall',
+    target: { kind: 'minutes', value: 15 },
+    reason: 'Aktywne przypominanie wzmacnia zapamiętywanie.',
+    expiresInHours: 18,
+    tags: ['learning', 'recall'],
+  },
+  {
+    title: 'Reset Walk',
+    description: 'Przejdź spokojną, bezpieczną i znaną trasę w równym tempie.',
+    category: 'fitness',
+    difficulty: 'easy',
+    verification: 'gps',
+    estimatedMinutes: 15,
+    templateHint: 'walk_reset',
+    target: { kind: 'meters', value: 600 },
+    reason: 'Dodaje ruch bez potrzeby mocnego treningu.',
+    expiresInHours: 18,
+    tags: ['movement', 'walk'],
+  },
+  {
+    title: 'Fresh Air Route',
+    description: 'Wyjdź na bezpieczny spacer i przejdź trasę inną niż ostatnio.',
     category: 'exploration',
     difficulty: 'medium',
     verification: 'gps',
     estimatedMinutes: 20,
-    target: { kind: 'meters', value: 1200 },
-    reason: 'Łączy ruch z eksploracją.',
+    templateHint: 'walk_fresh',
+    target: { kind: 'meters', value: 900 },
+    reason: 'Łączy ruch ze zmianą otoczenia.',
     expiresInHours: 18,
     tags: ['gps', 'exploration'],
   },
   {
-    title: 'Reset Protocol',
-    description: 'Wykonaj 10 minut spokojnego spaceru i zakończ jedno małe zaległe zadanie.',
-    category: 'recovery',
+    title: 'Digital Order',
+    description: 'Uporządkuj niewielką grupę własnych notatek, zdjęć lub plików.',
+    category: 'health',
     difficulty: 'easy',
-    verification: 'manual',
+    verification: 'timer',
+    estimatedMinutes: 15,
+    templateHint: 'organize_files',
+    target: { kind: 'minutes', value: 15 },
+    reason: 'Zmniejsza drobny chaos, który zabiera uwagę.',
+    expiresInHours: 18,
+    tags: ['order', 'routine'],
+  },
+  {
+    title: 'Ready for Tomorrow',
+    description: 'Przygotuj najważniejsze rzeczy i pierwszy krok na kolejny dzień.',
+    category: 'health',
+    difficulty: 'easy',
+    verification: 'timer',
+    estimatedMinutes: 10,
+    templateHint: 'organize_tomorrow',
+    target: { kind: 'minutes', value: 10 },
+    reason: 'Ułatwia rozpoczęcie kolejnego dnia bez zbędnego tarcia.',
+    expiresInHours: 18,
+    tags: ['routine', 'tomorrow'],
+  },
+  {
+    title: 'Reconnect',
+    description: 'Przygotuj krótką, życzliwą wiadomość do znanej Ci osoby; wysłanie pozostaje dobrowolne.',
+    category: 'social',
+    difficulty: 'easy',
+    verification: 'timer',
+    estimatedMinutes: 10,
+    templateHint: 'focus_social_message',
+    target: { kind: 'minutes', value: 10 },
+    reason: 'Buduje regularność w relacjach bez presji.',
+    expiresInHours: 18,
+    tags: ['social', 'connection'],
+  },
+  {
+    title: 'Conversation Plan',
+    description: 'Przygotuj jedno dobre pytanie i jeden temat do spokojnej rozmowy.',
+    category: 'social',
+    difficulty: 'easy',
+    verification: 'timer',
+    estimatedMinutes: 10,
+    templateHint: 'focus_social_plan',
+    target: { kind: 'minutes', value: 10 },
+    reason: 'Ułatwia rozpoczęcie naturalnej rozmowy.',
+    expiresInHours: 18,
+    tags: ['social', 'plan'],
+  },
+  {
+    title: 'Small Creation',
+    description: 'Rozwiń jeden pomysł w krótkim szkicu, notatce albo roboczej wersji.',
+    category: 'productivity',
+    difficulty: 'medium',
+    verification: 'timer',
     estimatedMinutes: 20,
-    reason: 'Pomaga wrócić do rytmu po słabszym dniu.',
-    expiresInHours: 24,
-    tags: ['recovery', 'return'],
+    templateHint: 'create_sketch',
+    target: { kind: 'minutes', value: 20 },
+    reason: 'Zamienia pomysł w pierwszy widoczny rezultat.',
+    expiresInHours: 18,
+    tags: ['create', 'progress'],
+  },
+  {
+    title: 'Reflection',
+    description: 'Zapisz, co ostatnio pomogło Ci działać i co warto powtórzyć jutro.',
+    category: 'health',
+    difficulty: 'easy',
+    verification: 'timer',
+    estimatedMinutes: 10,
+    templateHint: 'focus_reflect',
+    target: { kind: 'minutes', value: 10 },
+    reason: 'Pomaga zauważyć działające zachowania bez karania za słabszy dzień.',
+    expiresInHours: 18,
+    tags: ['reflection', 'routine'],
   },
 ];
 
+const RECOVERY: Omit<AIQuestProposal, 'key'> = {
+  title: 'Recovery Protocol',
+  description: 'Wróć do SYSTEMU jednym małym, wykonalnym krokiem bez nadrabiania zaległości.',
+  category: 'recovery',
+  difficulty: 'easy',
+  verification: 'timer',
+  estimatedMinutes: 10,
+  templateHint: 'focus_return',
+  target: { kind: 'minutes', value: 10 },
+  reason: 'Priorytetem jest odzyskanie regularności, nie zwiększanie presji.',
+  expiresInHours: 24,
+  tags: ['recovery', 'return'],
+};
+
+function hash(text: string) {
+  let value = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    value ^= text.charCodeAt(i);
+    value = Math.imul(value, 16777619);
+  }
+  return value >>> 0;
+}
+
+function rotate<T>(rows: readonly T[], offset: number): T[] {
+  if (!rows.length) return [];
+  const start = offset % rows.length;
+  return [...rows.slice(start), ...rows.slice(0, start)];
+}
+
+function diversified(rows: readonly Omit<AIQuestProposal, 'key'>[], count: number) {
+  const result: Omit<AIQuestProposal, 'key'>[] = [];
+  const categories = new Set<string>();
+  for (const row of rows) {
+    if (result.length >= count) break;
+    if (categories.has(row.category)) continue;
+    result.push(row);
+    categories.add(row.category);
+  }
+  for (const row of rows) {
+    if (result.length >= count) break;
+    if (result.includes(row)) continue;
+    result.push(row);
+  }
+  return result;
+}
+
 export function buildFallback(
   context: AIGameMasterContext,
-  count = 4
+  count = 4,
 ): AIGameMasterResponse {
-  const recentTitles = context.recentQuests.map(q => q.title);
-  const candidates = TEMPLATES.filter(
-    q => !isTooSimilar(`${q.title} ${q.description}`, recentTitles)
+  const safeCount = Math.max(1, Math.min(6, Math.floor(count)));
+  const recent = context.recentQuests.map(q => `${q.title} ${q.description ?? ''}`);
+  const fresh = TEMPLATES.filter(
+    q => !isTooSimilar(`${q.title} ${q.description}`, recent),
   );
-
-  const selected = (candidates.length ? candidates : TEMPLATES)
-    .slice(0, count)
-    .map((q, i) => ({
-      ...q,
-      key: `fallback-${Date.now()}-${i}`,
-    }));
+  const pool = fresh.length >= Math.min(safeCount, 3) ? fresh : TEMPLATES;
+  const day = (context.nowIso ?? new Date().toISOString()).slice(0, 10);
+  const seed = [
+    day,
+    context.player.level,
+    context.player.rank,
+    context.player.streak,
+    ...context.goals.map(goal => goal.title),
+  ].join('|');
+  const ordered = rotate(pool, hash(seed));
+  const recovery = context.player.systemDebt > 0;
+  const normalCount = recovery ? Math.max(0, safeCount - 1) : safeCount;
+  const chosen = diversified(ordered, normalCount);
+  const selected = recovery ? [RECOVERY, ...chosen] : chosen;
+  const quests = selected.slice(0, safeCount).map((quest, index) => ({
+    ...quest,
+    key: `fallback-${day}-${index}-${quest.templateHint ?? quest.category}`,
+  }));
 
   const bias = difficultyBias(context);
-  const recovery = context.player.systemDebt > 0;
-
   return {
-    quests: selected,
+    quests,
     director: {
       mode: recovery ? 'recovery' : bias > 0 ? 'challenge' : 'normal',
-      difficultyBias: bias,
+      difficultyBias: recovery ? -1 : bias,
       headline: recovery ? 'RECOVERY PROTOCOL' : 'DAILY DIRECTIVE',
       message: recovery
-        ? 'Najpierw usuń SYSTEM DEBT. Priorytetem jest powrót do rytmu.'
-        : 'SYSTEM przygotował dzisiejszy zestaw misji.',
+        ? 'SYSTEM obniżył presję. Najpierw odzyskaj rytm jednym małym krokiem.'
+        : 'SYSTEM przygotował zróżnicowany zestaw bez połączenia z AI.',
     },
-    briefing: `Streak ${context.player.streak}. Completion 7d: ${Math.round(
-      context.player.completionRate7d * 100
+    briefing: `Streak ${context.player.streak}. Skuteczność 7 dni: ${Math.round(
+      context.player.completionRate7d * 100,
     )}%.`,
     source: 'fallback',
   };
