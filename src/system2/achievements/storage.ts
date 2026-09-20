@@ -1,71 +1,17 @@
-// SYSTEM 2.0 - Achievement Storage
-// Persistence layer for achievement state
+import type { SQLiteDatabase } from 'expo-sqlite';
+import { profileTransaction } from '../storage/database';
+import { ensureAchievementSchema } from './schema';
+import type { PlayerTitleState } from './types';
 
-import * as SQLite from 'expo-sqlite';
-import type { AchievementProgress, PlayerTitleState } from '../achievements/types';
-
-const ACHIEVEMENTS_TABLE = 'achievements';
-const TITLES_TABLE = 'player_titles';
-const ACHIEVEMENT_EVENTS_TABLE = 'achievement_events';
-
-export async function initAchievementsDatabase(): Promise<void> {
-  const db = await getDatabase();
-  await db.withExclusiveTransactionAsync(async txn => {
-    await txn.execAsync(`
-      CREATE TABLE IF NOT EXISTS ${ACHIEVEMENTS_TABLE} (
-        id TEXT PRIMARY KEY NOT NULL,
-        state TEXT NOT NULL CHECK(state IN ('LOCKED', 'IN_PROGRESS', 'UNLOCKED', 'CLAIMED')),
-        current_progress INTEGER NOT NULL DEFAULT 0,
-        max_progress INTEGER NOT NULL DEFAULT 0,
-        unlocked_at TEXT,
-        claimed_at TEXT,
-        updated_at INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_achievements_state ON achievements(state);
-      
-      CREATE TABLE IF NOT EXISTS ${TITLES_TABLE} (
-        id TEXT PRIMARY KEY NOT NULL,
-        unlocked INTEGER NOT NULL DEFAULT 0,
-        unlocked_at TEXT,
-        is_active INTEGER NOT NULL DEFAULT 0
-      );
-      
-      CREATE TABLE IF NOT EXISTS ${ACHIEVEMENT_EVENTS_TABLE} (
-        id TEXT PRIMARY KEY NOT NULL,
-        type TEXT NOT NULL,
-        achievement_id TEXT,
-        title_id TEXT,
-        payload TEXT,
-        created_at INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_achievement_events_type ON achievement_events(type);
-      CREATE INDEX IF NOT EXISTS idx_achievement_events_achievement ON achievement_events(achievement_id);
-    `);
+export function achievementTransaction<T>(task: (txn: SQLiteDatabase) => Promise<T>): Promise<T> {
+  return profileTransaction(async txn => {
+    await ensureAchievementSchema(txn);
+    return task(txn);
   });
 }
 
-let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
-function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (!databasePromise) {
-    databasePromise = SQLite.openDatabaseAsync('system2.db').catch(error => {
-      databasePromise = null;
-      throw error;
-    });
-  }
-  return databasePromise;
-}
-
-let initializationPromise: Promise<void> | null = null;
-
-function ensureAchievementsDatabase(): Promise<void> {
-  if (!initializationPromise) {
-    initializationPromise = initAchievementsDatabase().catch(error => {
-      initializationPromise = null;
-      throw error;
-    });
-  }
-  return initializationPromise;
+export function initAchievementsDatabase(): Promise<void> {
+  return achievementTransaction(async () => {});
 }
 
 export type AchievementRow = {
@@ -78,9 +24,7 @@ export type AchievementRow = {
   updated_at: number;
 };
 
-export async function loadAchievementsState(): Promise<Record<string, { state: 'LOCKED' | 'IN_PROGRESS' | 'UNLOCKED' | 'CLAIMED'; currentProgress: number; maxProgress: number; unlockedAt?: string; claimedAt?: string }>> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
+async function loadAchievementsStateInTransaction(db: SQLiteDatabase): Promise<Record<string, { state: 'LOCKED' | 'IN_PROGRESS' | 'UNLOCKED' | 'CLAIMED'; currentProgress: number; maxProgress: number; unlockedAt?: string; claimedAt?: string }>> {
   const rows = await db.getAllAsync<{
     id: string;
     state: string;
@@ -89,9 +33,9 @@ export async function loadAchievementsState(): Promise<Record<string, { state: '
     unlocked_at: string | null;
     claimed_at: string | null;
   }>(`SELECT * FROM achievements`);
-  
+
   const state: Record<string, { state: 'LOCKED' | 'IN_PROGRESS' | 'UNLOCKED' | 'CLAIMED'; currentProgress: number; maxProgress: number; unlockedAt?: string; claimedAt?: string }> = {};
-  
+
   for (const row of rows) {
     state[row.id] = {
       state: row.state as 'LOCKED' | 'IN_PROGRESS' | 'UNLOCKED' | 'CLAIMED',
@@ -101,21 +45,27 @@ export async function loadAchievementsState(): Promise<Record<string, { state: '
       claimedAt: row.claimed_at ?? undefined,
     };
   }
-  
+
   return state;
 }
 
-export async function saveAchievementProgress(achievementId: string, progress: {
+async function saveAchievementProgressInTransaction(db: SQLiteDatabase, achievementId: string, progress: {
   state: 'LOCKED' | 'IN_PROGRESS' | 'UNLOCKED' | 'CLAIMED';
   currentProgress: number;
   maxProgress: number;
   unlockedAt?: string;
   claimedAt?: string;
 }): Promise<void> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
+  if (!Number.isFinite(progress.currentProgress) || !Number.isFinite(progress.maxProgress) || progress.currentProgress < 0 || progress.maxProgress < 0) {
+    throw new Error('Invalid achievement progress.');
+  }
+  const existing = (await loadAchievementsStateInTransaction(db))[achievementId];
+  if (existing?.state === 'CLAIMED') return;
+  if (existing?.state === 'UNLOCKED') {
+    progress = { ...existing, state: progress.state === 'CLAIMED' ? 'CLAIMED' : 'UNLOCKED', claimedAt: progress.claimedAt ?? existing.claimedAt };
+  }
   const now = Date.now();
-  
+
   await db.runAsync(
     `INSERT INTO achievements (id, state, current_progress, max_progress, unlocked_at, claimed_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -136,9 +86,9 @@ export async function saveAchievementProgress(achievementId: string, progress: {
   );
 }
 
-export async function unlockAchievement(achievementId: string): Promise<void> {
+async function unlockAchievementInTransaction(db: SQLiteDatabase, achievementId: string): Promise<void> {
   const now = new Date().toISOString();
-  await saveAchievementProgress(achievementId, {
+  await saveAchievementProgressInTransaction(db, achievementId, {
     state: 'UNLOCKED',
     currentProgress: 1,
     maxProgress: 1,
@@ -147,24 +97,25 @@ export async function unlockAchievement(achievementId: string): Promise<void> {
   });
 }
 
-export async function claimAchievement(achievementId: string): Promise<void> {
-  const existing = (await loadAchievementsState())[achievementId];
+async function claimAchievementInTransaction(db: SQLiteDatabase, achievementId: string): Promise<void> {
+  const existing = (await loadAchievementsStateInTransaction(db))[achievementId];
   if (!existing || (existing.state !== 'UNLOCKED' && existing.state !== 'CLAIMED')) {
     throw new Error('Achievement must be unlocked before it can be claimed.');
   }
-  await saveAchievementProgress(achievementId, {
+  await saveAchievementProgressInTransaction(db, achievementId, {
     ...existing,
     state: 'CLAIMED',
     claimedAt: existing.claimedAt ?? new Date().toISOString(),
   });
 }
 
-export async function updateAchievementProgress(achievementId: string, currentProgress: number, maxProgress: number): Promise<void> {
-  const existing = (await loadAchievementsState())[achievementId];
+async function updateAchievementProgressInTransaction(db: SQLiteDatabase, achievementId: string, currentProgress: number, maxProgress: number): Promise<void> {
+  const existing = (await loadAchievementsStateInTransaction(db))[achievementId];
   if (existing?.state === 'UNLOCKED' || existing?.state === 'CLAIMED') return;
+  if (!Number.isFinite(currentProgress) || !Number.isFinite(maxProgress)) throw new Error('Invalid achievement progress.');
   const safeMax = Math.max(0, maxProgress);
   const safeCurrent = Math.max(0, Math.min(currentProgress, safeMax));
-  await saveAchievementProgress(achievementId, {
+  await saveAchievementProgressInTransaction(db, achievementId, {
     state: safeMax > 0 && safeCurrent >= safeMax ? 'UNLOCKED' : safeCurrent > 0 ? 'IN_PROGRESS' : 'LOCKED',
     currentProgress: safeCurrent,
     maxProgress: safeMax,
@@ -173,19 +124,17 @@ export async function updateAchievementProgress(achievementId: string, currentPr
   });
 }
 
-export async function loadTitlesState(): Promise<PlayerTitleState> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
+async function loadTitlesStateInTransaction(db: SQLiteDatabase): Promise<PlayerTitleState> {
   const rows = await db.getAllAsync<{
     id: string;
     unlocked: number;
     unlocked_at: string | null;
     is_active: number;
   }>(`SELECT * FROM player_titles`);
-  
+
   const titles: Record<string, { unlocked: boolean; unlockedAt?: string; isActive: boolean }> = {};
   let activeTitleId: string | null = null;
-  
+
   for (const row of rows) {
     titles[row.id] = {
       unlocked: row.unlocked === 1,
@@ -196,13 +145,11 @@ export async function loadTitlesState(): Promise<PlayerTitleState> {
       activeTitleId = row.id;
     }
   }
-  
+
   return { titles, activeTitleId };
 }
 
-export async function saveTitleState(titleId: string, state: { unlocked: boolean; isActive?: boolean }): Promise<void> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
+async function saveTitleStateInTransaction(db: SQLiteDatabase, titleId: string, state: { unlocked: boolean; isActive?: boolean }): Promise<void> {
   await db.runAsync(
     `INSERT INTO player_titles (id, unlocked, unlocked_at, is_active)
      VALUES (?, ?, ?, ?)
@@ -217,25 +164,19 @@ export async function saveTitleState(titleId: string, state: { unlocked: boolean
   );
 }
 
-export async function unlockTitle(titleId: string): Promise<void> {
-  await saveTitleState(titleId, { unlocked: true });
+async function unlockTitleInTransaction(db: SQLiteDatabase, titleId: string): Promise<void> {
+  const existing = (await loadTitlesStateInTransaction(db)).titles[titleId];
+  if (!existing?.unlocked) await saveTitleStateInTransaction(db, titleId, { unlocked: true });
 }
 
-export async function setActiveTitle(titleId: string): Promise<void> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
-  await db.withExclusiveTransactionAsync(async txn => {
-    await txn.runAsync('UPDATE player_titles SET is_active = 0');
-    await txn.runAsync(
-      'UPDATE player_titles SET is_active = 1, unlocked = 1, unlocked_at = ? WHERE id = ?',
-      new Date().toISOString(), titleId
-    );
-  });
+async function setActiveTitleInTransaction(db: SQLiteDatabase, titleId: string): Promise<void> {
+  const title = await db.getFirstAsync<{ unlocked: number }>('SELECT unlocked FROM player_titles WHERE id = ?', titleId);
+  if (title?.unlocked !== 1) throw new Error('Title must be unlocked before activation.');
+  await db.runAsync('UPDATE player_titles SET is_active = 0');
+  await db.runAsync('UPDATE player_titles SET is_active = 1 WHERE id = ?', titleId);
 }
 
-export async function getActiveTitle(): Promise<string | null> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
+async function getActiveTitleInTransaction(db: SQLiteDatabase): Promise<string | null> {
   const row = await db.getFirstAsync<{ id: string }>(
     'SELECT id FROM player_titles WHERE is_active = 1 LIMIT 1'
   );
@@ -253,14 +194,12 @@ export type AchievementEventRecord = {
 
 type AchievementEventRow = Omit<AchievementEventRecord, 'payload'> & { payload: string };
 
-export async function recordAchievementEvent(
+async function recordAchievementEventInTransaction(db: SQLiteDatabase,
   type: string,
   achievementId: string | null,
   titleId: string | null,
   payload: Record<string, unknown>
 ): Promise<void> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
   const id = `event_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   await db.runAsync(
     `INSERT INTO achievement_events (id, type, achievement_id, title_id, payload, created_at)
@@ -269,19 +208,13 @@ export async function recordAchievementEvent(
   );
 }
 
-export async function resetAchievementData(): Promise<void> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
-  await db.withExclusiveTransactionAsync(async txn => {
-    await txn.runAsync(`DELETE FROM ${ACHIEVEMENT_EVENTS_TABLE}`);
-    await txn.runAsync(`DELETE FROM ${TITLES_TABLE}`);
-    await txn.runAsync(`DELETE FROM ${ACHIEVEMENTS_TABLE}`);
-  });
+async function resetAchievementDataInTransaction(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync('DELETE FROM achievement_events');
+  await db.runAsync('DELETE FROM player_titles');
+  await db.runAsync('DELETE FROM achievements');
 }
 
-export async function getRecentAchievementEvents(limit: number = 50): Promise<AchievementEventRecord[]> {
-  await ensureAchievementsDatabase();
-  const db = await getDatabase();
+async function getRecentAchievementEventsInTransaction(db: SQLiteDatabase, limit: number = 50): Promise<AchievementEventRecord[]> {
   const rows = await db.getAllAsync<AchievementEventRow>(
     `SELECT * FROM achievement_events ORDER BY created_at DESC LIMIT ?`,
     limit
@@ -291,3 +224,28 @@ export async function getRecentAchievementEvents(limit: number = 50): Promise<Ac
     payload: JSON.parse(r.payload),
   }));
 }
+function queued<A extends unknown[], R>(task: (txn: SQLiteDatabase, ...args: A) => Promise<R>) {
+  return (...args: A): Promise<R> => achievementTransaction(txn => task(txn, ...args));
+}
+
+export const loadAchievementsState = queued(loadAchievementsStateInTransaction);
+export const saveAchievementProgress = queued(saveAchievementProgressInTransaction);
+export const unlockAchievement = queued(unlockAchievementInTransaction);
+export const claimAchievement = queued(claimAchievementInTransaction);
+export const updateAchievementProgress = queued(updateAchievementProgressInTransaction);
+export const loadTitlesState = queued(loadTitlesStateInTransaction);
+export const saveTitleState = queued(saveTitleStateInTransaction);
+export const unlockTitle = queued(unlockTitleInTransaction);
+export const setActiveTitle = queued(setActiveTitleInTransaction);
+export const getActiveTitle = queued(getActiveTitleInTransaction);
+export const recordAchievementEvent = queued(recordAchievementEventInTransaction);
+export const resetAchievementData = queued(resetAchievementDataInTransaction);
+export const getRecentAchievementEvents = queued(getRecentAchievementEventsInTransaction);
+
+export const achievementStorage = {
+  loadAchievementsState: loadAchievementsStateInTransaction,
+  saveAchievementProgress: saveAchievementProgressInTransaction,
+  loadTitlesState: loadTitlesStateInTransaction,
+  unlockTitle: unlockTitleInTransaction,
+  recordAchievementEvent: recordAchievementEventInTransaction,
+};

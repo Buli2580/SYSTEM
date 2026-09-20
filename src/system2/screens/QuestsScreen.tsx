@@ -9,7 +9,7 @@ import { QuestMissionCard } from '../components/QuestExperience';
 
 export default function QuestsScreen() {
   const router = useRouter();
-  const { completedQuestIds, activeQuestId, daily, awakeningCompleted, story } = useSystem();
+  const { completedQuestIds, activeQuestId, failedQuestIds = [], daily, awakeningCompleted, story } = useSystem();
   const progress = getAwakeningProgress(completedQuestIds);
   return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
@@ -18,12 +18,13 @@ export default function QuestsScreen() {
       <Text style={styles.title}>DAILY PROTOCOL · {daily.completed}/3</Text>
       <Text style={styles.body}>{daily.dayKey} · {daily.clear ? 'DAILY COMPLETE' : `+${DAILY_RULES.clearXp} REAL XP / +${DAILY_RULES.clearEnergy} ENERGY za ${DAILY_RULES.slots}/${DAILY_RULES.slots}`}</Text>
       {daily.clockAnomaly && <Text style={styles.body}>CLOCK_ANOMALY — sprawdź datę telefonu. Zachowaliśmy Twój postęp.</Text>}
-      {daily.questIds.map((id, index) => { const q = getQuest(id); if (!q) return null; const done = completedQuestIds.includes(id); const status = done ? 'COMPLETED' : activeQuestId === id ? 'ACTIVE' : 'AVAILABLE'; const contextLabel = story?.rematchQuestIds.includes(id) ? 'REMATCH AVAILABLE' : daily.suspiciousQuestIds.includes(id) ? 'VERIFICATION REVIEW REQUIRED' : undefined; return <QuestMissionCard key={id} quest={q} status={status} contextLabel={contextLabel} disabled={daily.clockAnomaly} progress={q.progress} progressTarget={q.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: id } })} />; })}
+      {[...new Set(daily.questIds)].map((id, index) => { const q = getQuest(id); if (!q) return null; const done = completedQuestIds.includes(id); const status = done ? 'COMPLETED' : activeQuestId === id ? 'ACTIVE' : failedQuestIds.includes(id) ? 'FAILED' : 'AVAILABLE'; const contextLabel = story?.rematchQuestIds.includes(id) ? 'REMATCH AVAILABLE' : daily.suspiciousQuestIds.includes(id) ? 'VERIFICATION REVIEW REQUIRED' : undefined; return <QuestMissionCard key={id} quest={q} status={status} contextLabel={contextLabel} disabled={daily.clockAnomaly} progress={q.progress} progressTarget={q.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: id } })} />; })}
       <Text style={styles.title}>WEEKLY PROTOCOL · {Math.min(5, daily.weeklyCompleted)}/5</Text>
       <Text style={styles.body}>{daily.weeklyClear ? 'WEEKLY COMPLETE' : `${DAILY_RULES.weeklyTarget} Daily activities · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGY`} · {daily.weekKey}</Text>
     </View>}
     {AWAKENING_QUESTS.map((quest, index) => {
-      const status = getQuestStatus(quest.id, completedQuestIds, activeQuestId);
+      const access = getQuestStatus(quest.id, completedQuestIds, activeQuestId);
+      const status = access === 'AVAILABLE' && failedQuestIds.includes(quest.id) ? 'FAILED' : access;
       const locked = status === 'LOCKED';
       return <QuestMissionCard key={quest.id} quest={quest} status={status} disabled={locked} progress={quest.progress} progressTarget={quest.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })} />;
     })}

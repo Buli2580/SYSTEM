@@ -1,3 +1,4 @@
+import { calculateAge } from '../identity/age';
 import { FadeInUp } from 'react-native-reanimated';
 import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -24,6 +25,7 @@ export default function CharacterProgressPanel({
   selectedSkill,
   onSelectSkill,
 }: Props) {
+  const age = calculateAge(player.birthDate);
   const awakening = getAwakeningProgress(completedQuestIds);
   const activeQuest = activeQuestId ? getQuest(activeQuestId) : null;
   const realProgress = getPlayerProgressPercent(player) * 100;
@@ -34,6 +36,7 @@ export default function CharacterProgressPanel({
         <View style={styles.identityBlock}>
           <Text style={styles.overline}>PLAYER PROGRESS // ONLINE</Text>
           <Text style={styles.name}>{player.displayName}</Text>
+          {age !== null && <Text style={styles.title}>WIEK {age}</Text>}
           <Text style={styles.title}>{player.currentTitle ?? 'UNAWAKENED'}</Text>
         </View>
         <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={68} />

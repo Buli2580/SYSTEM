@@ -1,3 +1,4 @@
+import SystemError from '../components/SystemError';
 import { useMemo } from 'react';
 import { Text, View, type DimensionValue } from 'react-native';
 import { useSystem } from '../state/SystemProvider';
@@ -6,12 +7,13 @@ import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../achievements/catalog';
 import { achievementPercent, evaluateAchievementState } from '../achievements/engine';
 
 export default function AchievementsScreen() {
-  const { player, achievementState } = useSystem();
-  const evaluated = useMemo(() => evaluateAchievementState(player, achievementState.achievements).progress, [player,achievementState]);
+  const { player, achievementState, achievementError, refreshAchievements } = useSystem();
+  const evaluated = useMemo(() => ({ ...evaluateAchievementState(player, achievementState.achievements).progress, ...achievementState.achievements }), [player,achievementState]);
   const visible=ACHIEVEMENTS.filter(def => !def.hideUntilUnlock || ['UNLOCKED','CLAIMED'].includes(evaluated[def.id].state));
   const categories = Object.keys(ACHIEVEMENT_CATEGORIES).sort((a,b) => ACHIEVEMENT_CATEGORIES[a].order - ACHIEVEMENT_CATEGORIES[b].order);
   const unlocked = Object.values(evaluated).filter(item => item.state === 'UNLOCKED' || item.state === 'CLAIMED').length;
   return <SystemPage title="OSIĄGNIĘCIA" subtitle="SYSTEM ACHIEVEMENTS">
+    {achievementError && <SystemError message={achievementError} retry={() => { void refreshAchievements(); }} />}
     <View style={s.panel}><Text style={s.label}>PROGRESS</Text><Text style={s.title}>{unlocked} / {ACHIEVEMENTS.length}</Text>
       <Text style={s.body}>Postęp jest wyliczany z kanonicznych danych gracza. Sam ekran nie przyznaje XP ani nie zmienia questów.</Text></View>
     {categories.map(category => { const items=visible.filter(def => def.category === category); if(!items.length) return null; const meta=ACHIEVEMENT_CATEGORIES[category]; const categoryUnlocked=items.filter(def => ['UNLOCKED','CLAIMED'].includes(evaluated[def.id].state)).length; return <View key={category}>
