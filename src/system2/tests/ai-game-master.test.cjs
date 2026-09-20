@@ -103,3 +103,16 @@ test('SYSTEM debt is bounded and recovery clears it', () => {
   assert.equal(consequenceForFailedDaily(2, 8).systemDebt, 3);
   assert.equal(consequenceForRecoverySuccess().systemDebt, 0);
 });
+
+
+test('legacy campaign preview never carries authoritative XP', () => {
+  const { buildStarterCampaign } = loader()('gameMaster/planner');
+  const { validateCampaign } = loader()('gameMaster/guardrails');
+  const { campaignToGeneratedQuests } = loader()('gameMaster/questBridge');
+  const campaign = buildStarterCampaign('nauczyć się niemieckiego');
+  assert.equal(validateCampaign(campaign).ok, true);
+  assert.equal(Object.hasOwn(campaign.daily[0], 'xp'), false);
+  const generated = campaignToGeneratedQuests(campaign);
+  assert.equal(Object.hasOwn(generated[0], 'xp'), false);
+  assert.equal(generated[0].source, 'GAME_MASTER_PREVIEW');
+});

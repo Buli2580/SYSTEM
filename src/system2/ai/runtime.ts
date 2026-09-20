@@ -70,10 +70,9 @@ export function buildAIGameMasterContext(snapshot: SystemSnapshot): AIGameMaster
   };
 }
 
-export async function requestDailyAIGameMaster(
-  snapshot: SystemSnapshot,
+async function requestContextAIGameMaster(
+  context: AIGameMasterContext,
 ): Promise<AIGameMasterResponse> {
-  const context = buildAIGameMasterContext(snapshot);
   const session = await getValidSession();
   if (!session) return buildFallback(context, 3);
 
@@ -94,4 +93,30 @@ export async function requestDailyAIGameMaster(
   } catch {
     return buildFallback(context, 3);
   }
+}
+
+export function requestDailyAIGameMaster(
+  snapshot: SystemSnapshot,
+): Promise<AIGameMasterResponse> {
+  return requestContextAIGameMaster(buildAIGameMasterContext(snapshot));
+}
+
+export async function requestGoalAIGameMaster(
+  snapshot: SystemSnapshot,
+  rawGoal: string,
+): Promise<AIGameMasterResponse> {
+  const goal = rawGoal.trim().replace(/\s+/g, ' ');
+  if (goal.length < 5 || goal.length > 200) {
+    throw new Error('Cel powinien mieć od 5 do 200 znaków.');
+  }
+  const context = buildAIGameMasterContext(snapshot);
+  context.goals = [
+    {
+      id: 'game-master-preview',
+      title: goal,
+      description: 'Cel wpisany przez gracza do podglądu kampanii.',
+    },
+    ...context.goals,
+  ].slice(0, 10);
+  return requestContextAIGameMaster(context);
 }
