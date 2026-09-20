@@ -1,5 +1,5 @@
 import { FadeInUp } from 'react-native-reanimated';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { getPlayerProgressPercent, getSkillProgressPercent, SKILL_KEYS, SKILL_META, SYSTEM_COLORS as C, type PlayerProfile, type SkillKey } from '../core';
 import { getAwakeningProgress, getQuest } from '../quests/catalog';
@@ -82,7 +82,7 @@ export default function CharacterProgressPanel({
             <Text style={styles.statCode}>{key}</Text>
             <Text style={styles.statLevel}>LV. {skill.level}</Text>
             <Text style={styles.statName}>{SKILL_META[key].name}</Text>
-            <View style={styles.statTrack}><View style={[styles.statFill, { width: `${Math.max(3, progress)}%` }]} /></View>
+            <View style={styles.statTrack}><View style={[styles.statFill, { width: `${Math.max(3, Math.min(100, progress))}%` as DimensionValue }]} /></View>
             <Text style={styles.statXp}>{skill.xp} / {skill.xpToNextLevel} XP</Text>
           </Pressable>
         </Animated.View>;
@@ -97,7 +97,7 @@ export default function CharacterProgressPanel({
         <View><Text style={styles.questLabel}>AWAKENING PROTOCOL</Text><Text style={styles.questValue}>{awakening.completed} / {awakening.total}</Text></View>
         <Text style={styles.questPercent}>{Math.round(awakening.percent)}%</Text>
       </View>
-      <View style={styles.questTrack}><View style={[styles.questFill, { width: `${awakening.percent}%` }]} /></View>
+      <View style={styles.questTrack}><View style={[styles.questFill, { width: `${Math.max(0, Math.min(100, awakening.percent))}%` as DimensionValue }]} /></View>
       <Text style={styles.questHint}>{activeQuest ? `ACTIVE // ${activeQuest.title}` : daily ? `DAILY PROTOCOL // ${daily.completed} / ${daily.questIds.length}` : 'NO ACTIVE QUEST'}</Text>
       {daily && <Text style={styles.questDetail}>{daily.clear ? 'DAILY CLEAR COMPLETE' : `${daily.questIds.length - daily.completed} DAILY QUESTS REMAINING`} · {daily.weeklyCompleted} THIS WEEK</Text>}
     </Animated.View>
