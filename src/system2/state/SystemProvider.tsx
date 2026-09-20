@@ -70,7 +70,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     } catch (cause) {
       if (__DEV__) console.error('Achievement sync failed', cause);
     }
-  }, [syncAchievements]);
+  }, [refreshAchievements]);
   const refreshPlayer = useCallback((): Promise<void> => {
     if (resetting.current) return Promise.resolve();
     if (refreshRef.current) return refreshRef.current;
@@ -90,7 +90,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       } finally { if (epoch === generation.current) refreshRef.current = null; }
     })();
     refreshRef.current = operation; return operation;
-  }, [refreshAchievements]);
+  }, [syncAchievements]);
   useEffect(() => { void refreshPlayer(); }, [refreshPlayer]);
   useEffect(() => {
     let currentDay = dayKey();
@@ -117,7 +117,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     const epoch = ++generation.current; refreshRef.current = null;
     const next = await awaitWithTimeout(operation);
     if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); await syncAchievements(next.player); }
-  }, [refreshAchievements]);
+  }, [syncAchievements]);
   const resetData = useCallback(async (confirmed: true) => {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
@@ -130,7 +130,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); await syncAchievements(next.player); setReady(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
-  }, [refreshAchievements]);
+  }, [syncAchievements]);
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(db.updateIdentity(patch)),
