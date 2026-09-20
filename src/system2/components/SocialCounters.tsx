@@ -1,0 +1,1 @@
+import {Text,View} from 'react-native';import {pageStyles as s} from './SystemPage';export default function SocialCounters({followers,following,friends}:{followers:number;following:number;friends:number}){return <View style={s.panel}><Text style={s.label}>NETWORK</Text><Text style={s.body}>{followers} FOLLOWERS   ·   {following} FOLLOWING   ·   {friends} FRIENDS</Text></View>;}
