@@ -173,3 +173,35 @@ test('Game Master goal bridge creates a bounded canonical goal without rewards',
     priority:2, createdAt:'2026-09-20T00:00:00.000Z', status:'ACTIVE'
   }]), true);
 });
+
+
+test('offline fallback is deterministic, varied and uses canonical verification', () => {
+  const { buildFallback } = loader()('ai/fallback');
+  const context = {
+    player: { level: 4, rank: 'E', streak: 2, completionRate7d: 0.6, systemDebt: 0 },
+    goals: [{ id:'goal-1', title:'Niemiecki B2' }],
+    recentQuests: [],
+    nowIso: '2026-09-20T12:00:00.000Z',
+  };
+  const first = buildFallback(context, 3);
+  const second = buildFallback(context, 3);
+  assert.deepEqual(first.quests.map(q=>q.key), second.quests.map(q=>q.key));
+  assert.equal(new Set(first.quests.map(q=>q.category)).size, 3);
+  assert.ok(first.quests.every(q=>['timer','gps'].includes(q.verification)));
+  assert.ok(first.quests.every(q=>typeof q.templateHint==='string'&&q.templateHint.length>2));
+});
+
+test('offline fallback prioritizes a safe Recovery Protocol when SYSTEM debt is active', () => {
+  const { buildFallback } = loader()('ai/fallback');
+  const response = buildFallback({
+    player: { level: 4, rank: 'E', streak: 0, completionRate7d: 0.2, systemDebt: 2 },
+    goals: [],
+    recentQuests: [],
+    nowIso: '2026-09-20T12:00:00.000Z',
+  }, 3);
+  assert.equal(response.director.mode, 'recovery');
+  assert.equal(response.director.difficultyBias, -1);
+  assert.equal(response.quests[0].category, 'recovery');
+  assert.equal(response.quests[0].templateHint, 'focus_return');
+  assert.equal(response.quests[0].verification, 'timer');
+});
