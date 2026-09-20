@@ -42,7 +42,7 @@ export function evaluateAchievementState(
     let changed = false;
     for (const definition of ACHIEVEMENTS) {
       const old = previous[definition.id];
-      const current = Math.max(0, Math.min(definition.target, valueFor(profile, definition.progressKey)));
+      const current = Math.max(0, Math.min(definition.target, valueFor(profile, definition.progressKey, { ...previous, ...progress })));
       const prerequisitesMet = (definition.requiredAchievements ?? []).every(id => unlocked.has(id));
       const complete = current >= definition.target && prerequisitesMet;
       const wasUnlocked = old?.state === 'UNLOCKED' || old?.state === 'CLAIMED';
