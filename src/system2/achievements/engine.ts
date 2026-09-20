@@ -4,7 +4,7 @@ import type { AchievementProgress } from './types';
 
 export type AchievementEvaluation = { progress: Record<string, AchievementProgress>; newlyUnlocked: string[] };
 
-function valueFor(profile: PlayerProfile, key: string): number {
+function valueFor(profile: PlayerProfile, key: string, previous: Record<string, AchievementProgress>): number {
   switch (key) {
     case 'verifiedQuestCount':
     case 'questsCompleted': return profile.verifiedQuestCount;
@@ -14,6 +14,13 @@ function valueFor(profile: PlayerProfile, key: string): number {
     case 'sectorsDiscovered': return profile.discoveredSectors;
     // Existing catalog targets for fieldQuestsDistance are expressed in kilometres.
     case 'fieldQuestsDistance': return profile.totalDistanceMeters / 1000;
+    case 'allAchievementsUnlocked': {
+      const required = ACHIEVEMENTS.filter(item => !item.hidden && item.id !== 'completionist');
+      return required.every(item => {
+        const state = previous[item.id]?.state;
+        return state === 'UNLOCKED' || state === 'CLAIMED';
+      }) ? 1 : 0;
+    }
     default: return 0;
   }
 }
