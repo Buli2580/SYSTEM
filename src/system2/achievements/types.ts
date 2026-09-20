@@ -1,7 +1,7 @@
 // SYSTEM 2.0 - Achievement Types
 // Domain types for the achievement system
 
-import type { SkillKey, Rank } from '../core/types';
+import type { SkillKey } from '../core/types';
 
 export type AchievementState =
   | 'LOCKED'
@@ -20,7 +20,7 @@ export type AchievementCategory =
 
 export type AchievementReward = {
   realXp: number;
-  skillXp?: Partial<Record<string, number>>;
+  skillXp?: Partial<Record<SkillKey, number>>;
   gameEnergy?: number;
   titleId?: string;
 };
@@ -60,12 +60,7 @@ export interface AchievementDefinition {
   hideUntilUnlock?: boolean;
   
   // Rewards
-  reward: {
-    realXp: number;
-    skillXp?: Partial<Record<string, number>>;
-    gameEnergy?: number;
-    titleId?: string;
-  };
+  reward: AchievementReward;
   
   // Metadata
   tier?: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
