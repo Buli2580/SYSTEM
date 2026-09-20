@@ -3,7 +3,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { type PlayerProfile, type VerifiedEvent } from '../core';
 import { dayKey, dayOrdinal, weekKey, nextStreak, DAILY_RULES } from '../daily/calendar';
 import { generateDaily, dailyQuest, DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
-export type DailyState = { dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
+import { applyMissedDailyConsequence } from './aiState';
+export type DailyState = { rerollsUsed?: number; attemptedQuestIds?: string[]; reasons?: Record<string,string>; dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
 async function state(db: SQLiteDatabase, key: string) { return (await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', key))?.value; }
 async function setState(db: SQLiteDatabase, key: string, value: string) { await db.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', key, value); }
 export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlocked: boolean, prefs: ActivityPreferences = DEFAULT_ACTIVITIES, now = Date.now()): Promise<DailyState | null> {
@@ -16,6 +17,7 @@ export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlo
    await setState(db, 'last_daily_day', day);
    const exists = await db.getFirstAsync('SELECT day_key FROM daily_sets WHERE day_key = ?', day);
    if (!exists) {
+     await applyMissedDailyConsequence(db, day);
      await db.runAsync('INSERT INTO daily_sets(day_key, created_at) VALUES (?, ?)', day, new Date(now).toISOString());
      for (const quest of generateDaily(player.id, day, prefs)) await db.runAsync('INSERT INTO daily_instances(id, template_id, day_key, week_key) VALUES (?, ?, ?, ?)', quest.id, quest.templateId!, day, week);
    }

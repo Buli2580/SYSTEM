@@ -25,7 +25,7 @@ function systemDebt(snapshot: SystemSnapshot): 0 | 1 | 2 | 3 {
     if (item.result === 'COMPLETED') break;
     if (item.result === 'FAILED') consecutiveFails += 1;
   }
-  return Math.min(3, consecutiveFails) as 0 | 1 | 2 | 3;
+  return Math.max(snapshot.systemDebt, Math.min(3, consecutiveFails)) as 0 | 1 | 2 | 3;
 }
 
 function recentQuestSummary(snapshot: SystemSnapshot): RecentQuestSummary[] {
