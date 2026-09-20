@@ -690,24 +690,40 @@ async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: Verifi
 
 export function backfillCloudOutbox() {
   return profileTransaction(async txn => {
-    const marker = await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', 'cloud_outbox_backfill_v1');
-    if (marker) return;
+    // Chapter, daily/weekly and world transactions also produce verified events.
+    // Reconcile missing entries on every sync, including after the legacy marker.
     const rows = await txn.getAllAsync<{ payload: string }>(
-      'SELECT payload FROM verified_events ORDER BY created_at ASC, id ASC LIMIT 500'
+      `SELECT v.payload FROM verified_events v
+       WHERE NOT EXISTS (SELECT 1 FROM cloud_outbox o WHERE o.event_key = 'verified:' || v.id)
+         AND CASE WHEN json_valid(v.payload) THEN
+           json_extract(v.payload, '$.verified') = 1
+           AND json_extract(v.payload, '$.id') = v.id
+           AND json_extract(v.payload, '$.questId') = v.quest_id
+         ELSE 0 END
+       ORDER BY v.created_at ASC, v.id ASC LIMIT 500`
     );
     for (const row of rows) {
-      try {
-        const event = JSON.parse(row.payload) as VerifiedEvent;
-        if (event?.verified === true && typeof event.id === 'string' && typeof event.questId === 'string') {
-          await enqueueCloudOutboxEvent(txn, event);
-        }
-      } catch {
-        // A malformed legacy log entry must not block startup or later sync.
+      const event = JSON.parse(row.payload) as VerifiedEvent;
+      if (event?.verified === true && typeof event.id === 'string' && typeof event.questId === 'string') {
+        await enqueueCloudOutboxEvent(txn, event);
       }
     }
-    await txn.runAsync(
-      "INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'"
+    // Story awards use a separate local journal. Send only a completion claim;
+    // the server must derive eligibility and reward from its own evidence.
+    const story = await txn.getAllAsync<{ id: string; completed_at: string }>(
+      `SELECT s.id,s.completed_at FROM story_progress s
+       WHERE NOT EXISTS (SELECT 1 FROM cloud_outbox o WHERE o.event_key = 'verified:story:' || s.id)
+       ORDER BY s.completed_at,s.id LIMIT 100`
     );
+    for (const row of story) {
+      await txn.runAsync(
+        `INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
+         VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING`,
+        'verified:story:' + row.id, 'VERIFIED_EVENT', row.id,
+        JSON.stringify({ quest_id: row.id, verification_type: 'MULTI', verification_score: 100 }),
+        row.completed_at,
+      );
+    }
   });
 }
 

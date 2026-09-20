@@ -69,3 +69,11 @@ export async function getRemoteSyncStatus(): Promise<RemoteSyncStatus> {
   }, session.accessToken);
   return rows[0] ?? { total: 0, received: 0, processing: 0, processed: 0, rejected: 0, latest_event_at: null };
 }
+
+export async function processPendingSyncEvents(limit = 25): Promise<number> {
+  const session = await requireAccessToken();
+  return cloudRequest<number>('/rest/v1/rpc/process_pending_sync_events', {
+    method: 'POST',
+    body: JSON.stringify({ p_limit: limit }),
+  }, session.accessToken);
+}
