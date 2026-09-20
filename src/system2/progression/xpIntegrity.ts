@@ -1,0 +1,1 @@
+export type XpGrantInput={baseXp:number;multiplier?:number;verified:boolean;dailyGranted:number;dailyCap?:number};export function safeXpGrant(i:XpGrantInput){if(!i.verified)return 0;const cap=Math.max(0,i.dailyCap??10000),remaining=Math.max(0,cap-i.dailyGranted);const raw=Math.round(Math.max(0,i.baseXp)*Math.max(0,Math.min(3,i.multiplier??1)));return Math.min(raw,remaining);}
