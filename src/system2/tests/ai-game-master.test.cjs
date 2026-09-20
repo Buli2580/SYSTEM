@@ -20,10 +20,14 @@ function loader() {
     }).outputText;
     const requireMock = name => {
       if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
+      if (name === '@react-native-async-storage/async-storage') return { default: {} };
+      if (name === 'expo-secure-store') return {};
+      if (name === 'react-native') return { Platform: { OS: 'web' } };
       throw new Error('Unexpected dependency: ' + name);
     };
     vm.runInNewContext(source, {
       module, exports: module.exports, require: requireMock, console, Date, Set, Math, JSON, Intl,
+      AbortController, Headers, fetch,
     }, { filename: resolved });
     return module.exports;
   }
