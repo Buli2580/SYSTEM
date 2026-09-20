@@ -17,6 +17,7 @@ import {
     Text,
     useWindowDimensions,
     View,
+    type DimensionValue,
 } from 'react-native';
 
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -219,10 +220,7 @@ function SkillCard({
           style={[
             styles.skillProgressFill,
             {
-              width: `${Math.max(
-                3,
-                progress
-              )}%`,
+              width: `${Math.max(3, Math.min(100, progress))}%` as DimensionValue,
             },
           ]}
         />
@@ -451,10 +449,7 @@ export default function SystemHomeScreen() {
                 style={[
                   styles.realXpFill,
                   {
-                    width: `${Math.max(
-                      1.5,
-                      realProgress
-                    )}%`,
+                    width: `${Math.max(1.5, Math.min(100, realProgress))}%` as DimensionValue,
                   },
                 ]}
               />
@@ -678,10 +673,7 @@ export default function SystemHomeScreen() {
                 style={[
                   styles.questProgressFill,
                   {
-                    width: `${Math.max(
-                      0,
-                      mainQuestPercent
-                    )}%`,
+                    width: `${Math.max(0, Math.min(100, mainQuestPercent))}%` as DimensionValue,
                   },
                 ]}
               />
