@@ -148,22 +148,27 @@ export async function unlockAchievement(achievementId: string): Promise<void> {
 }
 
 export async function claimAchievement(achievementId: string): Promise<void> {
-  const now = new Date().toISOString();
+  const existing = (await loadAchievementsState())[achievementId];
+  if (!existing || (existing.state !== 'UNLOCKED' && existing.state !== 'CLAIMED')) {
+    throw new Error('Achievement must be unlocked before it can be claimed.');
+  }
   await saveAchievementProgress(achievementId, {
+    ...existing,
     state: 'CLAIMED',
-    currentProgress: 1,
-    maxProgress: 1,
-    unlockedAt: undefined,
-    claimedAt: now,
+    claimedAt: existing.claimedAt ?? new Date().toISOString(),
   });
 }
 
 export async function updateAchievementProgress(achievementId: string, currentProgress: number, maxProgress: number): Promise<void> {
+  const existing = (await loadAchievementsState())[achievementId];
+  if (existing?.state === 'UNLOCKED' || existing?.state === 'CLAIMED') return;
+  const safeMax = Math.max(0, maxProgress);
+  const safeCurrent = Math.max(0, Math.min(currentProgress, safeMax));
   await saveAchievementProgress(achievementId, {
-    state: 'IN_PROGRESS',
-    currentProgress,
-    maxProgress,
-    unlockedAt: undefined,
+    state: safeMax > 0 && safeCurrent >= safeMax ? 'UNLOCKED' : safeCurrent > 0 ? 'IN_PROGRESS' : 'LOCKED',
+    currentProgress: safeCurrent,
+    maxProgress: safeMax,
+    unlockedAt: safeMax > 0 && safeCurrent >= safeMax ? new Date().toISOString() : undefined,
     claimedAt: undefined,
   });
 }
