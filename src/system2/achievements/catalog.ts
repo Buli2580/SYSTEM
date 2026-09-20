@@ -1,7 +1,7 @@
 // SYSTEM 2.0 - Achievement Catalog
 // Initial achievement definitions
 
-import type { AchievementDefinition, AchievementCategory, TitleDefinition } from './types';
+import type { AchievementDefinition, TitleDefinition } from './types';
 
 export const ACHIEVEMENT_CATEGORIES: Record<string, { name: string; order: number; icon: string }> = {
   QUESTS: { name: 'QUESTS', order: 1, icon: '▣' },
@@ -674,14 +674,7 @@ export const TITLES: readonly TitleDefinition[] = [
     order: 10,
   },
   {
-    id: 'pathfinder',
-    name: 'PATHFINDER',
-    description: 'Discovered 10 sectors',
-    unlockedByAchievement: 'explorer_10',
-    order: 11,
-  },
-  {
-    id: 'signal_hunter',
+    id: 'signal_master',
     name: 'SIGNAL MASTER',
     description: 'Located 10 signals',
     unlockedByAchievement: 'signal_master',
