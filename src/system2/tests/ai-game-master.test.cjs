@@ -97,6 +97,38 @@ test('AI response validation rejects unsafe and repeated proposals', () => {
   );
 });
 
+test('difficulty adapts conservatively after recent quest failures', () => {
+  const { difficultyBias, allowedDifficulties } = loader()('ai/difficulty');
+  const context = {
+    player: { completionRate7d: 0.95, streak: 8, systemDebt: 0 },
+    recentQuests: [
+      { failed: true },
+      { failed: false },
+      { failed: true },
+      { failed: false },
+      { failed: true },
+    ],
+  };
+  assert.equal(difficultyBias(context), -1);
+  assert.deepEqual(Array.from(allowedDifficulties(-1)), ['easy', 'medium']);
+});
+
+test('difficulty only considers the four most recent quest outcomes', () => {
+  const { difficultyBias } = loader()('ai/difficulty');
+  const context = {
+    player: { completionRate7d: 0.9, streak: 6, systemDebt: 0 },
+    recentQuests: [
+      { failed: false },
+      { failed: false },
+      { failed: false },
+      { failed: false },
+      { failed: true },
+      { failed: true },
+    ],
+  };
+  assert.equal(difficultyBias(context), 1);
+});
+
 test('SYSTEM debt is bounded and recovery clears it', () => {
   const { consequenceForFailedDaily, consequenceForRecoverySuccess } = loader()('ai/consequences');
   assert.equal(consequenceForFailedDaily(0, 1).systemDebt, 1);
