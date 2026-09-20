@@ -12,11 +12,15 @@ import {
   signUpWithPassword,
   type CloudSession,
 } from '../cloud/auth';
+import { fetchCloudState } from '../cloud/state';
+import { flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
 import {
   getMySocialProfile,
   updateMySocialProfile,
   type SocialProfile,
 } from '../cloud/social';
+
+type SyncStats = { pending: number; synced: number; failed: number };
 
 const inputStyle = {
   color: '#fff',
@@ -33,6 +37,7 @@ export default function AccountScreen() {
   const { player } = useSystem();
   const [session, setSession] = useState<CloudSession | null>(null);
   const [social, setSocial] = useState<SocialProfile | null>(null);
+  const [syncStats, setSyncStats] = useState<SyncStats>({ pending: 0, synced: 0, failed: 0 });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [handle, setHandle] = useState('');
@@ -60,9 +65,12 @@ export default function AccountScreen() {
     setIsPublic(profile.visibility === 'public');
   }
 
+  async function refreshSyncStats() { setSyncStats(await getLocalCloudSyncStatus()); }
+
   async function loadOnline(current: CloudSession) {
     const profile = await getMySocialProfile();
     fillSocial(profile);
+    await refreshSyncStats();
     setStatus('SYSTEM CLOUD // POŁĄCZONY');
     setSession(current);
   }
@@ -88,6 +96,7 @@ export default function AccountScreen() {
       try {
         const current = await getValidSession();
         if (!active) return;
+        await refreshSyncStats();
         if (!current) return;
         setSession(current);
         const profile = await getMySocialProfile();
@@ -104,6 +113,8 @@ export default function AccountScreen() {
   async function signIn() {
     const current = await signInWithPassword(email, password);
     await loadOnline(current);
+    await flushCloudOutbox(50);
+    await refreshSyncStats();
     setPassword('');
   }
 
@@ -138,6 +149,10 @@ export default function AccountScreen() {
     fillSocial(profile);
     setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
   }
+
+  async function checkCloud() { const state = await fetchCloudState(); setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion); }
+
+  async function syncNow() { const result=await flushCloudOutbox(100); await refreshSyncStats(); setStatus(result.pending===0?'SYNCHRONIZACJA // WSZYSTKO WYSŁANE':'SYNCHRONIZACJA // OCZEKUJE '+result.pending); }
 
   async function logout() {
     await signOutCloud();
@@ -188,8 +203,16 @@ export default function AccountScreen() {
         <Text style={s.label}>TOŻSAMOŚĆ W CHMURZE</Text>
         <Text style={s.title}>{session.user.email ?? 'GRACZ SYSTEMU'}</Text>
         <Text style={s.body}>{session.user.id}</Text>
+        <Action label="SPRAWDŹ STAN CHMURY" disabled={busy} onPress={() => { void run(checkCloud); }} />
         <Action label="RANKINGI I GRACZE →" disabled={busy} onPress={() => router.push('/leaderboard')} />
         <Action label="WYLOGUJ SIĘ" disabled={busy} onPress={() => { void run(logout); }} />
+      </View>
+
+      <View style={s.panel}>
+        <Text style={s.label}>SYNCHRONIZACJA Z TELEFONU</Text>
+        <Text style={s.title}>{syncStats.pending === 0 ? 'BRAK OCZEKUJĄCYCH ZDARZEŃ' : syncStats.pending + ' ZDARZEŃ OCZEKUJE'}</Text>
+        <Text style={s.body}>Wysłane: {syncStats.synced} · po błędzie: {syncStats.failed}. Wysyłamy podsumowania zweryfikowanych zdarzeń, bez surowych tras GPS i zdjęć.</Text>
+        <Action label="SYNCHRONIZUJ TERAZ" disabled={busy || syncStats.pending === 0} onPress={() => { void run(syncNow); }} />
       </View>
 
       <View style={s.panel}>
