@@ -204,6 +204,7 @@ export default function AccountScreen() {
         <Text style={s.title}>{session.user.email ?? 'GRACZ SYSTEMU'}</Text>
         <Text style={s.body}>{session.user.id}</Text>
         <Action label="SPRAWDŹ STAN CHMURY" disabled={busy} onPress={() => { void run(checkCloud); }} />
+        <Action label="MÓJ PROFIL SYSTEMU →" onPress={() => router.push('/social-profile')} />
         <Action label="RANKINGI I GRACZE →" disabled={busy} onPress={() => router.push('/leaderboard')} />
         <Action label="WYLOGUJ SIĘ" disabled={busy} onPress={() => { void run(logout); }} />
       </View>
