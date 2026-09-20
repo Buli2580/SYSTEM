@@ -7,6 +7,7 @@ import { buildStarterCampaign, type GoalCampaign } from '../gameMaster/planner';
 import { validateCampaign } from '../gameMaster/guardrails';
 import { requestGoalAIGameMaster, type AIGameMasterResponse } from '../ai';
 import { useSystem } from '../state/SystemProvider';
+import { campaignGoalAlreadyExists, campaignGoalToInput } from '../gameMaster/goalBridge';
 
 const input={color:'#fff',minHeight:56,borderWidth:1,borderColor:'#24505c',borderRadius:12,paddingHorizontal:14,marginTop:12} as const;
 
@@ -16,6 +17,8 @@ export default function GameMasterScreen(){
   const [campaign,setCampaign]=useState<GoalCampaign|null>(null);
   const [preview,setPreview]=useState<AIGameMasterResponse|null>(null);
   const [loading,setLoading]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [saved,setSaved]=useState(false);
   const [error,setError]=useState<string|null>(null);
 
   async function generate(){
@@ -25,6 +28,7 @@ export default function GameMasterScreen(){
       const checked=validateCampaign(local);
       if(!checked.ok)throw new Error('CAMPAIGN_REJECTED');
       setCampaign(local);
+      setSaved(false);
       setLoading(true);
       setError(null);
       setPreview(await requestGoalAIGameMaster(system,local.goal));
@@ -37,6 +41,22 @@ export default function GameMasterScreen(){
       setLoading(false);
     }
   }
+
+  async function saveGoal(){
+    if(!campaign||saving||saved||campaignGoalAlreadyExists(campaign,system.goals))return;
+    setSaving(true);
+    setError(null);
+    try{
+      await system.createPlayerGoal(campaignGoalToInput(campaign));
+      setSaved(true);
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:'Nie udało się zapisać celu.');
+    }finally{
+      setSaving(false);
+    }
+  }
+
+  const goalExists=campaign?campaignGoalAlreadyExists(campaign,system.goals):false;
 
   return <SystemPage title="GAME MASTER" subtitle="AI CORE // CAMPAIGN PREVIEW">
     <View style={s.panel}>
@@ -68,6 +88,11 @@ export default function GameMasterScreen(){
       <Text style={s.label}>MILESTONES</Text>
       {campaign.milestones.map(x=><Text key={x} style={s.body}>• {x}</Text>)}
       <Text style={s.body}>Podgląd nie przyznaje XP ani nie zapisuje ukończeń. Nagrody powstają dopiero w zweryfikowanym canonical quest flow.</Text>
+      <Action
+        label={saved||goalExists?'CEL JEST JUŻ W SYSTEMIE':saving?'ZAPISYWANIE...':'DODAJ CEL DO SYSTEMU →'}
+        disabled={saving||saved||goalExists}
+        onPress={()=>{void saveGoal();}}
+      />
     </View>}
   </SystemPage>;
 }
