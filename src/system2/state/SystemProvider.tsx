@@ -12,6 +12,8 @@ import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import type { PlayerAchievementState } from '../achievements/types';
+import { reconcileAchievements } from '../achievements/reconcile';
+import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -29,6 +31,7 @@ type SystemContextValue = db.SystemSnapshot & {
   achievementState: PlayerAchievementState;
   refreshAchievements: () => Promise<void>;
 };
+const EMPTY_ACHIEVEMENT_STATE: PlayerAchievementState = { achievements: {}, titles: { titles: {}, activeTitleId: null }, lastEvaluatedAt: '' };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<db.SystemSnapshot>(() => ({
@@ -38,6 +41,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [achievementState, setAchievementState] = useState<PlayerAchievementState>(EMPTY_ACHIEVEMENT_STATE);
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<RewardReceipt | null>(null);
   const [lastReward, setLastReward] = useState<RewardReceipt | null>(null);
@@ -55,6 +59,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     return () => { active = false; };
   }, [ready, snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.dayKey, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted]);
   useEffect(() => { configureHaptics(snapshot.settings.haptics); }, [snapshot.settings.haptics]);
+  const refreshAchievements = useCallback(async (): Promise<void> => {
+    const [achievements, titles] = await Promise.all([loadAchievementsState(), loadTitlesState()]);
+    setAchievementState({ achievements: Object.fromEntries(Object.entries(achievements).map(([id, item]) => [id, { achievementId: id, ...item }])), titles, lastEvaluatedAt: new Date().toISOString() });
+  }, []);
   const refreshPlayer = useCallback((): Promise<void> => {
     if (resetting.current) return Promise.resolve();
     if (refreshRef.current) return refreshRef.current;
@@ -68,13 +76,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         const next = await awaitWithTimeout(db.loadSystemState());
         const health = await awaitWithTimeout(db.testerHealthCheck());
         if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); await reconcileAchievements(next.player); await refreshAchievements(); setReady(true); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
     })();
     refreshRef.current = operation; return operation;
-  }, []);
+  }, [refreshAchievements]);
   useEffect(() => { void refreshPlayer(); }, [refreshPlayer]);
   useEffect(() => {
     let currentDay = dayKey();
@@ -118,7 +126,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(db.updateIdentity(patch)),
-    saveSettings: settings => apply(db.saveSettings(settings)), resetData,
+    saveSettings: settings => apply(db.saveSettings(settings)), resetData, achievementState, refreshAchievements,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;
 }
