@@ -63,6 +63,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     const [achievements, titles] = await Promise.all([loadAchievementsState(), loadTitlesState()]);
     setAchievementState({ achievements: Object.fromEntries(Object.entries(achievements).map(([id, item]) => [id, { achievementId: id, ...item }])), titles, lastEvaluatedAt: new Date().toISOString() });
   }, []);
+  const syncAchievements = useCallback(async (player: db.SystemSnapshot['player']): Promise<void> => {
+    try {
+      await reconcileAchievements(player);
+      await refreshAchievements();
+    } catch (cause) {
+      if (__DEV__) console.error('Achievement sync failed', cause);
+    }
+  }, [syncAchievements]);
   const refreshPlayer = useCallback((): Promise<void> => {
     if (resetting.current) return Promise.resolve();
     if (refreshRef.current) return refreshRef.current;
@@ -76,7 +84,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         const next = await awaitWithTimeout(db.loadSystemState());
         const health = await awaitWithTimeout(db.testerHealthCheck());
         if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); await reconcileAchievements(next.player); await refreshAchievements(); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); await syncAchievements(next.player); setReady(true); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
@@ -102,13 +110,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); await reconcileAchievements(result.player); await refreshAchievements(); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) { setSnapshot(result); await syncAchievements(result.player); if (result.receipt) presentReward(result.receipt); }
     return result;
-  }, [presentReward, refreshAchievements]);
+  }, [presentReward, syncAchievements]);
   const apply = useCallback(async (operation: Promise<db.SystemSnapshot>) => {
     const epoch = ++generation.current; refreshRef.current = null;
     const next = await awaitWithTimeout(operation);
-    if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); await reconcileAchievements(next.player); await refreshAchievements(); }
+    if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); await syncAchievements(next.player); }
   }, [refreshAchievements]);
   const resetData = useCallback(async (confirmed: true) => {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
@@ -119,7 +127,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());
-      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); await reconcileAchievements(next.player); await refreshAchievements(); setReady(true);
+      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); await syncAchievements(next.player); setReady(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
   }, [refreshAchievements]);
