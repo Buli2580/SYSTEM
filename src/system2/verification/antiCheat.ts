@@ -1,0 +1,1 @@
+export type VerificationSignal={kind:'IMPOSSIBLE_SPEED'|'DUPLICATE_EVENT'|'CLOCK_SKEW'|'SENSOR_GAP';severity:1|2|3};export function riskScore(signals:VerificationSignal[]){return Math.min(100,signals.reduce((n,s)=>n+s.severity*15,0))}export function requiresReview(signals:VerificationSignal[]){return signals.some(x=>x.severity===3)||riskScore(signals)>=45}
