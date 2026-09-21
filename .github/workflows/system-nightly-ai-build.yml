@@ -77,7 +77,7 @@ jobs:
         run: git diff --check
 
   build-apk:
-    name: Build Android ARM64 APK
+    name: Build Android ARM64 Standalone APK
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -129,29 +129,30 @@ jobs:
           fi
           grep '^reactNativeArchitectures=' android/gradle.properties
 
-      - name: Build debug APK
+      - name: Build standalone release APK
         working-directory: android
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug \
+          ./gradlew :app:assembleRelease \
             --no-daemon \
             --build-cache \
             --parallel \
             --console=plain \
             --stacktrace
 
-      - name: Prepare APK
+      - name: Prepare standalone APK
         shell: bash
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/SYSTEM-NIGHTLY-${GITHUB_SHA::8}.apk
-          sha256sum dist/SYSTEM-NIGHTLY-${GITHUB_SHA::8}.apk | tee dist/SYSTEM-NIGHTLY-${GITHUB_SHA::8}.sha256
+          test -f android/app/build/outputs/apk/release/app-release.apk
+          cp android/app/build/outputs/apk/release/app-release.apk dist/SYSTEM-STANDALONE-${GITHUB_SHA::8}.apk
+          sha256sum dist/SYSTEM-STANDALONE-${GITHUB_SHA::8}.apk | tee dist/SYSTEM-STANDALONE-${GITHUB_SHA::8}.sha256
 
-      - name: Upload APK artifact
+      - name: Upload standalone APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SYSTEM-NIGHTLY-${{ github.sha }}
+          name: SYSTEM-STANDALONE-${{ github.sha }}
           path: |
             dist/*.apk
             dist/*.sha256
@@ -167,7 +168,8 @@ jobs:
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Branch: \`${GITHUB_REF_NAME}\`"
             echo "- Validation: PASS"
-            echo "- Android APK: PASS"
+            echo "- Android standalone release APK: PASS"
+            echo "- Development server required: NO"
             echo "- Architecture: arm64-v8a"
-            echo "- Artifact: SYSTEM-NIGHTLY-${GITHUB_SHA}"
+            echo "- Artifact: SYSTEM-STANDALONE-${GITHUB_SHA}"
           } >> "$GITHUB_STEP_SUMMARY"
