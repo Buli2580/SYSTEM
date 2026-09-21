@@ -11,6 +11,11 @@ export default function PresentationHapticsBridge() {
   useEffect(() => {
     const unsubscribe = presentationEventBus.onAny(event => {
       switch (event.type) {
+        case 'UI_CLICK':
+        case 'UI_CONFIRM':
+        case 'UI_CANCEL':
+        case 'UI_NAVIGATE':
+        case 'UI_TOGGLE':
         case 'QUEST_ACCEPTED':
         case 'QUEST_STARTED':
         case 'STREAK_UPDATED':
