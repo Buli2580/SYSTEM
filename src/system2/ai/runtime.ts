@@ -49,3 +49,5 @@ export async function requestGoalAIGameMaster(
   }, ...context.goals].slice(0, 10);
   return requestContextAIGameMaster(context);
 }
+
+export { buildAIGameMasterContext } from './context';
