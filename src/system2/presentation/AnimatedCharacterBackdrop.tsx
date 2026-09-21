@@ -228,7 +228,7 @@ function VictoryBurst() {
 }
 
 const styles = StyleSheet.create({
-  root: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  root: { ...StyleSheet.absoluteFill, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   aura: { position: 'absolute', width: 310, height: 310, borderRadius: 155, borderWidth: 1, borderColor: C.cyan, backgroundColor: 'rgba(42,220,255,0.10)' },
   auraDanger: { borderColor: C.danger, backgroundColor: 'rgba(255,44,84,0.10)' },
   hero: { width: 220, height: 310, position: 'absolute', bottom: -12, alignItems: 'center' },
@@ -257,5 +257,5 @@ const styles = StyleSheet.create({
   weight: { position: 'absolute', width: 17, height: 32, backgroundColor: '#17343c', borderWidth: 1, borderColor: C.cyan, borderRadius: 4 },
   burst: { position: 'absolute', width: 260, height: 260, alignItems: 'center', justifyContent: 'center' },
   ray: { position: 'absolute', width: 2, height: 230, backgroundColor: 'rgba(108,238,255,0.22)' },
-  failureShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(60,0,12,0.12)' },
+  failureShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(60,0,12,0.12)' },
 });
