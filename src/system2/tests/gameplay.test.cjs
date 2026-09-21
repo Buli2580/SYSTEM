@@ -2017,7 +2017,14 @@ function integrationUI(context,extra={}) {
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0',android:{versionCode:1}}}},
   'expo-location':{},'expo-image-picker':{},
   '../identity/avatar':{persistAvatar:async()=>'',removeOwnedAvatar:()=>{}},
-  '../state/SystemProvider':{useSystem:()=>context},...extra,
+  '../state/SystemProvider':{useSystem:()=>context},
+  '../audio/AudioEngine':{useAudio:()=>({
+    getMusicVolume:()=>0.5,setMusicVolume:()=>{},
+    getSFXVolume:()=>0.7,setSFXVolume:()=>{},
+    toggleMusicMute:()=>{},isMusicMuted:()=>false,
+    toggleSFXMute:()=>{},isSFXMuted:()=>false,
+  })},
+  ...extra,
  });
  return {navigation,render(file){cursor=0;return load(file).default();},load};
 }
