@@ -62,6 +62,7 @@ export default function CharacterScreen() {
     <View style={s.panel}><Text style={s.label}>ZDOBYTE TYTUŁY</Text>
       {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${titlePl(title)}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
     </View>
+    <Action label="HERO CARDS →" onPress={() => router.push('/heroes')} />
     <Action label="CELE →" onPress={() => router.push('/goals')} />
     <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} />
     <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />
