@@ -62,15 +62,23 @@ export default function PresentationAudioBridge() {
       if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current);
       restoreTimerRef.current = null;
       void stopAll();
+    } else {
+      void setMusicState('HOME');
     }
-  }, [settings.audio, stopAll]);
+  }, [settings.audio, setMusicState, stopAll]);
 
   useEffect(() => {
     const unsubscribe = presentationEventBus.onAny(event => {
       if (!enabledRef.current) return;
 
       const sfx = sfxFor(event);
-      if (sfx) void playSFX(sfx);
+      if (sfx === 'LEVEL_UP') {
+        setTimeout(() => {
+          if (enabledRef.current) void playSFX('LEVEL_UP');
+        }, 420);
+      } else if (sfx) {
+        void playSFX(sfx);
+      }
 
       const music = musicFor(event);
       if (music) void setMusicState(music);
