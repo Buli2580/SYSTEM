@@ -14,6 +14,7 @@ type CommandTile = {
   detail: string;
   route: '/quests' | '/story' | '/world' | '/social-profile';
   alert?: boolean;
+  progress?: number;
 };
 
 export default function HomeCommandCenter() {
@@ -38,6 +39,9 @@ export default function HomeCommandCenter() {
   const weeklyDone = Math.min(DAILY_RULES.weeklyTarget, system.daily?.weeklyCompleted ?? 0);
   const bossActive = !!system.story?.worldLinkComplete && !system.story?.bossComplete;
   const bossHp = Math.max(0, system.story?.bossHp ?? 0);
+  const dailyProgress = dailyTotal > 0 ? Math.min(100, Math.round(dailyDone / dailyTotal * 100)) : 0;
+  const weeklyProgress = Math.min(100, Math.round(weeklyDone / DAILY_RULES.weeklyTarget * 100));
+  const energyState = player.gameEnergy <= 20 ? 'LOW' : player.gameEnergy >= 80 ? 'HIGH' : 'READY';
 
   const openNext = () => {
     if (next.route === '/quest' && next.questId) {
@@ -55,6 +59,7 @@ export default function HomeCommandCenter() {
       detail: system.daily?.clear ? 'COMPLETE' : system.daily?.clockAnomaly ? 'CHECK CLOCK' : 'TODAY',
       route: '/quests',
       alert: !!system.daily?.clockAnomaly,
+      progress: dailyProgress,
     },
     {
       key: 'weekly',
@@ -62,6 +67,7 @@ export default function HomeCommandCenter() {
       value: `${weeklyDone}/${DAILY_RULES.weeklyTarget}`,
       detail: system.daily?.weeklyClear ? 'COMPLETE' : 'PROTOCOL',
       route: '/quests',
+      progress: weeklyProgress,
     },
     {
       key: 'boss',
@@ -110,8 +116,8 @@ export default function HomeCommandCenter() {
           <View style={[styles.fill, { width: `${Math.max(2, Math.min(100, xp))}%` as DimensionValue }]} />
         </View>
         <View style={styles.quickRow}>
-          <Text style={styles.quick}>⚡ {player.gameEnergy} ENERGY</Text>
-          <Text style={styles.quick}>🔥 {player.streak} STREAK</Text>
+          <View><Text style={styles.quickLabel}>ENERGY // {energyState}</Text><Text style={styles.quickValue}>{player.gameEnergy}</Text></View>
+          <View style={styles.quickRight}><Text style={styles.quickLabel}>STREAK</Text><Text style={styles.quickValue}>{player.streak} DAYS</Text></View>
         </View>
       </View>
     </View>
@@ -132,6 +138,7 @@ export default function HomeCommandCenter() {
         <Text style={[styles.tileLabel, tile.alert && styles.alertText]}>{tile.label}</Text>
         <Text style={styles.tileValue}>{tile.value}</Text>
         <Text style={[styles.tileDetail, tile.alert && styles.alertText]}>{tile.detail}</Text>
+        {tile.progress !== undefined && <View style={styles.tileTrack}><View style={[styles.tileFill,{width:`${Math.max(2,tile.progress)}%` as DimensionValue}]} /></View>}
       </Pressable>)}
     </View>
 
@@ -165,7 +172,9 @@ const styles = StyleSheet.create({
   track: { height: 7, borderRadius: 999, overflow: 'hidden', backgroundColor: C.line, marginTop: 8 },
   fill: { height: '100%', backgroundColor: C.cyan },
   quickRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 11 },
-  quick: { color: C.text, fontSize: 9, fontWeight: '900' },
+  quickRight: { alignItems: 'flex-end' },
+  quickLabel: { color: C.textVeryMuted, fontSize: 7, fontWeight: '900', letterSpacing: 0.9 },
+  quickValue: { color: C.text, fontSize: 10, fontWeight: '900', marginTop: 2 },
   next: { marginTop: 18, padding: 16, borderWidth: 1, borderColor: C.cyanDark, borderRadius: 17, backgroundColor: 'rgba(0,229,255,0.055)' },
   nextTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   nextCode: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
@@ -178,6 +187,8 @@ const styles = StyleSheet.create({
   tileLabel: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   tileValue: { color: C.white, fontSize: 17, fontWeight: '900', marginTop: 7 },
   tileDetail: { color: C.textVeryMuted, fontSize: 8, fontWeight: '900', marginTop: 5 },
+  tileTrack: { height: 4, borderRadius: 99, overflow: 'hidden', backgroundColor: C.line, marginTop: 9 },
+  tileFill: { height: '100%', borderRadius: 99, backgroundColor: C.cyan },
   alertText: { color: C.warning },
   active: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 13, borderTopWidth: 1, borderTopColor: C.line },
   activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.success },
