@@ -3,6 +3,7 @@ import { cloudRequest } from '../cloud/http';
 import { dayKey, dayOrdinal } from '../daily/calendar';
 import { QUEST_TEMPLATES } from '../generation/templates';
 import type { SystemSnapshot } from '../storage/database';
+import { allowedDifficulties, difficultyBias } from './difficulty';
 import { buildFallback } from './fallback';
 import type { AIGameMasterContext, AIGameMasterResponse, RecentQuestSummary } from './types';
 import { validateAIGameMasterResponse } from './validate';
@@ -96,9 +97,11 @@ async function requestContextAIGameMaster(
       },
       session.accessToken,
     );
+    const allowed = allowedDifficulties(difficultyBias(context));
     const validated = validateAIGameMasterResponse(
       payload,
       context.recentQuests.map(quest => quest.title),
+      allowed,
     );
     return validated ?? buildFallback(context, 3);
   } catch {
