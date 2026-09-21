@@ -16,6 +16,7 @@ export default function PresentationHapticsBridge() {
         case 'UI_CANCEL':
         case 'UI_NAVIGATE':
         case 'UI_TOGGLE':
+        case 'HERO_CARD_EQUIPPED':
         case 'QUEST_ACCEPTED':
         case 'QUEST_STARTED':
         case 'STREAK_UPDATED':
@@ -26,6 +27,7 @@ export default function PresentationHapticsBridge() {
           void notificationAsync(NotificationFeedbackType.Success);
           break;
         case 'ACHIEVEMENT_UNLOCKED':
+        case 'HERO_CARD_UNLOCKED':
         case 'STREAK_MILESTONE':
         case 'LEVEL_UP':
           void impactAsync(ImpactFeedbackStyle.Heavy);
