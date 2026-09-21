@@ -1,0 +1,37 @@
+state,path,missing,duration_s,bpm,mean_db,peak_db,crest_db
+BOOT,third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Spacetime.mp3,0,116.06,,-12.8,0.0,12.8
+BOOT,third_party/music/cc0/tricksntraps-cyberpunk/Anti Matter Magic.ogg,0,220.0,,-9.9,0.0,9.9
+BOOT,third_party/music/cc0/tricksntraps-cyberpunk/Experiment G.ogg,0,113.27,,-11.1,0.0,11.1
+BOOT,third_party/music/cc0/yd-background-space/MyVeryOwnDeadShip.ogg,0,226.29,,-25.5,-7.7,17.8
+HOME,third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/02 HoliznaCC0 - Night Driving.ogg,0,131.3,,-14.5,0.0,14.5
+HOME,third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm1 - A Place I Call Home.ogg,0,46.45,,-18.4,-2.0,16.4
+HOME,third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm3 - Peaceful Days.ogg,0,64.0,,-15.9,-0.0,15.9
+CHARACTER,third_party/music/cc0/tricksntraps-cyberpunk/Currents.ogg,0,275.46,,-8.3,0.0,8.3
+CHARACTER,third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Spacetime.mp3,0,116.06,,-12.8,0.0,12.8
+CHARACTER,third_party/music/cc0/tricksntraps-cyberpunk/Caves.ogg,0,306.0,,-9.4,0.0,9.4
+EXPLORE,third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration4 - Prairie Nights.ogg,0,92.9,,-14.7,-0.0,14.7
+EXPLORE,third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration3 - Tha'el Mines.ogg,0,60.0,,-13.6,-0.1,13.5
+EXPLORE,third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/mountains.ogg,0,80.83,,-17.7,-1.8,15.9
+EXPLORE,third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/map.ogg,0,48.0,,-21.2,-4.9,16.3
+QUEST,third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action3 - Preparing For Battle.ogg,0,54.86,,-16.9,-0.1,16.8
+QUEST,third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action1 - Encounter With The Witches.ogg,0,113.55,,-15.6,-0.1,15.5
+QUEST,third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Great mission.mp3,0,118.54,,-10.8,0.0,10.8
+QUEST,third_party/music/cc0/drakzlin-music-loops/Action_A.mp3,0,48.07,,-22.0,-0.6,21.4
+FIELD_QUEST,third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration5 - Sneaking Around.ogg,0,92.0,,-16.1,-0.1,16.0
+FIELD_QUEST,third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action2 - Army Approaching.ogg,0,124.24,,-13.3,0.0,13.3
+FIELD_QUEST,third_party/music/cc0/drakzlin-music-loops/Action_B.mp3,0,48.07,,-19.3,0.0,19.3
+WARNING,third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil5 - Whispers From Beyond.ogg,0,81.13,,-17.1,-0.4,16.7
+WARNING,third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil2 - Catacombs.ogg,0,80.96,,-13.1,0.0,13.1
+WARNING,third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Doomed.mp3,0,151.25,,-10.3,0.0,10.3
+WARNING,third_party/music/cc0/yd-dark-ambient/IswearIsawit.ogg,0,207.43,,-15.9,0.0,15.9
+BOSS,third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/final_boss.ogg,0,30.74,,-18.6,-3.0,15.6
+BOSS,third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/boss.ogg,0,46.1,,-15.5,-2.8,12.7
+BOSS,third_party/music/cc0/tricksntraps-vapour-2013/last_battle_145bpm.ogg,0,225.1,,-15.2,-1.6,13.6
+BOSS,third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil3 - Apocalypse.ogg,0,58.54,,-13.2,0.0,13.2
+BOSS,third_party/music/cc0/golgotha-game-engine-soundtrack/music/Norway_Nephelim_Battle.mp3,0,109.43,,-16.5,-0.7,15.8
+RECOVERY,third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/02 HoliznaCC0 - Night Driving.ogg,0,131.3,,-14.5,0.0,14.5
+RECOVERY,third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm3 - Peaceful Days.ogg,0,64.0,,-15.9,-0.0,15.9
+RECOVERY,third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm5 - Summer Memories.ogg,0,65.45,,-16.1,-0.4,15.7
+VICTORY,third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Great mission.mp3,0,118.54,,-10.8,0.0,10.8
+VICTORY,third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/boost.ogg,0,5.12,,-10.0,-0.6,9.4
+VICTORY,third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/credits.ogg,0,41.07,,-10.3,0.0,10.3
