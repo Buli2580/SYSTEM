@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { usePathname } from 'expo-router';
 import { useSystem } from '../state/SystemProvider';
 import { useAudio, type MusicState, type SFXEvent } from './AudioEngine';
 import { presentationEventBus, type PresentationEventData } from '../presentation/PresentationEvents';
@@ -52,20 +53,30 @@ function musicFor(event: PresentationEventData): MusicState | null {
 
 export default function PresentationAudioBridge() {
   const { settings } = useSystem();
+  const pathname = usePathname();
   const { playSFX, setMusicState, stopAll } = useAudio();
+  const routeMusic = useMemo<MusicState>(() => {
+    if (pathname.startsWith('/character')) return 'CHARACTER';
+    if (pathname.startsWith('/explore') || pathname.startsWith('/world')) return 'EXPLORE';
+    if (pathname.startsWith('/quest')) return 'QUEST';
+    if (pathname.startsWith('/raids')) return 'BOSS';
+    return 'HOME';
+  }, [pathname]);
+  const routeMusicRef = useRef<MusicState>(routeMusic);
   const enabledRef = useRef(settings.audio);
   const restoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     enabledRef.current = settings.audio;
+    routeMusicRef.current = routeMusic;
     if (!settings.audio) {
       if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current);
       restoreTimerRef.current = null;
       void stopAll();
     } else {
-      void setMusicState('HOME');
+      void setMusicState(routeMusic);
     }
-  }, [settings.audio, setMusicState, stopAll]);
+  }, [routeMusic, settings.audio, setMusicState, stopAll]);
 
   useEffect(() => {
     const unsubscribe = presentationEventBus.onAny(event => {
@@ -90,11 +101,11 @@ export default function PresentationAudioBridge() {
 
       if (event.type === 'BOSS_DEFEATED') {
         restoreTimerRef.current = setTimeout(() => {
-          if (enabledRef.current) void setMusicState('HOME');
+          if (enabledRef.current) void setMusicState(routeMusicRef.current);
         }, 4200);
       } else if (event.type === 'WARNING' || event.type === 'SYSTEM_WARNING' || event.type === 'SYSTEM_ERROR') {
         restoreTimerRef.current = setTimeout(() => {
-          if (enabledRef.current) void setMusicState('HOME');
+          if (enabledRef.current) void setMusicState(routeMusicRef.current);
         }, 2800);
       }
     });
