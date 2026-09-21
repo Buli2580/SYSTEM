@@ -397,7 +397,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 {alreadyCompleted ? 'WRÓĆ DO SYSTEMU' : nextAction.title}
               </Text>
             </Pressable>
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
 
