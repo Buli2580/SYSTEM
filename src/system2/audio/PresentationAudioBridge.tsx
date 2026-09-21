@@ -37,6 +37,7 @@ function musicFor(event: PresentationEventData): MusicState | null {
   switch (event.type) {
     case 'SYSTEM_BOOT': return 'BOOT';
     case 'SYSTEM_READY': return 'HOME';
+    case 'AWAKENING_STARTED': return 'AWAKENING';
     case 'QUEST_STARTED': return 'QUEST';
     case 'QUEST_COMPLETE': return 'HOME';
     case 'WARNING':
@@ -55,6 +56,7 @@ export default function PresentationAudioBridge() {
   const pathname = usePathname();
   const { playSFX, setMusicState, stopAll } = useAudio();
   const routeMusic = useMemo<MusicState>(() => {
+    if (pathname.startsWith('/game-master')) return 'AI_GAME_MASTER';
     if (pathname.startsWith('/character')) return 'CHARACTER';
     if (pathname.startsWith('/explore') || pathname.startsWith('/world')) return 'EXPLORE';
     if (pathname.startsWith('/quest')) return 'QUEST';
@@ -102,7 +104,9 @@ export default function PresentationAudioBridge() {
         restoreTimerRef.current = null;
       }
 
-      if (event.type === 'BOSS_DEFEATED') {
+      if (event.type === 'AWAKENING_COMPLETE') {
+        void setMusicState(routeMusicRef.current);
+      } else if (event.type === 'BOSS_DEFEATED') {
         restoreTimerRef.current = setTimeout(() => {
           if (enabledRef.current) void setMusicState(routeMusicRef.current);
         }, 4200);
