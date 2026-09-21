@@ -37,8 +37,12 @@ async function asUser(id, sql, params = []) {
 }
 const movement = { quest_id: 'first_movement_v1', verification_type: 'GPS_DISTANCE', verification_score: 95, distance_meters: 503.25, duration_seconds: 400 };
 const focus = { quest_id: 'focus_protocol_v1', verification_type: 'TIMER', verification_score: 100, duration_seconds: 600 };
-async function submit(id, payload = movement, key = 'verified:first_movement_v1', type = 'VERIFIED_EVENT', entity = payload?.quest_id) {
-  const result = await asUser(id, 'SELECT public.submit_sync_event($1,$2,$3,$4::jsonb) AS id', [key,type,entity ?? null,JSON.stringify(payload)]);
+async function submit(id, payload = movement, key = 'verified:first_movement_v1', type = 'VERIFIED_EVENT', entity = payload?.quest_id, clientCreatedAt = null) {
+  const result = await asUser(
+    id,
+    'SELECT public.submit_sync_event($1,$2,$3,$4::jsonb,$5,$6::timestamptz,$7) AS id',
+    [key,type,entity ?? null,JSON.stringify(payload),null,clientCreatedAt,1],
+  );
   return result.rows[0].id;
 }
 async function state(id) {
@@ -138,10 +142,13 @@ const { DAILY_TEMPLATES } = loadMobile('daily/templates');
 const { DAILY_RULES } = loadMobile('daily/calendar');
 const progression = loadMobile('core/progression');
 async function awakening(id) {
+  // Keep synthetic prerequisite evidence in the same fixture week as generated Daily
+  // evidence. This avoids test behavior changing when CI crosses an ISO-week boundary.
+  const clientCreatedAt = '2026-09-18T12:00:00Z';
   for (const payload of [movement,focus,
     {quest_id:'final_trial_v1',verification_type:'MULTI',verification_score:95,distance_meters:603,duration_seconds:600},
     {quest_id:'awakening_chapter_1',verification_type:'MULTI',verification_score:100}]) {
-    const key=await submit(id,payload,'verified:'+payload.quest_id);
+    const key=await submit(id,payload,'verified:'+payload.quest_id,'VERIFIED_EVENT',payload.quest_id,clientCreatedAt);
     assert.equal((await event(key)).processing_status,'PROCESSED');
   }
 }
