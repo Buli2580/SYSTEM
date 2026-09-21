@@ -20,7 +20,7 @@ type Dependencies = {
   unlocked: () => boolean;
   changed: (state: WorldTrackingState) => void;
   rewarded: (receipt?: RewardReceipt) => void;
-  feedback: () => void;
+  feedback: (event: 'SECTOR_DISCOVERED' | 'SIGNAL_LOCATED', id?: string) => void;
   timeoutMs?: number;
 };
 export class WorldTracking {
@@ -118,19 +118,20 @@ export class WorldTracking {
         if (!this.active(epoch)) return;
         this.known.add(result.sectorId);
         this.update({ sectorIds: [...this.known] });
-        if (result.discovered) { this.announce('SEKTOR ODKRYTY'); this.deps.rewarded(); }
+        if (result.discovered) { this.announce('SEKTOR ODKRYTY', 'SECTOR_DISCOVERED', result.sectorId); this.deps.rewarded(); }
       }
       if (signal?.status === 'DETECTED' && signalReached(fix, signal) && this.active(epoch)) {
         const result = await this.deadline(this.deps.storage.locateSignal(fix, signal.revision, () => this.active(epoch)));
         if (!this.active(epoch)) return;
         this.update({ signal: result.signal });
-        if (result.awarded) { this.announce('SYGNAŁ ODNALEZIONY'); this.deps.rewarded(result.receipt); }
+        if (result.awarded) { this.announce('SYGNAŁ ODNALEZIONY', 'SIGNAL_LOCATED', result.signal.id); this.deps.rewarded(result.receipt); }
       }
     } catch (error) { if (this.valid(epoch)) this.stop('ERROR', message(error)); }
     finally { if (this.valid(epoch)) this.processing = false; }
   }
-  private announce(feedback: string) {
-    this.update({ feedback, feedbackId: this.state.feedbackId + 1 }); this.deps.feedback();
+  private announce(feedback: string, event: 'SECTOR_DISCOVERED' | 'SIGNAL_LOCATED', id?: string) {
+    this.update({ feedback, feedbackId: this.state.feedbackId + 1 });
+    this.deps.feedback(event, id);
   }
   async scan(relocate = false) {
     const epoch = this.epoch;
