@@ -187,9 +187,15 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); void syncAchievements(result.player, epoch); void flushCloudOutbox().catch(() => undefined); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) {
+      setSnapshot(result);
+      void syncAchievements(result.player, epoch);
+      void flushCloudOutbox().catch(() => undefined);
+      if (result.receipt) presentReward(result.receipt);
+      if (result.awakeningCompleted && result.daily && !result.daily.clockAnomaly) void runAIGameMaster(result, epoch, true);
+    }
     return result;
-  }, [presentReward, syncAchievements]);
+  }, [presentReward, runAIGameMaster, syncAchievements]);
   const applySnapshot = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
