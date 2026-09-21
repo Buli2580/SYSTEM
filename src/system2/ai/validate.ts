@@ -46,7 +46,8 @@ function validTarget(
 
 export function validateAIGameMasterResponse(
   value: unknown,
-  recentTitles: string[]
+  recentTitles: string[],
+  allowedDifficulties?: readonly AIQuestDifficulty[],
 ): AIGameMasterResponse | null {
   if (!value || typeof value !== 'object') return null;
   const r = value as AIGameMasterResponse;
@@ -59,6 +60,7 @@ export function validateAIGameMasterResponse(
   if (typeof r.director.headline !== 'string' || !r.director.headline.trim() || r.director.headline.length > 80) return null;
   if (typeof r.director.message !== 'string' || !r.director.message.trim() || r.director.message.length > 220) return null;
 
+  const allowed = allowedDifficulties ? new Set(allowedDifficulties) : null;
   const seen: string[] = [];
   for (const q of r.quests) {
     if (!q || typeof q !== 'object') return null;
@@ -68,6 +70,7 @@ export function validateAIGameMasterResponse(
     if (typeof q.reason !== 'string' || q.reason.trim().length < 3 || q.reason.length > 180) return null;
     if (!CATEGORIES.has(q.category)) return null;
     if (!DIFFICULTIES.has(q.difficulty)) return null;
+    if (allowed && !allowed.has(q.difficulty)) return null;
     if (!VERIFICATION.has(q.verification)) return null;
     if (!Number.isFinite(q.estimatedMinutes) || q.estimatedMinutes < 1 || q.estimatedMinutes > 180) return null;
     if (!Number.isFinite(q.expiresInHours) || q.expiresInHours < 1 || q.expiresInHours > 72) return null;
