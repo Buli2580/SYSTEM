@@ -37,12 +37,7 @@ jobs:
             echo "Downloading $url"
             curl -fL --retry 4 --retry-delay 3 --connect-timeout 30 --max-time 900 "$url" -o "$TMP/$zip"
             mkdir -p "$out"
-            python - "$TMP/$zip" "$out" <<'PY'
-import sys, zipfile
-archive, out = sys.argv[1], sys.argv[2]
-with zipfile.ZipFile(archive) as z:
-    z.extractall(out)
-PY
+            python -c 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$TMP/$zip" "$out"
             rm -f "$TMP/$zip"
           }
 
