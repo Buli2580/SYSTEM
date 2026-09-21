@@ -14,7 +14,20 @@
       "android": {
         "buildType": "app-bundle"
       },
-      "channel": "production"
+      "channel": "preview",
+      "developmentClient": false,
+      "autoIncrement": true
+    }
+  },
+  "cli": {
+    "appVersionSource": "remote"
+  },
+  "submit": {
+    "play-internal": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed"
+      }
     }
   }
 }
