@@ -19,6 +19,13 @@ const systemPage = read('components/SystemPage.tsx');
 const questRun = read('screens/QuestRunScreen.tsx');
 const systemBoot = read('components/SystemBoot.tsx');
 const awakening = read('components/AwakeningCelebration.tsx');
+const heroCatalog = read('heroes/catalog.ts');
+const heroProvider = read('heroes/provider.tsx');
+const heroStore = read('heroes/store.ts');
+const heroScreen = read('screens/HeroCardsScreen.tsx');
+const heroTile = read('components/HeroCardTile.tsx');
+const characterScreen = read('screens/CharacterScreen.tsx');
+const heroRoute = fs.readFileSync(path.join(root, '../app/heroes.tsx'), 'utf8');
 
 for (const event of [
   'UI_CONFIRM',
@@ -27,6 +34,8 @@ for (const event of [
   'QUEST_COMPLETE',
   'LEVEL_UP',
   'ACHIEVEMENT_UNLOCKED',
+  'HERO_CARD_UNLOCKED',
+  'HERO_CARD_EQUIPPED',
   'STREAK_MILESTONE',
   'BOSS_DAMAGE',
   'BOSS_PHASE_CHANGED',
@@ -41,6 +50,7 @@ for (const event of [
 
 assert.match(engine, /<PresentationAudioBridge\s*\/>/, 'audio bridge not mounted');
 assert.match(engine, /<PresentationHapticsBridge\s*\/>/, 'haptics bridge not mounted');
+assert.match(engine, /<HeroCardsProvider>/, 'Hero Cards provider not mounted');
 
 for (const [event, sfx] of [
   ['UI_CLICK', 'UI_CLICK'],
@@ -83,7 +93,8 @@ for (const asset of [
   assert.match(audioEngine, new RegExp(asset.replace('.', '\\.') + "'"), asset + ' not wired into AudioEngine');
 }
 
-assert.match(audio, /case 'ACHIEVEMENT_UNLOCKED': return 'ACHIEVEMENT'/);
+assert.match(audio, /case 'ACHIEVEMENT_UNLOCKED':[\s\S]*HERO_CARD_UNLOCKED': return 'ACHIEVEMENT'/);
+assert.match(audio, /case 'HERO_CARD_EQUIPPED': return 'UI_CONFIRM'/);
 assert.match(audio, /case 'LEVEL_UP': return 'LEVEL_UP'/);
 assert.match(audio, /case 'BOSS_DEFEATED': return 'BOSS_DEFEATED'/);
 assert.match(audio, /case 'SYSTEM_WARNING'/);
@@ -132,8 +143,29 @@ assert.match(questRun, /TRAINING_STRENGTH/, 'quest screen missing strength train
 assert.match(questRun, /TRAINING_CARDIO/, 'quest screen missing cardio training routing');
 assert.match(systemBoot, /scene="AWAKENING"/, 'opening sequence missing hero character');
 
+assert.match(characterBackdrop, /useHeroCards/, 'cinematic backdrop does not read equipped Hero Card');
+assert.match(characterBackdrop, /DungeonTravelLayer/, 'dungeon travel layer missing');
+assert.match(characterBackdrop, /combat\.value/, 'boss combat loop missing');
+assert.match(characterBackdrop, /impactFlash/, 'boss impact feedback missing');
+assert.match(characterBackdrop, /HERO_CARD_UNLOCKED/, 'hero unlock does not trigger cinematic reaction');
+
+assert.match(heroCatalog, /SYSTEM ZERO/, 'starter Hero Card missing');
+assert.match(heroCatalog, /SYSTEM ASCENDANT/, 'Mythic Hero Card missing');
+assert.match(heroCatalog, /type HeroRarity = 'COMMON' \| 'RARE' \| 'EPIC' \| 'LEGENDARY' \| 'MYTHIC'/, 'Hero Card rarity contract missing');
+assert.match(heroProvider, /SecureStore\.setItemAsync\(ACTIVE_KEY/, 'Hero Card equip is not persisted');
+assert.match(heroProvider, /getUnlockedHeroIds/, 'Hero Card provider is not driven by progression');
+assert.match(heroStore, /useHeroCards/, 'Hero Cards reactive store missing');
+assert.match(heroScreen, /<HeroCardTile/, 'Hero Cards collection screen missing cards');
+assert.match(heroScreen, /equipHero\(card\.id\)/, 'Hero Cards collection cannot equip characters');
+assert.match(heroTile, /USTAW BOHATERA/, 'Hero Card equip UI missing');
+assert.match(characterScreen, /HERO CARDS →/, 'Character screen missing Hero Cards entry');
+assert.match(heroRoute, /HeroCardsScreen/, 'Hero Cards app route missing');
+
+
 
 assert.match(haptics, /case 'ACHIEVEMENT_UNLOCKED'/);
+assert.match(haptics, /case 'HERO_CARD_UNLOCKED'/);
+assert.match(haptics, /case 'HERO_CARD_EQUIPPED'/);
 assert.match(haptics, /case 'STREAK_MILESTONE'/);
 assert.match(haptics, /case 'BOSS_DAMAGE'/);
 assert.match(haptics, /case 'BOSS_DEFEATED'/);
