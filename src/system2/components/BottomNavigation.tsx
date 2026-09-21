@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 
 import { SYSTEM_COLORS } from '../core';
+import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
 
 export default function BottomNavigation() {
   const insets = useSafeAreaInsets();
@@ -78,8 +79,13 @@ function NavItem({
   onPress?: () => void;
   unavailable?: boolean;
 }) {
+  const handlePress = () => {
+    if (!onPress) return;
+    presentationEventBus.emit(PresentationEventPresets.uiNavigate());
+    onPress();
+  };
   return (
-    <Pressable style={styles.item} onPress={onPress} disabled={unavailable}
+    <Pressable style={styles.item} onPress={handlePress} disabled={unavailable}
       accessibilityRole="button" accessibilityState={{ disabled: unavailable, selected: active }}
       accessibilityLabel={label + (unavailable ? ' — wkrótce' : '')}>
       {shape === 'diamond' && (
