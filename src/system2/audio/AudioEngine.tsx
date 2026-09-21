@@ -31,6 +31,7 @@ export type SFXEvent =
   | 'XP_GAIN'
   | 'LEVEL_UP'
   | 'REWARD'
+  | 'ACHIEVEMENT'
   | 'STREAK'
   | 'STREAK_MILESTONE'
   | 'SECTOR_DISCOVERED'
@@ -89,6 +90,7 @@ const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
   XP_GAIN: null,
   LEVEL_UP: { source: AUDIO.levelUp, gain: 0.95 },
   REWARD: null,
+  ACHIEVEMENT: { source: AUDIO.levelUp, gain: 0.68 },
   STREAK: null,
   STREAK_MILESTONE: { source: AUDIO.levelUp, gain: 0.58 },
   SECTOR_DISCOVERED: null,
