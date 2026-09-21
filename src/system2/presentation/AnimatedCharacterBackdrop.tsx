@@ -38,13 +38,13 @@ function transientScene(type: string): CharacterScene | null {
   if (type === 'QUEST_COMPLETE' || type === 'LEVEL_UP' || type === 'BOSS_DEFEATED') return 'VICTORY';
   if (type === 'QUEST_FAILED' || type === 'SYSTEM_ERROR') return 'FAILURE';
   if (type === 'BOSS_APPEARED' || type === 'BOSS_PHASE_CHANGED') return 'BOSS';
-  if (type === 'AWAKENING_STARTED') return 'AWAKENING';
+  if (type === 'AWAKENING_STARTED' || type === 'HERO_CARD_UNLOCKED') return 'AWAKENING';
   return null;
 }
 
 export function sceneForPath(pathname: string): CharacterScene {
   if (pathname.startsWith('/game-master')) return 'AI_GAME_MASTER';
-  if (pathname.startsWith('/character')) return 'CHARACTER';
+  if (pathname.startsWith('/character') || pathname.startsWith('/heroes')) return 'CHARACTER';
   if (pathname.startsWith('/world') || pathname.startsWith('/explore')) return 'WORLD';
   if (pathname.startsWith('/quest')) return 'QUEST';
   if (pathname.startsWith('/raids')) return 'BOSS';
