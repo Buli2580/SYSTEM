@@ -3,6 +3,7 @@ import Animated from 'react-native-reanimated';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RunnableQuest } from '../quests/types';
 import { SYSTEM_COLORS as C } from '../core';
+import { QUEST_FLOW_STEPS, activeQuestFlowStep, questExperienceMessage, questExperiencePhaseFromRun } from '../beta/questFlow';
 
 type QuestStatus = 'AVAILABLE' | 'ACTIVE' | 'COMPLETED' | 'LOCKED' | 'STARTING' | 'VERIFYING' | 'FAILED' | 'CHECKING';
 
@@ -34,6 +35,51 @@ export function QuestStatusBadge({ status }: { status: QuestStatus }) {
   return <View accessibilityLabel={`Quest status ${STATUS_LABELS[status]}`} style={[styles.badge, styles[`badge${status}`]]}>
     <Text style={[styles.badgeText, styles[`badgeText${status}`]]}>{STATUS_LABELS[status]}</Text>
   </View>;
+}
+
+
+export function QuestFlowRail({ status }: { status: string }) {
+  const phase = questExperiencePhaseFromRun(status);
+  const active = activeQuestFlowStep(phase);
+  const activeIndex = QUEST_FLOW_STEPS.indexOf(active);
+  return <Animated.View entering={FadeInUp.duration(320)} style={styles.flow}>
+    <View style={styles.flowHeader}>
+      <View><Text style={styles.flowCode}>QUEST EXPERIENCE 2.0</Text><Text style={styles.flowPhase}>{phase}</Text></View>
+      <Text style={styles.flowMessage}>{questExperienceMessage(phase)}</Text>
+    </View>
+    <View style={styles.flowSteps}>
+      {QUEST_FLOW_STEPS.map((step,index)=>{
+        const complete = index < activeIndex || (phase === 'COMPLETE' && step === 'REWARD');
+        const current = index === activeIndex;
+        return <View key={step} style={styles.flowStepWrap}>
+          <View style={[styles.flowNode, complete && styles.flowNodeDone, current && styles.flowNodeCurrent]} />
+          <Text style={[styles.flowStep, (complete || current) && styles.flowStepActive]}>{step}</Text>
+        </View>;
+      })}
+    </View>
+  </Animated.View>;
+}
+
+export function QuestRecoveryPanel({ title, message, onRetry, onHub, onHome }: {
+  title: string;
+  message?: string | null;
+  onRetry: () => void;
+  onHub: () => void;
+  onHome: () => void;
+}) {
+  return <Animated.View entering={FadeInUp.duration(300)} style={styles.recovery}>
+    <Text style={styles.recoveryCode}>RECOVERY PROTOCOL</Text>
+    <Text style={styles.recoveryTitle}>{title}</Text>
+    {!!message && <Text style={styles.recoveryText}>{message}</Text>}
+    <Text style={styles.recoveryHint}>Nie przyznajemy częściowego ani awaryjnego XP. Możesz ponowić próbę bez utraty wcześniej zapisanych nagród.</Text>
+    <Pressable accessibilityRole="button" onPress={onRetry} style={({pressed})=>[styles.recoveryPrimary, pressed && styles.cardPressed]}>
+      <Text style={styles.recoveryPrimaryText}>SPRÓBUJ PONOWNIE →</Text>
+    </Pressable>
+    <View style={styles.recoveryActions}>
+      <Pressable onPress={onHub}><Text style={styles.recoveryLink}>QUEST HUB</Text></Pressable>
+      <Pressable onPress={onHome}><Text style={styles.recoveryLink}>HOME</Text></Pressable>
+    </View>
+  </Animated.View>;
 }
 
 export function QuestRewardRow({ quest, label = 'REWARD' }: { quest: RunnableQuest; label?: string }) {
@@ -114,6 +160,27 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  flow: { marginTop: 8, padding: 15, borderWidth: 1, borderColor: C.line, borderRadius: 18, backgroundColor: 'rgba(4,16,20,0.88)' },
+  flowHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' },
+  flowCode: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+  flowPhase: { color: C.white, fontSize: 14, fontWeight: '900', marginTop: 4 },
+  flowMessage: { flex: 1, color: C.textMuted, fontSize: 9, lineHeight: 14, textAlign: 'right' },
+  flowSteps: { flexDirection: 'row', justifyContent: 'space-between', gap: 5, marginTop: 14 },
+  flowStepWrap: { flex: 1, alignItems: 'center', gap: 5 },
+  flowNode: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, borderColor: C.lineBright, backgroundColor: C.background },
+  flowNodeDone: { backgroundColor: C.success, borderColor: C.success },
+  flowNodeCurrent: { backgroundColor: C.cyan, borderColor: C.cyan },
+  flowStep: { color: C.textVeryMuted, fontSize: 6, fontWeight: '900' },
+  flowStepActive: { color: C.text },
+  recovery: { marginTop: 18, padding: 18, borderWidth: 1, borderColor: C.danger, borderRadius: 20, backgroundColor: 'rgba(36,8,13,0.52)' },
+  recoveryCode: { color: C.danger, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+  recoveryTitle: { color: C.white, fontSize: 20, fontWeight: '900', marginTop: 8 },
+  recoveryText: { color: C.text, fontSize: 12, lineHeight: 19, marginTop: 8 },
+  recoveryHint: { color: C.textMuted, fontSize: 10, lineHeight: 16, marginTop: 10 },
+  recoveryPrimary: { marginTop: 15, minHeight: 52, borderRadius: 13, backgroundColor: C.cyan, alignItems: 'center', justifyContent: 'center' },
+  recoveryPrimaryText: { color: '#001014', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  recoveryActions: { flexDirection: 'row', gap: 20, marginTop: 15 },
+  recoveryLink: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   card: { marginTop: 12, padding: 18, backgroundColor: C.panel, borderWidth: 1, borderColor: C.line, borderRadius: 20 },
   cardActive: { borderColor: C.lineBright, backgroundColor: C.panelSoft },
   cardLocked: { opacity: 0.56 },
