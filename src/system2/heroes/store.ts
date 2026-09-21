@@ -32,7 +32,7 @@ export function getHeroCardsSnapshot() {
 
 export function subscribeHeroCards(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => { listeners.delete(listener); };
 }
 
 export function useHeroCards(): HeroCardsSnapshot {
