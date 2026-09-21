@@ -27,6 +27,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const [startInProgress, setStartInProgress] = useState(false);
   const [questCompleteVisible, setQuestCompleteVisible] = useState(false);
   const startInProgressRef = useRef(false);
+  const scrollRef = useRef<ScrollView | null>(null);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
@@ -49,6 +50,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const seconds =
     duration % 60;
   const showLiveTracker = isLiveQuestStatus(status);
+  const showBriefing = status === 'CHECKING' || status === 'READY' || status === 'STARTING';
   const renderStatus: string = status;
   const nextAction = getNextAction({
     ...system,
@@ -85,6 +87,12 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     return () => clearTimeout(timer);
   }, [status]);
 
+  useEffect(() => {
+    if (!['COMPLETED','ERROR','DENIED'].includes(status)) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   const handleStartQuest = () => {
     if (startInProgressRef.current) return;
     startInProgressRef.current = true;
@@ -102,6 +110,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     <View style={styles.root}>
       <SystemAmbientBackground intensity={quest.category === 'BOSS' ? 'world' : status === 'COMPLETING' || status === 'COMPLETED' ? 'hero' : status === 'TRACKING' ? 'default' : 'quiet'} />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={
           [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
         }
@@ -136,13 +145,18 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         </View>
 
         <QuestFlowRail status={status} />
-        <MissionBriefing
+        {showBriefing && <MissionBriefing
           quest={quest}
           status={status}
           onStart={status === 'READY' && ready ? handleStartQuest : undefined}
           startDisabled={startInProgress || !ready}
           resume={distance > 0 || duration > 0}
-        />
+        />}
+        {(status === 'TRACKING' || status === 'COMPLETING') && <Animated.View entering={FadeIn.duration(220)} style={styles.liveMissionHeader}>
+          <Text style={styles.liveMissionCode}>{status === 'COMPLETING' ? 'VERIFYING // CANONICAL' : 'MISSION ACTIVE // LIVE'}</Text>
+          <Text style={styles.liveMissionTitle}>{quest.title}</Text>
+          <Text style={styles.liveMissionHint}>{status === 'COMPLETING' ? 'Nie zamykaj ekranu. SYSTEM zapisuje wynik i nagrodę.' : 'Wykonuj cel. Weryfikacja działa na żywo.'}</Text>
+        </Animated.View>}
 
         {!!quest.activityType && <View style={styles.questCard}>
           <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
@@ -424,6 +438,10 @@ function isLiveQuestStatus(status: string) {
 
 const styles =
   StyleSheet.create({
+    liveMissionHeader: { marginTop: 12, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.05)' },
+    liveMissionCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+    liveMissionTitle: { color: SYSTEM_COLORS.white, fontSize: 20, fontWeight: '900', marginTop: 7 },
+    liveMissionHint: { color: SYSTEM_COLORS.textMuted, fontSize: 10, lineHeight: 15, marginTop: 6 },
     nextProtocol: { width: '100%', marginTop: 18, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.045)' },
     nextProtocolCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
     nextProtocolTitle: { color: SYSTEM_COLORS.white, fontSize: 15, fontWeight: '900', marginTop: 6 },
