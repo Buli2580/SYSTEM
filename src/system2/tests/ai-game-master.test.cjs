@@ -266,6 +266,6 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   assert.equal(candidates.length, 1);
   const quest = candidates[0].quest;
   assert.ok(!Object.hasOwn(quest, 'xp'));
-  assert.ok(!Object.hasOwn(quest, 'rewards'));
+  assert.deepEqual(JSON.parse(JSON.stringify(quest.rewards)), { realXp: 30, skillXp: { WIL: 25 }, gameEnergy: 3 });
   assert.notEqual(quest.verification.minimumDurationSeconds, 999999 * 60);
 });
