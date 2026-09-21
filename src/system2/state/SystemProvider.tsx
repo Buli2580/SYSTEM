@@ -85,7 +85,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     try {
       const result = await awaitWithTimeout(reconcileAchievements(player));
       if (epoch === generation.current) {
-        for (const id of result.newlyUnlocked) {
+        for (const id of result?.newlyUnlocked ?? []) {
           const definition = ACHIEVEMENTS.find(item => item.id === id);
           if (definition) {
             presentationEventBus.emit(PresentationEventPresets.achievementUnlocked(
