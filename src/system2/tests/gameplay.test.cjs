@@ -2425,3 +2425,30 @@ test('AI Daily cannot replace a loadout after any quest attempt has started', as
   assert.equal(after.aiDaily, undefined);
   assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM app_state WHERE key=?").get('ai_daily_applied:'+before.daily.dayKey).n, 0);
 });
+
+
+test('database newer than this app is rejected without downgrading or mutating user data', async t => {
+  const h = databaseHarness(t);
+  const future = h.load('storage/migrations').SCHEMA_VERSION + 1;
+  h.sql.exec(`CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL); PRAGMA user_version=${future};`);
+  const player = h.load('core').createNewPlayer('FUTURE');
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(player));
+  await assert.rejects(h.db.loadSystemState(), /nowszej wersji SYSTEMU/);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, future);
+  assert.equal(JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value).id, player.id);
+  assert.equal(h.sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='quest_completions'").get(), undefined);
+});
+
+test('failed migration keeps user_version and preexisting profile atomic', async t => {
+  const h = databaseHarness(t);
+  h.sql.exec('CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL); PRAGMA user_version=0;');
+  const player = h.load('core').createNewPlayer('ATOMIC');
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(player));
+  h.faults.failWhen = source => source.includes('CREATE TABLE IF NOT EXISTS daily_sets');
+  await assert.rejects(h.db.loadSystemState());
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 0);
+  assert.equal(JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value).id, player.id);
+  const recovered = await h.reload().loadSystemState();
+  assert.equal(recovered.player.id, player.id);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, h.load('storage/migrations').SCHEMA_VERSION);
+});
