@@ -90,6 +90,23 @@ jobs:
             rm -f "$TMP/$archive"
           }
 
+          fetch_file_optional () {
+            local url="$1"
+            local out="$2"
+
+            if [ -s "$out" ]; then
+              echo "Skipping existing file: $out"
+              return 0
+            fi
+
+            echo "Downloading $url"
+            mkdir -p "$(dirname "$out")"
+            if ! curl -fL --retry 4 --retry-delay 3 --connect-timeout 30 --max-time 900 "$url" -o "$out"; then
+              echo "::warning::Could not download $url"
+              rm -f "$out"
+            fi
+          }
+
           # CC0 — Monster RPG 2: 42 original OGG soundtrack tracks.
           fetch_7z_optional             "https://opengameart.org/sites/default/files/Monster%20RPG%202%20OGG%20Music%20-%20Revised.7z"             "monster-rpg-2.7z"             "$ROOT/cc0/monster-rpg-2"
 
@@ -113,6 +130,38 @@ jobs:
 
           # CC0 / public domain — Golgotha soundtrack.
           fetch_zip_optional             "https://opengameart.org/sites/default/files/golgotha_music.zip"             "golgotha-music.zip"             "$ROOT/cc0/golgotha-game-engine-soundtrack"
+
+          # CC0 — Holizna / relaxing instrumentals for recovery, focus and home states.
+          fetch_zip_optional \
+            "https://opengameart.org/sites/default/files/relaxing_instrumentals.zip" \
+            "relaxing-instrumentals.zip" \
+            "$ROOT/cc0/holizna-relaxing-instrumentals"
+
+          # CC0 — tricksntraps / T & T cyberpunk pack.
+          CYBER="$ROOT/cc0/tricksntraps-cyberpunk"
+          fetch_file_optional "https://opengameart.org/sites/default/files/Caves.ogg" "$CYBER/Caves.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/Anti%20Matter%20Magic.ogg" "$CYBER/Anti Matter Magic.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/Currents.ogg" "$CYBER/Currents.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/Tribal%20Chaos.ogg" "$CYBER/Tribal Chaos.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/Experiment%20G.ogg" "$CYBER/Experiment G.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/Space%20Collisions.ogg" "$CYBER/Space Collisions.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/Wicked%20beast.ogg" "$CYBER/Wicked beast.ogg"
+
+          # CC0 — Vapour prototype horror soundtrack.
+          VAPOUR="$ROOT/cc0/tricksntraps-vapour-2013"
+          fetch_file_optional "https://opengameart.org/sites/default/files/the_hunted_145bpm.ogg" "$VAPOUR/the_hunted_145bpm.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/heaven_69bpm.ogg" "$VAPOUR/heaven_69bpm.ogg"
+          fetch_file_optional "https://opengameart.org/sites/default/files/last_battle_145bpm.ogg" "$VAPOUR/last_battle_145bpm.ogg"
+
+          # CC0 — yd / dark space ambience.
+          fetch_zip_optional \
+            "https://opengameart.org/sites/default/files/projects.zip" \
+            "background-space-projects.zip" \
+            "$ROOT/cc0/yd-background-space"
+
+          fetch_file_optional \
+            "https://opengameart.org/sites/default/files/IswearIsawit.ogg" \
+            "$ROOT/cc0/yd-dark-ambient/IswearIsawit.ogg"
 
           # Keep the source library compact: compressed playback formats only.
           find "$ROOT" -type f \( -iname '*.wav' -o -iname '*.mid' -o -iname '*.midi' -o -iname '*.ftm' -o -iname '*.flac' -o -iname '*.zip' -o -iname '*.7z' -o -name '.DS_Store' -o -name 'Thumbs.db' \) -delete
@@ -213,6 +262,31 @@ jobs:
           - License: CC0 / public domain
           - Attribution required: No
 
+          ## Holizna — Relaxing Instrumentals Collection
+          - Source: https://opengameart.org/node/161811
+          - License: CC0
+          - Attribution required: No
+
+          ## tricksntraps — T & T Free Cyberpunk Pack
+          - Source: https://opengameart.org/content/t-t-free-cyberpunk-pack
+          - License: CC0
+          - Attribution required: No
+
+          ## tricksntraps — Free Vapour 2013 Soundtrack
+          - Source: https://opengameart.org/content/free-vapour-2013-soundtrack
+          - License: CC0
+          - Attribution required: No
+
+          ## yd — Background Space Track
+          - Source: https://opengameart.org/content/background-space-track
+          - License: CC0
+          - Attribution required: No
+
+          ## yd — I Swear I Saw It
+          - Source: https://opengameart.org/content/i-swear-i-saw-it-background-track
+          - License: CC0
+          - Attribution required: No
+
           EOF
 
       - name: Inventory
@@ -235,5 +309,5 @@ jobs:
             echo "No new files to commit."
             exit 0
           fi
-          git commit -m "audio: import third free licensed music batch"
+          git commit -m "audio: import fourth free licensed music batch"
           git push origin HEAD:feature/presentation-engine-2.0
