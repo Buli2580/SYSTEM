@@ -37,7 +37,12 @@ jobs:
             echo "Downloading $url"
             curl -fL --retry 4 --retry-delay 3 --connect-timeout 30 --max-time 900 "$url" -o "$TMP/$zip"
             mkdir -p "$out"
-            unzip -oq "$TMP/$zip" -d "$out"
+            python - "$TMP/$zip" "$out" <<'PY'
+import sys, zipfile
+archive, out = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(archive) as z:
+    z.extractall(out)
+PY
             rm -f "$TMP/$zip"
           }
 
@@ -52,6 +57,22 @@ jobs:
           do
             fetch_zip               "https://opengameart.org/sites/default/files/$part"               "$part"               "$ROOT/cc-by-4.0/last-starlight-paradise-dream"
           done
+
+          # CC0 — Pudgyplatypus / game music loops
+          fetch_zip             "https://opengameart.org/sites/default/files/GameLoops.zip"             "GameLoops.zip"             "$ROOT/cc0/pudgyplatypus-game-loops"
+
+          # CC0 — drakzlin / action, battle, horror and chiptune loops
+          for part in action.zip battle.zip horror.zip chiptune_1.zip chiptune_2.zip
+          do
+            fetch_zip               "https://opengameart.org/sites/default/files/$part"               "$part"               "$ROOT/cc0/drakzlin-music-loops"
+          done
+
+          # CC0 — Sparklin Labs / Superpowers music
+          fetch_zip             "https://opengameart.org/sites/default/files/superpowers-asset-packs-music.zip"             "superpowers-asset-packs-music.zip"             "$ROOT/cc0/superpowers-music"
+          fetch_zip             "https://opengameart.org/sites/default/files/rpg-battle-system-part-2-music-additions_1-31-17.zip"             "rpg-battle-system-part-2-music-additions.zip"             "$ROOT/cc0/superpowers-music"
+
+          # CC0 — Juhani Junkala / JRPG Pack 5 Action
+          fetch_zip             "https://opengameart.org/sites/default/files/JRPG%20Music%20Pack%20%235%20%5BAction%5D%20by%20Juhani%20Junkala.zip"             "jrpg-pack-5-action.zip"             "$ROOT/cc0/juhani-junkala-jrpg-pack-5-action"
 
           # CC-BY 3.0 — ietsu / A Journey's End, use OGG versions.
           JOURNEY="$ROOT/cc-by-3.0/a-journeys-end"
@@ -79,8 +100,8 @@ jobs:
             curl -fL --retry 4 --retry-delay 3 --connect-timeout 30 --max-time 300               "https://opengameart.org/sites/default/files/${encoded}_0.ogg"               -o "$JOURNEY/$base.ogg"
           done
 
-          # Never commit source archives or editor/cache junk.
-          find "$ROOT" -type f \( -name '*.zip' -o -name '.DS_Store' -o -name 'Thumbs.db' \) -delete
+          # Keep the source library compact: compressed playback formats only.
+          find "$ROOT" -type f \( -iname '*.wav' -o -iname '*.mid' -o -iname '*.midi' -o -iname '*.ftm' -o -iname '*.flac' -o -name '*.zip' -o -name '.DS_Store' -o -name 'Thumbs.db' \) -delete
 
       - name: Write license manifest
         shell: bash
@@ -106,6 +127,26 @@ jobs:
           - Source: https://opengameart.org/content/full-8-bit-jrpg-soundtrack-downloadable-and-editable-music-pack
           - License: CC BY 4.0
           - Attribution required: Yes
+
+          ## Pudgyplatypus — Royalty Free Game Music Loops
+          - Source: https://opengameart.org/content/royalty-free-game-music-loops
+          - License: CC0
+          - Attribution required: No
+
+          ## drakzlin — Music Loops
+          - Source: https://opengameart.org/content/music-loops-0
+          - License: CC0
+          - Attribution required: No
+
+          ## Sparklin Labs / Superpowers — Music Asset Packs
+          - Source: https://opengameart.org/content/superpowers-assets-music
+          - License: CC0
+          - Attribution required: No
+
+          ## Juhani Junkala / SubspaceAudio — JRPG Pack 5 Action
+          - Source: https://opengameart.org/content/jrpg-pack-5-action
+          - License: CC0
+          - Attribution required: No
 
           ## ietsu — A Journey's End
           - Source: https://opengameart.org/content/a-journeys-end
