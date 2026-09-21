@@ -96,11 +96,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
-
+      # Do not persist the Gradle user-home cache on hosted runners here.
+      # Native Expo/RN builds can exceed the runner disk while setup-gradle
+      # archives ~/.gradle after a successful APK build. The Gradle wrapper
+      # and npm cache are sufficient for this correctness-oriented nightly.
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
