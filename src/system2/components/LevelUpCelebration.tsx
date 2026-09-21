@@ -2,13 +2,11 @@ import { useEffect } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useSystem } from '../state/SystemProvider';
-import { notificationAsync } from '../identity/feedback';
 export default function LevelUpCelebration() {
   const { celebration, dismissCelebration, ready } = useSystem();
 
   useEffect(() => {
     if (!celebration || !ready) return;
-    void notificationAsync();
     const timer = setTimeout(dismissCelebration, 3000);
     return () => clearTimeout(timer);
   }, [celebration, dismissCelebration, ready]);
