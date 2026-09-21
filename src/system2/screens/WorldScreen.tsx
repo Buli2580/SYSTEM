@@ -14,6 +14,7 @@ import { locationToSector } from '../world/sectors';
 import { signalDistance } from '../world/signals';
 import { SYSTEM_COLORS as C } from '../core';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import {worldBossMode} from '../beta/worldBoss';
 
 export default function WorldScreen() {
   const router = useRouter();
@@ -35,7 +36,8 @@ export default function WorldScreen() {
   return <OnlineWorld />;
 }
 function OnlineWorld() {
-  const { player, lastReward } = useSystem();
+  const { player, lastReward, story } = useSystem();
+  const mode=worldBossMode({worldUnlocked:true,bossActive:!!story?.worldLinkComplete&&!story?.bossComplete,bossDefeated:!!story?.bossComplete});
   const world = useWorldTracking();
   const insets = useSafeAreaInsets();
   const [follow, setFollow] = useState(true);
@@ -45,10 +47,11 @@ function OnlineWorld() {
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
     <SystemAmbientBackground intensity="world" />
     <View style={styles.heading}>
-      <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>STATUS ŚWIATA: ONLINE</Text>
+      <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD/BOSS 2.0 // {mode}</Text><Text style={styles.label}>STATUS ŚWIATA: ONLINE</Text>
       <Text style={styles.body}>EKSPLORACJA ŚWIATA · ODKRYTE SEKTORY {world.sectorIds.length}</Text>
       <Text style={styles.body}>ŁĄCZNY DYSTANS {(player.totalDistanceMeters / 1000).toFixed(2)} KM · ZWERYFIKOWANE MISJE</Text>
     </View>
+    {mode==='BOSS'&&<Pressable onPress={()=>router.push('/story')} style={styles.bossSignal}><Text style={styles.bossSignalCode}>THREAT DETECTED // BOSS PROTOCOL</Text><Text style={styles.bossSignalTitle}>THE FIRST WALL</Text><Text style={styles.bossSignalCta}>WEJDŹ DO WALKI →</Text></Pressable>}
     <View style={styles.map}>
       {world.fix ? <WorldMap fix={world.fix} sectorIds={world.sectorIds} signal={world.signal} follow={follow} centerRequest={centerRequest} /> :
         <View style={styles.empty}><Text style={styles.label}>{world.status === 'STARTING' ? 'URUCHAMIANIE // GPS' : 'URUCHOM ŚWIAT'}</Text>
@@ -82,6 +85,7 @@ function Button({ label, onPress, disabled = false }: { label: string; onPress: 
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={({ pressed }) => [styles.button, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}><Text style={styles.label}>{label}</Text></Pressable>;
 }
 const styles = StyleSheet.create({
+  bossSignal:{marginHorizontal:16,marginBottom:10,padding:16,borderWidth:1,borderColor:'rgba(228,186,255,0.48)',borderRadius:16,backgroundColor:'rgba(35,13,45,0.72)'},bossSignalCode:{color:'#e4baff',fontSize:9,fontWeight:'900',letterSpacing:1.5},bossSignalTitle:{color:'#fff',fontSize:22,fontWeight:'900',marginTop:6},bossSignalCta:{color:'#6ceeff',fontSize:10,fontWeight:'900',marginTop:10},
   root: { flex: 1, backgroundColor: C.background }, heading: { paddingHorizontal: 16, paddingBottom: 10 },
   title: { color: C.white, fontSize: 23, fontWeight: '900' },
   label: { color: C.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
