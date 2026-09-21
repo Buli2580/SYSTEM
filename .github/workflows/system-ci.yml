@@ -50,6 +50,7 @@ jobs:
 
       - name: Cloud processor SQL and mobile tests
         run: |
+          node supabase/tests/normalize-calendar-fixtures.cjs
           npm ci --prefix supabase/tests --ignore-scripts
           npm test --prefix supabase/tests
 
