@@ -12,6 +12,7 @@ import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import type { PlayerAchievementState } from '../achievements/types';
 import { reconcileAchievements } from '../achievements/reconcile';
+import { ACHIEVEMENTS } from '../achievements/catalog';
 import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
 import { flushCloudOutbox } from '../cloud/sync';
 import { stopQuestBackgroundTracking } from '../background/locationService';
@@ -82,8 +83,20 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   }, []);
   const syncAchievements = useCallback(async (player: db.SystemSnapshot['player'], epoch: number): Promise<void> => {
     try {
-      await awaitWithTimeout(reconcileAchievements(player));
-      if (epoch === generation.current) await loadAchievements(epoch);
+      const result = await awaitWithTimeout(reconcileAchievements(player));
+      if (epoch === generation.current) {
+        for (const id of result.newlyUnlocked) {
+          const definition = ACHIEVEMENTS.find(item => item.id === id);
+          if (definition) {
+            presentationEventBus.emit(PresentationEventPresets.achievementUnlocked(
+              definition.id,
+              definition.name,
+              definition.tier ?? 'COMMON',
+            ));
+          }
+        }
+        await loadAchievements(epoch);
+      }
     } catch (cause) {
       if (epoch === generation.current) setAchievementError('Nie udało się odświeżyć osiągnięć. Spróbuj ponownie.');
       if (__DEV__) console.error('Achievement sync failed', cause);
@@ -168,17 +181,34 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     presentationEventBus.emit(PresentationEventPresets.questComplete(receipt.id, 'QUEST COMPLETE', receipt));
     if (receipt.realXp > 0) presentationEventBus.emit(PresentationEventPresets.xpGain(receipt.realXp, 'quest'));
     presentationEventBus.emit(PresentationEventPresets.rewardReceived(receipt));
+    if (receipt.afterLevel > receipt.beforeLevel) {
+      presentationEventBus.emit(PresentationEventPresets.levelUp(receipt.beforeLevel, receipt.afterLevel, receipt.afterRank));
+    }
     setLastReward(receipt);
     if (receipt.afterLevel > receipt.beforeLevel || receipt.skillLevels.length) setCelebration(receipt);
   }, []);
   const dismissCelebration = useCallback(() => setCelebration(null), []);
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
+    const previousStreak = snapshot.player.streak;
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); void syncAchievements(result.player, epoch); void flushCloudOutbox().catch(() => undefined); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) {
+      setSnapshot(result);
+      if (result.player.streak !== previousStreak) {
+        presentationEventBus.emit(PresentationEventPresets.streakUpdated(result.player.streak));
+        for (const milestone of [3, 7, 14, 30, 60, 100]) {
+          if (previousStreak < milestone && result.player.streak >= milestone) {
+            presentationEventBus.emit(PresentationEventPresets.streakMilestone(milestone));
+          }
+        }
+      }
+      void syncAchievements(result.player, epoch);
+      void flushCloudOutbox().catch(() => undefined);
+      if (result.receipt) presentReward(result.receipt);
+    }
     return result;
-  }, [presentReward, syncAchievements]);
+  }, [presentReward, snapshot.player.streak, syncAchievements]);
   const apply = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
