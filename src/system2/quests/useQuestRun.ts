@@ -266,6 +266,7 @@ export function useQuestRun(quest: RunnableQuest) {
     if (!focusedRef.current || statusRef.current !== 'TRACKING') return;
     evidence = { ...evidence, attemptId: attemptRef.current ?? undefined };
     transition('COMPLETING');
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     stopVerification();
     const session = sessionRef.current;
     setDuration(evidence.durationSeconds);
