@@ -58,6 +58,8 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
   const breath = useSharedValue(0);
   const drift = useSharedValue(0);
   const pulse = useSharedValue(0);
+  const travel = useSharedValue(0);
+  const combat = useSharedValue(0);
   const transientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -71,7 +73,22 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
       -1,
       true,
     );
-  }, [active, breath, drift]);
+    travel.value = withRepeat(
+      withTiming(1, { duration: active === 'TRAINING_CARDIO' ? 1800 : 3600, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    combat.value = active === 'BOSS'
+      ? withRepeat(
+          withSequence(
+            withTiming(1, { duration: 720, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0, { duration: 820, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1,
+          false,
+        )
+      : withTiming(0, { duration: 180 });
+  }, [active, breath, combat, drift, travel]);
 
   useEffect(() => {
     const unsubscribe = presentationEventBus.onAny(event => {
@@ -99,8 +116,8 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
   const bodyStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: breath.value * (active === 'TRAINING_CARDIO' ? 7 : 4) },
-      { translateX: (drift.value - 0.5) * (active === 'WORLD' ? 18 : 5) },
-      { scale: 1 + breath.value * (active === 'BOSS' ? 0.018 : 0.009) },
+      { translateX: (drift.value - 0.5) * (active === 'WORLD' ? 18 : 5) + (active === 'BOSS' ? combat.value * 18 : 0) },
+      { scale: 1 + breath.value * (active === 'BOSS' ? 0.018 : 0.009) + (active === 'BOSS' ? combat.value * 0.015 : 0) },
     ],
   }));
 
@@ -114,6 +131,27 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
     transform: [{ translateY: (drift.value - 0.5) * 140 }],
   }));
 
+  const travelStyle = useAnimatedStyle(() => ({
+    opacity: 0.22 + (1 - travel.value) * 0.12,
+    transform: [
+      { translateY: travel.value * 135 },
+      { scale: 0.78 + travel.value * 0.42 },
+    ],
+  }));
+
+  const enemyMotionStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: active === 'BOSS' ? -combat.value * 22 : 0 },
+      { translateY: active === 'BOSS' ? combat.value * 3 : 0 },
+      { scale: 1 + (active === 'BOSS' ? combat.value * 0.025 : 0) },
+    ],
+  }));
+
+  const impactStyle = useAnimatedStyle(() => ({
+    opacity: active === 'BOSS' ? 0.03 + Math.abs(Math.sin(combat.value * Math.PI)) * 0.20 : 0,
+    transform: [{ scale: 0.9 + combat.value * 0.16 }],
+  }));
+
   const pose = useMemo(() => poseFor(active), [active]);
   const heroShape = useMemo(() => heroShapeFor(activeHero.visual), [activeHero.visual]);
   const rootOpacity = compact ? Math.min(opacity, 0.28) : opacity;
@@ -122,9 +160,14 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
     <View pointerEvents="none" style={[styles.root, { opacity: rootOpacity }]}>
       <Animated.View style={[styles.aura, { borderColor: activeHero.accent, backgroundColor: activeHero.accentSoft }, active === 'BOSS' && styles.auraDanger, auraStyle]} />
       <HeroSignature visual={activeHero.visual} accent={activeHero.accent} />
+      {(active === 'WORLD' || active === 'QUEST' || active === 'TRAINING_CARDIO') && (
+        <DungeonTravelLayer accent={activeHero.accent} travelStyle={travelStyle} />
+      )}
+      {active === 'HOME' && <HomeNightLayer accent={activeHero.accent} />}
       {active === 'AI_GAME_MASTER' && <View style={[styles.holoPanel, { borderColor: activeHero.accent }]} />
-      {active === 'WORLD' && <View style={styles.worldArc} />}
-      {active === 'BOSS' && <EnemySilhouette />}
+      {active === 'WORLD' && <View style={[styles.worldArc, { borderColor: activeHero.accent }]} />}
+      {active === 'BOSS' && <Animated.View style={enemyMotionStyle}><EnemySilhouette /></Animated.View>}
+      {active === 'BOSS' && <Animated.View style={[styles.impactFlash, { backgroundColor: activeHero.accent }, impactStyle]} />}
       <Animated.View style={[styles.hero, compact && styles.heroCompact, heroShape.hero, bodyStyle]}>
         <View style={[styles.head, { borderColor: activeHero.accent }, heroShape.head, pose.head]} />
         <View style={[styles.neck, heroShape.neck, pose.neck]} />
@@ -208,6 +251,30 @@ function poseFor(scene: CharacterScene) {
   return base;
 }
 
+function DungeonTravelLayer({ accent, travelStyle }: { accent: string; travelStyle: object }) {
+  return <View style={styles.dungeonLayer}>
+    <View style={[styles.dungeonWall, styles.dungeonWallLeft, { borderColor: accent }]} />
+    <View style={[styles.dungeonWall, styles.dungeonWallRight, { borderColor: accent }]} />
+    <View style={[styles.dungeonCeiling, { borderColor: accent }]} />
+    <View style={[styles.dungeonFloorLine, styles.floorOne, { backgroundColor: accent }]} />
+    <View style={[styles.dungeonFloorLine, styles.floorTwo, { backgroundColor: accent }]} />
+    <View style={[styles.dungeonFloorLine, styles.floorThree, { backgroundColor: accent }]} />
+    <Animated.View style={[styles.dungeonGate, { borderColor: accent }, travelStyle]} />
+    <Animated.View style={[styles.travelFog, { backgroundColor: accent }, travelStyle]} />
+  </View>;
+}
+
+function HomeNightLayer({ accent }: { accent: string }) {
+  return <View style={styles.cityLayer}>
+    {[44, 76, 118, 58, 92, 132].map((height, index) => (
+      <View key={index} style={[styles.cityTower, { height, left: `${index * 17}%`, borderColor: accent }]}>
+        <View style={[styles.cityLight, { backgroundColor: accent }]} />
+      </View>
+    ))}
+    <View style={[styles.cityHorizon, { backgroundColor: accent }]} />
+  </View>;
+}
+
 function EnemySilhouette() {
   return <View style={styles.enemy}>
     <View style={styles.enemyAura} />
@@ -288,6 +355,22 @@ const styles = StyleSheet.create({
   burst: { position: 'absolute', width: 260, height: 260, alignItems: 'center', justifyContent: 'center' },
   ray: { position: 'absolute', width: 2, height: 230, backgroundColor: 'rgba(108,238,255,0.22)' },
   failureShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(60,0,12,0.12)' },
+  dungeonLayer: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
+  dungeonWall: { position: 'absolute', top: '8%', bottom: '4%', width: '46%', borderWidth: 1, opacity: 0.18 },
+  dungeonWallLeft: { left: '-22%', transform: [{ rotate: '13deg' }] },
+  dungeonWallRight: { right: '-22%', transform: [{ rotate: '-13deg' }] },
+  dungeonCeiling: { position: 'absolute', width: '72%', height: '34%', top: '-17%', left: '14%', borderWidth: 1, borderRadius: 180, opacity: 0.16 },
+  dungeonFloorLine: { position: 'absolute', height: 1, width: '52%', left: '24%', opacity: 0.14 },
+  floorOne: { bottom: '14%' },
+  floorTwo: { bottom: '27%' },
+  floorThree: { bottom: '40%' },
+  dungeonGate: { position: 'absolute', width: 116, height: 176, borderWidth: 1, borderTopLeftRadius: 58, borderTopRightRadius: 58, left: '50%', marginLeft: -58, top: '8%', opacity: 0.35 },
+  travelFog: { position: 'absolute', width: '86%', height: 70, borderRadius: 35, left: '7%', top: '34%', opacity: 0.05 },
+  cityLayer: { ...StyleSheet.absoluteFill, opacity: 0.22 },
+  cityTower: { position: 'absolute', bottom: '5%', width: '12%', borderWidth: 1, backgroundColor: 'rgba(3,8,12,0.78)' },
+  cityLight: { width: 3, height: 3, borderRadius: 2, margin: 7, opacity: 0.65 },
+  cityHorizon: { position: 'absolute', bottom: '5%', left: '3%', right: '3%', height: 1, opacity: 0.32 },
+  impactFlash: { position: 'absolute', width: 170, height: 170, borderRadius: 85, top: '31%', left: '50%', marginLeft: -85, opacity: 0 },
   signatureHalo: { position: 'absolute', width: 118, height: 38, borderRadius: 59, borderWidth: 2, top: '24%' },
   signatureCrown: { position: 'absolute', top: '21%', width: 82, height: 44, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end' },
   crownSpike: { width: 6, height: 38, borderRadius: 4, opacity: 0.55 },
