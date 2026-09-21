@@ -48,6 +48,15 @@ const AUDIO = {
   boss: require('../../../assets/audio/boss_theme.mp3') as AudioSource,
   levelUp: require('../../../assets/audio/level_up.mp3') as AudioSource,
   questComplete: require('../../../assets/audio/quest_complete.mp3') as AudioSource,
+  questAccept: require('../../../assets/audio/sfx/quest_accept.wav') as AudioSource,
+  questStart: require('../../../assets/audio/sfx/quest_start.wav') as AudioSource,
+  questFail: require('../../../assets/audio/sfx/quest_fail.wav') as AudioSource,
+  warning: require('../../../assets/audio/sfx/warning.wav') as AudioSource,
+  bossAppear: require('../../../assets/audio/sfx/boss_appear.wav') as AudioSource,
+  bossHit: require('../../../assets/audio/sfx/boss_hit.wav') as AudioSource,
+  bossPhase: require('../../../assets/audio/sfx/boss_phase.wav') as AudioSource,
+  streakMilestone: require('../../../assets/audio/sfx/streak_milestone.wav') as AudioSource,
+  sectorDiscovered: require('../../../assets/audio/sfx/sector_discovered.wav') as AudioSource,
 };
 
 type MusicTrack = {
@@ -72,8 +81,8 @@ const MUSIC_TRACKS: Record<MusicState, MusicTrack> = {
 
 type SFXDefinition = { source: AudioSource; gain: number } | null;
 
-// Only map events to assets that actually exist in the repository.
-// Missing sounds intentionally stay silent until a dedicated asset is added.
+// Every mapped source below exists in the repository. UI micro-sounds stay silent
+// until they receive a dedicated design pass instead of reusing gameplay feedback.
 const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
   UI_CLICK: null,
   UI_CONFIRM: null,
@@ -81,23 +90,23 @@ const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
   UI_NAVIGATE: null,
   UI_TOGGLE: null,
   SYSTEM_BOOT: null,
-  SYSTEM_READY: null,
-  QUEST_NEW: null,
-  QUEST_ACCEPT: null,
-  QUEST_START: null,
+  SYSTEM_READY: { source: AUDIO.questAccept, gain: 0.36 },
+  QUEST_NEW: { source: AUDIO.questAccept, gain: 0.50 },
+  QUEST_ACCEPT: { source: AUDIO.questAccept, gain: 0.68 },
+  QUEST_START: { source: AUDIO.questStart, gain: 0.70 },
   QUEST_COMPLETE: { source: AUDIO.questComplete, gain: 0.82 },
-  QUEST_FAIL: null,
+  QUEST_FAIL: { source: AUDIO.questFail, gain: 0.72 },
   XP_GAIN: null,
   LEVEL_UP: { source: AUDIO.levelUp, gain: 0.95 },
   REWARD: null,
   ACHIEVEMENT: { source: AUDIO.levelUp, gain: 0.68 },
-  STREAK: null,
-  STREAK_MILESTONE: { source: AUDIO.levelUp, gain: 0.58 },
-  SECTOR_DISCOVERED: null,
-  WARNING: null,
-  BOSS_APPEAR: null,
-  BOSS_HIT: null,
-  BOSS_PHASE: null,
+  STREAK: { source: AUDIO.streakMilestone, gain: 0.34 },
+  STREAK_MILESTONE: { source: AUDIO.streakMilestone, gain: 0.72 },
+  SECTOR_DISCOVERED: { source: AUDIO.sectorDiscovered, gain: 0.64 },
+  WARNING: { source: AUDIO.warning, gain: 0.72 },
+  BOSS_APPEAR: { source: AUDIO.bossAppear, gain: 0.88 },
+  BOSS_HIT: { source: AUDIO.bossHit, gain: 0.72 },
+  BOSS_PHASE: { source: AUDIO.bossPhase, gain: 0.82 },
   BOSS_DEFEATED: { source: AUDIO.levelUp, gain: 0.86 },
 };
 
