@@ -88,7 +88,7 @@ const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
   QUEST_FAIL: null,
   XP_GAIN: null,
   LEVEL_UP: { source: AUDIO.levelUp, gain: 0.95 },
-  REWARD: { source: AUDIO.questComplete, gain: 0.45 },
+  REWARD: null,
   STREAK: null,
   STREAK_MILESTONE: { source: AUDIO.levelUp, gain: 0.58 },
   SECTOR_DISCOVERED: null,
@@ -162,6 +162,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const shouldResumeRef = useRef(false);
   const transitionRef = useRef(0);
   const activeSfxRef = useRef(new Set<AudioPlayer>());
+  const lastSfxRef = useRef<{ event: SFXEvent; at: number } | null>(null);
 
   const masterVolumeRef = useRef(masterVolume);
   const musicVolumeRef = useRef(musicVolume);
@@ -324,6 +325,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const playSFX = useCallback(async (event: SFXEvent) => {
     if (masterMutedRef.current || sfxMutedRef.current) return;
+    const now = Date.now();
+    const last = lastSfxRef.current;
+    if (last?.event === event && now - last.at < 250) return;
+    lastSfxRef.current = { event, at: now };
     const definition = SFX_EVENTS[event];
     if (!definition) return;
     try {
