@@ -10,6 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SYSTEM_COLORS as C } from '../core';
 import { presentationEventBus } from '../presentation/PresentationEvents';
+import { useHeroCards } from '../heroes/store';
+import type { HeroVisual } from '../heroes/catalog';
 
 export type CharacterScene =
   | 'HOME'
@@ -51,6 +53,7 @@ export function sceneForPath(pathname: string): CharacterScene {
 
 export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compact = false }: Props) {
   const [override, setOverride] = useState<CharacterScene | null>(null);
+  const { activeHero } = useHeroCards();
   const active = override ?? scene;
   const breath = useSharedValue(0);
   const drift = useSharedValue(0);
@@ -112,27 +115,29 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
   }));
 
   const pose = useMemo(() => poseFor(active), [active]);
+  const heroShape = useMemo(() => heroShapeFor(activeHero.visual), [activeHero.visual]);
   const rootOpacity = compact ? Math.min(opacity, 0.28) : opacity;
 
   return (
     <View pointerEvents="none" style={[styles.root, { opacity: rootOpacity }]}>
-      <Animated.View style={[styles.aura, active === 'BOSS' && styles.auraDanger, auraStyle]} />
-      {active === 'AI_GAME_MASTER' && <View style={styles.holoPanel} />}
+      <Animated.View style={[styles.aura, { borderColor: activeHero.accent, backgroundColor: activeHero.accentSoft }, active === 'BOSS' && styles.auraDanger, auraStyle]} />
+      <HeroSignature visual={activeHero.visual} accent={activeHero.accent} />
+      {active === 'AI_GAME_MASTER' && <View style={[styles.holoPanel, { borderColor: activeHero.accent }]} />
       {active === 'WORLD' && <View style={styles.worldArc} />}
       {active === 'BOSS' && <EnemySilhouette />}
-      <Animated.View style={[styles.hero, compact && styles.heroCompact, bodyStyle]}>
-        <View style={[styles.head, pose.head]} />
-        <View style={[styles.neck, pose.neck]} />
-        <View style={[styles.torso, pose.torso]} />
-        <View style={[styles.arm, styles.leftArm, pose.leftArm]} />
-        <View style={[styles.arm, styles.rightArm, pose.rightArm]} />
-        <View style={[styles.leg, styles.leftLeg, pose.leftLeg]} />
-        <View style={[styles.leg, styles.rightLeg, pose.rightLeg]} />
-        {(active === 'QUEST' || active === 'BOSS' || active === 'VICTORY') && <View style={[styles.energyBlade, active === 'BOSS' && styles.energyBladeDanger]} />}
-        {active === 'TRAINING_STRENGTH' && <StrengthBar />}
+      <Animated.View style={[styles.hero, compact && styles.heroCompact, heroShape.hero, bodyStyle]}>
+        <View style={[styles.head, { borderColor: activeHero.accent }, heroShape.head, pose.head]} />
+        <View style={[styles.neck, heroShape.neck, pose.neck]} />
+        <View style={[styles.torso, { borderColor: activeHero.accent }, heroShape.torso, pose.torso]} />
+        <View style={[styles.arm, styles.leftArm, { borderColor: activeHero.accent }, heroShape.arm, pose.leftArm]} />
+        <View style={[styles.arm, styles.rightArm, { borderColor: activeHero.accent }, heroShape.arm, pose.rightArm]} />
+        <View style={[styles.leg, styles.leftLeg, { borderColor: activeHero.accent }, heroShape.leg, pose.leftLeg]} />
+        <View style={[styles.leg, styles.rightLeg, { borderColor: activeHero.accent }, heroShape.leg, pose.rightLeg]} />
+        {(active === 'QUEST' || active === 'BOSS' || active === 'VICTORY') && <View style={[styles.energyBlade, { backgroundColor: activeHero.accent, shadowColor: activeHero.accent }, active === 'BOSS' && styles.energyBladeDanger]} />}
+        {active === 'TRAINING_STRENGTH' && <StrengthBar accent={activeHero.accent} />}
       </Animated.View>
-      <Animated.View style={[styles.scan, scanStyle]} />
-      {active === 'VICTORY' && <VictoryBurst />}
+      <Animated.View style={[styles.scan, { backgroundColor: activeHero.accent }, scanStyle]} />
+      {active === 'VICTORY' && <VictoryBurst accent={activeHero.accent} />}
       {active === 'FAILURE' && <View style={styles.failureShade} />}
     </View>
   );
@@ -213,18 +218,43 @@ function EnemySilhouette() {
   </View>;
 }
 
-function StrengthBar() {
+function StrengthBar({ accent }: { accent: string }) {
   return <View style={styles.barbell}>
     <View style={styles.bar} />
-    <View style={[styles.weight, { left: -8 }]} />
-    <View style={[styles.weight, { right: -8 }]} />
+    <View style={[styles.weight, { left: -8, borderColor: accent }]} />
+    <View style={[styles.weight, { right: -8, borderColor: accent }]} />
   </View>;
 }
 
-function VictoryBurst() {
+function VictoryBurst({ accent }: { accent: string }) {
   return <View style={styles.burst}>
-    {[-52, -26, 0, 26, 52].map(angle => <View key={angle} style={[styles.ray, { transform: [{ rotate: `${angle}deg` }] }]} />)}
+    {[-52, -26, 0, 26, 52].map(angle => <View key={angle} style={[styles.ray, { backgroundColor: accent, transform: [{ rotate: `${angle}deg` }] }]} />)}
   </View>;
+}
+
+function HeroSignature({ visual, accent }: { visual: HeroVisual; accent: string }) {
+  if (visual === 'ORACLE') return <View style={[styles.signatureHalo, { borderColor: accent }]} />;
+  if (visual === 'KING') return <View style={styles.signatureCrown}>
+    <View style={[styles.crownSpike, { backgroundColor: accent, transform: [{ rotate: '-22deg' }] }]} />
+    <View style={[styles.crownSpike, { backgroundColor: accent }]} />
+    <View style={[styles.crownSpike, { backgroundColor: accent, transform: [{ rotate: '22deg' }] }]} />
+  </View>;
+  if (visual === 'WRAITH') return <View style={[styles.signatureCloak, { borderColor: accent }]} />;
+  if (visual === 'PATHFINDER') return <View style={[styles.signatureCompass, { borderColor: accent }]} />;
+  if (visual === 'VOID') return <View style={[styles.signatureVoid, { borderColor: accent }]} />;
+  if (visual === 'ASCENDANT') return <View style={styles.signatureAscendant}>
+    {[0, 45, 90, 135].map(angle => <View key={angle} style={[styles.ascendantRay, { backgroundColor: accent, transform: [{ rotate: `${angle}deg` }] }]} />)}
+  </View>;
+  return null;
+}
+
+function heroShapeFor(visual: HeroVisual) {
+  if (visual === 'TITAN') return { hero: {}, head: { width: 52 }, neck: {}, torso: { width: 112 }, arm: { width: 31 }, leg: { width: 36 } };
+  if (visual === 'RUNNER') return { hero: {}, head: { width: 43 }, neck: {}, torso: { width: 78 }, arm: { width: 20 }, leg: { width: 25 } };
+  if (visual === 'WRAITH') return { hero: { opacity: 0.78 }, head: {}, neck: {}, torso: { width: 86 }, arm: { width: 22 }, leg: { width: 28 } };
+  if (visual === 'KING') return { hero: {}, head: { borderWidth: 2 }, neck: {}, torso: { width: 104 }, arm: { width: 28 }, leg: { width: 33 } };
+  if (visual === 'ASCENDANT') return { hero: {}, head: { borderWidth: 2 }, neck: {}, torso: { width: 100, borderWidth: 2 }, arm: { borderWidth: 2 }, leg: { borderWidth: 2 } };
+  return { hero: {}, head: {}, neck: {}, torso: {}, arm: {}, leg: {} };
 }
 
 const styles = StyleSheet.create({
@@ -258,4 +288,12 @@ const styles = StyleSheet.create({
   burst: { position: 'absolute', width: 260, height: 260, alignItems: 'center', justifyContent: 'center' },
   ray: { position: 'absolute', width: 2, height: 230, backgroundColor: 'rgba(108,238,255,0.22)' },
   failureShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(60,0,12,0.12)' },
+  signatureHalo: { position: 'absolute', width: 118, height: 38, borderRadius: 59, borderWidth: 2, top: '24%' },
+  signatureCrown: { position: 'absolute', top: '21%', width: 82, height: 44, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end' },
+  crownSpike: { width: 6, height: 38, borderRadius: 4, opacity: 0.55 },
+  signatureCloak: { position: 'absolute', width: 155, height: 230, borderRadius: 80, borderWidth: 1, borderBottomWidth: 3, bottom: 5, opacity: 0.28 },
+  signatureCompass: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 1, borderStyle: 'dashed', opacity: 0.35 },
+  signatureVoid: { position: 'absolute', width: 250, height: 250, borderRadius: 125, borderWidth: 2, opacity: 0.24 },
+  signatureAscendant: { position: 'absolute', width: 220, height: 220, alignItems: 'center', justifyContent: 'center' },
+  ascendantRay: { position: 'absolute', width: 2, height: 210, opacity: 0.22 },
 });
