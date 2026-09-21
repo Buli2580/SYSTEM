@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -55,6 +55,7 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
   const breath = useSharedValue(0);
   const drift = useSharedValue(0);
   const pulse = useSharedValue(0);
+  const transientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     breath.value = withRepeat(
@@ -69,18 +70,28 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
     );
   }, [active, breath, drift]);
 
-  useEffect(() => presentationEventBus.onAny(event => {
-    const next = transientScene(event.type);
-    if (!next) return;
-    setOverride(next);
-    pulse.value = 0;
-    pulse.value = withSequence(
-      withTiming(1, { duration: 180 }),
-      withTiming(0, { duration: 700 }),
-    );
-    const timeout = setTimeout(() => setOverride(null), next === 'AWAKENING' ? 5200 : 1900);
-    return () => clearTimeout(timeout);
-  }), [pulse]);
+  useEffect(() => {
+    const unsubscribe = presentationEventBus.onAny(event => {
+      const next = transientScene(event.type);
+      if (!next) return;
+      if (transientTimerRef.current) clearTimeout(transientTimerRef.current);
+      setOverride(next);
+      pulse.value = 0;
+      pulse.value = withSequence(
+        withTiming(1, { duration: 180 }),
+        withTiming(0, { duration: 700 }),
+      );
+      transientTimerRef.current = setTimeout(() => {
+        transientTimerRef.current = null;
+        setOverride(null);
+      }, next === 'AWAKENING' ? 5200 : 1900);
+    });
+    return () => {
+      unsubscribe();
+      if (transientTimerRef.current) clearTimeout(transientTimerRef.current);
+      transientTimerRef.current = null;
+    };
+  }, [pulse]);
 
   const bodyStyle = useAnimatedStyle(() => ({
     transform: [
