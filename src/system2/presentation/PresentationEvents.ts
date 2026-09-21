@@ -6,6 +6,8 @@ export type PresentationEventType =
   | 'UI_TOGGLE'
   | 'SYSTEM_BOOT'
   | 'SYSTEM_READY'
+  | 'AWAKENING_STARTED'
+  | 'AWAKENING_COMPLETE'
   | 'QUEST_DISCOVERED'
   | 'QUEST_ACCEPTED'
   | 'QUEST_STARTED'
@@ -143,6 +145,8 @@ export const PresentationEventPresets = {
   uiToggle: () => createPresentationEvent('UI_TOGGLE', undefined, 'low'),
   systemBoot: () => createPresentationEvent('SYSTEM_BOOT', undefined, 'critical'),
   systemReady: () => createPresentationEvent('SYSTEM_READY', undefined, 'high'),
+  awakeningStarted: () => createPresentationEvent('AWAKENING_STARTED', undefined, 'critical'),
+  awakeningComplete: () => createPresentationEvent('AWAKENING_COMPLETE', undefined, 'critical'),
   
   questDiscovered: (questId: string, questTitle: string) => 
     createPresentationEvent('QUEST_DISCOVERED', { questId, questTitle }, 'high'),
