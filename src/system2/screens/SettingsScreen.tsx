@@ -15,6 +15,7 @@ import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { useAudio } from '../audio/AudioEngine';
 import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
+import SystemUpdatePanel from '../updates/SystemUpdatePanel';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const audio = useAudio(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
@@ -63,6 +64,7 @@ export default function SettingsScreen() {
       }); }} />
       <Action label="USTAWIENIA SYSTEMOWE APLIKACJI" onPress={() => { void run(() => Linking.openSettings()); }} />
     </View>
+    <SystemUpdatePanel />
     <BetaSettings />
     <View style={s.panel}><Text style={s.label}>PRYWATNOŚĆ</Text>
       <Text style={s.body}>Informacje o przetwarzaniu danych, lokalizacji i usuwaniu konta.</Text>
