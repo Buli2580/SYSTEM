@@ -45,8 +45,8 @@ test('Hero Cards catalog has unique ordered ids and one free starter', () => {
   assert.equal(HERO_CARDS.length, 9);
   assert.equal(new Set(HERO_CARDS.map(card => card.id)).size, HERO_CARDS.length);
   assert.equal(DEFAULT_HERO_ID, 'system_zero');
-  assert.deepEqual(getUnlockedHeroIds(progress()), ['system_zero']);
-  assert.deepEqual(HERO_CARDS.map(card => card.order), [0,1,2,3,4,5,6,7,8]);
+  assert.equal(Array.from(getUnlockedHeroIds(progress())).join(','), 'system_zero');
+  assert.equal(Array.from(HERO_CARDS, card => card.order).join(','), '0,1,2,3,4,5,6,7,8');
 });
 
 test('Night Runner unlocks from either run achievement or verified quest count', () => {
