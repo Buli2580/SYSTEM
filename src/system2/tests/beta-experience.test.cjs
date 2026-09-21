@@ -52,3 +52,21 @@ test('Quest Experience recovery copy never implies partial reward', () => {
   assert.match(text, /spróbować ponownie/i);
   assert.doesNotMatch(text, /częściow.*XP|partial XP/i);
 });
+
+
+test('Quest Experience audio assets are valid RIFF/WAVE files', () => {
+  for (const name of ['quest_start.wav','quest_error.wav']) {
+    const file = path.join(root, 'assets/audio', name);
+    const bytes = fs.readFileSync(file);
+    assert.equal(bytes.subarray(0,4).toString('ascii'), 'RIFF');
+    assert.equal(bytes.subarray(8,12).toString('ascii'), 'WAVE');
+    assert.ok(bytes.length > 100);
+  }
+});
+
+test('Canonical reward audio distinguishes level-up from normal completion', () => {
+  const { rewardSound } = load('identity/audio');
+  const base = { id:'r', realXp:10, skillXp:{}, energy:0, distanceMeters:0, beforeLevel:1, afterLevel:1, beforeRank:'E', afterRank:'E', skillLevels:[], newTitles:[], worldUnlocked:false };
+  assert.equal(rewardSound(base), 'QUEST_COMPLETE');
+  assert.equal(rewardSound({ ...base, afterLevel:2 }), 'LEVEL_UP');
+});
