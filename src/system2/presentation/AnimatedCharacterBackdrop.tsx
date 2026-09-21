@@ -164,7 +164,7 @@ export default function AnimatedCharacterBackdrop({ scene, opacity = 0.34, compa
         <DungeonTravelLayer accent={activeHero.accent} travelStyle={travelStyle} />
       )}
       {active === 'HOME' && <HomeNightLayer accent={activeHero.accent} />}
-      {active === 'AI_GAME_MASTER' && <View style={[styles.holoPanel, { borderColor: activeHero.accent }]} />
+      {active === 'AI_GAME_MASTER' && <View style={[styles.holoPanel, { borderColor: activeHero.accent }]} />}
       {active === 'WORLD' && <View style={[styles.worldArc, { borderColor: activeHero.accent }]} />}
       {active === 'BOSS' && <Animated.View style={enemyMotionStyle}><EnemySilhouette /></Animated.View>}
       {active === 'BOSS' && <Animated.View style={[styles.impactFlash, { backgroundColor: activeHero.accent }, impactStyle]} />}
