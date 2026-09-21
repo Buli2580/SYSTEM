@@ -3,16 +3,6 @@ import { usePathname } from 'expo-router';
 import { useSystem } from '../state/SystemProvider';
 import { useAudio, type MusicState, type SFXEvent } from './AudioEngine';
 import { presentationEventBus, type PresentationEventData } from '../presentation/PresentationEvents';
-import type { RewardReceipt } from '../core/rewards';
-
-function rewardFrom(event: PresentationEventData): RewardReceipt | null {
-  const value = event.payload?.reward;
-  if (!value || typeof value !== 'object') return null;
-  const reward = value as Partial<RewardReceipt>;
-  if (typeof reward.beforeLevel !== 'number' || typeof reward.afterLevel !== 'number') return null;
-  return value as RewardReceipt;
-}
-
 function sfxFor(event: PresentationEventData): SFXEvent | null {
   switch (event.type) {
     case 'QUEST_COMPLETE': return 'QUEST_COMPLETE';
