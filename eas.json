@@ -6,13 +6,15 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
-      "developmentClient": false
+      "developmentClient": false,
+      "channel": "preview"
     },
     "play-internal": {
       "distribution": "store",
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "channel": "production"
     }
   }
 }
