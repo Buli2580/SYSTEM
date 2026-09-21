@@ -17,6 +17,7 @@ import { loadAchievementsState, loadTitlesState } from '../achievements/storage'
 import { flushCloudOutbox } from '../cloud/sync';
 import { stopQuestBackgroundTracking } from '../background/locationService';
 import { requestDailyAIGameMaster, type AIGameMasterResponse } from '../ai';
+import { aiRetryRemainingMs } from '../ai/requestBudget';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -62,6 +63,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const generation = useRef(0);
   const resetting = useRef(false);
   const aiDayRef = useRef<string | null>(null);
+  const aiLastRequestAt = useRef(0);
   useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
   useEffect(() => {
     if (!ready) return;
@@ -108,7 +110,15 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!force && aiDayRef.current === day) return;
+    if (force) {
+      const remaining = aiRetryRemainingMs(aiLastRequestAt.current);
+      if (remaining > 0) {
+        setAIError(`AI GAME MASTER: ponów za ${Math.ceil(remaining / 1000)} s.`);
+        return;
+      }
+    }
     aiDayRef.current = day;
+    aiLastRequestAt.current = Date.now();
     setAILoading(true);
     setAIError(null);
     try {
@@ -185,7 +195,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
-    setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null); setAIGameMaster(null); setAIError(null); aiDayRef.current = null;
+    setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null); setAIGameMaster(null); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
     try {
       // Stop native tracking before deleting the persisted owner.
       await stopQuestBackgroundTracking().catch(() => undefined);
