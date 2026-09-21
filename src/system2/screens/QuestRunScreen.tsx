@@ -14,6 +14,7 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { MissionBriefing } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import {questExperiencePhase,nextQuestCta} from '../beta/questFlow';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -50,6 +51,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     duration % 60;
   const showLiveTracker = isLiveQuestStatus(status);
   const renderStatus: string = status;
+  const experiencePhase=questExperiencePhase({active:isLiveQuestStatus(status),verifying:status==='COMPLETING',completed:status==='COMPLETED'});
   const nextAction = getNextAction({
     ...system,
     player: system.player,
@@ -129,6 +131,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
+        <View style={styles.flowStrip}><Text style={styles.flowLabel}>QUEST EXPERIENCE // {experiencePhase}</Text><Text style={styles.flowCta}>{nextQuestCta(experiencePhase)}</Text></View>
         <MissionBriefing
           quest={quest}
           status={status}
