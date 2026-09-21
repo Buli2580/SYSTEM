@@ -17,6 +17,8 @@ export type PresentationEventType =
   | 'LEVEL_UP'
   | 'REWARD_RECEIVED'
   | 'ACHIEVEMENT_UNLOCKED'
+  | 'HERO_CARD_UNLOCKED'
+  | 'HERO_CARD_EQUIPPED'
   | 'STREAK_UPDATED'
   | 'STREAK_MILESTONE'
   | 'SECTOR_DISCOVERED'
@@ -167,6 +169,10 @@ export const PresentationEventPresets = {
     createPresentationEvent('REWARD_RECEIVED', { reward }, 'high'),
   achievementUnlocked: (achievementId: string, name: string, tier: string) =>
     createPresentationEvent('ACHIEVEMENT_UNLOCKED', { achievementId, name, tier }, 'high'),
+  heroCardUnlocked: (heroId: string, name: string, rarity: string) =>
+    createPresentationEvent('HERO_CARD_UNLOCKED', { heroId, name, rarity }, 'critical'),
+  heroCardEquipped: (heroId: string, name: string, rarity: string) =>
+    createPresentationEvent('HERO_CARD_EQUIPPED', { heroId, name, rarity }, 'normal'),
   
   streakUpdated: (currentStreak: number) => 
     createPresentationEvent('STREAK_UPDATED', { currentStreak }, 'normal'),
