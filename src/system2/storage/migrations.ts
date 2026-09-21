@@ -51,6 +51,7 @@ CREATE INDEX IF NOT EXISTS journey_activity_stage ON journey_activity(journey_id
 CREATE TABLE IF NOT EXISTS journey_milestones(journey_id TEXT,stage INTEGER,created_at TEXT,PRIMARY KEY(journey_id,stage));
 CREATE TABLE IF NOT EXISTS legacy_goal_imports(legacy_id TEXT PRIMARY KEY,canonical_id INTEGER NOT NULL);
 `;
+
 // Historical branches reused versions 6–8 for different table families.
 // Inspect their actual shape, preserve legacy rows, and add every canonical family atomically.
 async function reconcileBranchSchemas(txn: SQLiteDatabase) {
@@ -67,7 +68,11 @@ async function reconcileBranchSchemas(txn: SQLiteDatabase) {
      const legacyId = String(row.id);
      if(await txn.getFirstAsync('SELECT legacy_id FROM legacy_goal_imports WHERE legacy_id=?',legacyId)) continue;
      const result = await txn.runAsync("INSERT INTO player_goals(payload) VALUES('{}')");
-     const id = String(result.lastInsertRowId);
+     // expo-sqlite uses lastInsertRowId; Node's built-in SQLite harness uses lastInsertRowid.
+     const rawInsertId = result.lastInsertRowId ?? (result as unknown as { lastInsertRowid?: number | bigint }).lastInsertRowid;
+     const canonicalId = Number(rawInsertId);
+     if (!Number.isSafeInteger(canonicalId) || canonicalId <= 0) throw new Error('Nie udało się zachować identyfikatora migrowanego celu.');
+     const id = String(canonicalId);
      const categories = ['FITNESS','STRENGTH','DISCIPLINE','PRODUCTIVITY','LEARNING','SOCIAL','LIFESTYLE','GENERAL'];
      const goal = {id,category:categories.includes(String(row.type))?String(row.type):'GENERAL',
        title:String(row.title??'Cel'),description:String(row.description??''),
@@ -77,8 +82,8 @@ async function reconcileBranchSchemas(txn: SQLiteDatabase) {
        ...(row.target_date?{targetDate:String(row.target_date)}:{}),
        ...(row.progress_target!=null?{target:String(row.progress_target)+(row.unit?' '+String(row.unit):'')}:{}),
        legacySource:{table:'legacy_player_goals_v8',id:legacyId}};
-     await txn.runAsync('UPDATE player_goals SET payload=? WHERE id=?',JSON.stringify(goal),result.lastInsertRowId);
-     await txn.runAsync('INSERT INTO legacy_goal_imports(legacy_id,canonical_id) VALUES(?,?)',legacyId,result.lastInsertRowId);
+     await txn.runAsync('UPDATE player_goals SET payload=? WHERE id=?',JSON.stringify(goal),canonicalId);
+     await txn.runAsync('INSERT INTO legacy_goal_imports(legacy_id,canonical_id) VALUES(?,?)',legacyId,canonicalId);
    }
  }
  await txn.execAsync(PROGRESSION_SCHEMA_SQL);
@@ -97,8 +102,9 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       await txn.execAsync(steps[next - 1]);
       await txn.execAsync(`PRAGMA user_version = ${next};`);
     }
-    // The cloud family may be absent even when legacy user_version is already 8.
-    await txn.execAsync(steps[5]);
+    // Versions 6–8 were reused on historical branches. Reconcile every idempotent
+    // canonical family instead of trusting user_version to describe the DB shape.
+    for (const sql of steps) await txn.execAsync(sql);
     await reconcileBranchSchemas(txn);
     await txn.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   });

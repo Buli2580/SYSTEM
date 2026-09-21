@@ -4,12 +4,14 @@ on:
   pull_request:
     branches:
       - master
+      - "feature/system-ai-game-master-1.0"
   push:
     branches:
       - master
       - "agent/**"
       - "chore/**"
       - "feature/system-ai-game-master-1.0"
+      - "feature/system-core-freeze-1.0"
 
 permissions:
   contents: read

@@ -59,6 +59,10 @@ function databaseHarness(t, clock) {
     return {
       async execAsync(source) {
         if (faults.init) { faults.init = false; throw new Error('init failed'); }
+        if (faults.failWhen?.(source, [])) {
+          faults.failWhen = null;
+          throw new Error('injected migration failure');
+        }
         sql.exec(source);
       },
       async getFirstAsync(source, ...params) {
@@ -2283,4 +2287,172 @@ test('cloud outbox includes story completion claims without copying local reward
   const rows=h.sql.prepare("SELECT * FROM cloud_outbox WHERE event_key='verified:story:extra_mile_v1'").all();
   assert.equal(rows.length,1);
   assert.deepEqual(JSON.parse(rows[0].payload),{quest_id:'extra_mile_v1',verification_type:'MULTI',verification_score:100});
+});
+
+
+test('cloud outbox is replay-safe across backfill, restart and repeated sync acknowledgement', async t => {
+  const { db, sql, reload } = databaseHarness(t);
+  await db.loadSystemState();
+  const completed = await db.completeVerifiedQuest(evidence);
+  assert.equal(completed.awarded, true);
+  let rows = sql.prepare("SELECT event_key,synced_at,attempts FROM cloud_outbox WHERE event_key=?").all('verified:quest_first_movement_v1');
+  assert.equal(rows.length, 1);
+
+  await Promise.all([db.backfillCloudOutbox(), db.backfillCloudOutbox(), db.backfillCloudOutbox()]);
+  rows = sql.prepare("SELECT event_key FROM cloud_outbox WHERE event_key=?").all('verified:quest_first_movement_v1');
+  assert.equal(rows.length, 1);
+
+  const restarted = reload();
+  await restarted.backfillCloudOutbox();
+  assert.equal((await restarted.listPendingCloudOutbox(100)).filter(row => row.event_key === 'verified:quest_first_movement_v1').length, 1);
+
+  await Promise.all([
+    restarted.markCloudOutboxSynced('verified:quest_first_movement_v1'),
+    restarted.markCloudOutboxSynced('verified:quest_first_movement_v1'),
+  ]);
+  assert.equal((await restarted.listPendingCloudOutbox(100)).some(row => row.event_key === 'verified:quest_first_movement_v1'), false);
+  const stored = sql.prepare("SELECT synced_at FROM cloud_outbox WHERE event_key=?").get('verified:quest_first_movement_v1');
+  assert.ok(stored.synced_at);
+  assert.equal((await restarted.completeVerifiedQuest(evidence)).awarded, false);
+  assert.equal((await restarted.loadSystemState()).player.totalRealXp, 100);
+});
+
+test('failed cloud sync attempts never mutate local rewards and a later acknowledgement is idempotent', async t => {
+  const { db, sql, reload } = databaseHarness(t);
+  await db.loadSystemState();
+  await db.completeVerifiedQuest(evidence);
+  const key = 'verified:quest_first_movement_v1';
+  await db.markCloudOutboxAttempt(key, 'offline');
+  const afterFailure = await db.loadSystemState();
+  assert.equal(afterFailure.player.totalRealXp, 100);
+  assert.equal(afterFailure.completedQuestIds.filter(id => id === evidence.questId).length, 1);
+  assert.equal(sql.prepare('SELECT attempts FROM cloud_outbox WHERE event_key=?').get(key).attempts, 1);
+
+  const restarted = reload();
+  await restarted.markCloudOutboxSynced(key);
+  await restarted.markCloudOutboxSynced(key);
+  assert.equal((await restarted.loadSystemState()).player.totalRealXp, 100);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM verified_events WHERE quest_id=?').get(evidence.questId).n, 1);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM quest_completions WHERE quest_id=?').get(evidence.questId).n, 1);
+});
+
+
+test('legacy branch goal schema migrates once and preserves rows across restart', async t => {
+  const h = databaseHarness(t);
+  h.sql.exec(`CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL);
+    CREATE TABLE player_goals(id TEXT PRIMARY KEY NOT NULL,type TEXT,title TEXT,description TEXT,priority TEXT,status TEXT,created_at TEXT,target_date TEXT,progress_target REAL,unit TEXT);
+    PRAGMA user_version=8;`);
+  const player = h.load('core').createNewPlayer('LEGACY');
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(player));
+  h.sql.prepare('INSERT INTO player_goals VALUES(?,?,?,?,?,?,?,?,?,?)').run(
+    'legacy-42','FITNESS','5 km','Bieg bez presji','HIGH','ACTIVE','2026-09-01T00:00:00.000Z',null,5,'km'
+  );
+  const first = await h.db.loadSystemState();
+  assert.equal(first.goals.length, 1);
+  assert.equal(first.goals[0].title, '5 km');
+  assert.equal(first.goals[0].category, 'FITNESS');
+  assert.equal(first.goals[0].priority, 3);
+  assert.equal(first.goals[0].legacySource.id, 'legacy-42');
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_player_goals_v8').get().n, 1);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_goal_imports').get().n, 1);
+
+  const second = await h.reload().loadSystemState();
+  assert.equal(second.goals.length, 1);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM player_goals').get().n, 1);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_goal_imports').get().n, 1);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, h.load('storage/migrations').SCHEMA_VERSION);
+});
+
+test('legacy goal migration is atomic and retry does not duplicate imported goals', async t => {
+  const h = databaseHarness(t);
+  h.sql.exec(`CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL);
+    CREATE TABLE player_goals(id TEXT PRIMARY KEY NOT NULL,type TEXT,title TEXT,status TEXT,created_at TEXT);
+    PRAGMA user_version=8;`);
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(h.load('core').createNewPlayer('LEGACY')));
+  h.sql.prepare('INSERT INTO player_goals VALUES(?,?,?,?,?)').run('g1','GENERAL','Cel 1','ACTIVE','2026-09-01T00:00:00.000Z');
+  h.sql.prepare('INSERT INTO player_goals VALUES(?,?,?,?,?)').run('g2','LEARNING','Cel 2','PAUSED','2026-09-02T00:00:00.000Z');
+  h.faults.failWhen = source => source.includes('INSERT INTO legacy_goal_imports');
+  await assert.rejects(h.db.loadSystemState());
+  assert.equal(h.sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='player_goals'").get().name, 'player_goals');
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM player_goals').get().n, 2);
+  assert.equal(h.sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='legacy_player_goals_v8'").get(), undefined);
+
+  const recovered = await h.reload().loadSystemState();
+  assert.equal(recovered.goals.length, 2);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM player_goals').get().n, 2);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_goal_imports').get().n, 2);
+});
+
+
+test('accepted AI Daily is immutable across restart and a later AI response cannot replace it', async t => {
+  const h = await dailyHarness(t);
+  const before = await h.db.loadSystemState();
+  const plan = {
+    source: 'ai',
+    model: 'test-model',
+    briefing: 'Plan zaakceptowany.',
+    director: { mode: 'normal', difficultyBias: 0, headline: 'TODAY', message: 'Keep moving' },
+    quests: [
+      { key:'q1',title:'Ruch',description:'Idź na spacer',category:'fitness',difficulty:'easy',verification:'gps',estimatedMinutes:20,reason:'Cel ruchowy',expiresInHours:12,tags:['walk'] },
+      { key:'q2',title:'Skupienie',description:'Skup się',category:'productivity',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'Cel pracy',expiresInHours:12,tags:['focus'] },
+      { key:'q3',title:'Nauka',description:'Naucz się czegoś',category:'learning',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'Cel nauki',expiresInHours:12,tags:['learn'] },
+    ],
+  };
+  const accepted = await h.db.applyAIDailyPlan(plan);
+  assert.notEqual(JSON.stringify(accepted.daily.questIds), JSON.stringify(before.daily.questIds));
+  const acceptedIds = [...accepted.daily.questIds];
+
+  const later = { ...plan, briefing:'MALICIOUS REPLACEMENT', model:'other-model',
+    quests: plan.quests.map((q,i)=>({...q,key:'later-'+i,title:'REPLACED '+i,description:'Do not use'})) };
+  const restarted = h.reload();
+  const replay = await restarted.applyAIDailyPlan(later);
+  assert.equal(JSON.stringify(replay.daily.questIds), JSON.stringify(acceptedIds));
+  assert.equal(replay.aiDaily.briefing, 'Plan zaakceptowany.');
+  assert.equal(replay.aiDaily.model, 'test-model');
+  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_events WHERE id=?").get('ai_daily_applied:'+accepted.daily.dayKey).n, 1);
+});
+
+test('AI Daily cannot replace a loadout after any quest attempt has started', async t => {
+  const h = await dailyHarness(t);
+  const before = await h.db.loadSystemState();
+  await h.db.beginQuestAttempt(before.daily.questIds[0], 'touched-daily');
+  const plan = {
+    source:'ai', briefing:'Too late', director:{mode:'normal',difficultyBias:0,headline:'AI',message:'AI'},
+    quests:[
+      {key:'a',title:'A',description:'A',category:'fitness',difficulty:'easy',verification:'gps',estimatedMinutes:20,reason:'A reason',expiresInHours:12,tags:['walk']},
+      {key:'b',title:'B',description:'B',category:'productivity',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'B reason',expiresInHours:12,tags:['focus']},
+      {key:'c',title:'C',description:'C',category:'learning',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'C reason',expiresInHours:12,tags:['learn']},
+    ],
+  };
+  const after = await h.db.applyAIDailyPlan(plan);
+  assert.equal(JSON.stringify(after.daily.questIds), JSON.stringify(before.daily.questIds));
+  assert.equal(after.aiDaily, null);
+  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM app_state WHERE key=?").get('ai_daily_applied:'+before.daily.dayKey).n, 0);
+});
+
+
+test('database newer than this app is rejected without downgrading or mutating user data', async t => {
+  const h = databaseHarness(t);
+  const future = h.load('storage/migrations').SCHEMA_VERSION + 1;
+  h.sql.exec(`CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL); PRAGMA user_version=${future};`);
+  const player = h.load('core').createNewPlayer('FUTURE');
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(player));
+  await assert.rejects(h.db.loadSystemState(), /nowszej wersji SYSTEMU/);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, future);
+  assert.equal(JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value).id, player.id);
+  assert.equal(h.sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='quest_completions'").get(), undefined);
+});
+
+test('failed migration keeps user_version and preexisting profile atomic', async t => {
+  const h = databaseHarness(t);
+  h.sql.exec('CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL); PRAGMA user_version=0;');
+  const player = h.load('core').createNewPlayer('ATOMIC');
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(player));
+  h.faults.failWhen = source => source.includes('CREATE TABLE IF NOT EXISTS daily_sets');
+  await assert.rejects(h.db.loadSystemState());
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 0);
+  assert.equal(JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value).id, player.id);
+  const recovered = await h.reload().loadSystemState();
+  assert.equal(recovered.player.id, player.id);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, h.load('storage/migrations').SCHEMA_VERSION);
 });

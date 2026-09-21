@@ -27,7 +27,7 @@ function loader() {
     };
     vm.runInNewContext(source, {
       module, exports: module.exports, require: requireMock, console, Date, Set, Math, JSON, Intl,
-      AbortController, Headers, fetch,
+      AbortController, Headers, fetch, setTimeout, clearTimeout,
     }, { filename: resolved });
     return module.exports;
   }
@@ -216,4 +216,56 @@ test('offline fallback prioritizes a safe Recovery Protocol when SYSTEM debt is 
   assert.equal(response.quests[0].category, 'recovery');
   assert.equal(response.quests[0].templateHint, 'focus_return');
   assert.equal(response.quests[0].verification, 'timer');
+});
+
+
+test('AI client falls back offline and never trusts an invalid remote payload', async () => {
+  const originalFetch = global.fetch;
+  try {
+    global.fetch = async () => { throw new TypeError('offline'); };
+    let load = loader();
+    let client = load('ai/client');
+    const context = {
+      player: { level: 3, rank: 'E', streak: 4, completionRate7d: 0.7, systemDebt: 0 },
+      goals: [{ id: 'goal-1', title: 'Projekt' }], recentQuests: [],
+      nowIso: '2026-09-21T08:00:00.000Z',
+    };
+    const offline = await client.requestAIGameMaster(context, { endpoint: 'https://invalid.local' });
+    assert.equal(offline.source, 'fallback');
+    assert.ok(offline.quests.length > 0);
+
+    global.fetch = async () => ({ ok: true, async json() {
+      return { quests: [{ title: 'FREE XP', xp: 999999 }], director: {} };
+    } });
+    load = loader(); client = load('ai/client');
+    const invalid = await client.requestAIGameMaster(context, { endpoint: 'https://invalid.local' });
+    assert.equal(invalid.source, 'fallback');
+    assert.ok(invalid.quests.every(q => !Object.hasOwn(q, 'xp') && !Object.hasOwn(q, 'rewards')));
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('AI-to-canonical bridge ignores proposed target values and reward-shaped fields', () => {
+  const load = loader();
+  const { candidatesFromAI } = load('ai/bridge');
+  const { createNewPlayer } = load('core');
+  const player = createNewPlayer('Tester');
+  player.realLevel = 10;
+  const input = {
+    day: '2026-09-21', player,
+    prefs: { walking: true, running: true, cycling: true },
+    goals: [], journeys: [], history: [], recentActivity: [], exclude: [], systemDebt: 0,
+    weeklyCompleted: 0, weeklyClear: false,
+  };
+  const response = validResponse();
+  response.quests[0].target = { kind: 'minutes', value: 999999 };
+  response.quests[0].xp = 999999;
+  response.quests[0].rewards = { coins: 999999 };
+  const candidates = candidatesFromAI(input, response, 1);
+  assert.equal(candidates.length, 1);
+  const quest = candidates[0].quest;
+  assert.ok(!Object.hasOwn(quest, 'xp'));
+  assert.deepEqual(JSON.parse(JSON.stringify(quest.rewards)), { realXp: 30, skillXp: { WIL: 25 }, gameEnergy: 3 });
+  assert.notEqual(quest.verification.minimumDurationSeconds, 999999 * 60);
 });
