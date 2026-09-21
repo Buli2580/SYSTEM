@@ -241,6 +241,11 @@ function screenHarness(t, options = {}) {
       const index = cursor++;
       return slots[index] ??= { current: initial };
     },
+    useMemo(fn, deps) {
+      const index = cursor++;
+      if (!same(slots[index]?.deps, deps)) slots[index] = { value: fn(), deps };
+      return slots[index].value;
+    },
     useCallback(fn, deps) {
       const index = cursor++;
       if (!same(slots[index]?.deps, deps)) slots[index] = { fn, deps };
@@ -848,7 +853,7 @@ function uiHarness(context = {}) {
   const navigation = [];
   const jsx = (type, props) => typeof type === 'function' ? type(props) : ({ type, props });
   const load = loader({
-    'react': { useState: value => [value, () => {}], useCallback: fn => fn, useRef: value => ({ current: value }), useEffect: fn => fn() },
+    'react': { useState: value => [typeof value === 'function' ? value() : value, () => {}], useCallback: fn => fn, useMemo: fn => fn(), useRef: value => ({ current: value }), useEffect: fn => fn() },
     '../components/world/WorldMap': { __esModule: true, default: 'WorldMap' },
     '../components/world/DiscoveryToast': { __esModule: true, default: 'DiscoveryToast' },
     '../world/useWorldTracking': { useWorldTracking: () => ({ status: 'PAUSED', sectorIds: [], signal: null, fix: null }) },
