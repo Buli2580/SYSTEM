@@ -67,7 +67,10 @@ async function reconcileBranchSchemas(txn: SQLiteDatabase) {
      const legacyId = String(row.id);
      if(await txn.getFirstAsync('SELECT legacy_id FROM legacy_goal_imports WHERE legacy_id=?',legacyId)) continue;
      const result = await txn.runAsync("INSERT INTO player_goals(payload) VALUES('{}')");
-     const canonicalId = Number(result.lastInsertRowId);
+     // expo-sqlite uses lastInsertRowId; Node's built-in SQLite harness uses lastInsertRowid.
+     const rawInsertId = result.lastInsertRowId ?? (result as unknown as { lastInsertRowid?: number | bigint }).lastInsertRowid;
+     const canonicalId = Number(rawInsertId);
+     if (!Number.isSafeInteger(canonicalId) || canonicalId <= 0) throw new Error('Nie udało się zachować identyfikatora migrowanego celu.');
      const id = String(canonicalId);
      const categories = ['FITNESS','STRENGTH','DISCIPLINE','PRODUCTIVITY','LEARNING','SOCIAL','LIFESTYLE','GENERAL'];
      const goal = {id,category:categories.includes(String(row.type))?String(row.type):'GENERAL',
