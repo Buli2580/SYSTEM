@@ -10,6 +10,8 @@ export type MusicState =
   | 'EXPLORE'
   | 'QUEST'
   | 'FIELD_QUEST'
+  | 'AI_GAME_MASTER'
+  | 'AWAKENING'
   | 'WARNING'
   | 'BOSS'
   | 'VICTORY'
@@ -64,6 +66,17 @@ const AUDIO = {
   uiCancel: require('../../../assets/audio/sfx/ui_cancel.wav') as AudioSource,
   uiNavigate: require('../../../assets/audio/sfx/ui_navigate.wav') as AudioSource,
   uiToggle: require('../../../assets/audio/sfx/ui_toggle.wav') as AudioSource,
+  musicBoot: require('../../../assets/audio/music/system_boot.mp3') as AudioSource,
+  musicHome: require('../../../assets/audio/music/home.mp3') as AudioSource,
+  musicCharacter: require('../../../assets/audio/music/character.mp3') as AudioSource,
+  musicExplore: require('../../../assets/audio/music/explore.mp3') as AudioSource,
+  musicQuest: require('../../../assets/audio/music/quest.mp3') as AudioSource,
+  musicFieldQuest: require('../../../assets/audio/music/field_quest.mp3') as AudioSource,
+  musicWarning: require('../../../assets/audio/music/warning.mp3') as AudioSource,
+  musicBoss: require('../../../assets/audio/music/boss.mp3') as AudioSource,
+  musicVictory: require('../../../assets/audio/music/victory.mp3') as AudioSource,
+  musicAIGameMaster: require('../../../assets/audio/music/ai_game_master.mp3') as AudioSource,
+  musicAwakening: require('../../../assets/audio/music/awakening.mp3') as AudioSource,
 };
 
 type MusicTrack = {
@@ -74,15 +87,17 @@ type MusicTrack = {
 };
 
 const MUSIC_TRACKS: Record<MusicState, MusicTrack> = {
-  BOOT: { key: 'boot_ambient', source: AUDIO.ambient, loop: true, gain: 0.28 },
-  HOME: { key: 'home_ambient', source: AUDIO.ambient, loop: true, gain: 0.38 },
-  CHARACTER: { key: 'character_ambient', source: AUDIO.ambient, loop: true, gain: 0.32 },
-  EXPLORE: { key: 'explore_ambient', source: AUDIO.ambient, loop: true, gain: 0.42 },
-  QUEST: { key: 'quest_ambient', source: AUDIO.ambient, loop: true, gain: 0.34 },
-  FIELD_QUEST: { key: 'field_quest_ambient', source: AUDIO.ambient, loop: true, gain: 0.34 },
-  WARNING: { key: 'warning_theme', source: AUDIO.boss, loop: true, gain: 0.40 },
-  BOSS: { key: 'boss_theme', source: AUDIO.boss, loop: true, gain: 0.58 },
-  VICTORY: { key: 'victory_sting', source: AUDIO.levelUp, loop: false, gain: 0.75 },
+  BOOT: { key: 'system_boot', source: AUDIO.musicBoot, loop: true, gain: 0.30 },
+  HOME: { key: 'home', source: AUDIO.musicHome, loop: true, gain: 0.30 },
+  CHARACTER: { key: 'character', source: AUDIO.musicCharacter, loop: true, gain: 0.30 },
+  EXPLORE: { key: 'explore', source: AUDIO.musicExplore, loop: true, gain: 0.34 },
+  QUEST: { key: 'quest', source: AUDIO.musicQuest, loop: true, gain: 0.42 },
+  FIELD_QUEST: { key: 'field_quest', source: AUDIO.musicFieldQuest, loop: true, gain: 0.36 },
+  AI_GAME_MASTER: { key: 'ai_game_master', source: AUDIO.musicAIGameMaster, loop: true, gain: 0.30 },
+  AWAKENING: { key: 'awakening', source: AUDIO.musicAwakening, loop: false, gain: 0.52 },
+  WARNING: { key: 'warning', source: AUDIO.musicWarning, loop: true, gain: 0.38 },
+  BOSS: { key: 'boss', source: AUDIO.musicBoss, loop: true, gain: 0.58 },
+  VICTORY: { key: 'victory', source: AUDIO.musicVictory, loop: false, gain: 0.78 },
   SILENT: { key: 'silent', source: null, loop: false, gain: 0 },
 };
 
