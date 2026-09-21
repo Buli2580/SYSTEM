@@ -69,6 +69,7 @@ jobs:
           if [ -z "$MESSAGE" ]; then MESSAGE="SYSTEM preview OTA ${GITHUB_SHA::8}"; fi
           npx --yes eas-cli@latest update \
             --channel preview \
+            --platform android \
             --message "$MESSAGE" \
             --non-interactive
 
