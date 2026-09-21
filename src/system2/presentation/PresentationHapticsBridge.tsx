@@ -22,6 +22,7 @@ export default function PresentationHapticsBridge() {
           void impactAsync(ImpactFeedbackStyle.Light);
           break;
         case 'QUEST_COMPLETE':
+        case 'AWAKENING_COMPLETE':
           void notificationAsync(NotificationFeedbackType.Success);
           break;
         case 'ACHIEVEMENT_UNLOCKED':
@@ -30,6 +31,7 @@ export default function PresentationHapticsBridge() {
           void impactAsync(ImpactFeedbackStyle.Heavy);
           setTimeout(() => void notificationAsync(NotificationFeedbackType.Success), 120);
           break;
+        case 'AWAKENING_STARTED':
         case 'BOSS_APPEARED':
           void impactAsync(ImpactFeedbackStyle.Heavy);
           setTimeout(() => void impactAsync(ImpactFeedbackStyle.Heavy), 160);
