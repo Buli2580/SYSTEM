@@ -35,12 +35,6 @@ jobs:
             /*
             !/third_party/music/
           sparse-checkout-cone-mode: false
-        with:
-          fetch-depth: 1
-          sparse-checkout: |
-            /*
-            !/third_party/music/
-          sparse-checkout-cone-mode: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -95,6 +89,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            /*
+            !/third_party/music/
+          sparse-checkout-cone-mode: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
