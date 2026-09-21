@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { SYSTEM_COLORS as C } from '../core';
+import AnimatedCharacterBackdrop from '../presentation/AnimatedCharacterBackdrop';
 
 type BootPhase = 'BLACK' | 'SIGNAL' | 'ENERGY' | 'INITIALIZING' | 'LOGO' | 'STATUS' | 'ONLINE' | 'COMPLETE';
 
@@ -143,6 +144,7 @@ function SystemBoot({ onComplete, skipable = true }: SystemBootProps) {
 
   return (
     <View style={styles.container}>
+      <AnimatedCharacterBackdrop scene="AWAKENING" opacity={0.52} />
       <Animated.View style={[styles.scanlineOverlay, scanlineStyle]} />
       
       <Animated.View style={[styles.signalLayer, signalStyle]}>
