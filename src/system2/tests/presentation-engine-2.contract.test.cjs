@@ -14,6 +14,7 @@ const engine = read('presentation/PresentationEngine.tsx');
 const worldTracking = read('world/useWorldTracking.ts');
 const action = read('components/Action.tsx');
 const bottomNavigation = read('components/BottomNavigation.tsx');
+const awakening = read('components/AwakeningCelebration.tsx');
 
 for (const event of [
   'UI_CONFIRM',
@@ -28,6 +29,8 @@ for (const event of [
   'BOSS_DEFEATED',
   'SYSTEM_WARNING',
   'SYSTEM_ERROR',
+  'AWAKENING_STARTED',
+  'AWAKENING_COMPLETE',
 ]) {
   assert.match(events, new RegExp("'" + event + "'"), event + ' missing from presentation contract');
 }
@@ -82,6 +85,31 @@ assert.match(audio, /case 'BOSS_DEFEATED': return 'BOSS_DEFEATED'/);
 assert.match(audio, /case 'SYSTEM_WARNING'/);
 assert.match(audioEngine, /duckMusic/, 'music ducking missing');
 assert.match(audioEngine, /previousTrack\.source === track\.source/, 'seamless ambient transition missing');
+for (const asset of [
+  'system_boot.mp3',
+  'home.mp3',
+  'character.mp3',
+  'explore.mp3',
+  'quest.mp3',
+  'field_quest.mp3',
+  'warning.mp3',
+  'boss.mp3',
+  'victory.mp3',
+  'ai_game_master.mp3',
+  'awakening.mp3',
+]) {
+  assert.ok(fs.existsSync(path.join(root, '../../assets/audio/music', asset)), asset + ' missing');
+  assert.match(audioEngine, new RegExp(asset.replace('.', '\\.') + "'"), asset + ' not wired into AudioEngine');
+}
+
+assert.match(audioEngine, /\| 'AI_GAME_MASTER'/, 'AI Game Master music state missing');
+assert.match(audioEngine, /\| 'AWAKENING'/, 'awakening music state missing');
+assert.match(audio, /pathname\.startsWith\('\/game-master'\).*AI_GAME_MASTER/, 'Game Master route missing dedicated soundtrack');
+assert.match(audio, /case 'AWAKENING_STARTED': return 'AWAKENING'/, 'awakening soundtrack route missing');
+assert.match(awakening, /PresentationEventPresets\.awakeningStarted/, 'awakening start event missing');
+assert.match(awakening, /PresentationEventPresets\.awakeningComplete/, 'awakening completion event missing');
+assert.doesNotMatch(awakening, /identity\/feedback/, 'awakening still uses direct haptics');
+
 
 assert.match(worldTracking, /PresentationEventPresets\.sectorDiscovered/, 'World sector discovery bypasses Presentation Engine');
 assert.doesNotMatch(worldTracking, /identity\/feedback/, 'World still uses direct haptics');
