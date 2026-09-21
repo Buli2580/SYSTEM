@@ -2018,6 +2018,7 @@ function integrationUI(context,extra={}) {
   '../components/SystemPage':{__esModule:true,default:'SystemPage',pageStyles:{}},
   '../background/locationService':{requestBackgroundLocationAccess:async()=>true},
   '../components/BetaSettings':{__esModule:true,default:'BetaSettings'},
+  '../updates/SystemUpdatePanel':{__esModule:true,default:'SystemUpdatePanel'},
   '../components/IdentityAvatar':{__esModule:true,default:'IdentityAvatar'},
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0',android:{versionCode:1}}}},
   'expo-location':{},'expo-image-picker':{},
