@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import * as Haptics from '../identity/feedback';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
+import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
 
 // Presentation acknowledgement is independent of the already committed reward.
 // If the app closes here, the celebration can be shown again without awarding XP.
@@ -20,6 +20,7 @@ export default function AwakeningCelebration() {
     setError(null);
     try {
       await acknowledgeAwakening();
+      presentationEventBus.emit(PresentationEventPresets.awakeningComplete());
       router.replace('/');
     } catch {
       setError('Nagroda jest zapisana. Nie udało się zamknąć podsumowania. Spróbuj ponownie.');
@@ -28,7 +29,7 @@ export default function AwakeningCelebration() {
   useEffect(() => {
     if (!visible) return;
     setError(null);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    presentationEventBus.emit(PresentationEventPresets.awakeningStarted());
     const timer = setTimeout(() => { void finish(); }, 5500);
     return () => clearTimeout(timer);
   }, [visible, finish]);
