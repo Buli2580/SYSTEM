@@ -2,7 +2,6 @@ import { questAvailability } from '../quests/availability';
 import { mainStoryObjective } from '../story/selectors';
 import SystemScreen from '../components/SystemScreen';
 import { DAILY_RULES } from '../daily/calendar';
-import RewardSummary from '../components/RewardSummary';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
@@ -142,7 +141,7 @@ function SectionTitle({
 
 export default function SystemHomeScreen() {
   const insets = useSafeAreaInsets();
-  const { lastReward, daily, story } = useSystem();
+  const { daily, story } = useSystem();
   const router = useRouter();
 
   const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, failedQuestIds = [], error, refreshPlayer } = useSystem();
@@ -373,8 +372,6 @@ export default function SystemHomeScreen() {
             })}
           </View>
         </Animated.View>
-
-        {lastReward && <RewardSummary receipt={lastReward} />}
 
         {/* WORLD */}
 
