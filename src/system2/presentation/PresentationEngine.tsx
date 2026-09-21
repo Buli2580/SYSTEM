@@ -8,7 +8,10 @@ import SystemEventOverlay from './SystemEventOverlay';
 
 function PresentationLifecycle() {
   useEffect(() => {
-    presentationEventBus.emit(PresentationEventPresets.systemBoot());
+    const timer = setTimeout(() => {
+      presentationEventBus.emit(PresentationEventPresets.systemBoot());
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
   return null;
 }
