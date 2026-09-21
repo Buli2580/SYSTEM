@@ -2378,3 +2378,50 @@ test('legacy goal migration is atomic and retry does not duplicate imported goal
   assert.equal(h.sql.prepare('SELECT count(*) AS n FROM player_goals').get().n, 2);
   assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_goal_imports').get().n, 2);
 });
+
+
+test('accepted AI Daily is immutable across restart and a later AI response cannot replace it', async t => {
+  const h = await dailyHarness(t);
+  const before = await h.db.loadSystemState();
+  const plan = {
+    source: 'ai',
+    model: 'test-model',
+    briefing: 'Plan zaakceptowany.',
+    director: { mode: 'normal', difficultyBias: 0, headline: 'TODAY', message: 'Keep moving' },
+    quests: [
+      { key:'q1',title:'Ruch',description:'Idź na spacer',category:'fitness',difficulty:'easy',verification:'gps',estimatedMinutes:20,reason:'Cel ruchowy',expiresInHours:12,tags:['walk'] },
+      { key:'q2',title:'Skupienie',description:'Skup się',category:'productivity',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'Cel pracy',expiresInHours:12,tags:['focus'] },
+      { key:'q3',title:'Nauka',description:'Naucz się czegoś',category:'learning',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'Cel nauki',expiresInHours:12,tags:['learn'] },
+    ],
+  };
+  const accepted = await h.db.applyAIDailyPlan(plan);
+  assert.notEqual(JSON.stringify(accepted.daily.questIds), JSON.stringify(before.daily.questIds));
+  const acceptedIds = [...accepted.daily.questIds];
+
+  const later = { ...plan, briefing:'MALICIOUS REPLACEMENT', model:'other-model',
+    quests: plan.quests.map((q,i)=>({...q,key:'later-'+i,title:'REPLACED '+i,description:'Do not use'})) };
+  const restarted = h.reload();
+  const replay = await restarted.applyAIDailyPlan(later);
+  assert.equal(JSON.stringify(replay.daily.questIds), JSON.stringify(acceptedIds));
+  assert.equal(replay.aiDaily.briefing, 'Plan zaakceptowany.');
+  assert.equal(replay.aiDaily.model, 'test-model');
+  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_events WHERE id=?").get('ai_daily_applied:'+accepted.daily.dayKey).n, 1);
+});
+
+test('AI Daily cannot replace a loadout after any quest attempt has started', async t => {
+  const h = await dailyHarness(t);
+  const before = await h.db.loadSystemState();
+  await h.db.beginQuestAttempt(before.daily.questIds[0], 'touched-daily');
+  const plan = {
+    source:'ai', briefing:'Too late', director:{mode:'normal',difficultyBias:0,headline:'AI',message:'AI'},
+    quests:[
+      {key:'a',title:'A',description:'A',category:'fitness',difficulty:'easy',verification:'gps',estimatedMinutes:20,reason:'A reason',expiresInHours:12,tags:['walk']},
+      {key:'b',title:'B',description:'B',category:'productivity',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'B reason',expiresInHours:12,tags:['focus']},
+      {key:'c',title:'C',description:'C',category:'learning',difficulty:'easy',verification:'timer',estimatedMinutes:10,reason:'C reason',expiresInHours:12,tags:['learn']},
+    ],
+  };
+  const after = await h.db.applyAIDailyPlan(plan);
+  assert.equal(JSON.stringify(after.daily.questIds), JSON.stringify(before.daily.questIds));
+  assert.equal(after.aiDaily, undefined);
+  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM app_state WHERE key=?").get('ai_daily_applied:'+before.daily.dayKey).n, 0);
+});
