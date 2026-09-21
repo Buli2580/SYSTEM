@@ -51,6 +51,7 @@ CREATE INDEX IF NOT EXISTS journey_activity_stage ON journey_activity(journey_id
 CREATE TABLE IF NOT EXISTS journey_milestones(journey_id TEXT,stage INTEGER,created_at TEXT,PRIMARY KEY(journey_id,stage));
 CREATE TABLE IF NOT EXISTS legacy_goal_imports(legacy_id TEXT PRIMARY KEY,canonical_id INTEGER NOT NULL);
 `;
+
 // Historical branches reused versions 6–8 for different table families.
 // Inspect their actual shape, preserve legacy rows, and add every canonical family atomically.
 async function reconcileBranchSchemas(txn: SQLiteDatabase) {
@@ -101,8 +102,9 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       await txn.execAsync(steps[next - 1]);
       await txn.execAsync(`PRAGMA user_version = ${next};`);
     }
-    // The cloud family may be absent even when legacy user_version is already 8.
-    await txn.execAsync(steps[5]);
+    // Versions 6–8 were reused on historical branches. Reconcile every idempotent
+    // canonical family instead of trusting user_version to describe the DB shape.
+    for (const sql of steps) await txn.execAsync(sql);
     await reconcileBranchSchemas(txn);
     await txn.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   });
