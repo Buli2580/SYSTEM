@@ -3,6 +3,8 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { DAILY_RULES } from '../daily/calendar';
 import { getPlayerProgressPercent, SYSTEM_COLORS as C } from '../core';
+import IdentityAvatar from './IdentityAvatar';
+import { titlePl } from '../i18n/pl';
 import { getQuest } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { useSystem } from '../state/SystemProvider';
@@ -12,7 +14,7 @@ type CommandTile = {
   label: string;
   value: string;
   detail: string;
-  route: '/quests' | '/story' | '/world' | '/social-profile';
+  route: '/quests' | '/story' | '/world' | '/social-profile' | '/character';
   alert?: boolean;
   progress?: number;
 };
@@ -102,6 +104,16 @@ export default function HomeCommandCenter() {
       <View style={styles.rank}><Text style={styles.rankText}>RANK {player.rank}</Text></View>
     </View>
 
+    <Pressable accessibilityRole="button" onPress={() => router.push('/character')} style={({pressed})=>[styles.identity,pressed&&styles.pressed]}>
+      <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={48} />
+      <View style={styles.identityBody}>
+        <Text style={styles.identityCode}>PLAYER IDENTITY</Text>
+        <Text style={styles.identityName}>{player.displayName}</Text>
+        <Text style={styles.identityTitle}>{titlePl(player.currentTitle)}</Text>
+      </View>
+      <Text style={styles.identityArrow}>CHARACTER →</Text>
+    </Pressable>
+
     <View style={styles.playerRow}>
       <View style={styles.levelBlock}>
         <Text style={styles.meta}>REAL LEVEL</Text>
@@ -162,7 +174,13 @@ const styles = StyleSheet.create({
   title: { color: C.white, fontSize: 22, fontWeight: '900', marginTop: 5 },
   rank: { borderWidth: 1, borderColor: C.cyanDark, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   rankText: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  playerRow: { flexDirection: 'row', gap: 15, alignItems: 'center', marginTop: 18 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, padding: 12, borderWidth: 1, borderColor: C.line, borderRadius: 16, backgroundColor: C.panel },
+  identityBody: { flex: 1 },
+  identityCode: { color: C.cyan, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
+  identityName: { color: C.white, fontSize: 15, fontWeight: '900', marginTop: 3 },
+  identityTitle: { color: C.textMuted, fontSize: 9, fontWeight: '800', marginTop: 2 },
+  identityArrow: { color: C.cyan, fontSize: 8, fontWeight: '900' },
+  playerRow: { flexDirection: 'row', gap: 15, alignItems: 'center', marginTop: 14 },
   levelBlock: { width: 82, minHeight: 88, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 16, backgroundColor: C.panel },
   meta: { color: C.textVeryMuted, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
   level: { color: C.white, fontSize: 37, lineHeight: 41, fontWeight: '900', marginTop: 2 },
