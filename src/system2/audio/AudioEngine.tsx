@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
-import { AudioPlayer, createAudioPlayer } from 'expo-audio';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as SecureStore from 'expo-secure-store';
 
-export type MusicState = 
+export type MusicState =
   | 'BOOT'
   | 'HOME'
   | 'CHARACTER'
@@ -15,15 +15,7 @@ export type MusicState =
   | 'VICTORY'
   | 'SILENT';
 
-export type AudioTrack = {
-  key: string;
-  uri: string;
-  loop?: boolean;
-  volume?: number;
-  category: 'music' | 'sfx' | 'ambient';
-};
-
-export type SFXEvent = 
+export type SFXEvent =
   | 'UI_CLICK'
   | 'UI_CONFIRM'
   | 'UI_CANCEL'
@@ -48,57 +40,63 @@ export type SFXEvent =
   | 'BOSS_PHASE'
   | 'BOSS_DEFEATED';
 
-export type MusicStateData = {
-  currentState: MusicState;
-  currentTrack: string | null;
-  isPlaying: boolean;
-  volume: number;
-  isMuted: boolean;
+type AudioSource = Parameters<typeof createAudioPlayer>[0];
+
+const AUDIO = {
+  ambient: require('../../../assets/audio/dashboard_ambient.mp3') as AudioSource,
+  boss: require('../../../assets/audio/boss_theme.mp3') as AudioSource,
+  levelUp: require('../../../assets/audio/level_up.mp3') as AudioSource,
+  questComplete: require('../../../assets/audio/quest_complete.mp3') as AudioSource,
 };
 
-const MUSIC_TRACKS: Record<MusicState, { key: string; uri: string; loop?: boolean; volume?: number }> = {
-  BOOT: { key: 'system_boot', uri: 'system_boot', loop: false, volume: 0.8 },
-  HOME: { key: 'system_home', uri: 'dashboard_ambient', loop: true, volume: 0.4 },
-  CHARACTER: { key: 'system_character', uri: 'dashboard_ambient', loop: true, volume: 0.35 },
-  EXPLORE: { key: 'system_explore', uri: 'dashboard_ambient', loop: true, volume: 0.45 },
-  QUEST: { key: 'system_quest', uri: 'dashboard_ambient', loop: true, volume: 0.4 },
-  FIELD_QUEST: { key: 'system_field_quest', uri: 'dashboard_ambient', loop: true, volume: 0.4 },
-  WARNING: { key: 'system_warning', uri: 'boss_theme', loop: true, volume: 0.5 },
-  BOSS: { key: 'system_boss', uri: 'boss_theme', loop: true, volume: 0.6 },
-  VICTORY: { key: 'system_victory', uri: 'level_up', loop: false, volume: 0.7 },
-  SILENT: { key: 'silent', uri: '', loop: false, volume: 0 },
+type MusicTrack = {
+  key: string;
+  source: AudioSource | null;
+  loop: boolean;
+  gain: number;
 };
 
-const SFX_EVENTS: Record<string, { uri: string; volume: number }> = {
-  UI_CLICK: { uri: 'ui_click', volume: 0.5 },
-  UI_CONFIRM: { uri: 'ui_confirm', volume: 0.6 },
-  UI_CANCEL: { uri: 'ui_cancel', volume: 0.5 },
-  UI_NAVIGATE: { uri: 'ui_navigate', volume: 0.4 },
-  UI_TOGGLE: { uri: 'ui_toggle', volume: 0.4 },
-  SYSTEM_BOOT: { uri: 'system_boot', volume: 0.7 },
-  SYSTEM_READY: { uri: 'system_ready', volume: 0.6 },
-  QUEST_NEW: { uri: 'quest_new', volume: 0.6 },
-  QUEST_ACCEPT: { uri: 'quest_accept', volume: 0.6 },
-  QUEST_START: { uri: 'quest_start', volume: 0.5 },
-  QUEST_COMPLETE: { uri: 'quest_complete', volume: 0.7 },
-  QUEST_FAIL: { uri: 'quest_fail', volume: 0.6 },
-  XP_GAIN: { uri: 'xp_gain', volume: 0.5 },
-  LEVEL_UP: { uri: 'level_up', volume: 0.8 },
-  REWARD: { uri: 'reward', volume: 0.6 },
-  STREAK: { uri: 'streak', volume: 0.5 },
-  STREAK_MILESTONE: { uri: 'streak_milestone', volume: 0.7 },
-  SECTOR_DISCOVERED: { uri: 'sector_discovered', volume: 0.6 },
-  WARNING: { uri: 'warning', volume: 0.7 },
-  BOSS_APPEAR: { uri: 'boss_appear', volume: 0.8 },
-  BOSS_HIT: { uri: 'boss_hit', volume: 0.7 },
-  BOSS_PHASE: { uri: 'boss_phase', volume: 0.7 },
-  BOSS_DEFEATED: { uri: 'boss_defeated', volume: 0.8 },
+const MUSIC_TRACKS: Record<MusicState, MusicTrack> = {
+  BOOT: { key: 'boot_ambient', source: AUDIO.ambient, loop: true, gain: 0.28 },
+  HOME: { key: 'home_ambient', source: AUDIO.ambient, loop: true, gain: 0.38 },
+  CHARACTER: { key: 'character_ambient', source: AUDIO.ambient, loop: true, gain: 0.32 },
+  EXPLORE: { key: 'explore_ambient', source: AUDIO.ambient, loop: true, gain: 0.42 },
+  QUEST: { key: 'quest_ambient', source: AUDIO.ambient, loop: true, gain: 0.34 },
+  FIELD_QUEST: { key: 'field_quest_ambient', source: AUDIO.ambient, loop: true, gain: 0.34 },
+  WARNING: { key: 'warning_theme', source: AUDIO.boss, loop: true, gain: 0.40 },
+  BOSS: { key: 'boss_theme', source: AUDIO.boss, loop: true, gain: 0.58 },
+  VICTORY: { key: 'victory_sting', source: AUDIO.levelUp, loop: false, gain: 0.75 },
+  SILENT: { key: 'silent', source: null, loop: false, gain: 0 },
 };
 
-const DEFAULT_VOLUMES = {
-  master: 1.0,
-  music: 0.5,
-  sfx: 0.7,
+type SFXDefinition = { source: AudioSource; gain: number } | null;
+
+// Only map events to assets that actually exist in the repository.
+// Missing sounds intentionally stay silent until a dedicated asset is added.
+const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
+  UI_CLICK: null,
+  UI_CONFIRM: null,
+  UI_CANCEL: null,
+  UI_NAVIGATE: null,
+  UI_TOGGLE: null,
+  SYSTEM_BOOT: null,
+  SYSTEM_READY: null,
+  QUEST_NEW: null,
+  QUEST_ACCEPT: null,
+  QUEST_START: null,
+  QUEST_COMPLETE: { source: AUDIO.questComplete, gain: 0.82 },
+  QUEST_FAIL: null,
+  XP_GAIN: null,
+  LEVEL_UP: { source: AUDIO.levelUp, gain: 0.95 },
+  REWARD: { source: AUDIO.questComplete, gain: 0.45 },
+  STREAK: null,
+  STREAK_MILESTONE: { source: AUDIO.levelUp, gain: 0.58 },
+  SECTOR_DISCOVERED: null,
+  WARNING: null,
+  BOSS_APPEAR: null,
+  BOSS_HIT: null,
+  BOSS_PHASE: null,
+  BOSS_DEFEATED: { source: AUDIO.levelUp, gain: 0.86 },
 };
 
 const STORAGE_KEYS = {
@@ -108,8 +106,7 @@ const STORAGE_KEYS = {
   masterMuted: 'audio_master_muted',
   musicMuted: 'audio_music_muted',
   sfxMuted: 'audio_sfx_muted',
-  musicState: 'audio_music_state',
-};
+} as const;
 
 type AudioContextValue = {
   musicState: MusicState;
@@ -129,9 +126,6 @@ type AudioContextValue = {
   getMasterVolume: () => number;
   toggleMasterMute: () => void;
   isMasterMuted: () => boolean;
-  preloadTrack: (key: string) => Promise<void>;
-  unloadTrack: (key: string) => void;
-  isTrackLoaded: (key: string) => boolean;
   pauseAll: () => Promise<void>;
   resumeAll: () => Promise<void>;
   stopAll: () => Promise<void>;
@@ -139,235 +133,258 @@ type AudioContextValue = {
 
 const AudioContext = createContext<AudioContextValue | null>(null);
 
-export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const [musicState, setMusicStateState] = useState<MusicState>('SILENT');
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
+
+function safeRemove(player: AudioPlayer | null) {
+  if (!player) return;
+  try { player.remove(); } catch { /* Native player may already be released. */ }
+}
+
+function wait(ms: number) {
+  return new Promise<void>(resolve => setTimeout(resolve, ms));
+}
+
+export function AudioProvider({ children }: { children: ReactNode }) {
+  const [musicState, setMusicStateValue] = useState<MusicState>('SILENT');
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  const [musicVolume, setMusicVolumeState] = useState(0.5);
-  const [sfxVolume, setSFXVolumeState] = useState(0.7);
-  const [masterVolume, setMasterVolumeState] = useState(1.0);
-  const [musicMuted, setMusicMutedState] = useState(false);
-  const [sfxMuted, setSFXMutedState] = useState(false);
-  const [masterMuted, setMasterMutedState] = useState(false);
+  const [musicVolume, setMusicVolumeValue] = useState(0.5);
+  const [sfxVolume, setSFXVolumeValue] = useState(0.7);
+  const [masterVolume, setMasterVolumeValue] = useState(1);
+  const [musicMuted, setMusicMutedValue] = useState(false);
+  const [sfxMuted, setSFXMutedValue] = useState(false);
+  const [masterMuted, setMasterMutedValue] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<string | null>(null);
-  const [isMusicLoading, setIsMusicLoading] = useState(false);
-  
-  const currentPlayerRef = useRef<AudioPlayer | null>(null);
-  const sfxPoolRef = useRef<Map<string, AudioPlayer>>(new Map());
-  const loadedTracksRef = useRef<Set<string>>(new Set());
-  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isAppActiveRef = useRef(true);
-  const isMusicPlayingRef = useRef(false);
-  const pendingMusicStateRef = useRef<string | null>(null);
 
-  // Load persisted settings
+  const musicPlayerRef = useRef<AudioPlayer | null>(null);
+  const musicStateRef = useRef<MusicState>('SILENT');
+  const shouldResumeRef = useRef(false);
+  const transitionRef = useRef(0);
+  const activeSfxRef = useRef(new Set<AudioPlayer>());
+
+  const masterVolumeRef = useRef(masterVolume);
+  const musicVolumeRef = useRef(musicVolume);
+  const sfxVolumeRef = useRef(sfxVolume);
+  const masterMutedRef = useRef(masterMuted);
+  const musicMutedRef = useRef(musicMuted);
+  const sfxMutedRef = useRef(sfxMuted);
+
+  useEffect(() => { masterVolumeRef.current = masterVolume; }, [masterVolume]);
+  useEffect(() => { musicVolumeRef.current = musicVolume; }, [musicVolume]);
+  useEffect(() => { sfxVolumeRef.current = sfxVolume; }, [sfxVolume]);
+  useEffect(() => { masterMutedRef.current = masterMuted; }, [masterMuted]);
+  useEffect(() => { musicMutedRef.current = musicMuted; }, [musicMuted]);
+  useEffect(() => { sfxMutedRef.current = sfxMuted; }, [sfxMuted]);
+
+  const persist = useCallback(async (key: string, value: string | number | boolean) => {
+    try { await SecureStore.setItemAsync(key, String(value)); } catch { /* Optional preference persistence. */ }
+  }, []);
+
+  const musicGain = useCallback((track: MusicTrack) => {
+    if (masterMutedRef.current || musicMutedRef.current) return 0;
+    return clamp01(track.gain * masterVolumeRef.current * musicVolumeRef.current);
+  }, []);
+
+  const applyMusicVolume = useCallback(() => {
+    const player = musicPlayerRef.current;
+    if (!player) return;
+    player.volume = musicGain(MUSIC_TRACKS[musicStateRef.current]);
+  }, [musicGain]);
+
   useEffect(() => {
-    const loadSettings = async () => {
+    void (async () => {
       try {
-        const [masterVol, musicVol, sfxVol, masterMuted, musicMuted, sfxMuted, savedState] = await Promise.all([
-          SecureStore.getItemAsync('audio_master_volume'),
-          SecureStore.getItemAsync('audio_music_volume'),
-          SecureStore.getItemAsync('audio_sfx_volume'),
-          SecureStore.getItemAsync('audio_master_muted'),
-          SecureStore.getItemAsync('audio_music_muted'),
-          SecureStore.getItemAsync('audio_sfx_muted'),
-          SecureStore.getItemAsync('audio_music_state'),
+        const [master, music, sfx, masterMute, musicMute, sfxMute] = await Promise.all([
+          SecureStore.getItemAsync(STORAGE_KEYS.masterVolume),
+          SecureStore.getItemAsync(STORAGE_KEYS.musicVolume),
+          SecureStore.getItemAsync(STORAGE_KEYS.sfxVolume),
+          SecureStore.getItemAsync(STORAGE_KEYS.masterMuted),
+          SecureStore.getItemAsync(STORAGE_KEYS.musicMuted),
+          SecureStore.getItemAsync(STORAGE_KEYS.sfxMuted),
         ]);
-        
-        if (masterVol !== null) setMasterVolumeState(parseFloat(masterVol));
-        if (musicVol !== null) setMusicVolumeState(parseFloat(musicVol));
-        if (sfxVol !== null) setSFXVolumeState(parseFloat(sfxVol));
-        if (masterMuted !== null) setMasterMutedState(masterMuted === 'true');
-        if (musicMuted !== null) setMusicMutedState(musicMuted === 'true');
-        if (sfxMuted !== null) setSFXMutedState(sfxMuted === 'true');
-        if (savedState && savedState !== 'SILENT') {
-          // Don't auto-restore music state on boot - let the app decide
-        }
+        if (master !== null) setMasterVolumeValue(clamp01(Number(master)));
+        if (music !== null) setMusicVolumeValue(clamp01(Number(music)));
+        if (sfx !== null) setSFXVolumeValue(clamp01(Number(sfx)));
+        if (masterMute !== null) setMasterMutedValue(masterMute === 'true');
+        if (musicMute !== null) setMusicMutedValue(musicMute === 'true');
+        if (sfxMute !== null) setSFXMutedValue(sfxMute === 'true');
       } catch {
-        // Ignore storage errors
+        // Audio preferences are non-critical.
       }
-    };
-    loadSettings();
-  }, []);
-
-  // Persist settings
-  const persistSetting = async (key: string, value: string | number | boolean) => {
-    try {
-      await SecureStore.setItemAsync(key, String(value));
-    } catch {
-      // Ignore
-    }
-  };
-
-  // App state handling
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'background') {
-        pauseAll();
-      } else if (state === 'active') {
-        resumeAll();
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopAll();
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
-      }
-    };
-  }, []);
-
-  const pauseAll = useCallback(async () => {
-    if (currentPlayerRef.current) {
-      currentPlayerRef.current.pause();
-    }
-    for (const [, player] of sfxPoolRef.current) {
-      player.pause();
-    }
-    isMusicPlayingRef.current = false;
-  }, []);
-
-  const resumeAll = useCallback(async () => {
-    if (currentPlayerRef.current && isMusicPlayingRef.current) {
-      currentPlayerRef.current.play();
-    }
+    })();
   }, []);
 
   const stopAll = useCallback(async () => {
-    if (currentPlayerRef.current) {
-      currentPlayerRef.current.remove();
-      currentPlayerRef.current = null;
+    transitionRef.current += 1;
+    shouldResumeRef.current = false;
+    safeRemove(musicPlayerRef.current);
+    musicPlayerRef.current = null;
+    for (const player of activeSfxRef.current) safeRemove(player);
+    activeSfxRef.current.clear();
+    setCurrentTrack(null);
+    setIsMusicPlaying(false);
+  }, []);
+
+  const pauseAll = useCallback(async () => {
+    shouldResumeRef.current = Boolean(musicPlayerRef.current && isMusicPlaying);
+    try { musicPlayerRef.current?.pause(); } catch { /* noop */ }
+    for (const player of activeSfxRef.current) {
+      try { player.pause(); } catch { /* noop */ }
     }
-    for (const [, player] of sfxPoolRef.current) {
-      player.remove();
+    setIsMusicPlaying(false);
+  }, [isMusicPlaying]);
+
+  const resumeAll = useCallback(async () => {
+    if (!shouldResumeRef.current || !musicPlayerRef.current) return;
+    try {
+      musicPlayerRef.current.play();
+      setIsMusicPlaying(true);
+    } catch {
+      setIsMusicPlaying(false);
     }
-    sfxPoolRef.current.clear();
-    isMusicPlayingRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') void resumeAll();
+      else void pauseAll();
+    });
+    return () => subscription.remove();
+  }, [pauseAll, resumeAll]);
+
+  useEffect(() => () => { void stopAll(); }, [stopAll]);
+
+  const fadeOutCurrent = useCallback(async (token: number) => {
+    const player = musicPlayerRef.current;
+    if (!player) return;
+    const start = player.volume;
+    for (let step = 5; step >= 0; step -= 1) {
+      if (transitionRef.current !== token) return;
+      player.volume = start * (step / 5);
+      await wait(28);
+    }
+    if (transitionRef.current !== token) return;
+    safeRemove(player);
+    if (musicPlayerRef.current === player) musicPlayerRef.current = null;
   }, []);
 
   const setMusicState = useCallback(async (state: MusicState) => {
-    pendingMusicStateRef.current = state;
-    setMusicStateState(state);
-    // Implementation would load and play the appropriate track
-  }, []);
+    const track = MUSIC_TRACKS[state];
+    const token = ++transitionRef.current;
+    musicStateRef.current = state;
+    setMusicStateValue(state);
 
-  const setMusicVolume = useCallback(async (volume: number) => {
-    const clamped = Math.max(0, Math.min(1, volume));
-    setMusicVolumeState(clamped);
-    await persistSetting(STORAGE_KEYS.musicVolume, clamped);
-    if (currentPlayerRef.current) {
-      currentPlayerRef.current.volume = clamped * masterVolume * (musicMuted ? 0 : 1);
+    if (!track.source) {
+      await fadeOutCurrent(token);
+      if (transitionRef.current === token) {
+        setCurrentTrack(null);
+        setIsMusicPlaying(false);
+      }
+      return;
     }
-  }, []);
 
-  const getMusicVolume = useCallback(() => musicVolume, [musicVolume]);
-
-  const toggleMusicMute = useCallback(async () => {
-    const newMuted = !musicMuted;
-    setMusicMutedState(newMuted);
-    await persistSetting(STORAGE_KEYS.musicMuted, newMuted);
-    if (currentPlayerRef.current) {
-      currentPlayerRef.current.volume = newMuted ? 0 : musicVolume * masterVolume;
+    const current = musicPlayerRef.current;
+    if (current && currentTrack === track.key) {
+      current.loop = track.loop;
+      current.volume = musicGain(track);
+      return;
     }
-  }, [musicMuted, musicVolume, masterVolume]);
 
-  const isMusicMuted = useCallback(() => musicMuted, [musicMuted]);
+    await fadeOutCurrent(token);
+    if (transitionRef.current !== token) return;
+
+    try {
+      const player = createAudioPlayer(track.source);
+      player.loop = track.loop;
+      player.volume = 0;
+      musicPlayerRef.current = player;
+      setCurrentTrack(track.key);
+      player.play();
+      shouldResumeRef.current = true;
+      setIsMusicPlaying(true);
+
+      const target = musicGain(track);
+      for (let step = 1; step <= 8; step += 1) {
+        if (transitionRef.current !== token || musicPlayerRef.current !== player) {
+          safeRemove(player);
+          return;
+        }
+        player.volume = target * (step / 8);
+        await wait(35);
+      }
+    } catch {
+      if (transitionRef.current === token) {
+        musicPlayerRef.current = null;
+        setCurrentTrack(null);
+        setIsMusicPlaying(false);
+      }
+    }
+  }, [currentTrack, fadeOutCurrent, musicGain]);
 
   const playSFX = useCallback(async (event: SFXEvent) => {
-    if (sfxMuted) return;
-    const sfx = SFX_EVENTS[event];
-    if (!sfx) return;
-    
-    let player = sfxPoolRef.current.get(sfx.uri);
-    if (!player) {
-      player = createAudioPlayer(sfx.uri);
-      sfxPoolRef.current.set(sfx.uri, player);
+    if (masterMutedRef.current || sfxMutedRef.current) return;
+    const definition = SFX_EVENTS[event];
+    if (!definition) return;
+    try {
+      const player = createAudioPlayer(definition.source);
+      activeSfxRef.current.add(player);
+      player.volume = clamp01(definition.gain * masterVolumeRef.current * sfxVolumeRef.current);
+      player.play();
+      setTimeout(() => {
+        activeSfxRef.current.delete(player);
+        safeRemove(player);
+      }, 7000);
+    } catch {
+      // A presentation sound must never break gameplay.
     }
-    player.volume = sfx.volume * sfxVolume * masterVolume;
-    player.play();
-  }, [sfxMuted, sfxVolume, masterVolume]);
-
-  const setSFXVolume = useCallback(async (volume: number) => {
-    const clamped = Math.max(0, Math.min(1, volume));
-    setSFXVolumeState(clamped);
-    await persistSetting(STORAGE_KEYS.sfxVolume, clamped);
   }, []);
 
-  const getSFXVolume = useCallback(() => sfxVolume, [sfxVolume]);
+  const setMusicVolume = useCallback((value: number) => {
+    const volume = clamp01(value);
+    setMusicVolumeValue(volume);
+    musicVolumeRef.current = volume;
+    void persist(STORAGE_KEYS.musicVolume, volume);
+    applyMusicVolume();
+  }, [applyMusicVolume, persist]);
 
-  const toggleSFXMute = useCallback(async () => {
-    const newMuted = !sfxMuted;
-    setSFXMutedState(newMuted);
-    await persistSetting(STORAGE_KEYS.sfxMuted, newMuted);
-  }, [sfxMuted]);
+  const setSFXVolume = useCallback((value: number) => {
+    const volume = clamp01(value);
+    setSFXVolumeValue(volume);
+    sfxVolumeRef.current = volume;
+    void persist(STORAGE_KEYS.sfxVolume, volume);
+  }, [persist]);
 
-  const isSFXMuted = useCallback(() => sfxMuted, [sfxMuted]);
+  const setMasterVolume = useCallback((value: number) => {
+    const volume = clamp01(value);
+    setMasterVolumeValue(volume);
+    masterVolumeRef.current = volume;
+    void persist(STORAGE_KEYS.masterVolume, volume);
+    applyMusicVolume();
+  }, [applyMusicVolume, persist]);
 
-  const setMasterVolume = useCallback(async (volume: number) => {
-    const clamped = Math.max(0, Math.min(1, volume));
-    setMasterVolumeState(clamped);
-    await persistSetting(STORAGE_KEYS.masterVolume, clamped);
-    if (currentPlayerRef.current) {
-      currentPlayerRef.current.volume = clamped * musicVolume * (musicMuted ? 0 : 1);
-    }
-  }, [musicVolume, musicMuted]);
+  const toggleMusicMute = useCallback(() => {
+    const value = !musicMutedRef.current;
+    musicMutedRef.current = value;
+    setMusicMutedValue(value);
+    void persist(STORAGE_KEYS.musicMuted, value);
+    applyMusicVolume();
+  }, [applyMusicVolume, persist]);
 
-  const getMasterVolume = useCallback(() => masterVolume, [masterVolume]);
+  const toggleSFXMute = useCallback(() => {
+    const value = !sfxMutedRef.current;
+    sfxMutedRef.current = value;
+    setSFXMutedValue(value);
+    void persist(STORAGE_KEYS.sfxMuted, value);
+  }, [persist]);
 
-  const toggleMasterMute = useCallback(async () => {
-    const newMuted = !masterMuted;
-    setMasterMutedState(newMuted);
-    await persistSetting(STORAGE_KEYS.masterMuted, newMuted);
-    if (currentPlayerRef.current) {
-      currentPlayerRef.current.volume = newMuted ? 0 : masterVolume * musicVolume * (musicMuted ? 0 : 1);
-    }
-  }, [masterMuted, masterVolume, musicVolume, musicMuted]);
-
-  const isMasterMuted = useCallback(() => masterMuted, [masterMuted]);
-
-  const preloadTrack = useCallback(async (key: string) => {
-    if (loadedTracksRef.current.has(key)) return;
-    const track = MUSIC_TRACKS[key as MusicState];
-    if (!track) return;
-    const player = createAudioPlayer(track.uri);
-    // prepareAsync doesn't exist on AudioPlayer, loading happens automatically
-    loadedTracksRef.current.add(key);
-  }, []);
-
-  const unloadTrack = useCallback((key: string) => {
-    loadedTracksRef.current.delete(key);
-  }, []);
-
-  const isTrackLoaded = useCallback((key: string) => {
-    return loadedTracksRef.current.has(key);
-  }, []);
-
-  const preloadTrackAsync = useCallback(async (key: string) => {
-    await preloadTrack(key);
-  }, [preloadTrack]);
-
-  const unloadTrackAsync = useCallback((key: string) => {
-    unloadTrack(key);
-  }, [unloadTrack]);
-
-  const isTrackLoadedAsync = useCallback((key: string) => {
-    return isTrackLoaded(key);
-  }, [isTrackLoaded]);
-
-  const pauseAllAsync = useCallback(async () => {
-    await pauseAll();
-  }, [pauseAll]);
-
-  const resumeAllAsync = useCallback(async () => {
-    await resumeAll();
-  }, [resumeAll]);
-
-  const stopAllAsync = useCallback(async () => {
-    await stopAll();
-  }, [stopAll]);
+  const toggleMasterMute = useCallback(() => {
+    const value = !masterMutedRef.current;
+    masterMutedRef.current = value;
+    setMasterMutedValue(value);
+    void persist(STORAGE_KEYS.masterMuted, value);
+    applyMusicVolume();
+  }, [applyMusicVolume, persist]);
 
   const value: AudioContextValue = {
     musicState,
@@ -375,31 +392,24 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     getCurrentTrack: () => currentTrack,
     isMusicPlaying,
     setMusicVolume,
-    getMusicVolume,
+    getMusicVolume: () => musicVolume,
     toggleMusicMute,
-    isMusicMuted,
+    isMusicMuted: () => musicMuted,
     playSFX,
     setSFXVolume,
-    getSFXVolume,
+    getSFXVolume: () => sfxVolume,
     toggleSFXMute,
-    isSFXMuted,
+    isSFXMuted: () => sfxMuted,
     setMasterVolume,
-    getMasterVolume,
+    getMasterVolume: () => masterVolume,
     toggleMasterMute,
-    isMasterMuted,
-    preloadTrack: preloadTrackAsync,
-    unloadTrack: unloadTrackAsync,
-    isTrackLoaded: isTrackLoadedAsync,
-    pauseAll: pauseAllAsync,
-    resumeAll: resumeAllAsync,
-    stopAll: stopAllAsync,
+    isMasterMuted: () => masterMuted,
+    pauseAll,
+    resumeAll,
+    stopAll,
   };
 
-  return (
-    <AudioContext.Provider value={value}>
-      {children}
-    </AudioContext.Provider>
-  );
+  return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 
 export function useAudio() {
@@ -409,48 +419,16 @@ export function useAudio() {
 }
 
 export function useMusic() {
-  const context = useContext(AudioContext);
-  if (!context) throw new Error('useMusic must be used within AudioProvider');
-  return {
-    musicState: context.musicState,
-    setMusicState: context.setMusicState,
-    getCurrentTrack: context.getCurrentTrack,
-    isMusicPlaying: context.isMusicPlaying,
-    setMusicVolume: context.setMusicVolume,
-    getMusicVolume: context.getMusicVolume,
-    toggleMusicMute: context.toggleMusicMute,
-    isMusicMuted: context.isMusicMuted,
-  };
+  const { musicState, setMusicState, getCurrentTrack, isMusicPlaying, setMusicVolume, getMusicVolume, toggleMusicMute, isMusicMuted } = useAudio();
+  return { musicState, setMusicState, getCurrentTrack, isMusicPlaying, setMusicVolume, getMusicVolume, toggleMusicMute, isMusicMuted };
 }
 
 export function useSFX() {
-  const context = useContext(AudioContext);
-  if (!context) throw new Error('useSFX must be used within AudioProvider');
-  return {
-    playSFX: context.playSFX,
-    setSFXVolume: context.setSFXVolume,
-    getSFXVolume: context.getSFXVolume,
-    toggleSFXMute: context.toggleSFXMute,
-    isSFXMuted: context.isSFXMuted,
-  };
+  const { playSFX, setSFXVolume, getSFXVolume, toggleSFXMute, isSFXMuted } = useAudio();
+  return { playSFX, setSFXVolume, getSFXVolume, toggleSFXMute, isSFXMuted };
 }
 
 export function useMasterAudio() {
-  const context = useContext(AudioContext);
-  if (!context) throw new Error('useMasterAudio must be used within AudioProvider');
-  return {
-    setMasterVolume: context.setMasterVolume,
-    getMasterVolume: context.getMasterVolume,
-    toggleMasterMute: context.toggleMasterMute,
-    isMasterMuted: context.isMasterMuted,
-  };
-}
-
-export function useMusicState() {
-  const context = useContext(AudioContext);
-  if (!context) throw new Error('useMusicState must be used within AudioProvider');
-  return {
-    musicState: context.musicState,
-    setMusicState: context.setMusicState,
-  };
+  const { setMasterVolume, getMasterVolume, toggleMasterMute, isMasterMuted } = useAudio();
+  return { setMasterVolume, getMasterVolume, toggleMasterMute, isMasterMuted };
 }
