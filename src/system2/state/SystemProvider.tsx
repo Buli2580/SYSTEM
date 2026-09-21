@@ -1,6 +1,5 @@
 import { resetTesterProfile } from '../tester/reset';
 import { AppState } from 'react-native';
-import { configureAudio, playFeedback, rewardSound, stopAudio } from '../identity/audio';
 import { syncReminders } from '../notifications/service';
 import { dayKey } from '../daily/calendar';
 import { createContext, type ReactNode, type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -17,6 +16,7 @@ import { loadAchievementsState, loadTitlesState } from '../achievements/storage'
 import { flushCloudOutbox } from '../cloud/sync';
 import { stopQuestBackgroundTracking } from '../background/locationService';
 import { requestDailyAIGameMaster, type AIGameMasterResponse } from '../ai';
+import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
 
 type SystemContextValue = db.SystemSnapshot & {
   createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<void>;
@@ -65,7 +65,6 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const generation = useRef(0);
   const resetting = useRef(false);
   const aiDayRef = useRef<string | null>(null);
-  useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
   useEffect(() => {
     if (!ready) return;
     let active = true;
@@ -158,15 +157,17 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   useEffect(() => { void refreshPlayer(); }, [refreshPlayer]);
   useEffect(() => {
     let currentDay = dayKey();
-    const sub = AppState.addEventListener('change', state => { if (state === 'active') { currentDay = dayKey(); void refreshPlayer(); } else stopAudio(); });
+    const sub = AppState.addEventListener('change', state => { if (state === 'active') { currentDay = dayKey(); void refreshPlayer(); } });
     const interval = setInterval(() => { const next = dayKey(); if (AppState.currentState === 'active' && next !== currentDay) { currentDay = next; void refreshPlayer(); } }, 30000);
-    return () => { sub.remove(); clearInterval(interval); stopAudio(); };
+    return () => { sub.remove(); clearInterval(interval); };
   }, [refreshPlayer]);
   const presentReward = useCallback((receipt: RewardReceipt) => {
     if (seenRewards.current.has(receipt.id)) return;
     seenRewards.current.add(receipt.id);
     if (seenRewards.current.size > 128) seenRewards.current.delete(seenRewards.current.values().next().value!);
-    playFeedback(rewardSound(receipt));
+    presentationEventBus.emit(PresentationEventPresets.questComplete(receipt.id, 'QUEST COMPLETE', receipt));
+    if (receipt.realXp > 0) presentationEventBus.emit(PresentationEventPresets.xpGain(receipt.realXp, 'quest'));
+    presentationEventBus.emit(PresentationEventPresets.rewardReceived(receipt));
     setLastReward(receipt);
     if (receipt.afterLevel > receipt.beforeLevel || receipt.skillLevels.length) setCelebration(receipt);
   }, []);
