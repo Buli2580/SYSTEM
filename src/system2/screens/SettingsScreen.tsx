@@ -14,6 +14,7 @@ import { requestBackgroundLocationAccess } from '../background/locationService';
 import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { useAudio } from '../audio/AudioEngine';
+import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const audio = useAudio(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
@@ -30,8 +31,8 @@ export default function SettingsScreen() {
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
       <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /><Action label="SYSTEM ONLINE // HUB →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI // SYSTEM ONLINE →" onPress={() => router.push('/leaderboard')} /><Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} /></View>
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
-      <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
-      <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
+      <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { presentationEventBus.emit(PresentationEventPresets.uiToggle()); void run(() => saveSettings({ ...settings, haptics: value })); }} />
+      <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { presentationEventBus.emit(PresentationEventPresets.uiToggle()); void run(() => saveSettings({ ...settings, audio: value })); }} />
       <Text style={s.body}>Presentation Audio // muzyka ambientowa, questy, boss oraz efekty nagród. AUDIO OFF wycisza cały silnik.</Text>
       {settings.audio && <>
         <AudioVolume label="MUZYKA" value={audio.getMusicVolume()} onChange={audio.setMusicVolume} />
@@ -105,7 +106,7 @@ function AudioVolume({ label, value, onChange }: { label: string; value: number;
         return <Pressable key={choice} accessibilityRole="button"
           accessibilityLabel={label + ' ' + percent + ' procent'}
           accessibilityState={{ selected: active }}
-          onPress={() => onChange(choice)}
+          onPress={() => { presentationEventBus.emit(PresentationEventPresets.uiToggle()); onChange(choice); }}
           style={({ pressed }) => ({
             minWidth: 52, minHeight: 38, alignItems: 'center', justifyContent: 'center',
             borderRadius: 9, borderWidth: 1,
