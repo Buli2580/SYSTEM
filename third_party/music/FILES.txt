@@ -145,6 +145,54 @@ third_party/music/cc0/drakzlin-music-loops/Horror_B.mp3
 third_party/music/cc0/drakzlin-music-loops/chiptune_1B2.mp3
 third_party/music/cc0/drakzlin-music-loops/chiptune_1C2.mp3
 third_party/music/cc0/drakzlin-music-loops/chiptune_2.mp3
+third_party/music/cc0/game-over-collection/Game Over/01 HoliznaCC0 - Game Over 1.mp3
+third_party/music/cc0/game-over-collection/Game Over/01 HoliznaCC0 - Game Over 1.ogg
+third_party/music/cc0/game-over-collection/Game Over/02 HoliznaCC0 - Game Over 2.mp3
+third_party/music/cc0/game-over-collection/Game Over/02 HoliznaCC0 - Game Over 2.ogg
+third_party/music/cc0/game-over-collection/Game Over/03 HoliznaCC0 - Game Over 3.mp3
+third_party/music/cc0/game-over-collection/Game Over/03 HoliznaCC0 - Game Over 3.ogg
+third_party/music/cc0/game-over-collection/Game Over/04 HoliznaCC0 - Game Over 4.mp3
+third_party/music/cc0/game-over-collection/Game Over/04 HoliznaCC0 - Game Over 4.ogg
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Al_Basrah.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Cairo_Egypt.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Finland.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Greece.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Helsinki_Sweden.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Jerusalem_Israel.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Munich_Germany.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Nakhayb_Iraq.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Naples_Italy.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Norway_Nephelim_Battle.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Rome_Italy.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Splash_Screen_Opus.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Turin_Italy.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Vienna_Austria.mp3
+third_party/music/cc0/golgotha-game-engine-soundtrack/music/Zurich_Switzerland.mp3
+third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration1 - Grasslands.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration2 - Military Base.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration3 - Tha'el Mines.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration4 - Prairie Nights.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration5 - Sneaking Around.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration6 - Tropical Island.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/INFO.txt
+third_party/music/cc0/juhani-junkala-jrpg-pack-2-towns/INFO.txt
+third_party/music/cc0/juhani-junkala-jrpg-pack-2-towns/Town1 - Home Town.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-2-towns/Town2 - Where Time Stands Still.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-2-towns/Town3 - Sunshine Coast.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-2-towns/Town4 - Bazaar.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil1 - Ancient Evil Awakens.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil2 - Catacombs.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil3 - Apocalypse.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil4 - Witch's Lair.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil5 - Whispers From Beyond.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/INFO.txt
+third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm1 - A Place I Call Home.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm2 - Childhood Friends.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm3 - Peaceful Days.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm4 - Sand Castles.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm5 - Summer Memories.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm6 - Innocence.ogg
+third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/INFO.txt
 third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action1 - Encounter With The Witches.ogg
 third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action2 - Army Approaching.ogg
 third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action3 - Preparing For Battle.ogg
@@ -191,6 +239,73 @@ third_party/music/cc0/komiku-helice-incredible-adventure/mp3/Komiku - Helice Awe
 third_party/music/cc0/komiku-helice-incredible-adventure/mp3/Komiku - Helice Awesome Dance Adventure !! - 40 The biggest capitalist machine you've ever seen.mp3
 third_party/music/cc0/komiku-helice-incredible-adventure/mp3/Komiku - Helice Awesome Dance Adventure !! - 41 We have to dance TOGETHER.mp3
 third_party/music/cc0/komiku-helice-incredible-adventure/mp3/Komiku - Helice Awesome Dance Adventure !! - 42 Everything is love.mp3
+third_party/music/cc0/modern-chiptune-10/Dark Forest Waltz - Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Phantom-Party-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Pixel-Paradise-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Pixel-Prowler-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Pixelated-Hearts-Parade-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Pixelated-Paradise-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Running-Happy-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Whimsical-Walk-in-the-Woods-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Whimsical-Wanderer-Demo.ogg
+third_party/music/cc0/modern-chiptune-10/Whimsical-Wanderlust-Demo.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/12okt.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/Flowey.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/Muttrace.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/battle.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/beach.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/beach_atmosphere.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/boost.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/boss.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/burned_village.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/castle.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/chase.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/credits.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/dockknocking.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/farmer.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/final_boss.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/fire.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/forest.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/fortress.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/happtroll.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/jungle.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/jungle_shop.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/keep.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/lander.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/landing.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/loadsave.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/map.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/map2.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/monastery.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/moon.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/moon2.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/mountains.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/seaside_repaired.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/shmup2.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/shyzu.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/title.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/tivoli.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/tutorial.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/underground.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/underwater.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/underwater_final.ogg
+third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/volcano.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song1.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song10.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song11.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song12.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song13.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song14.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song15.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song16.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song2.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song3.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song4.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song5.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song6.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song7.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song8.ogg
+third_party/music/cc0/procedural-rpg-music-16/RPGMusic1ogg/Song9.ogg
 third_party/music/cc0/superpowers-music/CREDIT.txt
 third_party/music/cc0/superpowers-music/LICENSE.txt
 third_party/music/cc0/superpowers-music/README.md
