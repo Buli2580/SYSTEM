@@ -26,7 +26,9 @@ function sfxFor(event: PresentationEventData): SFXEvent | null {
     case 'WARNING':
     case 'SYSTEM_WARNING':
     case 'SYSTEM_ERROR': return 'WARNING';
-    case 'ACHIEVEMENT_UNLOCKED': return 'ACHIEVEMENT';
+    case 'ACHIEVEMENT_UNLOCKED':
+    case 'HERO_CARD_UNLOCKED': return 'ACHIEVEMENT';
+    case 'HERO_CARD_EQUIPPED': return 'UI_CONFIRM';
     case 'LEVEL_UP': return 'LEVEL_UP';
     case 'REWARD_RECEIVED': return 'REWARD';
     default: return null;
