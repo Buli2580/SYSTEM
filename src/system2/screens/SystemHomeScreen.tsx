@@ -1,4 +1,5 @@
 import { questAvailability } from '../quests/availability';
+import {homePriorities} from '../beta/home';
 import { mainStoryObjective } from '../story/selectors';
 import SystemScreen from '../components/SystemScreen';
 import { DAILY_RULES } from '../daily/calendar';
@@ -45,6 +46,8 @@ import {
 
 import { useSystem } from '../state/SystemProvider';
 import { questStatusPl, titlePl } from '../i18n/pl';
+
+function BetaCommandDeck(){const router=useRouter();const system=useSystem();const priorities=homePriorities({activeQuest:!!system.activeQuestId,daily:Math.max(0,(system.daily?.questIds.length??0)-(system.daily?.completed??0)),weekly:!!system.daily&&!system.daily.weeklyClear,boss:!!system.story?.worldLinkComplete&&!system.story?.bossComplete,world:system.worldUnlocked});return <Animated.View entering={FadeInUp.duration(420)} style={styles.betaDeck}><Text style={styles.betaDeckCode}>SYSTEM // COMMAND DECK</Text><Text style={styles.betaDeckTitle}>CO ROBISZ TERAZ</Text><View style={styles.betaDeckRow}>{priorities.slice(0,4).map((p,i)=><Pressable key={p} onPress={()=>router.push(p==='WORLD'?'/world':p==='SOCIAL'?'/social-profile':p==='BOSS'?'/story':'/quests')} style={styles.betaDeckChip}><Text style={styles.betaDeckChipText}>{i+1} // {p.replaceAll('_',' ')}</Text></Pressable>)}</View></Animated.View>}
 
 function WorldSignalBeacon({ active }: { active: boolean }) {
   const pulse = useSharedValue(0);
@@ -356,7 +359,8 @@ export default function SystemHomeScreen() {
 
           <View style={styles.identityContent}>
             <View style={styles.coreColumn}>
-              <PlayerCore />
+              <BetaCommandDeck />
+      <PlayerCore />
             </View>
 
             <View style={styles.levelColumn}>
@@ -774,6 +778,12 @@ export default function SystemHomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  betaDeck:{marginHorizontal:18,marginTop:8,padding:16,borderWidth:1,borderColor:'rgba(108,238,255,0.25)',borderRadius:18,backgroundColor:'rgba(5,17,20,0.92)'},
+  betaDeckCode:{color:'#6ceeff',fontSize:9,fontWeight:'900',letterSpacing:1.6},
+  betaDeckTitle:{color:'#fff',fontSize:20,fontWeight:'900',marginTop:7},
+  betaDeckRow:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},
+  betaDeckChip:{borderWidth:1,borderColor:'rgba(108,238,255,0.25)',borderRadius:999,paddingHorizontal:10,paddingVertical:7},
+  betaDeckChipText:{color:'#bdeff5',fontSize:8,fontWeight:'900'},
   root: {
     flex: 1,
     backgroundColor:
