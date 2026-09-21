@@ -2060,6 +2060,12 @@ test('Settings hides destructive reset in production and preserves confirmation 
  const tree=dev.render('screens/SettingsScreen');findButtons(tree).find(b=>treeText(b)==='RESET SYSTEM DATA // DEVELOPMENT').props.onPress();
  assert.equal(nodesOfType(dev.render('screens/SettingsScreen'),'Modal')[0].props.visible,true);
 });
+test('Settings exposes AI Game Master entry point',()=>{
+ const player=loader({})('core/progression').createNewPlayer(),ctx={player,settings:{audio:false,haptics:true},saveSettings:async()=>{},resetData:async()=>{}};
+ const ui=integrationUI(ctx,{__DEV__:false}),tree=ui.render('screens/SettingsScreen');
+ const button=findButtons(tree).find(b=>treeText(b)==='AI GAME MASTER →');
+ assert.ok(button);button.props.onPress();assert.equal(ui.navigation.at(-1),'/game-master');
+});
 test('quest list shows persisted FAILED, offers retry and de-duplicates Daily cards',async t=>{
  const h=await dailyHarness(t),s=await h.db.loadSystemState(),id=s.daily.questIds[0];
  await h.db.beginQuestAttempt(id,'ui-failed');h.clock.now+=10000;await h.db.endQuestAttempt('ui-failed','INTERRUPTED','BACKGROUND',10,0);
