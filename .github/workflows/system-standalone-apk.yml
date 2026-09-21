@@ -19,7 +19,7 @@ jobs:
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
-      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.caching=false -Dorg.gradle.workers.max=1 -Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
 
     steps:
       - name: Checkout
@@ -30,6 +30,21 @@ jobs:
             /*
             !/third_party/music/
           sparse-checkout-cone-mode: false
+
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          echo "=== disk before cleanup ==="
+          df -h /
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/lib/android/sdk/system-images || true
+          sudo docker system prune -af || true
+          sudo apt-get clean || true
+          echo "=== disk after cleanup ==="
+          df -h /
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -79,8 +94,8 @@ jobs:
           set +e
           ./gradlew :app:assembleRelease \
             --no-daemon \
-            --build-cache \
-            --parallel \
+            --no-build-cache \
+            --max-workers=1 \
             --console=plain \
             --stacktrace 2>&1 | tee ../dist/gradle-release.log
           status=${PIPESTATUS[0]}
