@@ -36,6 +36,7 @@ export default function WorldScreen() {
   return <OnlineWorld />;
 }
 function OnlineWorld() {
+  const router = useRouter();
   const { player, lastReward, story } = useSystem();
   const mode=worldBossMode({worldUnlocked:true,bossActive:!!story?.worldLinkComplete&&!story?.bossComplete,bossDefeated:!!story?.bossComplete});
   const world = useWorldTracking();
