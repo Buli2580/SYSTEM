@@ -1,0 +1,135 @@
+name: Import Free Music Library
+
+on:
+  push:
+    branches:
+      - feature/presentation-engine-2.0
+    paths:
+      - .github/workflows/import-free-music.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-music:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/presentation-engine-2.0
+          fetch-depth: 1
+
+      - name: Download and unpack free music packs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="third_party/music"
+          TMP="$RUNNER_TEMP/system-free-music"
+          mkdir -p "$ROOT" "$TMP"
+
+          fetch_zip () {
+            local url="$1"
+            local zip="$2"
+            local out="$3"
+            echo "Downloading $url"
+            curl -fL --retry 4 --retry-delay 3 --connect-timeout 30 --max-time 900 "$url" -o "$TMP/$zip"
+            mkdir -p "$out"
+            unzip -oq "$TMP/$zip" -d "$out"
+            rm -f "$TMP/$zip"
+          }
+
+          # CC0 — Alexander Ehlers / tricksntraps
+          fetch_zip             "https://opengameart.org/sites/default/files/Alexander%20Ehlers%20-%20Free%20Music%20Pack.zip"             "free-music-pack.zip"             "$ROOT/cc0/alexander-ehlers-free-music-pack"
+
+          # CC0 — Komiku / Loyalty Freak Music
+          fetch_zip             "https://opengameart.org/sites/default/files/mp3.zip"             "helice-mp3.zip"             "$ROOT/cc0/komiku-helice-incredible-adventure"
+
+          # CC-BY 4.0 — Volcano of Bears / Blake Speers, 70+ JRPG tracks
+          for part in             "blake_speers_-_last_starlight_paradise_dream_1.zip"             "blake_speers_-_last_starlight_paradise_dream2.zip"             "blake_speers_-_last_starlight_paradise_dream3.zip"             "blake_speers_-_last_starlight_paradise_dream4.zip"             "blake_speers_-_last_starlight_paradise_dream5.zip"
+          do
+            fetch_zip               "https://opengameart.org/sites/default/files/$part"               "$part"               "$ROOT/cc-by-4.0/last-starlight-paradise-dream"
+          done
+
+          # CC-BY 3.0 — ietsu / A Journey's End, use OGG versions.
+          JOURNEY="$ROOT/cc-by-3.0/a-journeys-end"
+          mkdir -p "$JOURNEY"
+          journey_files=(
+            "01 - Dark World"
+            "02 - Fighting the Darkness"
+            "03 - Going on an Adventure!"
+            "04 - Talking' bout big things"
+            "05 - A Dreadful Foe Appears!"
+            "06 - End of the Journey"
+            "07 - Traversing the Unknown"
+            "08 - Bracing the Essence"
+            "09 - Deep Thoughts"
+            "10 - The Cry of Mana"
+            "11 - Anxiety"
+            "12 - A Forest's Whisper"
+            "13 - Wild Confrontation"
+            "14 - Murmur of a God"
+            "15 - Across the Mountain Path"
+            "16 - A Journey's Beginning"
+          )
+          for base in "${journey_files[@]}"; do
+            encoded="$(python -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$base")"
+            curl -fL --retry 4 --retry-delay 3 --connect-timeout 30 --max-time 300               "https://opengameart.org/sites/default/files/${encoded}_0.ogg"               -o "$JOURNEY/$base.ogg"
+          done
+
+          # Never commit source archives or editor/cache junk.
+          find "$ROOT" -type f \( -name '*.zip' -o -name '.DS_Store' -o -name 'Thumbs.db' \) -delete
+
+      - name: Write license manifest
+        shell: bash
+        run: |
+          cat > third_party/music/LICENSES.md <<'EOF'
+          # SYSTEM — Third-Party Music Library
+
+          These files are stored as a source library. They are not automatically included in the app bundle.
+          Before moving any track into active app assets, preserve the attribution required by its license.
+
+          ## Alexander Ehlers — Free Music Pack
+          - Source: https://opengameart.org/node/15828
+          - License: CC0
+          - Attribution required: No
+
+          ## Komiku / Loyalty Freak Music — Helice Incredible Adventure
+          - Source: https://opengameart.org/content/helice-incredible-adventure-fantasy-disco-rpg-battle-music-and-midi-files-pack
+          - License: CC0
+          - Attribution required: No
+          - Author notice: Music written by Komiku
+
+          ## Blake Speers / Volcano of Bears — Last Starlight: Paradise Dream
+          - Source: https://opengameart.org/content/full-8-bit-jrpg-soundtrack-downloadable-and-editable-music-pack
+          - License: CC BY 4.0
+          - Attribution required: Yes
+
+          ## ietsu — A Journey's End
+          - Source: https://opengameart.org/content/a-journeys-end
+          - License: CC BY 3.0
+          - Attribution required: Yes
+          EOF
+
+      - name: Inventory
+        shell: bash
+        run: |
+          find third_party/music -type f | sort > third_party/music/FILES.txt
+          echo "Tracks/files imported:"
+          find third_party/music -type f | wc -l
+          du -sh third_party/music
+
+      - name: Commit imported library
+        shell: bash
+        run: |
+          git config user.name "SYSTEM Music Importer"
+          git config user.email "actions@users.noreply.github.com"
+          git add third_party/music
+          if git diff --cached --quiet; then
+            echo "No new files to commit."
+            exit 0
+          fi
+          git commit -m "audio: import first free licensed music library"
+          git push origin HEAD:feature/presentation-engine-2.0
