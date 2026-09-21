@@ -3,16 +3,20 @@ import SystemError from './SystemError';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePathname } from 'expo-router';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
 import BottomNavigation from './BottomNavigation';
 import SystemAmbientBackground from './SystemAmbientBackground';
+import AnimatedCharacterBackdrop, { sceneForPath } from '../presentation/AnimatedCharacterBackdrop';
 
 export default function SystemPage({ title, subtitle, children, intensity = 'quiet' }: { title: string; subtitle: string; children: ReactNode; intensity?: 'quiet' | 'default' | 'hero' | 'world' }) {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const { ready, error, refreshPlayer } = useSystem();
   return <SystemScreen style={styles.root}>
     <SystemAmbientBackground intensity={intensity} />
+    <AnimatedCharacterBackdrop scene={sceneForPath(pathname)} opacity={intensity === 'hero' ? 0.42 : intensity === 'world' ? 0.38 : intensity === 'quiet' ? 0.22 : 0.30} />
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: 150 + insets.bottom }]}>
       <Text style={styles.code}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
