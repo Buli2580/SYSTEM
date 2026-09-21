@@ -32,7 +32,7 @@ type SystemContextValue = db.SystemSnapshot & {
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
   saveSettings: (settings: Settings) => Promise<void>;
   resetData: (confirmed: true) => Promise<void>;
-  presentReward: (receipt: RewardReceipt) => void;
+  presentReward: (receipt: RewardReceipt, presentationKind?: 'quest' | 'boss') => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
   lastReward: RewardReceipt | null; notificationError: string | null;
   achievementState: PlayerAchievementState;
@@ -136,7 +136,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       }
     } catch (cause) {
       if (epoch === generation.current && !resetting.current) {
-        setAIError(cause instanceof Error ? cause.message : 'AI GAME MASTER jest chwilowo niedostępny.');
+        const message = cause instanceof Error ? cause.message : 'AI GAME MASTER jest chwilowo niedostępny.';
+        setAIError(message);
+        presentationEventBus.emit(PresentationEventPresets.systemWarning(message, 'AI_GAME_MASTER'));
       }
     } finally {
       if (epoch === generation.current) setAILoading(false);
@@ -162,7 +164,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
         if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); void syncAchievements(next.player, epoch); setReady(true); void flushCloudOutbox().catch(() => undefined); void runAIGameMaster(next, epoch); }
       } catch (cause) {
-        if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
+        if (epoch === generation.current) {
+          const message = cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.';
+          setReady(false);
+          setError(message);
+          presentationEventBus.emit(PresentationEventPresets.systemError(message, 'SYSTEM_STATE'));
+          if (__DEV__) console.error(cause);
+        }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
     })();
     refreshRef.current = operation; return operation;
@@ -174,12 +182,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(() => { const next = dayKey(); if (AppState.currentState === 'active' && next !== currentDay) { currentDay = next; void refreshPlayer(); } }, 30000);
     return () => { sub.remove(); clearInterval(interval); };
   }, [refreshPlayer]);
-  const presentReward = useCallback((receipt: RewardReceipt) => {
+  const presentReward = useCallback((receipt: RewardReceipt, presentationKind: 'quest' | 'boss' = 'quest') => {
     if (seenRewards.current.has(receipt.id)) return;
     seenRewards.current.add(receipt.id);
     if (seenRewards.current.size > 128) seenRewards.current.delete(seenRewards.current.values().next().value!);
-    presentationEventBus.emit(PresentationEventPresets.questComplete(receipt.id, 'QUEST COMPLETE', receipt));
-    if (receipt.realXp > 0) presentationEventBus.emit(PresentationEventPresets.xpGain(receipt.realXp, 'quest'));
+    if (presentationKind === 'quest') {
+      presentationEventBus.emit(PresentationEventPresets.questComplete(receipt.id, 'QUEST COMPLETE', receipt));
+    }
+    if (receipt.realXp > 0) presentationEventBus.emit(PresentationEventPresets.xpGain(receipt.realXp, presentationKind));
     presentationEventBus.emit(PresentationEventPresets.rewardReceived(receipt));
     if (receipt.afterLevel > receipt.beforeLevel) {
       presentationEventBus.emit(PresentationEventPresets.levelUp(receipt.beforeLevel, receipt.afterLevel, receipt.afterRank));
@@ -227,7 +237,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       if (!previousBoss?.discipline_at && nextBoss?.discipline_at) {
         presentationEventBus.emit(PresentationEventPresets.bossPhaseChanged(nextBoss.id, 3, 'DISCIPLINE COMPLETE'));
       }
-      if (!previousBossComplete && result.story?.bossComplete) {
+      const bossDefeatedNow = !previousBossComplete && Boolean(result.story?.bossComplete);
+      if (bossDefeatedNow) {
         presentationEventBus.emit(PresentationEventPresets.bossDefeated(
           nextBoss?.id ?? 'the_first_wall_v1',
           'PIERWSZY MUR',
@@ -237,7 +248,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 
       void syncAchievements(result.player, epoch);
       void flushCloudOutbox().catch(() => undefined);
-      if (result.receipt) presentReward(result.receipt);
+      if (result.receipt) presentReward(result.receipt, bossDefeatedNow ? 'boss' : 'quest');
     }
     return result;
   }, [presentReward, snapshot.player.streak, snapshot.story, syncAchievements]);
