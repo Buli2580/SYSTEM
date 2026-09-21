@@ -1,0 +1,85 @@
+name: Publish SYSTEM Preview OTA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/presentation-engine-2.0
+    paths:
+      - .ota/preview-request.txt
+
+permissions:
+  contents: read
+
+jobs:
+  publish-preview:
+    name: Publish preview OTA
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            /*
+            !/third_party/music/
+          sparse-checkout-cone-mode: false
+
+      - name: Require Expo token
+        shell: bash
+        run: |
+          if [ -z "${EXPO_TOKEN}" ]; then
+            echo "::error::Missing repository secret EXPO_TOKEN. Add it once in GitHub Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Validate OTA configuration
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const app = require('./app.json');
+          const expo = app.expo || {};
+          if (!expo.updates?.url) throw new Error('expo.updates.url missing');
+          if (!expo.runtimeVersion) throw new Error('expo.runtimeVersion missing');
+          if (expo.updates?.requestHeaders?.['expo-channel-name'] !== 'preview') {
+            throw new Error('preview OTA channel header missing');
+          }
+          console.log('OTA preview configuration: PASS');
+          NODE
+
+      - name: Publish preview update
+        shell: bash
+        run: |
+          MESSAGE="$(cat .ota/preview-request.txt 2>/dev/null || true)"
+          if [ -z "$MESSAGE" ]; then MESSAGE="SYSTEM preview OTA ${GITHUB_SHA::8}"; fi
+          npx --yes eas-cli@latest update \
+            --channel preview \
+            --message "$MESSAGE" \
+            --non-interactive
+
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "## SYSTEM Preview OTA"
+            echo ""
+            echo "- Commit: `${GITHUB_SHA}`"
+            echo "- Channel: `preview`"
+            echo "- Runtime policy: appVersion"
+            echo "- Publish: PASS"
+          } >> "$GITHUB_STEP_SUMMARY"
