@@ -61,7 +61,7 @@ export default function HomeCommandCenter() {
       detail: system.daily?.clear ? 'COMPLETE' : system.daily?.clockAnomaly ? 'CHECK CLOCK' : 'TODAY',
       route: '/quests',
       alert: !!system.daily?.clockAnomaly,
-      progress: dailyProgress,
+      progress: system.awakeningCompleted ? dailyProgress : undefined,
     },
     {
       key: 'weekly',
@@ -69,7 +69,7 @@ export default function HomeCommandCenter() {
       value: `${weeklyDone}/${DAILY_RULES.weeklyTarget}`,
       detail: system.daily?.weeklyClear ? 'COMPLETE' : 'PROTOCOL',
       route: '/quests',
-      progress: weeklyProgress,
+      progress: system.awakeningCompleted ? weeklyProgress : undefined,
     },
     {
       key: 'boss',
