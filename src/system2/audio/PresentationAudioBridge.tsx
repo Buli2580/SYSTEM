@@ -5,6 +5,11 @@ import { useAudio, type MusicState, type SFXEvent } from './AudioEngine';
 import { presentationEventBus, type PresentationEventData } from '../presentation/PresentationEvents';
 function sfxFor(event: PresentationEventData): SFXEvent | null {
   switch (event.type) {
+    case 'UI_CLICK': return 'UI_CLICK';
+    case 'UI_CONFIRM': return 'UI_CONFIRM';
+    case 'UI_CANCEL': return 'UI_CANCEL';
+    case 'UI_NAVIGATE': return 'UI_NAVIGATE';
+    case 'UI_TOGGLE': return 'UI_TOGGLE';
     case 'SYSTEM_READY': return 'SYSTEM_READY';
     case 'QUEST_DISCOVERED': return 'QUEST_NEW';
     case 'QUEST_ACCEPTED': return 'QUEST_ACCEPT';
