@@ -67,7 +67,7 @@ async function reconcileBranchSchemas(txn: SQLiteDatabase) {
      const legacyId = String(row.id);
      if(await txn.getFirstAsync('SELECT legacy_id FROM legacy_goal_imports WHERE legacy_id=?',legacyId)) continue;
      const result = await txn.runAsync("INSERT INTO player_goals(payload) VALUES('{}')");
-     const id = String(result.lastInsertRowId);
+     const canonicalId = Number(result.lastInsertRowId);\n     const id = String(canonicalId);
      const categories = ['FITNESS','STRENGTH','DISCIPLINE','PRODUCTIVITY','LEARNING','SOCIAL','LIFESTYLE','GENERAL'];
      const goal = {id,category:categories.includes(String(row.type))?String(row.type):'GENERAL',
        title:String(row.title??'Cel'),description:String(row.description??''),
