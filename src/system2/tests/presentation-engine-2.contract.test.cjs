@@ -14,6 +14,10 @@ const engine = read('presentation/PresentationEngine.tsx');
 const worldTracking = read('world/useWorldTracking.ts');
 const action = read('components/Action.tsx');
 const bottomNavigation = read('components/BottomNavigation.tsx');
+const characterBackdrop = read('presentation/AnimatedCharacterBackdrop.tsx');
+const systemPage = read('components/SystemPage.tsx');
+const questRun = read('screens/QuestRunScreen.tsx');
+const systemBoot = read('components/SystemBoot.tsx');
 const awakening = read('components/AwakeningCelebration.tsx');
 
 for (const event of [
@@ -115,6 +119,19 @@ assert.match(worldTracking, /PresentationEventPresets\.sectorDiscovered/, 'World
 assert.doesNotMatch(worldTracking, /identity\/feedback/, 'World still uses direct haptics');
 assert.match(action, /PresentationEventPresets\.uiConfirm/, 'shared Action missing central UI feedback');
 assert.match(bottomNavigation, /PresentationEventPresets\.uiNavigate/, 'bottom navigation missing central UI feedback');
+assert.match(characterBackdrop, /TRAINING_STRENGTH/, 'strength training scene missing');
+assert.match(characterBackdrop, /TRAINING_CARDIO/, 'cardio training scene missing');
+assert.match(characterBackdrop, /AI_GAME_MASTER/, 'AI Game Master scene missing');
+assert.match(characterBackdrop, /BOSS/, 'boss character scene missing');
+assert.match(characterBackdrop, /AWAKENING/, 'awakening character scene missing');
+assert.match(characterBackdrop, /presentationEventBus\.onAny/, 'character backdrop is not reactive to presentation events');
+assert.match(systemPage, /<AnimatedCharacterBackdrop/, 'SYSTEM pages missing character background');
+assert.match(systemPage, /sceneForPath\(pathname\)/, 'SYSTEM pages do not resolve route character scene');
+assert.match(questRun, /questCharacterScene/, 'quest screen missing dynamic character scene');
+assert.match(questRun, /TRAINING_STRENGTH/, 'quest screen missing strength training routing');
+assert.match(questRun, /TRAINING_CARDIO/, 'quest screen missing cardio training routing');
+assert.match(systemBoot, /scene="AWAKENING"/, 'opening sequence missing hero character');
+
 
 assert.match(haptics, /case 'ACHIEVEMENT_UNLOCKED'/);
 assert.match(haptics, /case 'STREAK_MILESTONE'/);
