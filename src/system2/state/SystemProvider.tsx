@@ -16,11 +16,13 @@ import { reconcileAchievements } from '../achievements/reconcile';
 import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
 import { flushCloudOutbox } from '../cloud/sync';
 import { stopQuestBackgroundTracking } from '../background/locationService';
-import { requestDailyAIGameMaster, type AIGameMasterResponse } from '../ai';
+import { requestDailyAIGameMaster, requestGoalAIGameMaster, type AIGameMasterResponse } from '../ai';
 import { aiRetryRemainingMs } from '../ai/requestBudget';
 
 type SystemContextValue = db.SystemSnapshot & {
   createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<void>;
+  createFirstGoalAndPrepareAwakening: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<AIGameMasterResponse>;
+  prepareAwakeningDirection: (rawGoal: string) => Promise<AIGameMasterResponse>;
   updateGoalStatus: (id: string, status: Parameters<typeof db.updateGoalStatus>[1]) => Promise<void>;
   rerollDailyQuest: (id: string) => Promise<void>;
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -188,12 +190,39 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (epoch === generation.current) { setSnapshot(result); void syncAchievements(result.player, epoch); void flushCloudOutbox().catch(() => undefined); if (result.receipt) presentReward(result.receipt); }
     return result;
   }, [presentReward, syncAchievements]);
-  const apply = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
+  const applySnapshot = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
     const next = await awaitWithTimeout(operation());
     if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); void syncAchievements(next.player, epoch); }
+    return next;
   }, [syncAchievements]);
+  const apply = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
+    await applySnapshot(operation);
+  }, [applySnapshot]);
+  const requestAwakeningDirection = useCallback(async (source: db.SystemSnapshot, rawGoal: string) => {
+    const epoch = generation.current;
+    const trimmed = rawGoal.trim();
+    const safeGoal = trimmed.length >= 5 ? trimmed : 'Mój cel: ' + (trimmed || 'rozwój');
+    setAILoading(true); setAIError(null);
+    try {
+      const response = await requestGoalAIGameMaster(source, safeGoal);
+      if (epoch === generation.current && !resetting.current) setAIGameMaster(response);
+      return response;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'AI GAME MASTER jest chwilowo niedostępny.';
+      if (epoch === generation.current && !resetting.current) setAIError(message);
+      throw cause;
+    } finally {
+      if (epoch === generation.current) setAILoading(false);
+    }
+  }, []);
+  const createFirstGoalAndPrepareAwakening = useCallback(async (input: Parameters<typeof db.createPlayerGoal>[0]) => {
+    const next = await applySnapshot(() => db.createPlayerGoal(input));
+    const rawGoal = [input.title, input.description, input.target].filter(Boolean).join(' · ');
+    return requestAwakeningDirection(next, rawGoal);
+  }, [applySnapshot, requestAwakeningDirection]);
+  const prepareAwakeningDirection = useCallback(async (rawGoal: string) => requestAwakeningDirection(snapshot, rawGoal), [requestAwakeningDirection, snapshot]);
   const resetData = useCallback(async (confirmed: true) => {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
@@ -212,7 +241,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(() => db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(() => db.updateIdentity(patch)),
-    createPlayerGoal: input => apply(() => db.createPlayerGoal(input)), updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
+    createPlayerGoal: input => apply(() => db.createPlayerGoal(input)), createFirstGoalAndPrepareAwakening, prepareAwakeningDirection,
+    updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
     rerollDailyQuest: id => apply(() => db.rerollDailyQuest(id)),
     saveSettings: settings => apply(() => db.saveSettings(settings)), resetData, achievementState, achievementError, refreshAchievements,
     aiGameMaster, aiLoading, aiError, refreshAIGameMaster,
