@@ -1,4 +1,9 @@
 export type PresentationEventType =
+  | 'UI_CLICK'
+  | 'UI_CONFIRM'
+  | 'UI_CANCEL'
+  | 'UI_NAVIGATE'
+  | 'UI_TOGGLE'
   | 'SYSTEM_BOOT'
   | 'SYSTEM_READY'
   | 'QUEST_DISCOVERED'
@@ -131,6 +136,11 @@ export function createPresentationEvent(
 }
 
 export const PresentationEventPresets = {
+  uiClick: () => createPresentationEvent('UI_CLICK', undefined, 'low'),
+  uiConfirm: () => createPresentationEvent('UI_CONFIRM', undefined, 'low'),
+  uiCancel: () => createPresentationEvent('UI_CANCEL', undefined, 'low'),
+  uiNavigate: () => createPresentationEvent('UI_NAVIGATE', undefined, 'low'),
+  uiToggle: () => createPresentationEvent('UI_TOGGLE', undefined, 'low'),
   systemBoot: () => createPresentationEvent('SYSTEM_BOOT', undefined, 'critical'),
   systemReady: () => createPresentationEvent('SYSTEM_READY', undefined, 'high'),
   
