@@ -57,6 +57,13 @@ const AUDIO = {
   bossPhase: require('../../../assets/audio/sfx/boss_phase.wav') as AudioSource,
   streakMilestone: require('../../../assets/audio/sfx/streak_milestone.wav') as AudioSource,
   sectorDiscovered: require('../../../assets/audio/sfx/sector_discovered.wav') as AudioSource,
+  achievementUnlock: require('../../../assets/audio/sfx/achievement_unlock.wav') as AudioSource,
+  bossDefeated: require('../../../assets/audio/sfx/boss_defeated.wav') as AudioSource,
+  uiClick: require('../../../assets/audio/sfx/ui_click.wav') as AudioSource,
+  uiConfirm: require('../../../assets/audio/sfx/ui_confirm.wav') as AudioSource,
+  uiCancel: require('../../../assets/audio/sfx/ui_cancel.wav') as AudioSource,
+  uiNavigate: require('../../../assets/audio/sfx/ui_navigate.wav') as AudioSource,
+  uiToggle: require('../../../assets/audio/sfx/ui_toggle.wav') as AudioSource,
 };
 
 type MusicTrack = {
@@ -84,11 +91,11 @@ type SFXDefinition = { source: AudioSource; gain: number; duck?: number; duckMs?
 // Every mapped source below exists in the repository. UI micro-sounds stay silent
 // until they receive a dedicated design pass instead of reusing gameplay feedback.
 const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
-  UI_CLICK: null,
-  UI_CONFIRM: null,
-  UI_CANCEL: null,
-  UI_NAVIGATE: null,
-  UI_TOGGLE: null,
+  UI_CLICK: { source: AUDIO.uiClick, gain: 0.34 },
+  UI_CONFIRM: { source: AUDIO.uiConfirm, gain: 0.42 },
+  UI_CANCEL: { source: AUDIO.uiCancel, gain: 0.38 },
+  UI_NAVIGATE: { source: AUDIO.uiNavigate, gain: 0.34 },
+  UI_TOGGLE: { source: AUDIO.uiToggle, gain: 0.36 },
   SYSTEM_BOOT: null,
   SYSTEM_READY: { source: AUDIO.questAccept, gain: 0.36 },
   QUEST_NEW: { source: AUDIO.questAccept, gain: 0.50 },
@@ -99,7 +106,7 @@ const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
   XP_GAIN: null,
   LEVEL_UP: { source: AUDIO.levelUp, gain: 0.95, duck: 0.34, duckMs: 1450 },
   REWARD: null,
-  ACHIEVEMENT: { source: AUDIO.levelUp, gain: 0.68, duck: 0.48, duckMs: 1050 },
+  ACHIEVEMENT: { source: AUDIO.achievementUnlock, gain: 0.78, duck: 0.46, duckMs: 1100 },
   STREAK: { source: AUDIO.streakMilestone, gain: 0.34 },
   STREAK_MILESTONE: { source: AUDIO.streakMilestone, gain: 0.72, duck: 0.58, duckMs: 720 },
   SECTOR_DISCOVERED: { source: AUDIO.sectorDiscovered, gain: 0.64 },
@@ -107,7 +114,7 @@ const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
   BOSS_APPEAR: { source: AUDIO.bossAppear, gain: 0.88, duck: 0.30, duckMs: 1250 },
   BOSS_HIT: { source: AUDIO.bossHit, gain: 0.72, duck: 0.66, duckMs: 280 },
   BOSS_PHASE: { source: AUDIO.bossPhase, gain: 0.82, duck: 0.40, duckMs: 920 },
-  BOSS_DEFEATED: { source: AUDIO.levelUp, gain: 0.86, duck: 0.28, duckMs: 1600 },
+  BOSS_DEFEATED: { source: AUDIO.bossDefeated, gain: 0.92, duck: 0.24, duckMs: 1750 },
 };
 
 const STORAGE_KEYS = {
