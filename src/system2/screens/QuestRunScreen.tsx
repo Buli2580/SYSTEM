@@ -14,6 +14,7 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { MissionBriefing } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -27,6 +28,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const [startInProgress, setStartInProgress] = useState(false);
   const [questCompleteVisible, setQuestCompleteVisible] = useState(false);
   const startInProgressRef = useRef(false);
+  const presentationFailureRef = useRef(false);
+  const presentationBossCompleteRef = useRef(false);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
@@ -77,15 +80,41 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   useEffect(() => {
     setQuestCompleteVisible(status === 'COMPLETED');
-  }, [status]);
+
+    if ((status === 'DENIED' || status === 'ERROR') && !presentationFailureRef.current) {
+      presentationFailureRef.current = true;
+      presentationEventBus.emit(PresentationEventPresets.questFailed(quest.id, error || 'Quest verification failed.'));
+    }
+
+    if (status === 'COMPLETED' && quest.category === 'BOSS' && !presentationBossCompleteRef.current) {
+      presentationBossCompleteRef.current = true;
+      presentationEventBus.emit(PresentationEventPresets.bossDefeated(quest.id, quest.title, receipt ?? null));
+    }
+  }, [error, quest.category, quest.id, quest.title, receipt, status]);
 
   const handleStartQuest = () => {
     if (startInProgressRef.current) return;
     startInProgressRef.current = true;
     setStartInProgress(true);
     setQuestAccepted(true);
+    presentationFailureRef.current = false;
+    presentationEventBus.emit(PresentationEventPresets.questAccepted(quest.id, quest.title));
     return startQuest()
-      .catch(() => undefined)
+      .then(() => {
+        presentationEventBus.emit(PresentationEventPresets.questStarted(quest.id, quest.title));
+        if (quest.category === 'BOSS') {
+          presentationEventBus.emit(PresentationEventPresets.bossAppeared(quest.id, quest.title));
+        }
+      })
+      .catch(cause => {
+        if (!presentationFailureRef.current) {
+          presentationFailureRef.current = true;
+          presentationEventBus.emit(PresentationEventPresets.questFailed(
+            quest.id,
+            cause instanceof Error ? cause.message : 'Quest start failed.',
+          ));
+        }
+      })
       .finally(() => {
         startInProgressRef.current = false;
         setStartInProgress(false);
