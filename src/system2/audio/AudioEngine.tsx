@@ -46,8 +46,6 @@ export type SFXEvent =
 type AudioSource = Parameters<typeof createAudioPlayer>[0];
 
 const AUDIO = {
-  ambient: require('../../../assets/audio/dashboard_ambient.mp3') as AudioSource,
-  boss: require('../../../assets/audio/boss_theme.mp3') as AudioSource,
   levelUp: require('../../../assets/audio/level_up.mp3') as AudioSource,
   questComplete: require('../../../assets/audio/quest_complete.mp3') as AudioSource,
   questAccept: require('../../../assets/audio/sfx/quest_accept.wav') as AudioSource,
