@@ -9,10 +9,11 @@ import SessionGate from '../system2/components/SessionGate';
 import LevelUpCelebration from '../system2/components/LevelUpCelebration';
 import SystemBoundary from '../system2/components/SystemBoundary';
 import AwakeningCelebration from '../system2/components/AwakeningCelebration';
+import PresentationEngine from '../system2/presentation/PresentationEngine';
 
 export default function RootLayout() {
   return (
-    <SystemBoundary><SystemProvider>
+    <SystemBoundary><SystemProvider><PresentationEngine>
       <StatusBar style="light" />
 
       <Stack
@@ -29,6 +30,6 @@ export default function RootLayout() {
       <LevelUpCelebration />
       <StoryNotice />
       <SessionGate />
-    </SystemProvider></SystemBoundary>
+    </PresentationEngine></SystemProvider></SystemBoundary>
   );
 }
