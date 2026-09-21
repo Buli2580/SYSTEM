@@ -90,3 +90,28 @@ Before moving any track into active app assets, preserve the attribution require
 - License: CC0 / public domain
 - Attribution required: No
 
+## Holizna — Relaxing Instrumentals Collection
+- Source: https://opengameart.org/node/161811
+- License: CC0
+- Attribution required: No
+
+## tricksntraps — T & T Free Cyberpunk Pack
+- Source: https://opengameart.org/content/t-t-free-cyberpunk-pack
+- License: CC0
+- Attribution required: No
+
+## tricksntraps — Free Vapour 2013 Soundtrack
+- Source: https://opengameart.org/content/free-vapour-2013-soundtrack
+- License: CC0
+- Attribution required: No
+
+## yd — Background Space Track
+- Source: https://opengameart.org/content/background-space-track
+- License: CC0
+- Attribution required: No
+
+## yd — I Swear I Saw It
+- Source: https://opengameart.org/content/i-swear-i-saw-it-background-track
+- License: CC0
+- Attribution required: No
+

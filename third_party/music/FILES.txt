@@ -168,6 +168,16 @@ third_party/music/cc0/golgotha-game-engine-soundtrack/music/Splash_Screen_Opus.m
 third_party/music/cc0/golgotha-game-engine-soundtrack/music/Turin_Italy.mp3
 third_party/music/cc0/golgotha-game-engine-soundtrack/music/Vienna_Austria.mp3
 third_party/music/cc0/golgotha-game-engine-soundtrack/music/Zurich_Switzerland.mp3
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/02 HoliznaCC0 - Night Driving.mp3
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/02 HoliznaCC0 - Night Driving.ogg
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/03 HoliznaCC0 - Boredom.mp3
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/03 HoliznaCC0 - Boredom.ogg
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/05 HoliznaCC0 - Love.mp3
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/05 HoliznaCC0 - Love.ogg
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/06 HoliznaCC0 - Lost In Your Eyes.mp3
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/06 HoliznaCC0 - Lost In Your Eyes.ogg
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/18 HoliznaCC0 - You Loved Me Once.mp3
+third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/18 HoliznaCC0 - You Loved Me Once.ogg
 third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration1 - Grasslands.ogg
 third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration2 - Military Base.ogg
 third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration3 - Tha'el Mines.ogg
@@ -376,3 +386,16 @@ third_party/music/cc0/superpowers-music/theme-14.ogg
 third_party/music/cc0/superpowers-music/theme-15.ogg
 third_party/music/cc0/superpowers-music/theme-16.ogg
 third_party/music/cc0/superpowers-music/theme-9.ogg
+third_party/music/cc0/tricksntraps-cyberpunk/Anti Matter Magic.ogg
+third_party/music/cc0/tricksntraps-cyberpunk/Caves.ogg
+third_party/music/cc0/tricksntraps-cyberpunk/Currents.ogg
+third_party/music/cc0/tricksntraps-cyberpunk/Experiment G.ogg
+third_party/music/cc0/tricksntraps-cyberpunk/Space Collisions.ogg
+third_party/music/cc0/tricksntraps-cyberpunk/Tribal Chaos.ogg
+third_party/music/cc0/tricksntraps-cyberpunk/Wicked beast.ogg
+third_party/music/cc0/tricksntraps-vapour-2013/heaven_69bpm.ogg
+third_party/music/cc0/tricksntraps-vapour-2013/last_battle_145bpm.ogg
+third_party/music/cc0/tricksntraps-vapour-2013/the_hunted_145bpm.ogg
+third_party/music/cc0/yd-background-space/MyVeryOwnDeadShip.mmpz
+third_party/music/cc0/yd-background-space/MyVeryOwnDeadShip.ogg
+third_party/music/cc0/yd-dark-ambient/IswearIsawit.ogg
