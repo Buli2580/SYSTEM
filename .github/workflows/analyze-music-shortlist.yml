@@ -1,0 +1,159 @@
+name: Analyze SYSTEM Music Shortlist
+
+on:
+  push:
+    branches:
+      - feature/presentation-engine-2.0
+    paths:
+      - .github/workflows/analyze-music-shortlist.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full music library
+        uses: actions/checkout@v4
+        with:
+          ref: feature/presentation-engine-2.0
+          fetch-depth: 1
+
+      - name: Install analyzers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg aubio-tools
+
+      - name: Analyze shortlist
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv, json, math, os, re, statistics, subprocess
+
+          candidates = {
+            "BOOT": [
+              "third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Spacetime.mp3",
+              "third_party/music/cc0/tricksntraps-cyberpunk/Anti Matter Magic.ogg",
+              "third_party/music/cc0/tricksntraps-cyberpunk/Experiment G.ogg",
+              "third_party/music/cc0/yd-background-space/MyVeryOwnDeadShip.ogg",
+            ],
+            "HOME": [
+              "third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/02 HoliznaCC0 - Night Driving.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm1 - A Place I Call Home.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm3 - Peaceful Days.ogg",
+            ],
+            "CHARACTER": [
+              "third_party/music/cc0/tricksntraps-cyberpunk/Currents.ogg",
+              "third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Spacetime.mp3",
+              "third_party/music/cc0/tricksntraps-cyberpunk/Caves.ogg",
+            ],
+            "EXPLORE": [
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration4 - Prairie Nights.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration3 - Tha'el Mines.ogg",
+              "third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/mountains.ogg",
+              "third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/map.ogg",
+            ],
+            "QUEST": [
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action3 - Preparing For Battle.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action1 - Encounter With The Witches.ogg",
+              "third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Great mission.mp3",
+              "third_party/music/cc0/drakzlin-music-loops/Action_A.mp3",
+            ],
+            "FIELD_QUEST": [
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration5 - Sneaking Around.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action2 - Army Approaching.ogg",
+              "third_party/music/cc0/drakzlin-music-loops/Action_B.mp3",
+            ],
+            "WARNING": [
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil5 - Whispers From Beyond.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil2 - Catacombs.ogg",
+              "third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Doomed.mp3",
+              "third_party/music/cc0/yd-dark-ambient/IswearIsawit.ogg",
+            ],
+            "BOSS": [
+              "third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/final_boss.ogg",
+              "third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/boss.ogg",
+              "third_party/music/cc0/tricksntraps-vapour-2013/last_battle_145bpm.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil3 - Apocalypse.ogg",
+              "third_party/music/cc0/golgotha-game-engine-soundtrack/music/Norway_Nephelim_Battle.mp3",
+            ],
+            "RECOVERY": [
+              "third_party/music/cc0/holizna-relaxing-instrumentals/Relaxing Instrumentals/02 HoliznaCC0 - Night Driving.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm3 - Peaceful Days.ogg",
+              "third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm5 - Summer Memories.ogg",
+            ],
+            "VICTORY": [
+              "third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Great mission.mp3",
+              "third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/boost.ogg",
+              "third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/credits.ogg",
+            ],
+          }
+
+          def duration(path):
+            out = subprocess.check_output([
+              "ffprobe","-v","error","-show_entries","format=duration",
+              "-of","default=nw=1:nk=1",path
+            ], text=True).strip()
+            return float(out)
+
+          def volume(path):
+            p = subprocess.run([
+              "ffmpeg","-hide_banner","-nostats","-i",path,
+              "-filter:a","volumedetect","-f","null","-"
+            ], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            text = p.stderr
+            mean = re.search(r"mean_volume:\s*(-?[\d.]+) dB", text)
+            peak = re.search(r"max_volume:\s*(-?[\d.]+) dB", text)
+            return (float(mean.group(1)) if mean else None,
+                    float(peak.group(1)) if peak else None)
+
+          def bpm(path):
+            p = subprocess.run(["aubio","tempo",path], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            beats=[]
+            for line in p.stdout.splitlines():
+              try: beats.append(float(line.strip()))
+              except: pass
+            if len(beats) < 5: return None
+            diffs=[b-a for a,b in zip(beats,beats[1:]) if 0.2 < b-a < 2.5]
+            if not diffs: return None
+            val=60.0/statistics.median(diffs)
+            while val < 55: val*=2
+            while val > 210: val/=2
+            return val
+
+          rows=[]
+          for state, paths in candidates.items():
+            for path in paths:
+              if not os.path.exists(path):
+                rows.append({"state":state,"path":path,"missing":1})
+                continue
+              d=duration(path)
+              mean,peak=volume(path)
+              tempo=bpm(path)
+              rows.append({
+                "state":state,"path":path,"missing":0,
+                "duration_s":round(d,2),
+                "bpm":round(tempo,1) if tempo else "",
+                "mean_db":mean if mean is not None else "",
+                "peak_db":peak if peak is not None else "",
+                "crest_db":round((peak-mean),1) if peak is not None and mean is not None else "",
+              })
+
+          os.makedirs("third_party/music/analysis", exist_ok=True)
+          with open("third_party/music/analysis/shortlist.csv","w",newline="",encoding="utf-8") as f:
+            fields=["state","path","missing","duration_s","bpm","mean_db","peak_db","crest_db"]
+            w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
+          print(json.dumps(rows,indent=2))
+          PY
+
+      - name: Commit analysis
+        shell: bash
+        run: |
+          git config user.name "SYSTEM Music Analyzer"
+          git config user.email "actions@users.noreply.github.com"
+          git add third_party/music/analysis/shortlist.csv
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "audio: analyze soundtrack shortlist"
+          git push origin HEAD:feature/presentation-engine-2.0
