@@ -13,12 +13,10 @@ export default function PresentationHapticsBridge() {
       switch (event.type) {
         case 'QUEST_ACCEPTED':
         case 'QUEST_STARTED':
-        case 'XP_GAIN':
         case 'STREAK_UPDATED':
           void impactAsync(ImpactFeedbackStyle.Light);
           break;
         case 'QUEST_COMPLETE':
-        case 'REWARD_RECEIVED':
           void notificationAsync(NotificationFeedbackType.Success);
           break;
         case 'ACHIEVEMENT_UNLOCKED':
