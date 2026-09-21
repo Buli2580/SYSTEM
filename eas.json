@@ -3,8 +3,10 @@
     "device-test": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
-      }
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "developmentClient": false
     },
     "play-internal": {
       "distribution": "store",
