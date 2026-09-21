@@ -9,6 +9,7 @@ export type PresentationEventType =
   | 'XP_GAIN'
   | 'LEVEL_UP'
   | 'REWARD_RECEIVED'
+  | 'ACHIEVEMENT_UNLOCKED'
   | 'STREAK_UPDATED'
   | 'STREAK_MILESTONE'
   | 'SECTOR_DISCOVERED'
@@ -19,7 +20,6 @@ export type PresentationEventType =
   | 'BOSS_DEFEATED'
   | 'DAILY_COMPLETED'
   | 'WEEKLY_COMPLETED'
-  | 'SECTOR_DISCOVERED'
   | 'SYSTEM_WARNING'
   | 'SYSTEM_ERROR';
 
@@ -151,6 +151,8 @@ export const PresentationEventPresets = {
     createPresentationEvent('LEVEL_UP', { oldLevel, newLevel, rank }, 'critical'),
   rewardReceived: (reward: unknown) => 
     createPresentationEvent('REWARD_RECEIVED', { reward }, 'high'),
+  achievementUnlocked: (achievementId: string, name: string, tier: string) =>
+    createPresentationEvent('ACHIEVEMENT_UNLOCKED', { achievementId, name, tier }, 'high'),
   
   streakUpdated: (currentStreak: number) => 
     createPresentationEvent('STREAK_UPDATED', { currentStreak }, 'normal'),
