@@ -25,6 +25,7 @@ function sfxFor(event: PresentationEventData): SFXEvent | null {
     case 'WARNING':
     case 'SYSTEM_WARNING':
     case 'SYSTEM_ERROR': return 'WARNING';
+    case 'ACHIEVEMENT_UNLOCKED': return 'ACHIEVEMENT';
     case 'REWARD_RECEIVED': {
       const reward = rewardFrom(event);
       if (reward && (reward.afterLevel > reward.beforeLevel || reward.skillLevels.length > 0)) return 'LEVEL_UP';
@@ -83,7 +84,11 @@ export default function PresentationAudioBridge() {
       if (!enabledRef.current) return;
 
       const sfx = sfxFor(event);
-      if (sfx === 'LEVEL_UP') {
+      if (sfx === 'ACHIEVEMENT') {
+        setTimeout(() => {
+          if (enabledRef.current) void playSFX('ACHIEVEMENT');
+        }, 700);
+      } else if (sfx === 'LEVEL_UP') {
         setTimeout(() => {
           if (enabledRef.current) void playSFX('LEVEL_UP');
         }, 420);
