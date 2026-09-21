@@ -2,10 +2,10 @@ import { useCallback, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
-import * as Haptics from '../identity/feedback';
 import * as storage from '../storage/world';
 import { useSystem } from '../state/SystemProvider';
 import { WorldTracking, type WorldTrackingState } from './tracking';
+import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
 
 export function useWorldTracking() {
   const system = useSystem();
@@ -19,7 +19,9 @@ export function useWorldTracking() {
     unlocked: () => focused.current && current.current.ready && current.current.worldUnlocked,
     changed: value => { if (focused.current) setState(value); },
     rewarded: receipt => { if (receipt) current.current.presentReward(receipt); void current.current.refreshPlayer(); },
-    feedback: () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined); },
+    feedback: (event, id) => {
+      if (event === 'SECTOR_DISCOVERED' && id) presentationEventBus.emit(PresentationEventPresets.sectorDiscovered(id));
+    },
   });
   const controller = ref.current;
   useFocusEffect(useCallback(() => {
