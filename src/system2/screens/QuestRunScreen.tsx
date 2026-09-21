@@ -12,9 +12,8 @@ import { useQuestRun } from '../quests/useQuestRun';
 import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
-import { MissionBriefing } from '../components/QuestExperience';
+import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
-import {questExperiencePhase,nextQuestCta} from '../beta/questFlow';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -51,7 +50,6 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     duration % 60;
   const showLiveTracker = isLiveQuestStatus(status);
   const renderStatus: string = status;
-  const experiencePhase=questExperiencePhase({active:isLiveQuestStatus(status),verifying:status==='COMPLETING',completed:status==='COMPLETED'});
   const nextAction = getNextAction({
     ...system,
     player: system.player,
@@ -78,7 +76,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   }, [questAccepted]);
 
   useEffect(() => {
-    setQuestCompleteVisible(status === 'COMPLETED');
+    if (status !== 'COMPLETED') {
+      setQuestCompleteVisible(false);
+      return;
+    }
+    setQuestCompleteVisible(true);
+    const timer = setTimeout(() => setQuestCompleteVisible(false), 1350);
+    return () => clearTimeout(timer);
   }, [status]);
 
   const handleStartQuest = () => {
@@ -131,7 +135,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
-        <View style={styles.flowStrip}><Text style={styles.flowLabel}>QUEST EXPERIENCE // {experiencePhase}</Text><Text style={styles.flowCta}>{nextQuestCta(experiencePhase)}</Text></View>
+        <QuestFlowRail status={status} />
         <MissionBriefing
           quest={quest}
           status={status}
@@ -327,13 +331,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         </Pressable>}
         {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
 
-        {(renderStatus === 'DENIED' || renderStatus === 'ERROR') && <View style={styles.errorBox}>
-          <Text style={styles.errorTitle}>{renderStatus === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'ATTEMPT ENDED // SYSTEM ANALYSIS'}</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Spróbuj ponownie" onPress={() => { void retryQuest(); }}>
-            <Text style={styles.retry}>{rematch ? 'BEGIN REMATCH' : 'SPRÓBUJ PONOWNIE'}</Text>
-          </Pressable>
-        </View>}
+        {(renderStatus === 'DENIED' || renderStatus === 'ERROR') && <QuestRecoveryPanel
+          title={renderStatus === 'DENIED' ? 'BRAK DOSTĘPU DO WERYFIKACJI' : rematch ? 'REMATCH AVAILABLE' : 'PRÓBA ZATRZYMANA'}
+          message={error}
+          onRetry={() => { void retryQuest(); }}
+          onHub={() => router.replace('/quests')}
+          onHome={() => router.replace('/')}
+        />}
 
         {quest.verification.type === 'MULTI' && showLiveTracker && <MultiProgress
           distance={distance} duration={duration} meters={quest.verification.minimumDistanceMeters}
@@ -372,6 +376,11 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 ? 'Ta misja została już wcześniej zaliczona. Nagrody nie mogą zostać odebrane drugi raz.'
                 : 'Cel został zweryfikowany. Nagrody zostały zapisane w profilu SYSTEMU.'}
             </Text>
+            {!alreadyCompleted && <View style={styles.nextProtocol}>
+              <Text style={styles.nextProtocolCode}>NEXT PROTOCOL</Text>
+              <Text style={styles.nextProtocolTitle}>{nextAction.title}</Text>
+              <Text style={styles.nextProtocolDetail}>{nextAction.detail}</Text>
+            </View>}
 
             <Pressable accessibilityRole="button"
               style={
@@ -414,6 +423,10 @@ function isLiveQuestStatus(status: string) {
 
 const styles =
   StyleSheet.create({
+    nextProtocol: { width: '100%', marginTop: 18, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.045)' },
+    nextProtocolCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+    nextProtocolTitle: { color: SYSTEM_COLORS.white, fontSize: 15, fontWeight: '900', marginTop: 6 },
+    nextProtocolDetail: { color: SYSTEM_COLORS.textMuted, fontSize: 10, lineHeight: 15, marginTop: 5 },
     root: {
       flex: 1,
       position: 'relative',
