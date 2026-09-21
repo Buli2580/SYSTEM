@@ -27,7 +27,7 @@ function loader() {
     };
     vm.runInNewContext(source, {
       module, exports: module.exports, require: requireMock, console, Date, Set, Math, JSON, Intl,
-      AbortController, Headers, fetch,
+      AbortController, Headers, fetch, setTimeout, clearTimeout,
     }, { filename: resolved });
     return module.exports;
   }
@@ -255,7 +255,8 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   const input = {
     day: '2026-09-21', player,
     prefs: { walking: true, running: true, cycling: true },
-    history: [], recentActivity: [], exclude: [], systemDebt: 0,
+    goals: [], journeys: [], history: [], recentActivity: [], exclude: [], systemDebt: 0,
+    weeklyCompleted: 0, weeklyClear: false,
   };
   const response = validResponse();
   response.quests[0].target = { kind: 'minutes', value: 999999 };
