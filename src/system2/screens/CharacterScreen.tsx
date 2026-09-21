@@ -11,6 +11,7 @@ import type { SkillKey } from '../core';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 import CharacterProgressPanel from '../components/CharacterProgressPanel';
 import { titlePl } from '../i18n/pl';
+import {CHARACTER_SECTIONS,characterCompletion} from '../beta/character';
 
 export default function CharacterScreen() {
   const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, progression } = useSystem();
@@ -44,7 +45,9 @@ export default function CharacterScreen() {
     await updateIdentity({ avatarUri: uri });
     removeOwnedAvatar(player.avatarUri);
   }
-  return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY">
+  const profileCompletion=characterCompletion({avatar:!!player.avatarUri,title:!!player.currentTitle&&player.currentTitle!=='UNAWAKENED',skills:Object.values(player.stats).some(skill=>skill.level>1),achievement:Object.values(useSystem().achievementState.achievements).some(a=>!!a.unlockedAt)});
+  return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY // CHARACTER 2.0">
+    <View style={s.panel}><Text style={s.label}>CHARACTER MATRIX // {Math.round(profileCompletion*100)}%</Text><Text style={s.title}>TWOJA POSTAĆ ROŚNIE Z TOBĄ</Text><Text style={s.body}>{CHARACTER_SECTIONS.join(' · ')}</Text></View>
     <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
     {progression && <StreakMilestoneCard days={progression.streak.currentStreak} />}
     <View style={s.panel}>
