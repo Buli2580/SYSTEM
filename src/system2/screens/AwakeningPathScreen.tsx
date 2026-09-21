@@ -31,7 +31,7 @@ export default function AwakeningPathScreen() {
     void system.prepareAwakeningDirection(prompt).catch(() => undefined);
   }, [goal, system.aiGameMaster, system.aiLoading, system.prepareAwakeningDirection]);
 
-  if (!goal) return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER">
+  if (!goal) return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER" showNavigation={false}>
     <View style={styles.panel}>
       <Text style={styles.code}>BRAK GŁÓWNEGO CELU</Text>
       <Text style={styles.title}>SYSTEM POTRZEBUJE KIERUNKU</Text>
@@ -43,7 +43,7 @@ export default function AwakeningPathScreen() {
   const aiState = system.aiLoading ? 'ANALYZING' : system.aiGameMaster?.source === 'ai' ? 'AI ONLINE' : 'SAFE FALLBACK';
   const currentStage = journey?.currentStage ?? 0;
 
-  return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER // FIRST CAMPAIGN" intensity="hero">
+  return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER // FIRST CAMPAIGN" intensity="hero" showNavigation={false}>
     <Animated.View entering={FadeInUp.duration(420)} style={[styles.panel, styles.hero]}>
       <Text style={styles.code}>06 // DIRECTION LOCKED</Text>
       <Text style={styles.goalCategory}>{GOAL_LABELS[goal.category]} · PRIORYTET {goal.priority}</Text>
