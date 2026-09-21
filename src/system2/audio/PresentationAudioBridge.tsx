@@ -26,11 +26,8 @@ function sfxFor(event: PresentationEventData): SFXEvent | null {
     case 'SYSTEM_WARNING':
     case 'SYSTEM_ERROR': return 'WARNING';
     case 'ACHIEVEMENT_UNLOCKED': return 'ACHIEVEMENT';
-    case 'REWARD_RECEIVED': {
-      const reward = rewardFrom(event);
-      if (reward && (reward.afterLevel > reward.beforeLevel || reward.skillLevels.length > 0)) return 'LEVEL_UP';
-      return 'REWARD';
-    }
+    case 'LEVEL_UP': return 'LEVEL_UP';
+    case 'REWARD_RECEIVED': return 'REWARD';
     default: return null;
   }
 }
