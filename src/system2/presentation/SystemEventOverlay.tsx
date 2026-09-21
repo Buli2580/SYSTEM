@@ -33,6 +33,7 @@ const CONFIGS: Partial<Record<PresentationEventType, OverlayConfig>> = {
   LEVEL_UP: { variant: 'success', title: 'LEVEL UP', subtitle: 'System evolution detected', duration: 4800, dismissible: true },
   REWARD_RECEIVED: { variant: 'success', title: 'REWARD ACQUIRED', duration: 3000, dismissible: true },
   ACHIEVEMENT_UNLOCKED: { variant: 'success', title: 'ACHIEVEMENT UNLOCKED', subtitle: 'New milestone registered', duration: 4400, dismissible: true },
+  HERO_CARD_UNLOCKED: { variant: 'success', title: 'HERO CARD UNLOCKED', subtitle: 'New character form available', duration: 5200, dismissible: true },
   STREAK_UPDATED: { variant: 'progress', title: 'STREAK UPDATED', duration: 2500, dismissible: false },
   STREAK_MILESTONE: { variant: 'success', title: 'STREAK MILESTONE', subtitle: 'Consistency protocol achieved', duration: 4200, dismissible: true },
   SECTOR_DISCOVERED: { variant: 'quest', title: 'SECTOR DISCOVERED', subtitle: 'New territory mapped', duration: 3200, dismissible: true },
@@ -68,7 +69,7 @@ function payloadTitle(event: PresentationEventData, fallback: string) {
   const p = event.payload;
   if (typeof p?.questTitle === 'string') return p.questTitle;
   if (typeof p?.bossName === 'string') return p.bossName;
-  if (event.type === 'ACHIEVEMENT_UNLOCKED' && typeof p?.name === 'string') return p.name;
+  if ((event.type === 'ACHIEVEMENT_UNLOCKED' || event.type === 'HERO_CARD_UNLOCKED') && typeof p?.name === 'string') return p.name;
   if (event.type === 'XP_GAIN' && typeof p?.amount === 'number') return `+${p.amount} XP`;
   if (event.type === 'STREAK_UPDATED' && typeof p?.currentStreak === 'number') return `${p.currentStreak} DAY STREAK`;
   if (event.type === 'BOSS_DAMAGE' && typeof p?.damage === 'number') return `-${p.damage} HP`;
@@ -81,6 +82,7 @@ function payloadSubtitle(event: PresentationEventData, fallback?: string) {
   if (typeof p?.reason === 'string') return p.reason;
   if (typeof p?.message === 'string') return p.message;
   if (event.type === 'ACHIEVEMENT_UNLOCKED' && typeof p?.tier === 'string') return `${p.tier} ACHIEVEMENT`;
+  if (event.type === 'HERO_CARD_UNLOCKED' && typeof p?.rarity === 'string') return `${p.rarity} HERO CARD`;
   return fallback;
 }
 
