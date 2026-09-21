@@ -328,14 +328,22 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         {renderStatus === 'LOCKED' && <View style={styles.errorBox}>
           <Text style={styles.errorTitle}>QUEST LOCKED</Text>
           <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Przejdź do questów" onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
+          <View style={styles.errorActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Przejdź do questów" onPress={() => router.replace('/quests')}><Text style={styles.retry}>QUEST HUB →</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć do Home" onPress={() => router.replace('/')}><Text style={styles.retry}>HOME →</Text></Pressable>
+          </View>
         </View>}
 
         {!ready && <View style={styles.errorBox}>
           <Text style={styles.errorText}>{databaseError ?? 'Trwa odczyt profilu SYSTEMU...'}</Text>
-          {databaseError && <Pressable accessibilityRole="button" accessibilityLabel="Ponów odczyt profilu" onPress={() => { void refreshPlayer(); }}>
-            <Text style={styles.retry}>PONÓW ODCZYT PROFILU</Text>
-          </Pressable>}
+          {databaseError && <View style={styles.errorActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ponów odczyt profilu" onPress={() => { void refreshPlayer(); }}>
+              <Text style={styles.retry}>PONÓW ODCZYT →</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć do Home" onPress={() => router.replace('/')}>
+              <Text style={styles.retry}>HOME →</Text>
+            </Pressable>
+          </View>}
         </View>}
 
         {renderStatus === 'READY' && distance > 0 && !isTimer && <View style={styles.trackingBox}><Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text><Text style={styles.description}>Wznów zapisaną próbę. Aktywna misja ruchowa może mierzyć dystans w tle przy wymaganych uprawnieniach.</Text></View>}
@@ -701,6 +709,8 @@ const styles =
       marginTop: 8,
       lineHeight: 20,
     },
+
+    errorActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 2 },
 
     retry: {
       color:
