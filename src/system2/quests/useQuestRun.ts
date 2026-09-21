@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from '../identity/feedback';
+import { playFeedback } from '../identity/audio';
 import * as Location from 'expo-location';
 import type { RunnableQuest, QuestEvidence } from './types';
 import { createFocusTimer } from '../verification/timer';
@@ -157,6 +158,7 @@ export function useQuestRun(quest: RunnableQuest) {
     if (!isTimer) void stopQuestBackgroundTracking(quest.id).catch(() => undefined);
     if (!focusedRef.current) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    playFeedback('ERROR');
     setError(message);
     transition(denied ? 'DENIED' : 'ERROR');
   }, [stopVerification, transition, endAttempt, isTimer, quest.id]);
@@ -325,7 +327,8 @@ export function useQuestRun(quest: RunnableQuest) {
       if (isUsableLocation(location)) lastFixTimeRef.current = Date.now();
       if (statusRef.current === 'STARTING' && isUsableLocation(location)) {
         if (startupTimerRef.current) clearTimeout(startupTimerRef.current);
-        startupTimerRef.current = null; startTimeRef.current = Date.now(); trackingSince.current = performance.now(); transition('TRACKING');
+        startupTimerRef.current = null; startTimeRef.current = Date.now(); trackingSince.current = performance.now();
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); playFeedback('QUEST_START'); transition('TRACKING');
       }
       distanceRef.current = result.features.distanceMeters;
       setDistance(distanceRef.current); setDuration(Math.floor(result.features.durationSeconds));
@@ -355,6 +358,7 @@ export function useQuestRun(quest: RunnableQuest) {
       startTimeRef.current = Date.now();
       if (hasTimer) timerRef.current = createFocusTimer(targetSeconds, undefined, checkpointRef.current?.durationSeconds ?? 0);
       trackingSince.current = performance.now();
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); playFeedback('QUEST_START');
       transition('TRACKING');
     }
     if (!previous) {
@@ -456,8 +460,9 @@ export function useQuestRun(quest: RunnableQuest) {
         startupTimerRef.current = null;
         timerRef.current = createFocusTimer(targetSeconds, undefined, checkpointRef.current?.durationSeconds ?? 0);
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        playFeedback('QUEST_START');
         trackingSince.current = performance.now();
-      transition('TRACKING');
+        transition('TRACKING');
         return;
       }
       const disclosureAccepted = await confirmBackgroundLocationDisclosure();
