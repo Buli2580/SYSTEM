@@ -30,6 +30,7 @@ export default function PresentationHapticsBridge() {
           setTimeout(() => void impactAsync(ImpactFeedbackStyle.Heavy), 160);
           break;
         case 'BOSS_DAMAGE':
+        case 'SECTOR_DISCOVERED':
           void impactAsync(ImpactFeedbackStyle.Medium);
           break;
         case 'BOSS_PHASE_CHANGED':
