@@ -322,7 +322,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text style={styles.trackingText}>
               {renderStatus === 'CHECKING' ? 'SPRAWDZANIE ZAPISU...' : isTimer ? 'URUCHAMIANIE TIMERA...' : 'OCZEKIWANIE NA GPS...'}
             </Text>
-          </Animated.View>
+          </View>
         )}
 
         {renderStatus === 'LOCKED' && <View style={styles.errorBox}>
