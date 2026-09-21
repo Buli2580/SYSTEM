@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
@@ -100,7 +100,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   return (
     <View style={styles.root}>
-      <SystemAmbientBackground intensity="quiet" />
+      <SystemAmbientBackground intensity={quest.category === 'BOSS' ? 'world' : status === 'COMPLETING' || status === 'COMPLETED' ? 'hero' : status === 'TRACKING' ? 'default' : 'quiet'} />
       <ScrollView
         contentContainerStyle={
           [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
@@ -308,7 +308,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text style={styles.trackingText}>
               {renderStatus === 'CHECKING' ? 'SPRAWDZANIE ZAPISU...' : isTimer ? 'URUCHAMIANIE TIMERA...' : 'OCZEKIWANIE NA GPS...'}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         {renderStatus === 'LOCKED' && <View style={styles.errorBox}>
@@ -346,7 +346,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         {receipt && <RewardSummary receipt={receipt} />}
         {renderStatus ===
           'COMPLETED' && (
-          <View
+          <Animated.View
+            entering={FadeInUp.duration(420)}
             style={
               styles.completeCard
             }
@@ -386,7 +387,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
               style={
                 styles.returnButton
               }
-              onPress={alreadyCompleted ? () => router.back() : continueSystem}
+              onPress={alreadyCompleted ? () => router.replace('/quests') : continueSystem}
             >
               <Text
                 style={
@@ -418,7 +419,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 }
 
 function isLiveQuestStatus(status: string) {
-  return status === 'TRACKING' || status === 'COMPLETING' || status === 'COMPLETED';
+  return status === 'TRACKING' || status === 'COMPLETING';
 }
 
 const styles =
