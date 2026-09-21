@@ -1,0 +1,116 @@
+name: SYSTEM Standalone APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/presentation-engine-2.0
+    paths:
+      - .github/workflows/system-standalone-apk.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Standalone Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            /*
+            !/third_party/music/
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Configure ARM64 standalone
+        shell: bash
+        run: |
+          if grep -q '^reactNativeArchitectures=' android/gradle.properties; then
+            sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' android/gradle.properties
+          else
+            echo 'reactNativeArchitectures=arm64-v8a' >> android/gradle.properties
+          fi
+          echo "=== buildTypes/signingConfigs ==="
+          grep -n -A35 -B5 -E 'signingConfigs|buildTypes' android/app/build.gradle || true
+
+      - name: Verify production JS bundle
+        shell: bash
+        run: |
+          rm -rf /tmp/system-export
+          npx expo export --platform android --output-dir /tmp/system-export --clear
+
+      - name: Build standalone release APK
+        id: gradle
+        working-directory: android
+        shell: bash
+        run: |
+          mkdir -p ../dist
+          chmod +x gradlew
+          set +e
+          ./gradlew :app:assembleRelease \
+            --no-daemon \
+            --build-cache \
+            --parallel \
+            --console=plain \
+            --stacktrace 2>&1 | tee ../dist/gradle-release.log
+          status=${PIPESTATUS[0]}
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit $status
+
+      - name: Upload Gradle diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SYSTEM-STANDALONE-DIAGNOSTICS-${{ github.sha }}
+          path: dist/gradle-release.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Prepare standalone APK
+        if: success()
+        shell: bash
+        run: |
+          test -f android/app/build/outputs/apk/release/app-release.apk
+          cp android/app/build/outputs/apk/release/app-release.apk dist/SYSTEM-STANDALONE-${GITHUB_SHA::8}.apk
+          sha256sum dist/SYSTEM-STANDALONE-${GITHUB_SHA::8}.apk | tee dist/SYSTEM-STANDALONE-${GITHUB_SHA::8}.sha256
+
+      - name: Upload standalone APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SYSTEM-STANDALONE-${{ github.sha }}
+          path: |
+            dist/*.apk
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14
