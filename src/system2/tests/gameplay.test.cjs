@@ -2327,3 +2327,50 @@ test('failed cloud sync attempts never mutate local rewards and a later acknowle
   assert.equal(sql.prepare('SELECT count(*) AS n FROM verified_events WHERE quest_id=?').get(evidence.questId).n, 1);
   assert.equal(sql.prepare('SELECT count(*) AS n FROM quest_completions WHERE quest_id=?').get(evidence.questId).n, 1);
 });
+
+
+test('legacy branch goal schema migrates once and preserves rows across restart', async t => {
+  const h = databaseHarness(t);
+  h.sql.exec(`CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL);
+    CREATE TABLE player_goals(id TEXT PRIMARY KEY NOT NULL,type TEXT,title TEXT,description TEXT,priority TEXT,status TEXT,created_at TEXT,target_date TEXT,progress_target REAL,unit TEXT);
+    PRAGMA user_version=8;`);
+  const player = h.load('core').createNewPlayer('LEGACY');
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(player));
+  h.sql.prepare('INSERT INTO player_goals VALUES(?,?,?,?,?,?,?,?,?,?)').run(
+    'legacy-42','FITNESS','5 km','Bieg bez presji','HIGH','ACTIVE','2026-09-01T00:00:00.000Z',null,5,'km'
+  );
+  const first = await h.db.loadSystemState();
+  assert.equal(first.goals.length, 1);
+  assert.equal(first.goals[0].title, '5 km');
+  assert.equal(first.goals[0].category, 'FITNESS');
+  assert.equal(first.goals[0].priority, 3);
+  assert.equal(first.goals[0].legacySource.id, 'legacy-42');
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_player_goals_v8').get().n, 1);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_goal_imports').get().n, 1);
+
+  const second = await h.reload().loadSystemState();
+  assert.equal(second.goals.length, 1);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM player_goals').get().n, 1);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_goal_imports').get().n, 1);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, h.load('storage/migrations').SCHEMA_VERSION);
+});
+
+test('legacy goal migration is atomic and retry does not duplicate imported goals', async t => {
+  const h = databaseHarness(t);
+  h.sql.exec(`CREATE TABLE app_state(key TEXT PRIMARY KEY NOT NULL,value TEXT NOT NULL);
+    CREATE TABLE player_goals(id TEXT PRIMARY KEY NOT NULL,type TEXT,title TEXT,status TEXT,created_at TEXT);
+    PRAGMA user_version=8;`);
+  h.sql.prepare('INSERT INTO app_state(key,value) VALUES(?,?)').run('player', JSON.stringify(h.load('core').createNewPlayer('LEGACY')));
+  h.sql.prepare('INSERT INTO player_goals VALUES(?,?,?,?,?)').run('g1','GENERAL','Cel 1','ACTIVE','2026-09-01T00:00:00.000Z');
+  h.sql.prepare('INSERT INTO player_goals VALUES(?,?,?,?,?)').run('g2','LEARNING','Cel 2','PAUSED','2026-09-02T00:00:00.000Z');
+  h.faults.failWhen = source => source.includes('INSERT INTO legacy_goal_imports');
+  await assert.rejects(h.db.loadSystemState());
+  assert.equal(h.sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='player_goals'").get().name, 'player_goals');
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM player_goals').get().n, 2);
+  assert.equal(h.sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='legacy_player_goals_v8'").get(), undefined);
+
+  const recovered = await h.reload().loadSystemState();
+  assert.equal(recovered.goals.length, 2);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM player_goals').get().n, 2);
+  assert.equal(h.sql.prepare('SELECT count(*) AS n FROM legacy_goal_imports').get().n, 2);
+});
