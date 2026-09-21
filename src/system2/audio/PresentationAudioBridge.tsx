@@ -59,7 +59,7 @@ export default function PresentationAudioBridge() {
   const { playSFX, setMusicState, stopAll } = useAudio();
   const routeMusic = useMemo<MusicState>(() => {
     if (pathname.startsWith('/game-master')) return 'AI_GAME_MASTER';
-    if (pathname.startsWith('/character')) return 'CHARACTER';
+    if (pathname.startsWith('/character') || pathname.startsWith('/heroes')) return 'CHARACTER';
     if (pathname.startsWith('/explore') || pathname.startsWith('/world')) return 'EXPLORE';
     if (pathname.startsWith('/quest')) return 'QUEST';
     if (pathname.startsWith('/raids')) return 'BOSS';
