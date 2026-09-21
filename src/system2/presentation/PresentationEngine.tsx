@@ -5,6 +5,7 @@ import PresentationAudioBridge from '../audio/PresentationAudioBridge';
 import { PresentationProvider } from './PresentationContext';
 import { PresentationEventPresets, presentationEventBus } from './PresentationEvents';
 import SystemEventOverlay from './SystemEventOverlay';
+import PresentationHapticsBridge from './PresentationHapticsBridge';
 
 function PresentationLifecycle() {
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function PresentationEngine({ children }: { children: ReactNode }
       <PresentationProvider>
         <PresentationLifecycle />
         <PresentationAudioBridge />
+        <PresentationHapticsBridge />
         {children}
         <SystemEventOverlay />
         {!bootComplete && <SystemBoot onComplete={finishBoot} />}
