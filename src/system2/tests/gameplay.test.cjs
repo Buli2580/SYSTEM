@@ -2280,3 +2280,50 @@ test('cloud outbox includes story completion claims without copying local reward
   assert.equal(rows.length,1);
   assert.deepEqual(JSON.parse(rows[0].payload),{quest_id:'extra_mile_v1',verification_type:'MULTI',verification_score:100});
 });
+
+
+test('cloud outbox is replay-safe across backfill, restart and repeated sync acknowledgement', async t => {
+  const { db, sql, reload } = databaseHarness(t);
+  await db.loadSystemState();
+  const completed = await db.completeVerifiedQuest(evidence);
+  assert.equal(completed.awarded, true);
+  let rows = sql.prepare("SELECT event_key,synced_at,attempts FROM cloud_outbox WHERE event_key=?").all('verified:quest_first_movement_v1');
+  assert.equal(rows.length, 1);
+
+  await Promise.all([db.backfillCloudOutbox(), db.backfillCloudOutbox(), db.backfillCloudOutbox()]);
+  rows = sql.prepare("SELECT event_key FROM cloud_outbox WHERE event_key=?").all('verified:quest_first_movement_v1');
+  assert.equal(rows.length, 1);
+
+  const restarted = reload();
+  await restarted.backfillCloudOutbox();
+  assert.equal((await restarted.listPendingCloudOutbox(100)).filter(row => row.event_key === 'verified:quest_first_movement_v1').length, 1);
+
+  await Promise.all([
+    restarted.markCloudOutboxSynced('verified:quest_first_movement_v1'),
+    restarted.markCloudOutboxSynced('verified:quest_first_movement_v1'),
+  ]);
+  assert.equal((await restarted.listPendingCloudOutbox(100)).some(row => row.event_key === 'verified:quest_first_movement_v1'), false);
+  const stored = sql.prepare("SELECT synced_at FROM cloud_outbox WHERE event_key=?").get('verified:quest_first_movement_v1');
+  assert.ok(stored.synced_at);
+  assert.equal((await restarted.completeVerifiedQuest(evidence)).awarded, false);
+  assert.equal((await restarted.loadSystemState()).player.totalRealXp, 100);
+});
+
+test('failed cloud sync attempts never mutate local rewards and a later acknowledgement is idempotent', async t => {
+  const { db, sql, reload } = databaseHarness(t);
+  await db.loadSystemState();
+  await db.completeVerifiedQuest(evidence);
+  const key = 'verified:quest_first_movement_v1';
+  await db.markCloudOutboxAttempt(key, 'offline');
+  const afterFailure = await db.loadSystemState();
+  assert.equal(afterFailure.player.totalRealXp, 100);
+  assert.equal(afterFailure.completedQuestIds.filter(id => id === evidence.questId).length, 1);
+  assert.equal(sql.prepare('SELECT attempts FROM cloud_outbox WHERE event_key=?').get(key).attempts, 1);
+
+  const restarted = reload();
+  await restarted.markCloudOutboxSynced(key);
+  await restarted.markCloudOutboxSynced(key);
+  assert.equal((await restarted.loadSystemState()).player.totalRealXp, 100);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM verified_events WHERE quest_id=?').get(evidence.questId).n, 1);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM quest_completions WHERE quest_id=?').get(evidence.questId).n, 1);
+});
