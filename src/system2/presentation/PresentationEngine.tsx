@@ -6,6 +6,7 @@ import { PresentationProvider } from './PresentationContext';
 import { PresentationEventPresets, presentationEventBus } from './PresentationEvents';
 import SystemEventOverlay from './SystemEventOverlay';
 import PresentationHapticsBridge from './PresentationHapticsBridge';
+import { HeroCardsProvider } from '../heroes/runtime';
 
 function PresentationLifecycle() {
   useEffect(() => {
@@ -28,12 +29,14 @@ export default function PresentationEngine({ children }: { children: ReactNode }
   return (
     <AudioProvider>
       <PresentationProvider>
-        <PresentationLifecycle />
-        <PresentationAudioBridge />
-        <PresentationHapticsBridge />
-        {children}
-        <SystemEventOverlay />
-        {!bootComplete && <SystemBoot onComplete={finishBoot} />}
+        <HeroCardsProvider>
+          <PresentationLifecycle />
+          <PresentationAudioBridge />
+          <PresentationHapticsBridge />
+          {children}
+          <SystemEventOverlay />
+          {!bootComplete && <SystemBoot onComplete={finishBoot} />}
+        </HeroCardsProvider>
       </PresentationProvider>
     </AudioProvider>
   );
