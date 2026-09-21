@@ -191,10 +191,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const previousStreak = snapshot.player.streak;
+    const previousBossDamage = snapshot.story?.bossSupportDamage ?? 0;
+    const previousBoss = snapshot.story?.boss ?? null;
+    const previousBossComplete = snapshot.story?.bossComplete ?? false;
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
     if (epoch === generation.current) {
       setSnapshot(result);
+
       if (result.player.streak !== previousStreak) {
         presentationEventBus.emit(PresentationEventPresets.streakUpdated(result.player.streak));
         for (const milestone of [3, 7, 14, 30, 60, 100]) {
@@ -203,12 +207,40 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+
+      const nextBossDamage = result.story?.bossSupportDamage ?? 0;
+      if (nextBossDamage > previousBossDamage) {
+        presentationEventBus.emit(PresentationEventPresets.bossDamage(
+          result.story?.boss?.id ?? 'the_first_wall_v1',
+          nextBossDamage - previousBossDamage,
+          result.story?.bossHp ?? 0,
+        ));
+      }
+
+      const nextBoss = result.story?.boss ?? null;
+      if (!previousBoss?.focus_at && nextBoss?.focus_at) {
+        presentationEventBus.emit(PresentationEventPresets.bossPhaseChanged(nextBoss.id, 1, 'FOCUS COMPLETE'));
+      }
+      if (!previousBoss?.move_at && nextBoss?.move_at) {
+        presentationEventBus.emit(PresentationEventPresets.bossPhaseChanged(nextBoss.id, 2, 'MOVEMENT COMPLETE'));
+      }
+      if (!previousBoss?.discipline_at && nextBoss?.discipline_at) {
+        presentationEventBus.emit(PresentationEventPresets.bossPhaseChanged(nextBoss.id, 3, 'DISCIPLINE COMPLETE'));
+      }
+      if (!previousBossComplete && result.story?.bossComplete) {
+        presentationEventBus.emit(PresentationEventPresets.bossDefeated(
+          nextBoss?.id ?? 'the_first_wall_v1',
+          'PIERWSZY MUR',
+          result.receipt ?? null,
+        ));
+      }
+
       void syncAchievements(result.player, epoch);
       void flushCloudOutbox().catch(() => undefined);
       if (result.receipt) presentReward(result.receipt);
     }
     return result;
-  }, [presentReward, snapshot.player.streak, syncAchievements]);
+  }, [presentReward, snapshot.player.streak, snapshot.story, syncAchievements]);
   const apply = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
