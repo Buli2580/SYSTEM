@@ -29,7 +29,6 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const [questCompleteVisible, setQuestCompleteVisible] = useState(false);
   const startInProgressRef = useRef(false);
   const presentationFailureRef = useRef(false);
-  const presentationBossCompleteRef = useRef(false);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
@@ -86,10 +85,6 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
       presentationEventBus.emit(PresentationEventPresets.questFailed(quest.id, error || 'Quest verification failed.'));
     }
 
-    if (status === 'COMPLETED' && quest.category === 'BOSS' && !presentationBossCompleteRef.current) {
-      presentationBossCompleteRef.current = true;
-      presentationEventBus.emit(PresentationEventPresets.bossDefeated(quest.id, quest.title, receipt ?? null));
-    }
   }, [error, quest.category, quest.id, quest.title, receipt, status]);
 
   const handleStartQuest = () => {
