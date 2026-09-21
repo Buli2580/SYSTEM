@@ -59,6 +59,10 @@ function databaseHarness(t, clock) {
     return {
       async execAsync(source) {
         if (faults.init) { faults.init = false; throw new Error('init failed'); }
+        if (faults.failWhen?.(source, [])) {
+          faults.failWhen = null;
+          throw new Error('injected migration failure');
+        }
         sql.exec(source);
       },
       async getFirstAsync(source, ...params) {
@@ -2422,7 +2426,7 @@ test('AI Daily cannot replace a loadout after any quest attempt has started', as
   };
   const after = await h.db.applyAIDailyPlan(plan);
   assert.equal(JSON.stringify(after.daily.questIds), JSON.stringify(before.daily.questIds));
-  assert.equal(after.aiDaily, undefined);
+  assert.equal(after.aiDaily, null);
   assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM app_state WHERE key=?").get('ai_daily_applied:'+before.daily.dayKey).n, 0);
 });
 
