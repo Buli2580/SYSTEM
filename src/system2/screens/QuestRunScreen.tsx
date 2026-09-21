@@ -25,7 +25,6 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
   const [questAccepted, setQuestAccepted] = useState(false);
   const [startInProgress, setStartInProgress] = useState(false);
-  const [questCompleteVisible, setQuestCompleteVisible] = useState(false);
   const startInProgressRef = useRef(false);
   const scrollRef = useRef<ScrollView | null>(null);
   const isTimer = quest.verification.type === 'TIMER';
@@ -76,16 +75,6 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     const timer = setTimeout(() => setQuestAccepted(false), 1200);
     return () => clearTimeout(timer);
   }, [questAccepted]);
-
-  useEffect(() => {
-    if (status !== 'COMPLETED') {
-      setQuestCompleteVisible(false);
-      return;
-    }
-    setQuestCompleteVisible(true);
-    const timer = setTimeout(() => setQuestCompleteVisible(false), 1350);
-    return () => clearTimeout(timer);
-  }, [status]);
 
   useEffect(() => {
     if (!['COMPLETED','ERROR','DENIED'].includes(status)) return;
@@ -430,12 +419,6 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         </Animated.View>
       )}
 
-      {questCompleteVisible && (
-        <Animated.View pointerEvents="none" entering={FadeIn.duration(250)} exiting={FadeOut.duration(220)} style={styles.questCompleteOverlay}>
-          <Text style={styles.questOverlayLabel}>QUEST COMPLETE</Text>
-          <Text style={styles.questOverlayTitle}>VERIFIED</Text>
-        </Animated.View>
-      )}
     </View>
   );
 }
