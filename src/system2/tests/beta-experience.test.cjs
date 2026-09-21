@@ -1,0 +1,54 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const root = process.env.SYSTEM_PROJECT_ROOT ?? path.resolve(__dirname, '../../..');
+const ts = require(require.resolve('typescript', { paths: [root, process.cwd()] }));
+
+function load(relative) {
+  const file = path.join(root, 'src/system2', relative + '.ts');
+  const source = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const module = { exports: {} };
+  vm.runInNewContext(source, { module, exports: module.exports, require, console, Set, Math, JSON });
+  return module.exports;
+}
+
+test('Home 2.0 priorities put active quest before daily and social', () => {
+  const { homePriorities } = load('beta/home');
+  const result = Array.from(homePriorities({ activeQuest: true, daily: 2, weekly: true, boss: true, world: true }));
+  assert.deepEqual(result, ['ACTIVE_QUEST','DAILY','WEEKLY','BOSS','WORLD','SOCIAL']);
+});
+
+test('Home 2.0 still exposes social when gameplay queues are empty', () => {
+  const { homePriorities } = load('beta/home');
+  assert.deepEqual(Array.from(homePriorities({ activeQuest: false, daily: 0, weekly: false, boss: false, world: false })), ['SOCIAL']);
+});
+
+test('Quest Experience 2.0 maps runtime states to complete lifecycle', () => {
+  const { questExperiencePhaseFromRun, activeQuestFlowStep } = load('beta/questFlow');
+  const cases = [
+    ['CHECKING','CHECKING','BRIEFING'],
+    ['READY','READY','BRIEFING'],
+    ['STARTING','STARTING','START'],
+    ['TRACKING','ACTIVE','ACTIVE'],
+    ['COMPLETING','VERIFYING','VERIFY'],
+    ['COMPLETED','COMPLETE','REWARD'],
+    ['ERROR','RECOVERY','BRIEFING'],
+    ['DENIED','RECOVERY','BRIEFING'],
+    ['LOCKED','LOCKED','BRIEFING'],
+  ];
+  for (const [runtime, phase, step] of cases) {
+    assert.equal(questExperiencePhaseFromRun(runtime), phase);
+    assert.equal(activeQuestFlowStep(phase), step);
+  }
+});
+
+test('Quest Experience recovery copy never implies partial reward', () => {
+  const { questExperienceMessage } = load('beta/questFlow');
+  const text = questExperienceMessage('RECOVERY');
+  assert.match(text, /spróbować ponownie/i);
+  assert.doesNotMatch(text, /częściow.*XP|partial XP/i);
+});
