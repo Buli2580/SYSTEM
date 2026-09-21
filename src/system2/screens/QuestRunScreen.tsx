@@ -15,6 +15,7 @@ import { getNextAction } from '../quests/nextAction';
 import { MissionBriefing } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
+import AnimatedCharacterBackdrop, { type CharacterScene } from '../presentation/AnimatedCharacterBackdrop';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -52,6 +53,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     duration % 60;
   const showLiveTracker = isLiveQuestStatus(status);
   const renderStatus: string = status;
+  const characterScene = questCharacterScene(quest, renderStatus);
   const nextAction = getNextAction({
     ...system,
     player: system.player,
@@ -119,6 +121,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   return (
     <View style={styles.root}>
       <SystemAmbientBackground intensity="quiet" />
+      <AnimatedCharacterBackdrop scene={characterScene} opacity={quest.category === 'BOSS' ? 0.52 : 0.34} />
       <ScrollView
         contentContainerStyle={
           [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
@@ -431,6 +434,18 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
 function isLiveQuestStatus(status: string) {
   return status === 'TRACKING' || status === 'COMPLETING' || status === 'COMPLETED';
+}
+
+function questCharacterScene(quest: RunnableQuest, status: string): CharacterScene {
+  if (status === 'COMPLETED') return 'VICTORY';
+  if (status === 'DENIED' || status === 'ERROR') return 'FAILURE';
+  if (quest.category === 'BOSS') return 'BOSS';
+
+  const title = quest.title.toLowerCase();
+  if (/sił|strength|gym|pomp|przysiad|squat|push|lift|trening/.test(title)) return 'TRAINING_STRENGTH';
+  if (quest.activityType === 'RUN' || quest.activityType === 'WALK' || quest.activityType === 'BIKE') return 'TRAINING_CARDIO';
+  if (quest.activityType === 'STATIONARY' || quest.verification.type === 'TIMER') return 'FOCUS';
+  return status === 'TRACKING' || status === 'COMPLETING' ? 'QUEST' : 'QUEST';
 }
 
 const styles =
