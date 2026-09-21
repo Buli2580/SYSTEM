@@ -21,7 +21,7 @@ type OverlayConfig = {
   dismissible: boolean;
 };
 
-const CONFIGS: Record<PresentationEventType, OverlayConfig> = {
+const CONFIGS: Partial<Record<PresentationEventType, OverlayConfig>> = {
   SYSTEM_BOOT: { variant: 'system', title: 'SYSTEM INITIALIZING', duration: 2200, dismissible: false },
   SYSTEM_READY: { variant: 'system', title: 'SYSTEM ONLINE', duration: 2200, dismissible: false },
   QUEST_DISCOVERED: { variant: 'quest', title: 'NEW QUEST DISCOVERED', subtitle: 'A new protocol awaits activation', duration: 3600, dismissible: true },
@@ -136,6 +136,7 @@ export default function SystemEventOverlay() {
     clearTimer();
     if (!current) return;
     const config = CONFIGS[current.type];
+    if (!config) return;
     timerRef.current = setTimeout(dismiss, config.duration);
     return clearTimer;
   }, [current, clearTimer, dismiss]);
@@ -143,6 +144,7 @@ export default function SystemEventOverlay() {
   if (!current) return null;
 
   const config = CONFIGS[current.type];
+  if (!config) return null;
   const accent = accentFor(config.variant);
   const title = payloadTitle(current, config.title);
   const subtitle = payloadSubtitle(current, config.subtitle);
