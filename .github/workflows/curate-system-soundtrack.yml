@@ -1,0 +1,88 @@
+name: Curate SYSTEM Soundtrack
+
+on:
+  push:
+    branches:
+      - feature/presentation-engine-2.0
+    paths:
+      - .github/workflows/curate-system-soundtrack.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  curate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full music library
+        uses: actions/checkout@v4
+        with:
+          ref: feature/presentation-engine-2.0
+          fetch-depth: 1
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Build active soundtrack
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="assets/audio/music"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+
+          transcode () {
+            local src="$1"
+            local out="$2"
+            local target="$3"
+            ffmpeg -y -hide_banner -loglevel error -i "$src" \
+              -af "loudnorm=I=$target:TP=-1.5:LRA=11" \
+              -ar 44100 -ac 2 -codec:a libmp3lame -q:a 3 \
+              "$OUT/$out"
+          }
+
+          transcode "third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Spacetime.mp3" "system_boot.mp3" -18
+          transcode "third_party/music/cc0/juhani-junkala-jrpg-pack-4-calm/Calm3 - Peaceful Days.ogg" "home.mp3" -20
+          transcode "third_party/music/cc0/tricksntraps-cyberpunk/Experiment G.ogg" "character.mp3" -19
+          transcode "third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration4 - Prairie Nights.ogg" "explore.mp3" -19
+          transcode "third_party/music/cc0/juhani-junkala-jrpg-pack-5-action/Action1 - Encounter With The Witches.ogg" "quest.mp3" -17
+          transcode "third_party/music/cc0/juhani-junkala-jrpg-pack-1-exploration/Exploration5 - Sneaking Around.ogg" "field_quest.mp3" -18
+          transcode "third_party/music/cc0/juhani-junkala-jrpg-pack-3-evil/Evil5 - Whispers From Beyond.ogg" "warning.mp3" -18
+          transcode "third_party/music/cc0/tricksntraps-vapour-2013/last_battle_145bpm.ogg" "boss.mp3" -16
+          transcode "third_party/music/cc0/monster-rpg-2/Monster RPG 2 OGG Music - Revised/boost.ogg" "victory.mp3" -15
+          transcode "third_party/music/cc0/tricksntraps-cyberpunk/Anti Matter Magic.ogg" "ai_game_master.mp3" -18
+          transcode "third_party/music/cc0/alexander-ehlers-free-music-pack/Alexander Ehlers - Free Music Pack/Alexander Ehlers - Great mission.mp3" "awakening.mp3" -16
+
+          cat > "$OUT/SOURCES.md" <<'EOF'
+          # SYSTEM Active Soundtrack Sources
+
+          All active soundtrack files below are derived from CC0/public-domain source files already stored in third_party/music.
+
+          - system_boot.mp3 — Alexander Ehlers — Spacetime — CC0
+          - home.mp3 — Juhani Junkala / SubspaceAudio — Peaceful Days — CC0
+          - character.mp3 — Alexander Ehlers / tricksntraps — Experiment G — CC0
+          - explore.mp3 — Juhani Junkala / SubspaceAudio — Prairie Nights — CC0
+          - quest.mp3 — Juhani Junkala / SubspaceAudio — Encounter With The Witches — CC0
+          - field_quest.mp3 — Juhani Junkala / SubspaceAudio — Sneaking Around — CC0
+          - warning.mp3 — Juhani Junkala / SubspaceAudio — Whispers From Beyond — CC0
+          - boss.mp3 — Alexander Ehlers / tricksntraps — last_battle_145bpm — CC0
+          - victory.mp3 — Monster RPG 2 soundtrack — boost — CC0
+          - ai_game_master.mp3 — Alexander Ehlers / tricksntraps — Anti Matter Magic — CC0
+          - awakening.mp3 — Alexander Ehlers — Great mission — CC0
+          EOF
+
+          du -sh "$OUT"
+          ls -lh "$OUT"
+
+      - name: Commit active soundtrack
+        shell: bash
+        run: |
+          git config user.name "SYSTEM Soundtrack Curator"
+          git config user.email "actions@users.noreply.github.com"
+          git add assets/audio/music
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "audio: curate active SYSTEM soundtrack"
+          git push origin HEAD:feature/presentation-engine-2.0
