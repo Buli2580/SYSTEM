@@ -4,7 +4,6 @@ import SystemScreen from '../components/SystemScreen';
 import { DAILY_RULES } from '../daily/calendar';
 import RewardSummary from '../components/RewardSummary';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
@@ -17,7 +16,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    useWindowDimensions,
     View,
     type DimensionValue,
 } from 'react-native';
@@ -36,7 +34,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-    getPlayerProgressPercent,
     getSkillProgressPercent,
     SKILL_KEYS,
     SKILL_META,
@@ -72,123 +69,6 @@ function WorldSignalBeacon({ active }: { active: boolean }) {
     <View style={[styles.systemSignal, active && styles.systemSignalActive]}>
       <Animated.View style={[styles.systemSignalHalo, beaconStyle]} />
       <View style={styles.systemSignalDiamond} />
-    </View>
-  );
-}
-
-function PlayerCore() {
-  const { player } = useSystem();
-  const { width } = useWindowDimensions();
-  const pulse = useSharedValue(0);
-  const rotation = useSharedValue(0);
-  const reverseRotation = useSharedValue(0);
-
-  useFocusEffect(useCallback(() => {
-    pulse.value = withRepeat(
-      withTiming(1, {
-        duration: 1700,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
-
-    rotation.value = withRepeat(
-      withTiming(1, {
-        duration: 9000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    );
-
-    reverseRotation.value = withRepeat(
-      withTiming(1, {
-        duration: 13000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    );
-    return () => { cancelAnimation(pulse); cancelAnimation(rotation); cancelAnimation(reverseRotation); };
-  }, [pulse, rotation, reverseRotation]));
-
-  const pulseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          scale: interpolate(
-            pulse.value,
-            [0, 1],
-            [0.96, 1.06]
-          ),
-        },
-      ],
-
-      opacity: interpolate(
-        pulse.value,
-        [0, 1],
-        [0.35, 0.8]
-      ),
-    };
-  });
-
-  const rotationStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          rotate: `${rotation.value * 360}deg`,
-        },
-      ],
-    };
-  });
-
-  const reverseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          rotate: `${reverseRotation.value * -360}deg`,
-        },
-      ],
-    };
-  });
-
-  return (
-    <View style={[styles.coreContainer, width < 380 && { transform: [{ scale: 0.75 }] }]}>
-      <Animated.View
-        style={[
-          styles.corePulse,
-          pulseStyle,
-        ]}
-      />
-
-      <Animated.View
-        style={[
-          styles.coreRingOuter,
-          rotationStyle,
-        ]}
-      >
-        <View style={styles.orbitPointOne} />
-
-        <View style={styles.orbitPointTwo} />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.coreRingMiddle,
-          reverseStyle,
-        ]}
-      >
-        <View style={styles.orbitPointThree} />
-      </Animated.View>
-
-      <View style={styles.coreRingInner}>
-        {player.avatarUri ? <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={88} /> : <View style={styles.coreDiamondOuter}><View style={styles.coreDiamondInner} /></View>}
-      </View>
-
-      <Text style={styles.playerCoreText}>
-        RDZEŃ GRACZA
-      </Text>
     </View>
   );
 }
@@ -269,9 +149,6 @@ export default function SystemHomeScreen() {
 
   useFocusEffect(useCallback(() => { void refreshPlayer(); }, [refreshPlayer]));
   const questAccess = (id: string) => questAvailability(id, { completedQuestIds, activeQuestId, daily, failedQuestId: failedQuestIds.includes(id) ? id : null });
-  const realProgress =
-    getPlayerProgressPercent(player) * 100;
-
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story,awakeningCompleted);
   const mainQuestProgress = awakeningCompleted ? objective.completed : awakening.completed;
