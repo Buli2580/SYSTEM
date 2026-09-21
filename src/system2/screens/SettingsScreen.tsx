@@ -1,6 +1,6 @@
 import BetaSettings from '../components/BetaSettings';
 import { useRef, useState } from 'react';
-import { Linking, Modal, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -13,8 +13,9 @@ import { createResetConfirmation } from '../identity/reset';
 import { requestBackgroundLocationAccess } from '../background/locationService';
 import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
+import { useAudio } from '../audio/AudioEngine';
 export default function SettingsScreen() {
-  const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
+  const { player, settings, saveSettings, resetData } = useSystem(); const audio = useAudio(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
   const [resetStep, setResetStep] = useState(0), [confirmation, setConfirmation] = useState('');
   const guard = useRef(createResetConfirmation()), lock = useRef(false);
@@ -32,6 +33,10 @@ export default function SettingsScreen() {
       <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
       <Text style={s.body}>Presentation Audio // muzyka ambientowa, questy, boss oraz efekty nagród. AUDIO OFF wycisza cały silnik.</Text>
+      {settings.audio && <>
+        <AudioVolume label="MUZYKA" value={audio.getMusicVolume()} onChange={audio.setMusicVolume} />
+        <AudioVolume label="SFX" value={audio.getSFXVolume()} onChange={audio.setSFXVolume} />
+      </>}
     </View>
     <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
@@ -84,4 +89,33 @@ export default function SettingsScreen() {
       </ScrollView>
     </Modal>
   </SystemPage>;
+}
+
+
+function AudioVolume({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  const choices = [0, 0.25, 0.5, 0.75, 1];
+  const selected = choices.reduce((best, choice) =>
+    Math.abs(choice - value) < Math.abs(best - value) ? choice : best, choices[0]);
+  return <View style={{ marginTop: 14, gap: 8 }}>
+    <Text style={s.label}>{label} // {Math.round(value * 100)}%</Text>
+    <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+      {choices.map(choice => {
+        const active = choice === selected;
+        const percent = Math.round(choice * 100);
+        return <Pressable key={choice} accessibilityRole="button"
+          accessibilityLabel={label + ' ' + percent + ' procent'}
+          accessibilityState={{ selected: active }}
+          onPress={() => onChange(choice)}
+          style={({ pressed }) => ({
+            minWidth: 52, minHeight: 38, alignItems: 'center', justifyContent: 'center',
+            borderRadius: 9, borderWidth: 1,
+            borderColor: active ? '#6ceeff' : '#23434b',
+            backgroundColor: active ? 'rgba(108,238,255,0.14)' : 'rgba(5,17,20,0.72)',
+            opacity: pressed ? 0.72 : 1,
+          })}>
+          <Text style={{ color: active ? '#6ceeff' : '#8da5af', fontSize: 10, fontWeight: '900' }}>{percent}%</Text>
+        </Pressable>;
+      })}
+    </View>
+  </View>;
 }
