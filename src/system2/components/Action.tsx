@@ -1,7 +1,12 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { SYSTEM_COLORS as C } from '../core';
+import { PresentationEventPresets, presentationEventBus } from '../presentation/PresentationEvents';
 export default function Action({ label, onPress, disabled = false, danger = false }: { label: string; onPress: () => void; disabled?: boolean; danger?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+  const handlePress = () => {
+    presentationEventBus.emit(PresentationEventPresets.uiConfirm());
+    onPress();
+  };
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={handlePress}
     style={({ pressed }) => [styles.root, danger ? styles.danger : styles.normal, disabled && styles.disabled, pressed && styles.pressed]}>
     <Text style={[styles.text, danger ? styles.dangerText : styles.normalText]}>{label}</Text>
   </Pressable>;
