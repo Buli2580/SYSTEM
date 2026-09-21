@@ -79,7 +79,7 @@ const MUSIC_TRACKS: Record<MusicState, MusicTrack> = {
   SILENT: { key: 'silent', source: null, loop: false, gain: 0 },
 };
 
-type SFXDefinition = { source: AudioSource; gain: number } | null;
+type SFXDefinition = { source: AudioSource; gain: number; duck?: number; duckMs?: number } | null;
 
 // Every mapped source below exists in the repository. UI micro-sounds stay silent
 // until they receive a dedicated design pass instead of reusing gameplay feedback.
@@ -94,20 +94,20 @@ const SFX_EVENTS: Record<SFXEvent, SFXDefinition> = {
   QUEST_NEW: { source: AUDIO.questAccept, gain: 0.50 },
   QUEST_ACCEPT: { source: AUDIO.questAccept, gain: 0.68 },
   QUEST_START: { source: AUDIO.questStart, gain: 0.70 },
-  QUEST_COMPLETE: { source: AUDIO.questComplete, gain: 0.82 },
-  QUEST_FAIL: { source: AUDIO.questFail, gain: 0.72 },
+  QUEST_COMPLETE: { source: AUDIO.questComplete, gain: 0.82, duck: 0.52, duckMs: 850 },
+  QUEST_FAIL: { source: AUDIO.questFail, gain: 0.72, duck: 0.68, duckMs: 520 },
   XP_GAIN: null,
-  LEVEL_UP: { source: AUDIO.levelUp, gain: 0.95 },
+  LEVEL_UP: { source: AUDIO.levelUp, gain: 0.95, duck: 0.34, duckMs: 1450 },
   REWARD: null,
-  ACHIEVEMENT: { source: AUDIO.levelUp, gain: 0.68 },
+  ACHIEVEMENT: { source: AUDIO.levelUp, gain: 0.68, duck: 0.48, duckMs: 1050 },
   STREAK: { source: AUDIO.streakMilestone, gain: 0.34 },
-  STREAK_MILESTONE: { source: AUDIO.streakMilestone, gain: 0.72 },
+  STREAK_MILESTONE: { source: AUDIO.streakMilestone, gain: 0.72, duck: 0.58, duckMs: 720 },
   SECTOR_DISCOVERED: { source: AUDIO.sectorDiscovered, gain: 0.64 },
-  WARNING: { source: AUDIO.warning, gain: 0.72 },
-  BOSS_APPEAR: { source: AUDIO.bossAppear, gain: 0.88 },
-  BOSS_HIT: { source: AUDIO.bossHit, gain: 0.72 },
-  BOSS_PHASE: { source: AUDIO.bossPhase, gain: 0.82 },
-  BOSS_DEFEATED: { source: AUDIO.levelUp, gain: 0.86 },
+  WARNING: { source: AUDIO.warning, gain: 0.72, duck: 0.58, duckMs: 720 },
+  BOSS_APPEAR: { source: AUDIO.bossAppear, gain: 0.88, duck: 0.30, duckMs: 1250 },
+  BOSS_HIT: { source: AUDIO.bossHit, gain: 0.72, duck: 0.66, duckMs: 280 },
+  BOSS_PHASE: { source: AUDIO.bossPhase, gain: 0.82, duck: 0.40, duckMs: 920 },
+  BOSS_DEFEATED: { source: AUDIO.levelUp, gain: 0.86, duck: 0.28, duckMs: 1600 },
 };
 
 const STORAGE_KEYS = {
@@ -174,6 +174,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const transitionRef = useRef(0);
   const activeSfxRef = useRef(new Set<AudioPlayer>());
   const lastSfxRef = useRef<{ event: SFXEvent; at: number } | null>(null);
+  const duckFactorRef = useRef(1);
+  const duckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const masterVolumeRef = useRef(masterVolume);
   const musicVolumeRef = useRef(musicVolume);
@@ -195,7 +197,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const musicGain = useCallback((track: MusicTrack) => {
     if (masterMutedRef.current || musicMutedRef.current) return 0;
-    return clamp01(track.gain * masterVolumeRef.current * musicVolumeRef.current);
+    return clamp01(track.gain * masterVolumeRef.current * musicVolumeRef.current * duckFactorRef.current);
   }, []);
 
   const applyMusicVolume = useCallback(() => {
@@ -203,6 +205,17 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     if (!player) return;
     player.volume = musicGain(MUSIC_TRACKS[musicStateRef.current]);
   }, [musicGain]);
+
+  const duckMusic = useCallback((factor: number, durationMs: number) => {
+    if (duckTimerRef.current) clearTimeout(duckTimerRef.current);
+    duckFactorRef.current = Math.max(0.2, Math.min(1, factor));
+    applyMusicVolume();
+    duckTimerRef.current = setTimeout(() => {
+      duckFactorRef.current = 1;
+      duckTimerRef.current = null;
+      applyMusicVolume();
+    }, durationMs);
+  }, [applyMusicVolume]);
 
   useEffect(() => {
     void (async () => {
@@ -230,6 +243,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const stopAll = useCallback(async () => {
     transitionRef.current += 1;
     shouldResumeRef.current = false;
+    if (duckTimerRef.current) clearTimeout(duckTimerRef.current);
+    duckTimerRef.current = null;
+    duckFactorRef.current = 1;
     safeRemove(musicPlayerRef.current);
     musicPlayerRef.current = null;
     for (const player of activeSfxRef.current) safeRemove(player);
@@ -283,6 +299,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const setMusicState = useCallback(async (state: MusicState) => {
     const track = MUSIC_TRACKS[state];
+    const previousState = musicStateRef.current;
+    const previousTrack = MUSIC_TRACKS[previousState];
     const token = ++transitionRef.current;
     musicStateRef.current = state;
     setMusicStateValue(state);
@@ -297,9 +315,16 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
 
     const current = musicPlayerRef.current;
-    if (current && currentTrack === track.key) {
+    if (current && previousTrack.source === track.source && previousTrack.loop === track.loop) {
       current.loop = track.loop;
-      current.volume = musicGain(track);
+      setCurrentTrack(track.key);
+      const from = current.volume;
+      const target = musicGain(track);
+      for (let step = 1; step <= 4; step += 1) {
+        if (transitionRef.current !== token || musicPlayerRef.current !== current) return;
+        current.volume = from + (target - from) * (step / 4);
+        await wait(24);
+      }
       return;
     }
 
@@ -332,7 +357,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         setIsMusicPlaying(false);
       }
     }
-  }, [currentTrack, fadeOutCurrent, musicGain]);
+  }, [fadeOutCurrent, musicGain]);
 
   const playSFX = useCallback(async (event: SFXEvent) => {
     if (masterMutedRef.current || sfxMutedRef.current) return;
@@ -342,6 +367,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     lastSfxRef.current = { event, at: now };
     const definition = SFX_EVENTS[event];
     if (!definition) return;
+    if (definition.duck) duckMusic(definition.duck, definition.duckMs ?? 650);
     try {
       const player = createAudioPlayer(definition.source);
       activeSfxRef.current.add(player);
@@ -354,7 +380,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     } catch {
       // A presentation sound must never break gameplay.
     }
-  }, []);
+  }, [duckMusic]);
 
   const setMusicVolume = useCallback((value: number) => {
     const volume = clamp01(value);
