@@ -5,9 +5,15 @@ import { useAudio, type MusicState, type SFXEvent } from './AudioEngine';
 import { presentationEventBus, type PresentationEventData } from '../presentation/PresentationEvents';
 function sfxFor(event: PresentationEventData): SFXEvent | null {
   switch (event.type) {
+    case 'SYSTEM_READY': return 'SYSTEM_READY';
+    case 'QUEST_DISCOVERED': return 'QUEST_NEW';
+    case 'QUEST_ACCEPTED': return 'QUEST_ACCEPT';
+    case 'QUEST_STARTED': return 'QUEST_START';
     case 'QUEST_COMPLETE': return 'QUEST_COMPLETE';
     case 'QUEST_FAILED': return 'QUEST_FAIL';
+    case 'STREAK_UPDATED': return 'STREAK';
     case 'STREAK_MILESTONE': return 'STREAK_MILESTONE';
+    case 'SECTOR_DISCOVERED': return 'SECTOR_DISCOVERED';
     case 'BOSS_DEFEATED': return 'BOSS_DEFEATED';
     case 'BOSS_DAMAGE': return 'BOSS_HIT';
     case 'BOSS_PHASE_CHANGED': return 'BOSS_PHASE';
