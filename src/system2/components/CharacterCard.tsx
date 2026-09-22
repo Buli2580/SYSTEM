@@ -50,10 +50,12 @@ export default function CharacterCard({
     transform: [{ rotate: `${rotate.value * 360}deg` }],
   }));
 
-  const Body = onPress ? Pressable : View;
   return (
-    <Body
-      {...(onPress ? { onPress, accessibilityRole: 'button' as const, accessibilityLabel: 'Otwórz kartę postaci' } : {})}
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? 'Otwórz kartę postaci' : undefined}
       style={[styles.card, compact && styles.compactCard, { borderColor: visual.frame }]}
     >
       <View style={[styles.glow, { backgroundColor: visual.auraSoft }]} />
@@ -96,7 +98,7 @@ export default function CharacterCard({
           </View>
         </>
       )}
-    </Body>
+    </Pressable>
   );
 }
 
