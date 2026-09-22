@@ -565,6 +565,42 @@ test('permission dialog and transient AppState before GPS subscription do not st
   assert.equal(h.awards(), 0);
 });
 
+test('remaining in background while permissions resolve hands off before foreground watcher starts', async t => {
+  const permission = deferred();
+  const h = screenHarness(t, { permission });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();
+  h.appState('background');
+  permission.resolve({ status: 'granted' });
+  await flush(); await flush(); await flush();
+  assert.equal(h.starts(), 0);
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  h.appState('active');
+  await flush(); h.render();
+  assert.equal(h.status(), 'READY');
+  await start;
+});
+
+test('background while native quest watcher is pending switches durable session to BACKGROUND', async t => {
+  const watch = deferred();
+  const h = screenHarness(t, { watch });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); await flush();
+  assert.equal(h.starts(), 1);
+  assert.equal(h.backgroundSession()?.mode, 'FOREGROUND');
+  h.appState('background');
+  await flush();
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  watch.resolve();
+  await start; await flush();
+  assert.equal(h.removals(), 1);
+  h.appState('active');
+  await flush(); h.render();
+  assert.equal(h.status(), 'READY');
+});
+
 test('real background hands GPS off without failing and foreground can resume without remounting', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
