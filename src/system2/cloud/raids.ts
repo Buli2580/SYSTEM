@@ -13,7 +13,7 @@ function mapRaid(row:RaidRow):SocialRaid{
  if(damage>bossHp)throw new Error('Nieprawidłowe dane SYSTEM CLOUD: raid damage.');
  if(!RAID_STATUSES.has(row.status))throw new Error('Nieprawidłowe dane SYSTEM CLOUD: raid status.');
  const startsAt=validDate(row.starts_at,'raid starts_at'),endsAt=validDate(row.ends_at,'raid ends_at');
- if(endsAt<=startsAt)throw new Error('Nieprawidłowe dane SYSTEM CLOUD: raid window.');
+ if(Date.parse(endsAt)<=Date.parse(startsAt))throw new Error('Nieprawidłowe dane SYSTEM CLOUD: raid window.');
  return{id:row.id,title:row.title,bossHp,damage,startsAt,endsAt,status:row.status};
 }
 
