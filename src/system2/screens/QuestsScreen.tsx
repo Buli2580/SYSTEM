@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import SystemPage, { pageStyles as styles } from '../components/SystemPage';
 import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
+import { PHOTO_PROOF_QUEST } from '../quests/photoProof';
 import { useSystem } from '../state/SystemProvider';
 import { questStatusPl, verificationPl } from '../i18n/pl';
 
@@ -42,6 +43,16 @@ export default function QuestsScreen() {
         <Text style={styles.link}>{locked ? 'UKOŃCZ POPRZEDNIĄ MISJĘ' : status === 'COMPLETED' ? 'ZOBACZ UKOŃCZENIE →' : story?.rematchQuestIds.includes(quest.id) ? 'ROZPOCZNIJ REWANŻ →' : 'OTWÓRZ MISJĘ →'}</Text>
       </Pressable>;
     })}
+    {awakeningCompleted && <Pressable
+      style={styles.panel}
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/quest', params: { questId: PHOTO_PROOF_QUEST.id } })}
+    >
+      <Text style={styles.label}>CAMERA VERIFICATION 1.0 // PHOTO</Text>
+      <Text style={styles.title}>{PHOTO_PROOF_QUEST.title}</Text>
+      <Text style={styles.body}>Aparat działa jako część aktywnej misji, nie tylko avatara. Zdjęcie nie jest wysyłane do telemetrii.</Text>
+      <Text style={styles.link}>{completedQuestIds.includes(PHOTO_PROOF_QUEST.id) ? 'UKOŃCZONA →' : 'URUCHOM PROTOKÓŁ FOTO →'}</Text>
+    </Pressable>}
     {progress.completed === progress.total && <View style={styles.panel}><Text style={styles.label}>ROZDZIAŁ 01 // UKOŃCZONY</Text><Text style={styles.body}>POŁĄCZENIE ZE ŚWIATEM // {story?.chapters[1]?.completed??0}/3</Text></View>}
     {!!story && <View style={styles.panel}><Text style={styles.label}>MISJE POBOCZNE</Text><Text style={styles.title}>DODATKOWY WYSIŁEK // {story.sideComplete?'UKOŃCZONA':'DOSTĘPNA'}</Text><Text style={styles.body}>Dzienna misja ruchowa z dystansem co najmniej 125% celu. +50 REAL XP · +40 WIL XP. Jednorazowo.</Text></View>}
     {!!story?.hiddenComplete && <View style={styles.panel}><Text style={styles.label}>UKRYTA // UKOŃCZONA</Text><Text style={styles.title}>BEZ ODWROTU</Text></View>}
