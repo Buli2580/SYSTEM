@@ -143,6 +143,7 @@ export default function AccountScreen() {
 
   async function signIn() {
     const current = await signInWithPassword(email, password);
+    setPassword('');
     await loadOnline(current);
     const result = await flushCloudOutbox(50);
     setSyncStats({ pending: result.pending, synced: (await getLocalCloudSyncStatus()).synced, failed: result.failed });
@@ -158,8 +159,8 @@ export default function AccountScreen() {
       setPassword('');
       return;
     }
-    await loadOnline(result.session);
     setPassword('');
+    await loadOnline(result.session);
   }
 
   async function saveSocial() {
