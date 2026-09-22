@@ -45,10 +45,12 @@ create table if not exists public.social_activity (
   user_id uuid not null references auth.users(id) on delete cascade,
   event_type text not null check (event_type in ('QUEST_COMPLETED','ACHIEVEMENT_UNLOCKED','LEVEL_UP','RANK_UP','STREAK_MILESTONE','BOSS_DEFEATED','WORLD_SECTOR_DISCOVERED','TITLE_UNLOCKED')),
   visibility text not null default 'friends' check (visibility in ('public','friends','private')),
+  source_event_key text,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 create index if not exists social_activity_feed_idx on public.social_activity(created_at desc,user_id);
+create unique index if not exists social_activity_source_unique on public.social_activity(user_id,source_event_key) where source_event_key is not null;
 
 create table if not exists public.guilds (
   id uuid primary key default gen_random_uuid(),
@@ -171,8 +173,6 @@ with check (
 );
 
 drop policy if exists social_activity_insert_own on public.social_activity;
-create policy social_activity_insert_own on public.social_activity for insert to authenticated
-with check (user_id=(select auth.uid()));
 
 create or replace function public.is_guild_member(p_guild uuid)
 returns boolean
@@ -310,6 +310,53 @@ as $$
   order by fr.updated_at desc
 $$;
 
+create or replace function public.publish_verified_social_activity(p_event_key text)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_source text;
+  v_reward text;
+  v_xp integer;
+  v_energy integer;
+begin
+  if v_uid is null then raise exception 'AUTH_REQUIRED'; end if;
+  if p_event_key is null or p_event_key !~ '^verified:[A-Za-z0-9._:-]{1,180}$' then
+    raise exception 'INVALID_EVENT';
+  end if;
+
+  select l.source_id,l.reward_code,l.real_xp,l.energy
+    into v_source,v_reward,v_xp,v_energy
+  from public.reward_ledger l
+  where l.user_id=v_uid and l.evidence_event_key=p_event_key
+    and l.source_type='VERIFIED_EVENT'
+  limit 1;
+
+  if v_source is null then raise exception 'UNVERIFIED_EVENT'; end if;
+
+  insert into public.social_activity(user_id,event_type,visibility,source_event_key,metadata)
+  values(
+    v_uid,
+    'QUEST_COMPLETED',
+    'friends',
+    p_event_key,
+    jsonb_build_object(
+      'quest_id',v_source,
+      'reward_code',v_reward,
+      'real_xp',coalesce(v_xp,0),
+      'energy',coalesce(v_energy,0)
+    )
+  )
+  on conflict(user_id,source_event_key) where source_event_key is not null do nothing;
+end
+$$;
+
+revoke all on function public.publish_verified_social_activity(text) from public,anon;
+grant execute on function public.publish_verified_social_activity(text) to authenticated;
+
 create or replace function public.get_social_feed(p_limit integer default 50)
 returns table(id uuid,player_id uuid,event_type text,created_at timestamptz,visibility text,metadata jsonb)
 language sql stable security definer set search_path=''
@@ -317,6 +364,8 @@ as $$
   select a.id,a.user_id,a.event_type,a.created_at,upper(a.visibility),a.metadata
   from public.social_activity a
   where
+    (a.user_id=(select auth.uid()) or not public.is_social_blocked(a.user_id))
+    and (
     a.user_id=(select auth.uid())
     or a.visibility='public'
     or (a.visibility='friends' and exists (
@@ -325,6 +374,7 @@ as $$
         and ((fr.sender_id=(select auth.uid()) and fr.receiver_id=a.user_id)
           or (fr.receiver_id=(select auth.uid()) and fr.sender_id=a.user_id))
     ))
+    )
   order by a.created_at desc,a.id
   limit greatest(1,least(coalesce(p_limit,50),100))
 $$;
@@ -436,7 +486,6 @@ grant execute on function public.search_players(text,integer) to authenticated;
 revoke all on table public.friend_requests,public.social_blocks,public.social_activity,public.guilds,public.guild_members,public.raids,public.raid_damage,public.seasons,public.social_challenges,public.challenge_progress from anon,authenticated;
 grant select on table public.friend_requests,public.social_blocks,public.guilds,public.guild_members,public.raids,public.seasons,public.social_challenges,public.challenge_progress to authenticated;
 grant delete on table public.social_blocks to authenticated;
-grant insert on table public.social_activity to authenticated;
 
 revoke execute on function public.social_followers_count() from public,anon;
 revoke execute on function public.social_following_count() from public,anon;
@@ -447,6 +496,7 @@ revoke execute on function public.remove_friend(uuid) from public,anon;
 revoke execute on function public.block_social_player(uuid) from public,anon;
 revoke execute on function public.get_friend_network() from public,anon;
 revoke execute on function public.get_social_feed(integer) from public,anon;
+revoke execute on function public.publish_verified_social_activity(text) from public,anon;
 revoke execute on function public.join_guild(uuid) from public,anon;
 revoke execute on function public.get_active_raids() from public,anon;
 revoke execute on function public.submit_raid_damage(uuid,text,integer) from public,anon;
@@ -461,6 +511,7 @@ grant execute on function public.remove_friend(uuid) to authenticated;
 grant execute on function public.block_social_player(uuid) to authenticated;
 grant execute on function public.get_friend_network() to authenticated;
 grant execute on function public.get_social_feed(integer) to authenticated;
+grant execute on function public.publish_verified_social_activity(text) to authenticated;
 grant execute on function public.join_guild(uuid) to authenticated;
 grant execute on function public.get_active_raids() to authenticated;
 grant execute on function public.submit_raid_damage(uuid,text,integer) to authenticated;
