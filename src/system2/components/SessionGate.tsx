@@ -3,10 +3,11 @@ import { useSystem } from '../state/SystemProvider';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import SystemError from './SystemError';
+import { firstGoalGatePending } from '../beta/experience';
 
 export default function SessionGate() {
   const { ready, error, refreshPlayer, onboardingComplete, awakeningCompleted, goals } = useSystem();
-  const needsFirstGoal = ready && onboardingComplete && !awakeningCompleted && goals.length === 0;
+  const needsFirstGoal = firstGoalGatePending({ ready, onboardingComplete, awakeningCompleted, goalCount: goals.length });
   if (ready && onboardingComplete && !needsFirstGoal) return null;
 
   return <Modal visible={!ready || !onboardingComplete || needsFirstGoal} animationType="fade" onRequestClose={() => {}}>
