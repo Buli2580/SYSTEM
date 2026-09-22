@@ -15,6 +15,7 @@ import {
   type LeaderboardEntry,
   type SocialProfile,
 } from '../cloud/social';
+import { useMountedRef } from '../hooks/useMountedRef';
 
 type Scope = 'WORLD' | 'CONTINENT' | 'COUNTRY' | 'REGION' | 'CITY';
 
@@ -38,6 +39,7 @@ const inputStyle = {
 
 export default function LeaderboardScreen() {
   const router = useRouter();
+  const mounted = useMountedRef();
   const [me, setMe] = useState<SocialProfile | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
   const [scope, setScope] = useState<Scope>('WORLD');
@@ -48,6 +50,7 @@ export default function LeaderboardScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lock = useRef(false);
+  const loadRequest = useRef(0);
 
   const scopeValue = (next: Scope) => {
     if (!me) return null;
@@ -59,14 +62,17 @@ export default function LeaderboardScreen() {
   };
 
   async function load(nextScope: Scope = scope) {
+    const requestId = ++loadRequest.current;
     const session = await getValidSession();
+    if (!mounted.current || requestId !== loadRequest.current) return;
     if (!session) {
       setMyId(null);
       setRows([]);
       return;
     }
-    setMyId(session.user.id);
     const [profile, ids] = await Promise.all([getMySocialProfile(), getFollowingIds()]);
+    if (!mounted.current || requestId !== loadRequest.current) return;
+    setMyId(session.user.id);
     setMe(profile);
     setFollowing(new Set(ids));
     const value = nextScope === 'WORLD' ? null :
@@ -78,17 +84,20 @@ export default function LeaderboardScreen() {
       setRows([]);
       return;
     }
-    setRows(await getLeaderboard(nextScope, value, 50));
+    const nextRows = await getLeaderboard(nextScope, value, 50);
+    if (mounted.current && requestId === loadRequest.current) setRows(nextRows);
   }
 
   async function run(task: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
-    setBusy(true);
-    setError(null);
+    if (mounted.current) {
+      setBusy(true);
+      setError(null);
+    }
     try { await task(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się wykonać operacji.'); }
-    finally { lock.current = false; setBusy(false); }
+    catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : 'Nie udało się wykonać operacji.'); }
+    finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
 
   useEffect(() => {
@@ -96,13 +105,14 @@ export default function LeaderboardScreen() {
   }, []);
 
   async function changeScope(next: Scope) {
-    setScope(next);
+    if (mounted.current) setScope(next);
     await load(next);
   }
 
   async function toggleFollow(userId: string) {
     if (following.has(userId)) {
       await unfollowPlayer(userId);
+      if (!mounted.current) return;
       setFollowing(current => {
         const next = new Set(current);
         next.delete(userId);
@@ -110,13 +120,16 @@ export default function LeaderboardScreen() {
       });
     } else {
       await followPlayer(userId);
+      if (!mounted.current) return;
       setFollowing(current => new Set(current).add(userId));
     }
     await load(scope);
   }
 
   async function searchNow() {
-    setSearch(await searchPlayers(query, 20));
+    const normalized = query.trim();
+    const results = await searchPlayers(normalized, 20);
+    if (mounted.current) setSearch(results);
   }
 
   return <SystemPage title="RANKINGI" subtitle="SYSTEM ONLINE // RYWALIZACJA">
