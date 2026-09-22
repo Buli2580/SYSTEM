@@ -139,7 +139,7 @@ using (visibility='PUBLIC' or owner_id=(select auth.uid()) or exists (
 drop policy if exists guild_members_read_related on public.guild_members;
 create policy guild_members_read_related on public.guild_members for select to authenticated
 using (user_id=(select auth.uid()) or exists (
-  select 1 from public.guild_members me where me.guild_id=guild_id and me.user_id=(select auth.uid())
+  select 1 from public.guild_members me where me.guild_id=public.guild_members.guild_id and me.user_id=(select auth.uid())
 ));
 
 drop policy if exists raids_read_authenticated on public.raids;
@@ -277,6 +277,9 @@ begin
   select visibility into v_visibility from public.guilds where id=p_guild;
   if v_visibility is null then raise exception 'GUILD_NOT_FOUND'; end if;
   if v_visibility<>'PUBLIC' then raise exception 'INVITE_REQUIRED'; end if;
+  if exists(select 1 from public.guild_members gm where gm.user_id=v_uid and gm.guild_id<>p_guild) then
+    raise exception 'ALREADY_IN_GUILD';
+  end if;
   insert into public.guild_members(guild_id,user_id,role) values(p_guild,v_uid,'MEMBER')
   on conflict(user_id) do nothing;
   update public.guilds g set member_count=(select count(*)::integer from public.guild_members gm where gm.guild_id=g.id)
@@ -299,24 +302,76 @@ $$;
 
 create or replace function public.submit_raid_damage(p_raid uuid,p_event_key text,p_damage integer)
 returns void language plpgsql security definer set search_path=''
-as $$
-declare v_uid uuid := auth.uid(); v_inserted integer;
+as $
+declare v_uid uuid := auth.uid(); v_inserted integer; v_damage integer;
 begin
   if v_uid is null then raise exception 'AUTH_REQUIRED'; end if;
-  if p_damage<=0 or p_damage>100000 then raise exception 'INVALID_DAMAGE'; end if;
+  if p_event_key is null or p_event_key !~ '^[A-Za-z0-9._:-]{1,180}
+
+create or replace function public.get_active_social_challenges()
+returns table(id uuid,title text,metric text,target bigint,starts_at timestamptz,ends_at timestamptz,visibility text)
+language sql stable security invoker set search_path=''
+as $$
+  select c.id,c.title,c.metric,c.target,c.starts_at,c.ends_at,c.visibility
+  from public.social_challenges c
+  where now()>=c.starts_at and now()<c.ends_at
+  order by c.ends_at asc
+$$;
+
+revoke all on table public.friend_requests,public.social_blocks,public.social_activity,public.guilds,public.guild_members,public.raids,public.raid_damage,public.seasons,public.social_challenges,public.challenge_progress from anon,authenticated;
+grant select on table public.friend_requests,public.social_blocks,public.guilds,public.guild_members,public.raids,public.seasons,public.social_challenges,public.challenge_progress to authenticated;
+grant delete on table public.social_blocks to authenticated;
+grant insert on table public.social_activity to authenticated;
+
+revoke execute on function public.social_followers_count() from public,anon;
+revoke execute on function public.social_following_count() from public,anon;
+revoke execute on function public.social_friends_count() from public,anon;
+revoke execute on function public.send_friend_request(uuid) from public,anon;
+revoke execute on function public.respond_friend_request(uuid,boolean) from public,anon;
+revoke execute on function public.remove_friend(uuid) from public,anon;
+revoke execute on function public.block_social_player(uuid) from public,anon;
+revoke execute on function public.get_friend_network() from public,anon;
+revoke execute on function public.get_social_feed(integer) from public,anon;
+revoke execute on function public.join_guild(uuid) from public,anon;
+revoke execute on function public.get_active_raids() from public,anon;
+revoke execute on function public.submit_raid_damage(uuid,text,integer) from public,anon;
+revoke execute on function public.get_active_social_challenges() from public,anon;
+
+grant execute on function public.social_followers_count() to authenticated;
+grant execute on function public.social_following_count() to authenticated;
+grant execute on function public.social_friends_count() to authenticated;
+grant execute on function public.send_friend_request(uuid) to authenticated;
+grant execute on function public.respond_friend_request(uuid,boolean) to authenticated;
+grant execute on function public.remove_friend(uuid) to authenticated;
+grant execute on function public.block_social_player(uuid) to authenticated;
+grant execute on function public.get_friend_network() to authenticated;
+grant execute on function public.get_social_feed(integer) to authenticated;
+grant execute on function public.join_guild(uuid) to authenticated;
+grant execute on function public.get_active_raids() to authenticated;
+grant execute on function public.submit_raid_damage(uuid,text,integer) to authenticated;
+grant execute on function public.get_active_social_challenges() to authenticated;
+ then raise exception 'INVALID_EVENT'; end if;
   if not exists(select 1 from public.raids r where r.id=p_raid and now()>=r.starts_at and now()<r.ends_at and r.damage<r.boss_hp) then
     raise exception 'RAID_NOT_ACTIVE';
   end if;
-  insert into public.raid_damage(raid_id,event_key,user_id,damage) values(p_raid,p_event_key,v_uid,p_damage)
+  select least(500,greatest(1,coalesce(l.real_xp,0)+coalesce(l.energy,0)*2))::integer
+    into v_damage
+  from public.reward_ledger l
+  where l.user_id=v_uid and l.evidence_event_key=p_event_key and l.source_type='VERIFIED_EVENT'
+  order by l.created_at desc
+  limit 1;
+  if v_damage is null then raise exception 'UNVERIFIED_EVENT'; end if;
+  -- p_damage is retained for mobile API compatibility but is never trusted.
+  insert into public.raid_damage(raid_id,event_key,user_id,damage) values(p_raid,p_event_key,v_uid,v_damage)
   on conflict do nothing;
   get diagnostics v_inserted = row_count;
   if v_inserted>0 then
     update public.raids r
-    set damage=least(r.boss_hp,r.damage+p_damage),
-        status=case when r.damage+p_damage>=r.boss_hp then 'DEFEATED' else 'ACTIVE' end
+    set damage=least(r.boss_hp,r.damage+v_damage),
+        status=case when r.damage+v_damage>=r.boss_hp then 'DEFEATED' else 'ACTIVE' end
     where r.id=p_raid;
   end if;
-end $$;
+end $;
 
 create or replace function public.get_active_social_challenges()
 returns table(id uuid,title text,metric text,target bigint,starts_at timestamptz,ends_at timestamptz,visibility text)
