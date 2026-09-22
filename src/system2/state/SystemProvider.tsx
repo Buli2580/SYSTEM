@@ -20,7 +20,7 @@ import { requestDailyAIGameMaster, requestGoalAIGameMaster, type AIGameMasterRes
 import { aiRetryRemainingMs } from '../ai/requestBudget';
 
 type SystemContextValue = db.SystemSnapshot & {
-  createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<void>;
+  createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0], operationKey?: string) => Promise<void>;
   createFirstGoalAndPrepareAwakening: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<AIGameMasterResponse>;
   prepareAwakeningDirection: (rawGoal: string) => Promise<AIGameMasterResponse>;
   updateGoalStatus: (id: string, status: Parameters<typeof db.updateGoalStatus>[1]) => Promise<void>;
@@ -301,7 +301,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const createFirstGoalAndPrepareAwakening = useCallback(async (input: Parameters<typeof db.createPlayerGoal>[0]) => {
     const rawGoal = [input.title, input.description, input.target].filter(Boolean).join(' · ');
     const direction = await requestAwakeningDirection(snapshot, rawGoal);
-    await applySnapshot(() => db.createPlayerGoal(input));
+    await applySnapshot(() => db.createPlayerGoal(input, 'awakening:first-goal:v1'));
     return direction;
   }, [applySnapshot, requestAwakeningDirection, snapshot]);
   const prepareAwakeningDirection = useCallback(async (rawGoal: string) => requestAwakeningDirection(snapshot, rawGoal), [requestAwakeningDirection, snapshot]);
@@ -323,7 +323,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, refreshNotifications, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(() => db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(() => db.updateIdentity(patch)),
-    createPlayerGoal: input => apply(() => db.createPlayerGoal(input)), createFirstGoalAndPrepareAwakening, prepareAwakeningDirection,
+    createPlayerGoal: (input, operationKey) => apply(() => db.createPlayerGoal(input, operationKey)), createFirstGoalAndPrepareAwakening, prepareAwakeningDirection,
     updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
     rerollDailyQuest: id => apply(() => db.rerollDailyQuest(id)),
     saveSettings: patch => apply(() => db.saveSettings(patch)), resetData, achievementState, achievementError, refreshAchievements,
