@@ -15,7 +15,7 @@ function validDate(value:string,label:string){if(!value||!Number.isFinite(Date.p
 function mapChallenge(row:ChallengeRow):SocialChallenge{
  const target=finiteNumber(row.target,'challenge target',{min:Number.EPSILON});
  const startsAt=validDate(row.starts_at,'challenge starts_at'),endsAt=validDate(row.ends_at,'challenge ends_at');
- if(endsAt<=startsAt)throw new Error('Nieprawidłowe dane SYSTEM CLOUD: challenge window.');
+ if(Date.parse(endsAt)<=Date.parse(startsAt))throw new Error('Nieprawidłowe dane SYSTEM CLOUD: challenge window.');
  return{id:row.id,title:row.title,metric:row.metric,target,startsAt,endsAt,visibility:row.visibility};
 }
 function mapProgress(row:ProgressRow):ChallengeProgress{
@@ -23,4 +23,4 @@ function mapProgress(row:ProgressRow):ChallengeProgress{
 }
 
 export async function getSocialChallenges(){const s=await session();const rows=await cloudRequest<ChallengeRow[]>('/rest/v1/rpc/get_active_social_challenges',{method:'POST',body:'{}'},s.accessToken);return rows.map(mapChallenge);}
-export async function getChallengeProgress(id:string){const s=await session();const rows=await cloudRequest<ProgressRow[]>('/rest/v1/challenge_progress?challenge_id=eq.'+encodeURIComponent(id)+'&select=challenge_id,user_id,value,updated_at',{method:'GET'},s.accessToken);return rows.map(mapProgress);}
+export async function getChallengeProgress(id:string){const key=id.trim();if(!key)throw new Error('Nieprawidłowe wyzwanie.');const s=await session();const rows=await cloudRequest<ProgressRow[]>('/rest/v1/challenge_progress?challenge_id=eq.'+encodeURIComponent(key)+'&select=challenge_id,user_id,value,updated_at',{method:'GET'},s.accessToken);return rows.map(mapProgress);}
