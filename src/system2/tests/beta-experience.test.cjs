@@ -93,3 +93,30 @@ test('reward presentation starts with quest completion before level/rank unlocks
   assert.ok(events.findIndex(x=>x.kind==='LEVEL_UP')>0);
   assert.ok(events.findIndex(x=>x.kind==='RANK_UP')>events.findIndex(x=>x.kind==='LEVEL_UP'));
 });
+
+
+test('settings patches preserve unrelated preferences', () => {
+  const { mergeSettings } = load('identity/model');
+  const start = {
+    haptics: true,
+    audio: false,
+    activities: { walking: true, running: false, cycling: true },
+    dailyReminder: true,
+    reminderTime: '19:00',
+  };
+  const audio = mergeSettings(start, { audio: true });
+  assert.equal(audio.haptics, true);
+  assert.equal(audio.audio, true);
+  assert.equal(audio.dailyReminder, true);
+  assert.equal(audio.reminderTime, '19:00');
+  assert.deepEqual(JSON.parse(JSON.stringify(audio.activities)), { walking: true, running: false, cycling: true });
+
+  const activity = mergeSettings(audio, { activities: { running: true } });
+  assert.deepEqual(JSON.parse(JSON.stringify(activity.activities)), { walking: true, running: true, cycling: true });
+  assert.equal(activity.audio, true);
+
+  const reminder = mergeSettings(activity, { reminderTime: '07:30' });
+  assert.equal(reminder.reminderTime, '07:30');
+  assert.equal(reminder.dailyReminder, true);
+  assert.equal(reminder.haptics, true);
+});
