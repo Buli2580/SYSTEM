@@ -266,7 +266,7 @@ export function useQuestRun(quest: RunnableQuest) {
       const previous = appStateRef.current;
       appStateRef.current = state;
 
-      if (!isTimer && state === 'background' && trackingActiveRef.current === true &&
+      if (!isTimer && state === 'background' && backgroundSessionActiveRef.current &&
           ['STARTING','TRACKING'].includes(statusRef.current)) {
         const anchor = lastPointRef.current;
         backgroundHandoffRef.current = true;
