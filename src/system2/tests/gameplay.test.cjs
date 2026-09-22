@@ -2144,6 +2144,33 @@ test('SystemProvider late refresh cannot overwrite committed reward or freeze fu
   assert.equal(ctx.player.totalRealXp,100);
  }finally{staleLoad.resolve(state);h.close();}
 });
+test('SystemProvider releases stale AI loading after a concurrent committed write',async()=>{
+ const player=loader({})('core').createNewPlayer('AI RACE');
+ const state={...startupFixture(),player,awakeningCompleted:true,
+  daily:{dayKey:'2026-09-22',weekKey:'2026-W39',questIds:[],suspiciousQuestIds:[],completed:0,weeklyCompleted:0,clear:false,weeklyClear:false,clockAnomaly:false},
+  settings:{haptics:true,audio:false}};
+ const ai=deferred();
+ const db={
+  hasAvatarCleanupPending:async()=>false,
+  loadSystemState:async()=>state,
+  testerHealthCheck:async()=>({ok:true,issues:[]}),
+  saveSettings:async patch=>({...state,settings:{...state.settings,...patch}}),
+ };
+ const h=providerUI(db,false,{'../ai':{
+  requestDailyAIGameMaster:()=>ai.promise,
+  requestGoalAIGameMaster:async()=>({quests:[],director:{mode:'normal',difficultyBias:0,headline:'GOAL',message:'TEST'},briefing:'',source:'fallback'})
+ }});
+ try{
+  h.render();await flush();let ctx=h.render();
+  assert.equal(ctx.ready,true);assert.equal(ctx.aiLoading,true);
+  await ctx.saveSettings({audio:true});ctx=h.render();assert.equal(ctx.settings.audio,true);
+  ai.resolve({quests:[],director:{mode:'normal',difficultyBias:0,headline:'STALE',message:'TEST'},briefing:'stale',source:'fallback'});
+  await flush();ctx=h.render();
+  assert.equal(ctx.aiLoading,false);
+  assert.notEqual(ctx.aiGameMaster?.director?.headline,'STALE');
+ }finally{ai.resolve({quests:[],director:{mode:'normal',difficultyBias:0,headline:'STALE',message:'TEST'},briefing:'stale',source:'fallback'});h.close();}
+});
+
 test('SystemProvider reuses persisted AI Daily and manual refresh cannot replace accepted quests',async()=>{
  const player=loader({})('core').createNewPlayer('AI CACHE');
  const director={mode:'normal',difficultyBias:0,headline:'CACHED DAILY',message:'Persisted plan'};
