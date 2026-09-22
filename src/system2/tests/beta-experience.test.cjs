@@ -70,3 +70,13 @@ test('Canonical reward audio distinguishes level-up from normal completion', () 
   assert.equal(rewardSound(base), 'QUEST_COMPLETE');
   assert.equal(rewardSound({ ...base, afterLevel:2 }), 'LEVEL_UP');
 });
+
+
+test('Quest Experience exposes a non-empty message and CTA for every runtime phase', () => {
+  const { questExperiencePhaseFromRun, questExperienceMessage, nextQuestCta } = load('beta/questFlow');
+  for (const runtime of ['CHECKING','READY','STARTING','TRACKING','COMPLETING','COMPLETED','ERROR','DENIED','LOCKED']) {
+    const phase = questExperiencePhaseFromRun(runtime);
+    assert.ok(String(questExperienceMessage(phase)).trim().length > 0, runtime + ' message');
+    assert.ok(String(nextQuestCta(phase)).trim().length > 0, runtime + ' CTA');
+  }
+});
