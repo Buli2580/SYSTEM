@@ -644,6 +644,25 @@ test('GPS distance checkpoint survives background and returns with the same mete
 
 const focusEvidence = { questId: 'focus_protocol_v1', verificationType: 'TIMER', verificationScore: 100, durationSeconds: 600 };
 
+test('successful quest closes its attempt so the next quest can start', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  const firstAttempt = 'attempt-success-first';
+  await db.beginQuestAttempt(evidence.questId, firstAttempt);
+  const completed = await db.completeVerifiedQuest({ ...evidence, attemptId: firstAttempt });
+  assert.equal(completed.awarded, true);
+  const firstRow = sql.prepare('SELECT result,reason,ended_at FROM quest_attempts WHERE attempt_id=?').get(firstAttempt);
+  assert.equal(firstRow.result, 'COMPLETED');
+  assert.equal(firstRow.reason, null);
+  assert.ok(firstRow.ended_at);
+
+  const nextAttempt = 'attempt-success-next';
+  await db.beginQuestAttempt('focus_protocol_v1', nextAttempt);
+  const nextRow = sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get(nextAttempt);
+  assert.equal(nextRow.result, null);
+  await db.endQuestAttempt(nextAttempt,'INTERRUPTED','LEFT_SCREEN',1,0);
+});
+
 test('both quests award once in parallel without overwriting XP or distance; progress survives reload', async t => {
   const { db, sql, load } = databaseHarness(t);
   await db.loadOrCreatePlayer();
