@@ -1,5 +1,4 @@
 import SystemScreen from '../components/SystemScreen';
-import RewardSummary from '../components/RewardSummary';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -37,7 +36,7 @@ export default function WorldScreen() {
 }
 function OnlineWorld() {
   const router = useRouter();
-  const { player, lastReward, story } = useSystem();
+  const { player, story } = useSystem();
   const mode=worldBossMode({worldUnlocked:true,bossActive:!!story?.worldLinkComplete&&!story?.bossComplete,bossDefeated:!!story?.bossComplete});
   const world = useWorldTracking();
   const insets = useSafeAreaInsets();
@@ -77,7 +76,6 @@ function OnlineWorld() {
         {signalState !== 'LOCATED' && <Button label={world.scanning ? 'SKANOWANIE…' : world.signal || world.signalError ? 'PRZENIEŚ SYGNAŁ' : 'SZUKAJ SYGNAŁU'} disabled={!active || world.scanning} onPress={() => { void world.scan(Boolean(world.signal || world.signalError)); }} />}
       </View>
       <Text style={styles.small}>Nie wchodź na teren prywatny ani w miejsca, które mogą być niebezpieczne.</Text>
-      {lastReward?.id === 'first_world_signal_v1' && <RewardSummary receipt={lastReward} />}
     </ScrollView>
     <BottomNavigation />
   </SystemScreen>;
