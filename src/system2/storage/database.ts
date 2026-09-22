@@ -102,14 +102,23 @@ const PENDING_REWARD_PRESENTATIONS_KEY = 'pending_reward_presentations';
 function validRewardReceipt(value: unknown): value is RewardReceipt {
   if (!value || typeof value !== 'object') return false;
   const row = value as Partial<RewardReceipt>;
-  const numeric = [
-    row.realXp,row.energy,row.distanceMeters,row.beforeLevel,row.afterLevel,
-  ];
+  const numeric = [row.realXp,row.energy,row.distanceMeters,row.beforeLevel,row.afterLevel];
+  const skillXp = row.skillXp;
+  const skillLevels = row.skillLevels;
+  const newTitles = row.newTitles;
   return typeof row.id === 'string' && row.id.length > 0 && row.id.length <= 220
     && numeric.every(item => typeof item === 'number' && Number.isFinite(item))
     && typeof row.beforeRank === 'string' && typeof row.afterRank === 'string'
-    && !!row.skillXp && typeof row.skillXp === 'object'
-    && Array.isArray(row.skillLevels) && Array.isArray(row.newTitles)
+    && !!skillXp && typeof skillXp === 'object' && !Array.isArray(skillXp)
+    && Object.entries(skillXp).every(([key,xp]) =>
+      ['STR','VIT','INT','WIL','CHA','CRE','RES'].includes(key)
+      && typeof xp === 'number' && Number.isFinite(xp))
+    && Array.isArray(skillLevels) && skillLevels.every(item =>
+      !!item && typeof item === 'object'
+      && ['STR','VIT','INT','WIL','CHA','CRE','RES'].includes(String((item as {key?:unknown}).key))
+      && Number.isFinite((item as {before?:number}).before)
+      && Number.isFinite((item as {after?:number}).after))
+    && Array.isArray(newTitles) && newTitles.every(title => typeof title === 'string' && title.length <= 80)
     && typeof row.worldUnlocked === 'boolean';
 }
 
