@@ -61,3 +61,16 @@ test('social count bigint strings become numeric UI counters', async () => {
   const counts=await h.load('cloud/socialCore').getCloudSocialCounts();
   assert.deepEqual(JSON.parse(JSON.stringify(counts)),{followers:1,following:2,friends:3});
 });
+
+
+test('guild RLS avoids self-recursive membership lookup', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../migrations/20260922050000_social_gameplay_v1.sql'), 'utf8').toLowerCase();
+  assert.match(sql, /create or replace function public\.is_guild_member/);
+  assert.match(sql, /guild_members_read_related[\s\S]*public\.is_guild_member\(guild_id\)/);
+  assert.doesNotMatch(sql, /guild_members_read_related[\s\S]{0,400}from public\.guild_members me/);
+});
+
+test('one verified event cannot damage multiple raids', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../migrations/20260922050000_social_gameplay_v1.sql'), 'utf8').toLowerCase();
+  assert.match(sql, /unique index if not exists raid_damage_verified_event_unique[\s\S]*\(user_id,event_key\)/);
+});
