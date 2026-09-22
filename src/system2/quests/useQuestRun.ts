@@ -228,6 +228,7 @@ export function useQuestRun(quest: RunnableQuest) {
         } else {
           const anchor = lastPointRef.current;
           void persistCheckpoint(true)
+            .catch(() => undefined)
             .then(() => handoffQuestToBackground(quest.id, anchor))
             .catch(() => undefined);
           pauseForegroundTracking();
