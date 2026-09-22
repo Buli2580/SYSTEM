@@ -50,8 +50,19 @@ export function getNextAction(input: NextActionInput): NextAction {
   if (input.goals) {
     const directive = directSystem({ ...input, completedQuestIds: [...input.completedQuestIds], daily: input.daily ?? null, story: input.story ?? null,
       goals: input.goals, journeys: input.journeys ?? [], journeyQuestIds: input.journeyQuestIds ?? {}, recentActivity: input.recentActivity ?? [] }, input.activeQuestId ?? null);
-    if (directive.kind !== 'REST') return { kind: directive.route === '/goals' ? 'GOAL' : directive.journeyId ? 'JOURNEY' : directive.kind === 'CHALLENGE_BOSS' ? 'BOSS' : 'DAILY',
-      title: directive.title, detail: directive.reason, route: directive.route, questId: directive.questId, priority: 85 };
+    if (directive.kind !== 'REST') {
+      if (directive.route === '/quest' && !directive.questId) {
+        return {
+          kind: 'PROGRESSION',
+          title: 'REFRESH QUEST PROTOCOL',
+          detail: 'SYSTEM wykrył niepełną dyrektywę misji. Otwórz Quest Hub, aby odświeżyć stan.',
+          route: '/quests',
+          priority: 85,
+        };
+      }
+      return { kind: directive.route === '/goals' ? 'GOAL' : directive.journeyId ? 'JOURNEY' : directive.kind === 'CHALLENGE_BOSS' ? 'BOSS' : 'DAILY',
+        title: directive.title, detail: directive.reason, route: directive.route, questId: directive.questId, priority: 85 };
+    }
   }
 
   if (input.story?.worldLinkComplete && !input.story.bossComplete) {
@@ -76,10 +87,8 @@ export function getNextAction(input: NextActionInput): NextAction {
     return { kind: 'STORY', title: 'ADVANCE MAIN STORY', detail: 'Open the next WORLD LINK objective', route: '/story', priority: 60 };
   }
 
-  const unclaimed = Object.values(input.achievements?.achievements ?? {}).filter(item => item.unlockedAt && !item.claimedAt).length;
-  if (unclaimed > 0) {
-    return { kind: 'ACHIEVEMENTS', title: 'CLAIM ACHIEVEMENTS', detail: `${unclaimed} reward${unclaimed === 1 ? '' : 's'} ready`, route: '/achievements', priority: 50 };
-  }
+  // Achievements unlock automatically. Until a durable "seen" state exists,
+  // they must not become a sticky command-deck action that the player cannot clear.
 
   return {
     kind: 'PROGRESSION',

@@ -9,13 +9,15 @@ export class AutoCloudSync {
   private running = false;
   private stopped = true;
   private appState: AppStateStatus = AppState.currentState;
+  private appStateSubscription: { remove(): void } | null = null;
 
   constructor(private listener?: AutoSyncListener, private intervalMs = 30_000) {}
 
   start() {
     if (!this.stopped) return;
     this.stopped = false;
-    AppState.addEventListener('change', this.onAppState);
+    this.appState = AppState.currentState;
+    this.appStateSubscription = AppState.addEventListener('change', this.onAppState);
     void this.syncNow();
   }
 
@@ -23,6 +25,8 @@ export class AutoCloudSync {
     this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    this.appStateSubscription?.remove();
+    this.appStateSubscription = null;
   }
 
   async syncNow() {

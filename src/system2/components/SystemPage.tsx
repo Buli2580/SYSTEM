@@ -8,19 +8,19 @@ import { useSystem } from '../state/SystemProvider';
 import BottomNavigation from './BottomNavigation';
 import SystemAmbientBackground from './SystemAmbientBackground';
 
-export default function SystemPage({ title, subtitle, children, intensity = 'quiet' }: { title: string; subtitle: string; children: ReactNode; intensity?: 'quiet' | 'default' | 'hero' | 'world' }) {
+export default function SystemPage({ title, subtitle, children, intensity = 'quiet', showNavigation = true }: { title: string; subtitle: string; children: ReactNode; intensity?: 'quiet' | 'default' | 'hero' | 'world'; showNavigation?: boolean }) {
   const insets = useSafeAreaInsets();
   const { ready, error, refreshPlayer } = useSystem();
   return <SystemScreen style={styles.root}>
     <SystemAmbientBackground intensity={intensity} />
-    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: 150 + insets.bottom }]}>
+    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: (showNavigation ? 150 : 44) + insets.bottom }]}>
       <Text style={styles.code}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
       {ready ? children : <View style={styles.panel}>
         {error ? <SystemError message={error} retry={() => { void refreshPlayer(); }} /> : <Text style={styles.body}>SYSTEM // URUCHAMIANIE</Text>}
       </View>}
     </ScrollView>
-    <BottomNavigation />
+    {showNavigation && <BottomNavigation />}
   </SystemScreen>;
 }
 export const pageStyles = StyleSheet.create({

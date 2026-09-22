@@ -7,7 +7,7 @@ export type Chapter = { id: string; arcId: string; number: number; title: string
 export type ChapterState = Chapter & { status: ChapterStatus; completed: number; total: number };
 export type Arc = { id: string; title: string; chapterIds: string[] };
 export type AttemptResult = 'COMPLETED' | 'INTERRUPTED' | 'FAILED' | 'SUSPICIOUS' | 'REJECTED' | 'ABANDONED';
-export type AttemptReason = 'BACKGROUND' | 'LEFT_SCREEN' | 'VERIFICATION_REJECTED' | 'LOW_CONFIDENCE' | 'PERMISSION_DENIED' | 'TECHNICAL_ERROR' | 'PROCESS_ENDED';
+export type AttemptReason = 'BACKGROUND' | 'LEFT_SCREEN' | 'DAY_ROLLOVER' | 'VERIFICATION_REJECTED' | 'LOW_CONFIDENCE' | 'PERMISSION_DENIED' | 'TECHNICAL_ERROR' | 'PROCESS_ENDED';
 export type QuestAttempt = { attempt_id: string; quest_id: string; kind: string; started_at: string; ended_at: string | null;
  result: AttemptResult | null; duration: number; distance: number; reason: AttemptReason | null; eligible: number };
 export type StoryEventType = 'JOURNEY_CREATED' | 'JOURNEY_STAGE_ADVANCED' | 'JOURNEY_MILESTONE' | 'JOURNEY_COMPLETED' | 'DAILY_GENERATED' | 'QUEST_REROLLED' | 'RECOVERY_OFFERED' | 'GOAL_CREATED' | 'GOAL_COMPLETED' | 'WEEKLY_COMPLETED' | 'CHAPTER_UNLOCKED' | 'CHAPTER_COMPLETED' | 'HIDDEN_QUEST_DISCOVERED' | 'SIDE_QUEST_COMPLETED' | 'REMATCH_AVAILABLE' | 'REMATCH_COMPLETED' | 'BOSS_STARTED' | 'BOSS_STAGE_COMPLETED' | 'BOSS_DEFEATED' | 'TITLE_UNLOCKED' | 'FIRST_SIGNAL_LOCATED';

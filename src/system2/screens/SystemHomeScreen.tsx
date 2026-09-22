@@ -1,13 +1,11 @@
 import { questAvailability } from '../quests/availability';
 import { mainStoryObjective } from '../story/selectors';
 import SystemScreen from '../components/SystemScreen';
-import { DAILY_RULES } from '../daily/calendar';
-import RewardSummary from '../components/RewardSummary';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import HomeCommandCenter from '../components/HomeCommandCenter';
 import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress } from '../quests/catalog';
 import { useCallback } from 'react';
 
@@ -16,7 +14,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    useWindowDimensions,
     View,
     type DimensionValue,
 } from 'react-native';
@@ -35,7 +32,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-    getPlayerProgressPercent,
     getSkillProgressPercent,
     SKILL_KEYS,
     SKILL_META,
@@ -44,7 +40,6 @@ import {
 } from '../core';
 
 import { useSystem } from '../state/SystemProvider';
-import { questStatusPl, titlePl } from '../i18n/pl';
 
 function WorldSignalBeacon({ active }: { active: boolean }) {
   const pulse = useSharedValue(0);
@@ -71,123 +66,6 @@ function WorldSignalBeacon({ active }: { active: boolean }) {
     <View style={[styles.systemSignal, active && styles.systemSignalActive]}>
       <Animated.View style={[styles.systemSignalHalo, beaconStyle]} />
       <View style={styles.systemSignalDiamond} />
-    </View>
-  );
-}
-
-function PlayerCore() {
-  const { player } = useSystem();
-  const { width } = useWindowDimensions();
-  const pulse = useSharedValue(0);
-  const rotation = useSharedValue(0);
-  const reverseRotation = useSharedValue(0);
-
-  useFocusEffect(useCallback(() => {
-    pulse.value = withRepeat(
-      withTiming(1, {
-        duration: 1700,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
-
-    rotation.value = withRepeat(
-      withTiming(1, {
-        duration: 9000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    );
-
-    reverseRotation.value = withRepeat(
-      withTiming(1, {
-        duration: 13000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    );
-    return () => { cancelAnimation(pulse); cancelAnimation(rotation); cancelAnimation(reverseRotation); };
-  }, [pulse, rotation, reverseRotation]));
-
-  const pulseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          scale: interpolate(
-            pulse.value,
-            [0, 1],
-            [0.96, 1.06]
-          ),
-        },
-      ],
-
-      opacity: interpolate(
-        pulse.value,
-        [0, 1],
-        [0.35, 0.8]
-      ),
-    };
-  });
-
-  const rotationStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          rotate: `${rotation.value * 360}deg`,
-        },
-      ],
-    };
-  });
-
-  const reverseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          rotate: `${reverseRotation.value * -360}deg`,
-        },
-      ],
-    };
-  });
-
-  return (
-    <View style={[styles.coreContainer, width < 380 && { transform: [{ scale: 0.75 }] }]}>
-      <Animated.View
-        style={[
-          styles.corePulse,
-          pulseStyle,
-        ]}
-      />
-
-      <Animated.View
-        style={[
-          styles.coreRingOuter,
-          rotationStyle,
-        ]}
-      >
-        <View style={styles.orbitPointOne} />
-
-        <View style={styles.orbitPointTwo} />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.coreRingMiddle,
-          reverseStyle,
-        ]}
-      >
-        <View style={styles.orbitPointThree} />
-      </Animated.View>
-
-      <View style={styles.coreRingInner}>
-        {player.avatarUri ? <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={88} /> : <View style={styles.coreDiamondOuter}><View style={styles.coreDiamondInner} /></View>}
-      </View>
-
-      <Text style={styles.playerCoreText}>
-        RDZEŃ GRACZA
-      </Text>
     </View>
   );
 }
@@ -261,16 +139,13 @@ function SectionTitle({
 
 export default function SystemHomeScreen() {
   const insets = useSafeAreaInsets();
-  const { lastReward, daily, story } = useSystem();
+  const { daily, story } = useSystem();
   const router = useRouter();
 
   const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, failedQuestIds = [], error, refreshPlayer } = useSystem();
 
   useFocusEffect(useCallback(() => { void refreshPlayer(); }, [refreshPlayer]));
   const questAccess = (id: string) => questAvailability(id, { completedQuestIds, activeQuestId, daily, failedQuestId: failedQuestIds.includes(id) ? id : null });
-  const realProgress =
-    getPlayerProgressPercent(player) * 100;
-
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story,awakeningCompleted);
   const mainQuestProgress = awakeningCompleted ? objective.completed : awakening.completed;
@@ -312,226 +187,16 @@ export default function SystemHomeScreen() {
             </Text>
 
             <Text style={styles.awakening}>
-              PRZEBUDZENIE
+              {awakeningCompleted ? 'COMMAND CENTER' : 'PRZEBUDZENIE'}
             </Text>
           </View>
 
           <WorldSignalBeacon active={worldUnlocked} />
         </View>
 
-        {/* PLAYER CARD */}
+        <HomeCommandCenter />
 
-        <Animated.View entering={FadeInUp.duration(500).delay(60)} style={styles.playerCard}>
-          <View style={styles.playerGlow} />
-
-          <View style={styles.playerTop}>
-            <View>
-              <Text
-                style={
-                  styles.identityLabel
-                }
-              >
-                TOŻSAMOŚĆ REAL
-              </Text>
-
-              <Text
-                style={
-                  styles.awakeningActive
-                }
-              >
-                {player.displayName} // {titlePl(player.currentTitle)}
-              </Text>
-            </View>
-
-            <View style={styles.originBadge}>
-              <Text
-                style={
-                  styles.originText
-                }
-              >
-                POCZĄTEK 0
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.identityContent}>
-            <View style={styles.coreColumn}>
-              <PlayerCore />
-            </View>
-
-            <View style={styles.levelColumn}>
-              <Text
-                style={
-                  styles.realRankLabel
-                }
-              >
-                RANGA REAL
-              </Text>
-
-              <View style={styles.levelRow}>
-                <Text
-                  style={
-                    styles.levelPrefix
-                  }
-                >
-                  LV.
-                </Text>
-
-                <Text
-                  style={
-                    styles.levelNumber
-                  }
-                >
-                  {player.realLevel}
-                </Text>
-              </View>
-
-              <View style={styles.rankBadge}>
-                <Text
-                  style={
-                    styles.rankBadgeText
-                  }
-                >
-                  RANGA {player.rank}
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.evolutionDivider
-                }
-              />
-
-              <Text
-                style={
-                  styles.evolutionLabel
-                }
-              >
-                EWOLUCJA
-              </Text>
-
-              <Text
-                style={
-                  styles.evolutionValue
-                }
-              >
-                ETAP{' '}
-                {player.avatarEvolution}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.equalOrigin}>
-            EQUAL ORIGIN // KAŻDY ZACZYNA OD TEGO
-            SAMEGO PUNKTU
-          </Text>
-
-          {/* XP */}
-
-          <View style={styles.realXpBlock}>
-            <View style={styles.realXpHeader}>
-              <Text
-                style={
-                  styles.realXpLabel
-                }
-              >
-                REAL XP
-              </Text>
-
-              <Text
-                style={
-                  styles.realXpValue
-                }
-              >
-                {player.realXp} /{' '}
-                {player.realXpToNextLevel}
-              </Text>
-            </View>
-
-            <View accessibilityRole="progressbar" accessibilityLabel={`Real XP ${player.realXp} z ${player.realXpToNextLevel}`} accessibilityValue={{ min: 0, max: 100, now: Math.round(realProgress) }} style={styles.realXpTrack}>
-              <View
-                style={[
-                  styles.realXpFill,
-                  {
-                    width: `${Math.max(1.5, Math.min(100, realProgress))}%` as DimensionValue,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          {/* QUICK STATS */}
-
-          <View style={styles.playerDivider} />
-
-          <View style={styles.quickStats}>
-            <View style={styles.quickStat}>
-              <Text
-                style={
-                  styles.quickNumber
-                }
-              >
-                {player.streak}
-              </Text>
-
-              <Text
-                style={
-                  styles.quickLabel
-                }
-              >
-                STREAK
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.quickDivider
-              }
-            />
-
-            <View style={styles.quickStat}>
-              <Text
-                style={
-                  styles.quickNumber
-                }
-              >
-                {player.verifiedQuestCount}
-              </Text>
-
-              <Text
-                style={
-                  styles.quickLabel
-                }
-              >
-                POTWIERDZONE
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.quickDivider
-              }
-            />
-
-            <View style={styles.quickStat}>
-              <Text
-                style={
-                  styles.quickNumber
-                }
-              >
-                {player.gameEnergy}
-              </Text>
-
-              <Text
-                style={
-                  styles.quickLabel
-                }
-              >
-                ENERGIA
-              </Text>
-            </View>
-          </View>
-        </Animated.View>
+        {/* CHARACTER SNAPSHOT MOVED INTO HOME COMMAND CENTER */}
 
         {/* SKILLS */}
 
@@ -706,8 +371,6 @@ export default function SystemHomeScreen() {
           </View>
         </Animated.View>
 
-        {lastReward && <RewardSummary receipt={lastReward} />}
-
         {/* WORLD */}
 
         <SectionTitle
@@ -774,6 +437,12 @@ export default function SystemHomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  betaDeck:{marginHorizontal:18,marginTop:8,padding:16,borderWidth:1,borderColor:'rgba(108,238,255,0.25)',borderRadius:18,backgroundColor:'rgba(5,17,20,0.92)'},
+  betaDeckCode:{color:'#6ceeff',fontSize:9,fontWeight:'900',letterSpacing:1.6},
+  betaDeckTitle:{color:'#fff',fontSize:20,fontWeight:'900',marginTop:7},
+  betaDeckRow:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},
+  betaDeckChip:{borderWidth:1,borderColor:'rgba(108,238,255,0.25)',borderRadius:999,paddingHorizontal:10,paddingVertical:7},
+  betaDeckChipText:{color:'#bdeff5',fontSize:8,fontWeight:'900'},
   root: {
     flex: 1,
     backgroundColor:

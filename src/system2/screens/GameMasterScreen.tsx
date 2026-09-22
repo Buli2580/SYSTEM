@@ -66,7 +66,7 @@ export default function GameMasterScreen(){
       <TextInput accessibilityLabel="Cel kampanii" value={goal} onChangeText={setGoal} placeholder="np. chcę przebiec 10 km" placeholderTextColor="#8397a3" style={input}/>
       <Action label={loading?'AI ANALIZUJE...':'GENERUJ PODGLĄD KAMPANII'} onPress={()=>{void generate();}}/>
     </View>
-    {error&&<SystemError message={error} retry={()=>setError(null)}/>}
+    {error&&<SystemError message={error} retry={()=>setError(null)} actionLabel="ZAMKNIJ"/>}
     {campaign&&<View style={s.panel}>
       <Text style={s.label}>{campaign.category} · {campaign.weeks} WEEKS · PREVIEW</Text>
       <Text style={s.title}>{campaign.title}</Text>

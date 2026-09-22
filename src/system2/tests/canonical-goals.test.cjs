@@ -219,6 +219,28 @@ test('goals persist lifecycle without XP, reject invalid input and do not reroll
  s=await h.db.updateGoalStatus(id,'COMPLETED');assert.equal(s.goals[0].status,'COMPLETED');await assert.rejects(h.db.updateGoalStatus(id,'ACTIVE'));
  assert.equal(s.player.totalRealXp,before.player.totalRealXp);assert.ok((await h.db.loadChronicle()).some(e=>e.type==='GOAL_COMPLETED'));
 });
+test('goal creation is idempotent across ambiguous retry',async t=>{
+ const h=await dailyHarness(t),input={category:'LEARNING',priority:3,title:'Angielski',description:'Powtórki',target:'Czytać opowiadania'};
+ const first=await h.db.createPlayerGoal(input,'goal:test-retry');
+ const second=await h.db.createPlayerGoal(input,'goal:test-retry');
+ assert.equal(first.goals.length,1);assert.equal(second.goals.length,1);
+ assert.equal(first.goals[0].id,second.goals[0].id);
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM player_goals').get().n,1);
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,1);
+ assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_events WHERE type='GOAL_CREATED'").get().n,1);
+});
+
+test('reset clears goal idempotency journal so first-goal key can be reused',async t=>{
+ const h=await dailyHarness(t),input={category:'DISCIPLINE',priority:3,title:'Dyscyplina',description:''};
+ await h.db.createPlayerGoal(input,'awakening:first-goal:v1');
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,1);
+ await h.db.resetSystemData(true);
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,0);
+ const next=await h.db.createPlayerGoal(input,'awakening:first-goal:v1');
+ assert.equal(next.goals.length,1);
+ assert.equal((await h.db.testerHealthCheck()).ok,true);
+});
+
 test('goal changes affect next local day only; generation event and loadout persist once',async t=>{
  const h=await dailyHarness(t),first=await h.db.loadSystemState();await h.db.createPlayerGoal({category:'LEARNING',title:'Angielski',description:'',priority:3});
  await Promise.all(Array.from({length:4},()=>h.db.loadSystemState()));

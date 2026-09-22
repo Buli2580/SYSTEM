@@ -13,7 +13,6 @@ on:
       - "feature/system-ai-game-master-1.0"
       - "feature/system-core-freeze-1.0"
       - "feature/system-presentation-social-1.0"
-      - "feature/**"
 
 permissions:
   contents: read
@@ -51,6 +50,12 @@ jobs:
 
       - name: AI Game Master tests
         run: node --test src/system2/tests/ai-game-master.test.cjs
+
+      - name: Beta Experience 2.0 tests
+        run: node --test src/system2/tests/beta-experience.test.cjs
+
+      - name: App integrity tests
+        run: node --test src/system2/tests/app-integrity.test.cjs
 
       - name: Cloud processor SQL and mobile tests
         run: |

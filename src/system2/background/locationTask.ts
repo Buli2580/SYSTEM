@@ -14,6 +14,7 @@ import {
   type StoredLocationPoint,
 } from '../storage/database';
 import { getQuest } from '../quests/catalog';
+import { dayKey } from '../daily/calendar';
 import { buildEvidence } from '../verification/evidence';
 import { distanceBetween, verificationScoreForAccuracy, verifiedSegment } from '../verification/gps';
 import {
@@ -92,6 +93,13 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   const quest = getQuest(session.questId);
   if (!quest || quest.verification.type === 'TIMER') {
     await clearBackgroundQuestSession(session.questId);
+    await stopOrphanedLocationTask();
+    return;
+  }
+
+  if (quest.category === 'DAILY' && quest.dayKey !== dayKey()) {
+    await clearQuestCheckpoint(session.questId).catch(() => undefined);
+    await clearBackgroundQuestSession(session.questId).catch(() => undefined);
     await stopOrphanedLocationTask();
     return;
   }

@@ -146,6 +146,20 @@ for (const failure of ['INSERT INTO quest_completions', 'UPDATE app_state', 'INS
   });
 }
 
+test('active attempt is closed exactly once by canonical quest completion', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  await db.beginQuestAttempt(evidence.questId,'attempt-canonical-complete');
+  const result = await db.completeVerifiedQuest({ ...evidence, attemptId:'attempt-canonical-complete' });
+  assert.equal(result.awarded,true);
+  const attempt = sql.prepare('SELECT result,reason FROM quest_attempts WHERE attempt_id=?').get('attempt-canonical-complete');
+  assert.equal(attempt.result,'COMPLETED');
+  assert.equal(attempt.reason,null);
+  const replay = await db.completeVerifiedQuest({ ...evidence, attemptId:'attempt-canonical-complete' });
+  assert.equal(replay.awarded,false);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM verified_events WHERE quest_id=?').get(evidence.questId).n,1);
+});
+
 test('ambiguous success after commit is safe to retry', async t => {
   const { db, faults } = databaseHarness(t);
   await db.loadOrCreatePlayer();
@@ -154,6 +168,56 @@ test('ambiguous success after commit is safe to retry', async t => {
   assert.equal(await db.isQuestCompleted(evidence.questId), true);
   assert.equal((await db.completeVerifiedQuest(evidence)).awarded, false);
   assert.equal((await db.loadOrCreatePlayer()).totalRealXp, 100);
+});
+
+
+test('reward presentation survives completion until explicitly acknowledged', async t => {
+  const { db } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  const result = await db.completeVerifiedQuest(evidence);
+  assert.equal(result.awarded, true);
+  assert.ok(result.receipt);
+  let pending = await db.loadPendingRewardPresentations();
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].id, result.receipt.id);
+  assert.equal((await db.completeVerifiedQuest(evidence)).awarded, false);
+  pending = await db.loadPendingRewardPresentations();
+  assert.equal(pending.length, 1);
+  await db.acknowledgeRewardPresentation(result.receipt.id);
+  assert.equal((await db.loadPendingRewardPresentations()).length, 0);
+});
+
+test('pending reward presentation accepts SS, SSS and ASCENDED ranks', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  const receipt = {
+    id:'high-rank-reward',realXp:100,skillXp:{WIL:10},energy:5,distanceMeters:0,
+    beforeLevel:199,afterLevel:200,beforeRank:'SS',afterRank:'SSS',
+    skillLevels:[{key:'WIL',before:20,after:21}],newTitles:[],worldUnlocked:true,
+  };
+  sql.prepare("INSERT OR REPLACE INTO app_state(key,value) VALUES('pending_reward_presentations',?)").run(JSON.stringify([receipt]));
+  const pending = await db.loadPendingRewardPresentations();
+  assert.equal(pending.length,1);
+  assert.equal(pending[0].beforeRank,'SS');
+  assert.equal(pending[0].afterRank,'SSS');
+
+  receipt.beforeLevel=299; receipt.afterLevel=300; receipt.beforeRank='SSS'; receipt.afterRank='ASCENDED';
+  sql.prepare("UPDATE app_state SET value=? WHERE key='pending_reward_presentations'").run(JSON.stringify([receipt]));
+  const ascended = await db.loadPendingRewardPresentations();
+  assert.equal(ascended.length,1);
+  assert.equal(ascended[0].afterRank,'ASCENDED');
+});
+
+test('corrupt pending reward presentation is discarded instead of reaching UI', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  sql.prepare("INSERT INTO app_state(key,value) VALUES('pending_reward_presentations',?)").run(JSON.stringify([{
+    id:'bad-reward',realXp:-10,skillXp:{STR:2},energy:1,distanceMeters:0,
+    beforeLevel:1,afterLevel:1,beforeRank:'BANAN',afterRank:'E',
+    skillLevels:[],newTitles:[],worldUnlocked:false,
+  }]));
+  assert.equal((await db.loadPendingRewardPresentations()).length,0);
+  assert.equal(sql.prepare("SELECT count(*) n FROM app_state WHERE key='pending_reward_presentations'").get().n,0);
 });
 
 test('open/init failures are retryable; corrupt profile is not silently reset', async t => {
@@ -229,6 +293,7 @@ function screenHarness(t, options = {}) {
   let removals = 0;
   let starts = 0;
   let awards = 0;
+  let endedAttempts = 0;
   let checkpoint = options.checkpoint ?? null;
   let backgroundSession = options.backgroundSession ?? null;
   let backgroundStarted = false;
@@ -309,7 +374,10 @@ function screenHarness(t, options = {}) {
         return options.backgroundPermission?.promise ?? Promise.resolve({ status: 'granted' });
       },
       isBackgroundLocationAvailableAsync: async () => true,
-      hasStartedLocationUpdatesAsync: async () => backgroundStarted,
+      hasStartedLocationUpdatesAsync: async () => {
+        if (options.backgroundTaskStatusError) throw new Error('TaskManager status failed');
+        return backgroundStarted;
+      },
       startLocationUpdatesAsync: async () => { backgroundStarted = true; },
       stopLocationUpdatesAsync: async () => { backgroundStarted = false; },
       hasServicesEnabledAsync: async () => true,
@@ -324,7 +392,7 @@ function screenHarness(t, options = {}) {
       getQuestAccess: async () => options.access ?? 'AVAILABLE',
       recordActivityAttempt: async () => {},
       beginQuestAttempt: async (_quest,id) => id,
-      endQuestAttempt: async () => {},
+      endQuestAttempt: async () => { endedAttempts++; },
       loadQuestCheckpoint: async () => checkpoint,
       saveQuestCheckpoint: async value => { checkpoint = JSON.parse(JSON.stringify(value)); },
       clearQuestCheckpoint: async () => { checkpoint = null; },
@@ -367,7 +435,7 @@ function screenHarness(t, options = {}) {
     render, button,
     status: () => slots[0].value,
     distance: () => slots[2].value,
-    starts: () => starts, removals: () => removals, awards: () => awards, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
+    starts: () => starts, removals: () => removals, awards: () => awards, endedAttempts: () => endedAttempts, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
     disclosureCount: () => disclosureCount, backgroundPermissionRequests: () => backgroundPermissionRequests,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
@@ -396,6 +464,23 @@ test('double start is blocked while awaiting the first GPS fix', async t => {
   assert.equal(h.status(), 'STARTING');
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
+});
+
+test('leaving during GPS startup before background session exists closes the attempt', async t => {
+  const permission = deferred();
+  const h = screenHarness(t, { permission });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();
+  assert.equal(h.status(), 'STARTING');
+  assert.equal(h.backgroundSession(), null);
+  h.leave();
+  await flush(); await flush();
+  assert.equal(h.endedAttempts(), 1);
+  permission.resolve({ status: 'granted' });
+  await start; await flush();
+  assert.equal(h.starts(), 0);
+  assert.equal(h.backgroundSession(), null);
 });
 
 test('late GPS subscription is removed after leaving; stale callbacks are ignored', async t => {
@@ -434,10 +519,21 @@ for (const saveError of [false, true]) {
     assert.equal(h.status(), saveError ? 'ERROR' : 'COMPLETED');
     assert.equal(h.awards(), 1);
     assert.equal(h.removals(), 1);
+    assert.equal(h.endedAttempts(), 0, 'ambiguous completion/save failure must stay unresolved until canonical re-read');
     h.fix(530);
     assert.equal(h.awards(), 1);
   });
 }
+
+test('native background task startup/status failure releases GPS session ownership', async t => {
+  const h = screenHarness(t, { backgroundTaskStatusError: true });
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); h.render();
+  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.backgroundSession(), null);
+  assert.equal(h.starts(), 0);
+});
 
 test('background location disclosure is shown before the first background permission request', async t => {
   const h = screenHarness(t);
@@ -483,6 +579,42 @@ test('permission dialog and transient AppState before GPS subscription do not st
   assert.equal(h.awards(), 0);
 });
 
+test('remaining in background while permissions resolve hands off before foreground watcher starts', async t => {
+  const permission = deferred();
+  const h = screenHarness(t, { permission });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();
+  h.appState('background');
+  permission.resolve({ status: 'granted' });
+  await flush(); await flush(); await flush();
+  assert.equal(h.starts(), 0);
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  h.appState('active');
+  await flush(); h.render();
+  assert.equal(h.status(), 'READY');
+  await start;
+});
+
+test('background while native quest watcher is pending switches durable session to BACKGROUND', async t => {
+  const watch = deferred();
+  const h = screenHarness(t, { watch });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); await flush();
+  assert.equal(h.starts(), 1);
+  assert.equal(h.backgroundSession()?.mode, 'FOREGROUND');
+  h.appState('background');
+  await flush();
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  watch.resolve();
+  await start; await flush();
+  assert.equal(h.removals(), 1);
+  h.appState('active');
+  await flush(); h.render();
+  assert.equal(h.status(), 'READY');
+});
+
 test('real background hands GPS off without failing and foreground can resume without remounting', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
@@ -501,6 +633,23 @@ test('real background hands GPS off without failing and foreground can resume wi
   assert.equal(h.starts(), 2);
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
+});
+
+test('background after session prepare but before watcher handle still hands off safely', async t => {
+  const watch = deferred();
+  const h = screenHarness(t, { watch });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); await flush();
+  assert.equal(h.starts(), 1);
+  assert.equal(h.backgroundSession()?.mode, 'FOREGROUND');
+  h.appState('background');
+  await flush(); await flush();
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  watch.resolve();
+  await start; await flush();
+  assert.equal(h.removals(), 1);
+  assert.equal(h.awards(), 0);
 });
 
 test('background with a watcher but before the first fix hands off without fabricating distance', async t => {
@@ -557,6 +706,25 @@ test('GPS distance checkpoint survives background and returns with the same mete
 
 
 const focusEvidence = { questId: 'focus_protocol_v1', verificationType: 'TIMER', verificationScore: 100, durationSeconds: 600 };
+
+test('successful quest closes its attempt so the next quest can start', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  const firstAttempt = 'attempt-success-first';
+  await db.beginQuestAttempt(evidence.questId, firstAttempt);
+  const completed = await db.completeVerifiedQuest({ ...evidence, attemptId: firstAttempt });
+  assert.equal(completed.awarded, true);
+  const firstRow = sql.prepare('SELECT result,reason,ended_at FROM quest_attempts WHERE attempt_id=?').get(firstAttempt);
+  assert.equal(firstRow.result, 'COMPLETED');
+  assert.equal(firstRow.reason, null);
+  assert.ok(firstRow.ended_at);
+
+  const nextAttempt = 'attempt-success-next';
+  await db.beginQuestAttempt('focus_protocol_v1', nextAttempt);
+  const nextRow = sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get(nextAttempt);
+  assert.equal(nextRow.result, null);
+  await db.endQuestAttempt(nextAttempt,'INTERRUPTED','LEFT_SCREEN',1,0);
+});
 
 test('both quests award once in parallel without overwriting XP or distance; progress survives reload', async t => {
   const { db, sql, load } = databaseHarness(t);
@@ -1137,8 +1305,11 @@ test('ambiguous signal commit can be retried after restart without a second awar
   const h = databaseHarness(t); const w = await unlockWorld(h); const signal = await w.scanSignal(worldFix());
   const near = worldFix(signal.latitude, signal.longitude); const before = await h.db.loadSystemState();
   h.faults.afterCommit = true; await assert.rejects(w.locateSignal(near, signal.revision));
+  const pendingAfterCommit = await h.db.loadPendingRewardPresentations();
+  assert.ok(pendingAfterCommit.some(receipt=>receipt.id==='first_world_signal_v1'));
   assert.equal((await h.reloadWorld().locateSignal(near, signal.revision)).awarded, false);
   assert.equal((await h.db.loadSystemState()).player.totalRealXp, before.player.totalRealXp + 50);
+  assert.equal((await h.db.loadPendingRewardPresentations()).filter(receipt=>receipt.id==='first_world_signal_v1').length,1);
 });
 test('World initial fix timeout and GPS unavailable are recoverable errors', async t => {
   const h = worldTrackingHarness(t, { initial: () => new Promise(() => {}), timeoutMs: 10 });
@@ -1538,11 +1709,13 @@ test('notification service only manages its own IDs and serializes clear/OFF cha
   getAllScheduledNotificationsAsync:async()=>[...scheduled.keys()].map(identifier=>({identifier})),
   cancelScheduledNotificationAsync:async id=>{calls.push(['cancel',id]);scheduled.delete(id);},
   getPermissionsAsync:async()=>({granted:true}),
+  setNotificationChannelAsync:async(id)=>{calls.push(['channel',id]);},
   scheduleNotificationAsync:async n=>{calls.push(['add',n.identifier]);scheduled.set(n.identifier,n);return n.identifier;},
+  AndroidImportance:{DEFAULT:3},
   SchedulableTriggerInputTypes:{DATE:'date'},
  };
  const service=loader({'expo-notifications':notifications,'react-native':{Platform:{OS:'android'}}},{now:new Date(2026,8,18,10).getTime()})('notifications/service');
- await service.syncReminders({dailyReminder:true,reminderTime:'19:00'},false,true);assert.equal(scheduled.size,8);
+ await service.syncReminders({dailyReminder:true,reminderTime:'19:00'},false,true);assert.equal(scheduled.size,8);assert.ok(calls.some(x=>x[0]==='channel'&&x[1]==='system2-daily'));
  await service.syncReminders({dailyReminder:true,reminderTime:'19:00'},true,true);assert.equal(scheduled.size,7);
  await Promise.all([service.syncReminders({dailyReminder:true,reminderTime:'20:00'},false,true),service.syncReminders({dailyReminder:false},false,true)]);
  assert.equal(scheduled.size,1);assert.ok(scheduled.has('legacy-reminder'));
@@ -1624,14 +1797,32 @@ test('World Link exact milestones, reward, title, event and Chronicle persist on
  s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,1);assert.equal(s.player.totalRealXp,before);
  const signal=await w.scanSignal(storyFix(h,));await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
  s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,2);assert.ok(!s.titles.includes('PATHFINDER'));
- for(const id of s.daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ let worldLinkCompletion;
+ for(const id of s.daily.questIds) worldLinkCompletion=await h.db.completeVerifiedQuest(dailyEvidence(h,id));
  s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,3);assert.equal(s.story.worldLinkComplete,true);assert.ok(s.titles.includes('PATHFINDER'));
+ assert.ok(worldLinkCompletion.receipt?.newTitles.includes('PATHFINDER'));
  const xp=s.player.totalRealXp;await Promise.all(Array.from({length:5},()=>h.db.loadSystemState()));assert.equal((await h.reload().loadSystemState()).player.totalRealXp,xp);
  const chronicle=await h.db.loadChronicle();assert.equal(chronicle.filter(e=>e.id==='world_link_chapter_2').length,1);assert.equal(chronicle.filter(e=>e.id==='title_pathfinder').length,1);
  await h.db.consumeStoryEvent('world_link_chapter_2');assert.ok(!(await h.db.loadSystemState()).story.pendingEvents.some(e=>e.id==='world_link_chapter_2'));
  assert.ok((await h.db.loadChronicle()).some(e=>e.id==='world_link_chapter_2'));
  await h.db.updateIdentity({currentTitle:'PATHFINDER'});assert.equal((await h.reload().loadSystemState()).player.currentTitle,'PATHFINDER');
 });
+test('third sector can complete World Link and persists PATHFINDER presentation',async t=>{
+ const h=await dailyHarness(t),w=h.load('storage/world');
+ let s=await h.db.loadSystemState();
+ for(const id of s.daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ for(let n=0;n<2;n++) await w.discoverSector(storyFix(h,52+n*.002,19));
+ const signal=await w.scanSignal(storyFix(h));
+ await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
+ s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,2);assert.equal(s.story.worldLinkComplete,false);
+ const result=await w.discoverSector(storyFix(h,52.004,19));
+ assert.equal(result.discovered,true);assert.ok(result.receipt);assert.equal(result.receipt.id,'world_link_chapter_2');
+ assert.ok(result.receipt.newTitles.includes('PATHFINDER'));
+ s=await h.db.loadSystemState();assert.equal(s.story.worldLinkComplete,true);assert.ok(s.titles.includes('PATHFINDER'));
+ const pending=await h.db.loadPendingRewardPresentations();
+ assert.ok(pending.some(receipt=>receipt.id==='world_link_chapter_2'&&receipt.newTitles.includes('PATHFINDER')));
+});
+
 for(const failure of ['INSERT INTO story_progress','INSERT INTO story_events','COMMIT']) test('World Link reward rolls back with last milestone: '+failure,async t=>{
  const h=await dailyHarness(t);const w=h.load('storage/world');for(let n=0;n<3;n++)await w.discoverSector(storyFix(h,52+n*.002,19));const signal=await w.scanSignal(storyFix(h,));await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
  const ids=(await h.db.loadSystemState()).daily.questIds;for(const id of ids.slice(0,2))await h.db.completeVerifiedQuest(dailyEvidence(h,id));const before=await h.db.loadSystemState();
@@ -1653,6 +1844,14 @@ test('Hidden/Rematch require real prior failure; repeated interrupts do not stac
  const base=h.load('quests/catalog').getQuest(id).rewards.skillXp.WIL??0;assert.equal(s.player.stats.WIL.totalXp-before.stats.WIL.totalXp,base+50+15);
  const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,1);
+});
+test('day rollover interruption never fabricates Rematch eligibility',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];
+ await h.db.beginQuestAttempt(id,'rollover');h.clock.now+=10000;
+ await h.db.endQuestAttempt('rollover','INTERRUPTED','DAY_ROLLOVER',10,0);
+ const attempt=(await h.db.listQuestAttempts()).find(x=>x.attempt_id==='rollover');
+ assert.equal(attempt.eligible,0);
+ assert.ok(!(await h.db.loadSystemState()).story.rematchQuestIds.includes(id));
 });
 for(const reason of ['PERMISSION_DENIED','TECHNICAL_ERROR']) test('technical failure has no story rematch or hidden: '+reason,async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'technical');h.clock.now+=10000;await h.db.endQuestAttempt('technical','FAILED',reason,10,0);h.clock.now+=1000;
@@ -1698,8 +1897,8 @@ test('Boss staged progression survives restart; requires future day and awards e
  const activity=classify('WALK',features({distanceMeters:2000,medianSpeedMps:1.5}));
  await h.db.completeVerifiedQuest({questId:'wall_walk_v1',verificationType:'GPS_DISTANCE',durationSeconds:600,distanceMeters:2000,verificationScore:87,activity});
  assert.equal(await h.db.getQuestAccess('wall_run_v1'),'LOCKED');s=await h.reload().loadSystemState();assert.ok(s.story.boss.move_at);assert.equal(s.story.boss.discipline_at,null);assert.equal(s.story.bossComplete,false);
- h.clock.now+=86400000;s=await h.db.loadSystemState();const before=s.player;const id=s.daily.questIds[0];await h.db.completeVerifiedQuest(dailyEvidence(h,id));s=await h.db.loadSystemState();
- assert.equal(s.story.bossComplete,true);assert.ok(s.titles.includes('WALLBREAKER'));assert.equal(s.player.totalRealXp-before.totalRealXp,500+h.load('quests/catalog').getQuest(id).rewards.realXp);
+ h.clock.now+=86400000;s=await h.db.loadSystemState();const before=s.player;const id=s.daily.questIds[0];const bossCompletion=await h.db.completeVerifiedQuest(dailyEvidence(h,id));s=await h.db.loadSystemState();
+ assert.equal(s.story.bossComplete,true);assert.ok(s.titles.includes('WALLBREAKER'));assert.ok(bossCompletion.receipt?.newTitles.includes('WALLBREAKER'));assert.equal(s.player.totalRealXp-before.totalRealXp,500+h.load('quests/catalog').getQuest(id).rewards.realXp);
  const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest(dailyEvidence(h,id));await h.db.startBossProtocol();assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
  assert.equal((await h.db.loadChronicle()).filter(e=>e.type==='BOSS_DEFEATED').length,1);
 });
@@ -2083,6 +2282,7 @@ test('Android config retains release identity and background quest location perm
  const config=JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8')).expo;
  assert.equal(config.name,'SYSTEM');assert.equal(config.android.package,'pl.systemworld.app');assert.ok(config.android.versionCode>=1);
  const location=config.plugins.find(p=>Array.isArray(p)&&p[0]==='expo-location')[1];assert.equal(location.isAndroidBackgroundLocationEnabled,true);assert.equal(location.isAndroidForegroundServiceEnabled,true);
+ assert.ok(config.plugins.some(p=>p==='expo-notifications'||(Array.isArray(p)&&p[0]==='expo-notifications')));
  assert.ok(config.android.permissions.includes('android.permission.FOREGROUND_SERVICE_LOCATION'));assert.ok(config.android.permissions.includes('android.permission.ACCESS_BACKGROUND_LOCATION'));
 });
 
@@ -2098,9 +2298,16 @@ function providerUI(db,dev=false,achievementMocks={}) {
   useEffect(fn,deps){const i=cursor++;if(!slots[i]||!same(slots[i],deps)){slots[i]=deps;pending.push(fn);}},
  };
  const jsx=(type,props)=>typeof type==='function'?type(props):({type,props});
+ const database={
+  loadBackgroundQuestSession:async()=>null,
+  getQuestAccess:async()=> 'AVAILABLE',
+  loadPendingRewardPresentations:async()=>[],
+  acknowledgeRewardPresentation:async()=>{},
+  ...db,
+ };
  const load=loader({react,'react/jsx-runtime':{jsx,jsxs:jsx},__DEV__:dev,
   'react-native':{AppState:{addEventListener:()=>({remove(){}}),currentState:'active'}},
-  '../storage/database':db,
+  '../storage/database':database,
   '../cloud/sync':{flushCloudOutbox:async()=>({authenticated:false,sent:0,pending:0,failed:0})},
   '../ai':{requestDailyAIGameMaster:async()=>({
     quests:[],director:{mode:'normal',difficultyBias:0,headline:'DAILY DIRECTIVE',message:'TEST'},briefing:'',source:'fallback'
@@ -2127,17 +2334,50 @@ test('SystemProvider gates startup on health and blocks production reset',async(
   await assert.rejects(ctx.resetData(true));assert.equal(resetCalls,0);
  }finally{h.close();}
 });
-test('SystemProvider late refresh cannot overwrite committed reward',async()=>{
- const state=startupFixture();let release;
+test('SystemProvider late refresh cannot overwrite committed reward or freeze future refreshes',async()=>{
+ const state=startupFixture(),staleLoad=deferred();let loadCalls=0;
  const rewarded={...state,player:loader({})('core').addRealXp(state.player,100),awarded:true};
- const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>state,testerHealthCheck:async()=>({ok:true,issues:[]}),completeVerifiedQuest:async()=>rewarded};
+ const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>{loadCalls++;return state;},testerHealthCheck:async()=>({ok:true,issues:[]}),completeVerifiedQuest:async()=>rewarded};
  const h=providerUI(db);try {
   h.render();await flush();let ctx=h.render();assert.equal(ctx.ready,true);
-  db.loadSystemState=()=>new Promise(resolve=>{release=resolve;});const stale=ctx.refreshPlayer();await flush();
+  db.loadSystemState=()=>{loadCalls++;return staleLoad.promise;};
+  const stale=ctx.refreshPlayer();await flush();
   await ctx.completeVerifiedQuest(evidence);ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
-  release(state);await stale;ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
- }finally{h.close();}
+  db.loadSystemState=async()=>{loadCalls++;return rewarded;};
+  staleLoad.resolve(state);await stale;ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
+  const before=loadCalls;
+  await ctx.refreshPlayer();await flush();ctx=h.render();
+  assert.equal(loadCalls,before+1);
+  assert.equal(ctx.player.totalRealXp,100);
+ }finally{staleLoad.resolve(state);h.close();}
 });
+test('SystemProvider releases stale AI loading after a concurrent committed write',async()=>{
+ const player=loader({})('core').createNewPlayer('AI RACE');
+ const state={...startupFixture(),player,awakeningCompleted:true,
+  daily:{dayKey:'2026-09-22',weekKey:'2026-W39',questIds:[],suspiciousQuestIds:[],completed:0,weeklyCompleted:0,clear:false,weeklyClear:false,clockAnomaly:false},
+  settings:{haptics:true,audio:false}};
+ const ai=deferred();
+ const db={
+  hasAvatarCleanupPending:async()=>false,
+  loadSystemState:async()=>state,
+  testerHealthCheck:async()=>({ok:true,issues:[]}),
+  saveSettings:async patch=>({...state,settings:{...state.settings,...patch}}),
+ };
+ const h=providerUI(db,false,{'../ai':{
+  requestDailyAIGameMaster:()=>ai.promise,
+  requestGoalAIGameMaster:async()=>({quests:[],director:{mode:'normal',difficultyBias:0,headline:'GOAL',message:'TEST'},briefing:'',source:'fallback'})
+ }});
+ try{
+  h.render();await flush();let ctx=h.render();
+  assert.equal(ctx.ready,true);assert.equal(ctx.aiLoading,true);
+  await ctx.saveSettings({audio:true});ctx=h.render();assert.equal(ctx.settings.audio,true);
+  ai.resolve({quests:[],director:{mode:'normal',difficultyBias:0,headline:'STALE',message:'TEST'},briefing:'stale',source:'fallback'});
+  await flush();ctx=h.render();
+  assert.equal(ctx.aiLoading,false);
+  assert.notEqual(ctx.aiGameMaster?.director?.headline,'STALE');
+ }finally{ai.resolve({quests:[],director:{mode:'normal',difficultyBias:0,headline:'STALE',message:'TEST'},briefing:'stale',source:'fallback'});h.close();}
+});
+
 test('SystemProvider reuses persisted AI Daily and manual refresh cannot replace accepted quests',async()=>{
  const player=loader({})('core').createNewPlayer('AI CACHE');
  const director={mode:'normal',difficultyBias:0,headline:'CACHED DAILY',message:'Persisted plan'};

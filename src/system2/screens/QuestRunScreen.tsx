@@ -1,9 +1,9 @@
 import { useSystem } from '../state/SystemProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
@@ -12,7 +12,7 @@ import { useQuestRun } from '../quests/useQuestRun';
 import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
-import { MissionBriefing } from '../components/QuestExperience';
+import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
@@ -25,8 +25,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
   const [questAccepted, setQuestAccepted] = useState(false);
   const [startInProgress, setStartInProgress] = useState(false);
-  const [questCompleteVisible, setQuestCompleteVisible] = useState(false);
   const startInProgressRef = useRef(false);
+  const scrollRef = useRef<ScrollView | null>(null);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
@@ -49,6 +49,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const seconds =
     duration % 60;
   const showLiveTracker = isLiveQuestStatus(status);
+  const showBriefing = status === 'CHECKING' || status === 'READY' || status === 'STARTING';
   const renderStatus: string = status;
   const nextAction = getNextAction({
     ...system,
@@ -76,7 +77,9 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   }, [questAccepted]);
 
   useEffect(() => {
-    setQuestCompleteVisible(status === 'COMPLETED');
+    if (!['COMPLETED','ERROR','DENIED'].includes(status)) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180);
+    return () => clearTimeout(timer);
   }, [status]);
 
   const handleStartQuest = () => {
@@ -94,17 +97,16 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   return (
     <View style={styles.root}>
-      <SystemAmbientBackground intensity="quiet" />
+      <SystemAmbientBackground intensity={quest.category === 'BOSS' ? 'world' : status === 'COMPLETING' || status === 'COMPLETED' ? 'hero' : status === 'TRACKING' ? 'default' : 'quiet'} />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={
           [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
         }
       >
         <View style={styles.topBar}>
           <Pressable accessibilityRole="button"
-            onPress={() =>
-              router.back()
-            }
+            onPress={() => router.replace('/quests')}
             style={styles.backButton}
           >
             <Text
@@ -129,13 +131,19 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
-        <MissionBriefing
+        <QuestFlowRail status={status} />
+        {showBriefing && <MissionBriefing
           quest={quest}
           status={status}
           onStart={status === 'READY' && ready ? handleStartQuest : undefined}
           startDisabled={startInProgress || !ready}
           resume={distance > 0 || duration > 0}
-        />
+        />}
+        {(status === 'TRACKING' || status === 'COMPLETING') && <Animated.View entering={FadeIn.duration(220)} style={styles.liveMissionHeader}>
+          <Text style={styles.liveMissionCode}>{status === 'COMPLETING' ? 'VERIFYING // CANONICAL' : 'MISSION ACTIVE // LIVE'}</Text>
+          <Text style={styles.liveMissionTitle}>{quest.title}</Text>
+          <Text style={styles.liveMissionHint}>{status === 'COMPLETING' ? 'Nie zamykaj ekranu. SYSTEM zapisuje wynik i nagrodę.' : 'Wykonuj cel. Weryfikacja działa na żywo.'}</Text>
+        </Animated.View>}
 
         {!!quest.activityType && <View style={styles.questCard}>
           <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
@@ -307,14 +315,22 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         {renderStatus === 'LOCKED' && <View style={styles.errorBox}>
           <Text style={styles.errorTitle}>QUEST LOCKED</Text>
           <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Przejdź do questów" onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
+          <View style={styles.errorActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Przejdź do questów" onPress={() => router.replace('/quests')}><Text style={styles.retry}>QUEST HUB →</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć do Home" onPress={() => router.replace('/')}><Text style={styles.retry}>HOME →</Text></Pressable>
+          </View>
         </View>}
 
         {!ready && <View style={styles.errorBox}>
           <Text style={styles.errorText}>{databaseError ?? 'Trwa odczyt profilu SYSTEMU...'}</Text>
-          {databaseError && <Pressable accessibilityRole="button" accessibilityLabel="Ponów odczyt profilu" onPress={() => { void refreshPlayer(); }}>
-            <Text style={styles.retry}>PONÓW ODCZYT PROFILU</Text>
-          </Pressable>}
+          {databaseError && <View style={styles.errorActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ponów odczyt profilu" onPress={() => { void refreshPlayer(); }}>
+              <Text style={styles.retry}>PONÓW ODCZYT →</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć do Home" onPress={() => router.replace('/')}>
+              <Text style={styles.retry}>HOME →</Text>
+            </Pressable>
+          </View>}
         </View>}
 
         {renderStatus === 'READY' && distance > 0 && !isTimer && <View style={styles.trackingBox}><Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text><Text style={styles.description}>Wznów zapisaną próbę. Aktywna misja ruchowa może mierzyć dystans w tle przy wymaganych uprawnieniach.</Text></View>}
@@ -324,13 +340,14 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         </Pressable>}
         {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
 
-        {(renderStatus === 'DENIED' || renderStatus === 'ERROR') && <View style={styles.errorBox}>
-          <Text style={styles.errorTitle}>{renderStatus === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'ATTEMPT ENDED // SYSTEM ANALYSIS'}</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Spróbuj ponownie" onPress={() => { void retryQuest(); }}>
-            <Text style={styles.retry}>{rematch ? 'BEGIN REMATCH' : 'SPRÓBUJ PONOWNIE'}</Text>
-          </Pressable>
-        </View>}
+        {(renderStatus === 'DENIED' || renderStatus === 'ERROR') && <QuestRecoveryPanel
+          title={renderStatus === 'DENIED' ? 'BRAK DOSTĘPU DO WERYFIKACJI' : rematch ? 'REMATCH AVAILABLE' : 'PRÓBA ZATRZYMANA'}
+          message={error}
+          onRetry={() => { void retryQuest(); }}
+          onSettings={renderStatus === 'DENIED' ? () => { void Linking.openSettings(); } : undefined}
+          onHub={() => router.replace('/quests')}
+          onHome={() => router.replace('/')}
+        />}
 
         {quest.verification.type === 'MULTI' && showLiveTracker && <MultiProgress
           distance={distance} duration={duration} meters={quest.verification.minimumDistanceMeters}
@@ -339,7 +356,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         {receipt && <RewardSummary receipt={receipt} />}
         {renderStatus ===
           'COMPLETED' && (
-          <View
+          <Animated.View
+            entering={FadeInUp.duration(420)}
             style={
               styles.completeCard
             }
@@ -369,22 +387,31 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 ? 'Ta misja została już wcześniej zaliczona. Nagrody nie mogą zostać odebrane drugi raz.'
                 : 'Cel został zweryfikowany. Nagrody zostały zapisane w profilu SYSTEMU.'}
             </Text>
+            {!alreadyCompleted && <View style={styles.nextProtocol}>
+              <Text style={styles.nextProtocolCode}>NEXT PROTOCOL</Text>
+              <Text style={styles.nextProtocolTitle}>{nextAction.title}</Text>
+              <Text style={styles.nextProtocolDetail}>{nextAction.detail}</Text>
+            </View>}
 
             <Pressable accessibilityRole="button"
               style={
                 styles.returnButton
               }
-              onPress={alreadyCompleted ? () => router.back() : continueSystem}
+              onPress={alreadyCompleted ? () => router.replace('/quests') : continueSystem}
             >
               <Text
                 style={
                   styles.returnText
                 }
               >
-                {alreadyCompleted ? 'WRÓĆ DO SYSTEMU' : nextAction.title}
+                {alreadyCompleted ? 'WRÓĆ DO QUEST HUB' : nextAction.title}
               </Text>
             </Pressable>
-          </View>
+            <View style={styles.completeActions}>
+              {!alreadyCompleted && nextAction.route !== '/quests' && <Pressable accessibilityRole="button" onPress={() => router.replace('/quests')}><Text style={styles.completeLink}>QUEST HUB</Text></Pressable>}
+              <Pressable accessibilityRole="button" onPress={() => router.replace('/')}><Text style={styles.completeLink}>HOME</Text></Pressable>
+            </View>
+          </Animated.View>
         )}
       </ScrollView>
 
@@ -395,22 +422,26 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         </Animated.View>
       )}
 
-      {questCompleteVisible && (
-        <Animated.View pointerEvents="none" entering={FadeIn.duration(250)} exiting={FadeOut.duration(220)} style={styles.questCompleteOverlay}>
-          <Text style={styles.questOverlayLabel}>QUEST COMPLETE</Text>
-          <Text style={styles.questOverlayTitle}>VERIFIED</Text>
-        </Animated.View>
-      )}
     </View>
   );
 }
 
 function isLiveQuestStatus(status: string) {
-  return status === 'TRACKING' || status === 'COMPLETING' || status === 'COMPLETED';
+  return status === 'TRACKING' || status === 'COMPLETING';
 }
 
 const styles =
   StyleSheet.create({
+    completeActions: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 16 },
+    completeLink: { color: SYSTEM_COLORS.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+    liveMissionHeader: { marginTop: 12, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.05)' },
+    liveMissionCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+    liveMissionTitle: { color: SYSTEM_COLORS.white, fontSize: 20, fontWeight: '900', marginTop: 7 },
+    liveMissionHint: { color: SYSTEM_COLORS.textMuted, fontSize: 10, lineHeight: 15, marginTop: 6 },
+    nextProtocol: { width: '100%', marginTop: 18, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.045)' },
+    nextProtocolCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+    nextProtocolTitle: { color: SYSTEM_COLORS.white, fontSize: 15, fontWeight: '900', marginTop: 6 },
+    nextProtocolDetail: { color: SYSTEM_COLORS.textMuted, fontSize: 10, lineHeight: 15, marginTop: 5 },
     root: {
       flex: 1,
       position: 'relative',
@@ -666,6 +697,8 @@ const styles =
       marginTop: 8,
       lineHeight: 20,
     },
+
+    errorActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 2 },
 
     retry: {
       color:

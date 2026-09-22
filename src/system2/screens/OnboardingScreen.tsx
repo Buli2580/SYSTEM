@@ -1,39 +1,135 @@
 import { validateBirthDate } from '../identity/age';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import Action from '../components/Action';
 import SystemError from '../components/SystemError';
-import { pageStyles as s } from '../components/SystemPage';
+import SystemBootSequence from '../components/SystemBootSequence';
 import { useSystem } from '../state/SystemProvider';
+import { SKILL_KEYS, SYSTEM_COLORS as C } from '../core';
+
 const pages = [
-  ['SYSTEM', 'ROZWIJAJ SWOJE PRAWDZIWE ŻYCIE', 'Twoje prawdziwe działania rozwijają cyfrową postać.'],
-  ['RÓWNY START', 'REAL LEVEL 1 · RANGA E', 'STR 1 · VIT 1 · INT 1 · WIL 1\nCHA 1 · CRE 1 · RES 1\n\nTwoja przeszłość ustala poziom trudności.\nNie ustala Twojego poziomu.'],
-  ['PRAWDZIWE DZIAŁANIA', 'KAŻDE XP MA SWOJE ŹRÓDŁO', 'START\n↓\nPRAWDZIWA AKTYWNOŚĆ\n↓\nWERYFIKACJA\n↓\nXP\n↓\nROZWÓJ POSTACI'],
-  ['PRZEBUDZENIE', 'TOŻSAMOŚĆ SYSTEMU', 'Wybierz pseudonim. Nie musisz podawać prawdziwego imienia. To Twoja lokalna tożsamość.'],
-];
+  { code: '00 // SIGNAL', title: 'SYSTEM WYKRYTY', kicker: 'TWOJE ŻYCIE STAJE SIĘ GRĄ', body: 'Nie tworzysz bohatera w fikcyjnym świecie. Rozwijasz siebie, a SYSTEM zapisuje prawdziwy postęp.' },
+  { code: '01 // ORIGIN', title: 'RÓWNY START', kicker: 'REAL LEVEL 1 · RANGA E', body: 'Każdy startuje z tego samego punktu. Twoja przeszłość może zmieniać trudność, ale nie daje darmowego poziomu.' },
+  { code: '02 // RULE', title: 'PRAWDZIWE DZIAŁANIA', kicker: 'ZERO FAŁSZYWEGO XP', body: 'Misja → prawdziwa aktywność → weryfikacja → XP → rozwój postaci. Nagroda pojawia się dopiero po potwierdzeniu działania.' },
+  { code: '03 // DIRECTOR', title: 'AI GAME MASTER', kicker: 'CEL ZAMIENIA SIĘ W ŚCIEŻKĘ', body: 'Po utworzeniu postaci wybierzesz pierwszy cel. AI przygotuje kierunek, a SYSTEM od razu otworzy pierwszą linię questów.' },
+  { code: '04 // IDENTITY', title: 'STWÓRZ POSTAĆ', kicker: 'PLAYER CORE // INITIALIZATION', body: 'Nadaj sobie nazwę SYSTEMU. Zaczynasz jako REAL LEVEL 1, RANGA E i siedem równych atrybutów.' },
+] as const;
+
 export default function OnboardingScreen() {
-  const [step, setStep] = useState(0), [name, setName] = useState(''), [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(0);
+  const [booting, setBooting] = useState(true);
+  const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState('');
-  const busyRef = useRef(false); const insets = useSafeAreaInsets(); const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { finishOnboarding } = useSystem();
+  const identityStep = step === pages.length - 1;
+
   async function enter() {
-    if (busyRef.current) return; busyRef.current = true; setBusy(true); setError(null);
-    try { await finishOnboarding(name, validateBirthDate(birthDate)); router.replace('/'); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać SYSTEM IDENTITY.'); }
-    finally { busyRef.current = false; setBusy(false); }
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await finishOnboarding(name, validateBirthDate(birthDate));
+      router.replace('/goals');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać SYSTEM IDENTITY.');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#030709' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 26, paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }}>
-      <Text style={s.label}>SYSTEM 2.0 // {step + 1}/4</Text>
-      <Text style={[s.title, { fontSize: 34 }]}>{pages[step][0]}</Text>
-      <Text style={[s.label, { marginTop: 24 }]}>{pages[step][1]}</Text>
-      <Text style={[s.body, { fontSize: 16, lineHeight: 26, marginBottom: 24 }]}>{pages[step][2]}</Text>
-      {step === 3 && <View><Text style={s.label}>SYSTEM NAME</Text><TextInput accessibilityLabel="SYSTEM NAME — pseudonim" value={name} onChangeText={setName} maxLength={24} autoCorrect={false} placeholder="Twój pseudonim" placeholderTextColor="#8397a3" style={{ color: '#fff', borderWidth: 1, borderColor: '#24505c', borderRadius: 12, padding: 16, marginVertical: 12 }} /><Text style={s.label}>DATA URODZENIA · RRRR-MM-DD</Text><TextInput accessibilityLabel="Data urodzenia RRRR-MM-DD" value={birthDate} onChangeText={setBirthDate} maxLength={10} autoCorrect={false} placeholder="RRRR-MM-DD" placeholderTextColor="#8397a3" keyboardType="numbers-and-punctuation" style={{ color: '#fff', borderWidth: 1, borderColor: '#24505c', borderRadius: 12, padding: 16, marginVertical: 12 }} /><Text style={s.body}>Data pozostaje na telefonie. Wiek obliczamy automatycznie.</Text></View>}
-      {error && <SystemError message={error} retry={() => { void enter(); }} />}
-      <Action disabled={busy} label={step === 3 ? busy ? 'ZAPISYWANIE…' : 'WEJDŹ DO SYSTEMU' : 'DALEJ →'} onPress={() => step === 3 ? void enter() : setStep(step + 1)} />
-      {step > 0 && <Action disabled={busy} label="WSTECZ" onPress={() => setStep(step - 1)} />}
-    </ScrollView>
-  </KeyboardAvoidingView>;
+
+  return <View style={styles.root}>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 30, paddingBottom: insets.bottom + 30 }]}>
+        <View style={styles.topline}>
+          <Text style={styles.system}>SYSTEM // AWAKENING 2.0</Text>
+          <Text style={styles.counter}>{step + 1}/{pages.length}</Text>
+        </View>
+        <View style={styles.progressRow}>
+          {pages.map((_, index) => <View key={index} style={[styles.progressSegment, index <= step && styles.progressSegmentActive]} />)}
+        </View>
+
+        <Animated.View key={step} entering={FadeInUp.duration(380)} style={styles.hero}>
+          <View style={styles.coreWrap}>
+            <Animated.View entering={FadeIn.duration(650)} style={styles.coreOuter}>
+              <View style={styles.coreInner} />
+            </Animated.View>
+          </View>
+          <Text style={styles.code}>{pages[step].code}</Text>
+          <Text style={styles.title}>{pages[step].title}</Text>
+          <Text style={styles.kicker}>{pages[step].kicker}</Text>
+          <Text style={styles.body}>{pages[step].body}</Text>
+
+          {identityStep && <View style={styles.identity}>
+            <View style={styles.playerHeader}>
+              <View><Text style={styles.mini}>PLAYER CORE</Text><Text style={styles.playerLevel}>LV. 1</Text></View>
+              <View style={styles.rankBadge}><Text style={styles.rankText}>RANK E</Text></View>
+            </View>
+            <View style={styles.stats}>
+              {SKILL_KEYS.map(key => <View key={key} style={styles.stat}><Text style={styles.statCode}>{key}</Text><Text style={styles.statValue}>1</Text></View>)}
+            </View>
+            <Text style={styles.inputLabel}>SYSTEM NAME</Text>
+            <TextInput accessibilityLabel="SYSTEM NAME — pseudonim" value={name} onChangeText={setName} maxLength={24}
+              autoCorrect={false} placeholder="Twój pseudonim" placeholderTextColor={C.textVeryMuted} style={styles.input} />
+            <Text style={styles.inputLabel}>DATA URODZENIA · RRRR-MM-DD</Text>
+            <TextInput accessibilityLabel="Data urodzenia RRRR-MM-DD" value={birthDate} onChangeText={setBirthDate} maxLength={10}
+              autoCorrect={false} placeholder="RRRR-MM-DD" placeholderTextColor={C.textVeryMuted}
+              keyboardType="numbers-and-punctuation" style={styles.input} />
+            <Text style={styles.privacy}>Data zostaje na telefonie. SYSTEM używa wieku do zasad bezpieczeństwa i dopasowania doświadczenia.</Text>
+          </View>}
+        </Animated.View>
+
+        {error && <SystemError message={error} retry={() => { void enter(); }} />}
+        <View style={styles.actions}>
+          <Action disabled={busy || booting} label={identityStep ? busy ? 'TWORZENIE PLAYER CORE…' : 'UTWÓRZ POSTAĆ →' : 'DALEJ →'}
+            onPress={() => identityStep ? void enter() : setStep(value => Math.min(pages.length - 1, value + 1))} />
+          {step > 0 && <Action disabled={busy || booting} label="WSTECZ" onPress={() => setStep(value => Math.max(0, value - 1))} />}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+    <SystemBootSequence visible={booting} onComplete={() => setBooting(false)} />
+  </View>;
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.background },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  topline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  system: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.7 },
+  counter: { color: C.textMuted, fontSize: 9, fontWeight: '900' },
+  progressRow: { flexDirection: 'row', gap: 6, marginTop: 13 },
+  progressSegment: { flex: 1, height: 3, borderRadius: 3, backgroundColor: C.line },
+  progressSegmentActive: { backgroundColor: C.cyan },
+  hero: { marginTop: 30, padding: 22, borderWidth: 1, borderColor: C.lineBright, borderRadius: 24, backgroundColor: C.panel },
+  coreWrap: { height: 118, alignItems: 'center', justifyContent: 'center' },
+  coreOuter: { width: 82, height: 82, borderWidth: 1, borderColor: C.cyan, transform: [{ rotate: '45deg' }], alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,229,255,0.04)' },
+  coreInner: { width: 34, height: 34, borderWidth: 2, borderColor: C.cyanSoft, backgroundColor: C.panelSoft },
+  code: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.6, marginTop: 8 },
+  title: { color: C.white, fontSize: 34, lineHeight: 39, fontWeight: '900', marginTop: 8 },
+  kicker: { color: C.cyanSoft, fontSize: 11, fontWeight: '900', letterSpacing: 1.25, marginTop: 14 },
+  body: { color: C.textMuted, fontSize: 15, lineHeight: 23, marginTop: 12 },
+  identity: { marginTop: 22, paddingTop: 18, borderTopWidth: 1, borderTopColor: C.line },
+  playerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mini: { color: C.textVeryMuted, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+  playerLevel: { color: C.white, fontSize: 30, fontWeight: '900', marginTop: 4 },
+  rankBadge: { borderWidth: 1, borderColor: C.cyan, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  rankText: { color: C.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 15 },
+  stat: { minWidth: 54, flexGrow: 1, borderWidth: 1, borderColor: C.line, borderRadius: 10, padding: 9, alignItems: 'center' },
+  statCode: { color: C.cyan, fontSize: 8, fontWeight: '900' },
+  statValue: { color: C.white, fontSize: 17, fontWeight: '900', marginTop: 3 },
+  inputLabel: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.3, marginTop: 18 },
+  input: { color: C.white, borderWidth: 1, borderColor: C.lineBright, borderRadius: 12, padding: 14, marginTop: 8, minHeight: 50 },
+  privacy: { color: C.textVeryMuted, fontSize: 9, lineHeight: 14, marginTop: 8 },
+  actions: { marginTop: 14 },
+});

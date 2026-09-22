@@ -7,6 +7,7 @@ import { getAwakeningProgress, getQuest } from '../quests/catalog';
 import type { DailyState } from '../storage/daily';
 import IdentityAvatar from './IdentityAvatar';
 import XpBar from './XpBar';
+import { titlePl } from '../i18n/pl';
 
 type Props = {
   player: PlayerProfile;
@@ -27,17 +28,17 @@ export default function CharacterProgressPanel({
 }: Props) {
   const age = calculateAge(player.birthDate);
   const awakening = getAwakeningProgress(completedQuestIds);
-  const activeQuest = activeQuestId ? getQuest(activeQuestId) : null;
+  const activeQuest = activeQuestId && !completedQuestIds.includes(activeQuestId) ? getQuest(activeQuestId) : null;
   const realProgress = getPlayerProgressPercent(player) * 100;
 
   return <View>
     <Animated.View entering={FadeInUp.duration(420)} style={styles.hero}>
       <View style={styles.heroHeader}>
         <View style={styles.identityBlock}>
-          <Text style={styles.overline}>PLAYER PROGRESS // ONLINE</Text>
+          <Text style={styles.overline}>PLAYER PROGRESS // LOCAL CORE</Text>
           <Text style={styles.name}>{player.displayName}</Text>
           {age !== null && <Text style={styles.title}>WIEK {age}</Text>}
-          <Text style={styles.title}>{player.currentTitle ?? 'UNAWAKENED'}</Text>
+          <Text style={styles.title}>{titlePl(player.currentTitle ?? 'UNAWAKENED')}</Text>
         </View>
         <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={68} />
         <View style={styles.rankBlock}>

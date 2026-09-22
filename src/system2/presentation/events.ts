@@ -1,6 +1,6 @@
 import type { RewardReceipt } from '../core/rewards';
 
-export type PresentationEventKind = 'QUEST_COMPLETE' | 'LEVEL_UP' | 'RANK_UP' | 'SKILL_UP' | 'WORLD_UNLOCKED';
+export type PresentationEventKind = 'QUEST_COMPLETE' | 'LEVEL_UP' | 'RANK_UP' | 'SKILL_UP' | 'TITLE_UNLOCKED' | 'WORLD_UNLOCKED';
 export type PresentationEvent = {
   id: string;
   kind: PresentationEventKind;
@@ -47,6 +47,15 @@ export function presentationEventsFromReceipt(receipt: RewardReceipt): Presentat
     accent: 'CYAN',
     priority: 30,
   });
+  for (const title of receipt.newTitles) events.push({
+    id: receipt.id + ':title:' + title,
+    kind: 'TITLE_UNLOCKED',
+    eyebrow: 'TITLE UNLOCKED',
+    title,
+    detail: 'Nowy tytuł został dodany do profilu postaci.',
+    accent: 'VIOLET',
+    priority: 42,
+  });
   if (receipt.worldUnlocked) events.push({
     id: receipt.id + ':world',
     kind: 'WORLD_UNLOCKED',
@@ -56,5 +65,5 @@ export function presentationEventsFromReceipt(receipt: RewardReceipt): Presentat
     accent: 'GOLD',
     priority: 45,
   });
-  return events.sort((a,b)=>b.priority-a.priority);
+  return events.sort((a,b)=>a.priority-b.priority);
 }

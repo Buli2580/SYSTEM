@@ -28,6 +28,6 @@ export default function PrivacyScreen() {
     <Section title="USUNIĘCIE DANYCH">
       Dane lokalne można wyczyścić w Ustawieniach SYSTEMU. Zalogowany użytkownik może w ekranie SYSTEM ONLINE złożyć żądanie usunięcia konta chmurowego i powiązanych danych. Zewnętrzny kanał żądania usunięcia konta zostanie opublikowany na stronie SYSTEM przed pierwszym zgłoszeniem aplikacji do Google Play.
     </Section>
-    <Action label="← WRÓĆ" onPress={() => router.back()} />
+    <Action label="← WRÓĆ" onPress={() => router.replace('/more')} />
   </SystemPage>;
 }

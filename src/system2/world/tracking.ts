@@ -118,13 +118,14 @@ export class WorldTracking {
         if (!this.active(epoch)) return;
         this.known.add(result.sectorId);
         this.update({ sectorIds: [...this.known] });
-        if (result.discovered) { this.announce('SEKTOR ODKRYTY'); this.deps.rewarded(); }
+        if (result.discovered) { this.announce('SEKTOR ODKRYTY'); this.deps.rewarded(result.receipt); }
       }
       if (signal?.status === 'DETECTED' && signalReached(fix, signal) && this.active(epoch)) {
         const result = await this.deadline(this.deps.storage.locateSignal(fix, signal.revision, () => this.active(epoch)));
         if (!this.active(epoch)) return;
         this.update({ signal: result.signal });
-        if (result.awarded) { this.announce('SYGNAŁ ODNALEZIONY'); this.deps.rewarded(result.receipt); }
+        if (result.awarded) this.announce('SYGNAŁ ODNALEZIONY');
+        this.deps.rewarded(result.receipt);
       }
     } catch (error) { if (this.valid(epoch)) this.stop('ERROR', message(error)); }
     finally { if (this.valid(epoch)) this.processing = false; }

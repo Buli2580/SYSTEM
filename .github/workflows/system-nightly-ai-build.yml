@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - integration/system-canonical
-      - "feature/**"
   pull_request:
     branches:
       - integration/system-canonical

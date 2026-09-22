@@ -3,6 +3,7 @@ import type { PlayerProfile, SkillKey } from '../core/types';
 import { SKILL_KEYS } from '../core/progression';
 export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
 export type Settings = { haptics: boolean; audio: boolean; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
+export type SettingsPatch = Omit<Partial<Settings>, 'activities'> & { activities?: Partial<ActivityPreferences> };
 export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false };
 export function earnedTitles(awakening: boolean, signal: boolean, worldLink = false, boss = false): Title[] {
   return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : []), ...(worldLink ? ['PATHFINDER' as const] : []), ...(boss ? ['WALLBREAKER' as const] : [])];
@@ -30,4 +31,16 @@ export function parseSettings(value?: string): Settings {
     ...(settings.activities ? { activities: { ...DEFAULT_ACTIVITIES, ...settings.activities } } : {}),
     ...(settings.dailyReminder !== undefined ? { dailyReminder: settings.dailyReminder } : {}),
     ...(settings.reminderTime !== undefined ? { reminderTime: settings.reminderTime } : {}) };
+}
+
+export function mergeSettings(current: Settings, patch: SettingsPatch): Settings {
+  const { activities, ...rest } = patch;
+  const next: Settings = {
+    ...current,
+    ...rest,
+    ...(activities
+      ? { activities: { ...DEFAULT_ACTIVITIES, ...(current.activities ?? {}), ...activities } }
+      : current.activities ? { activities: current.activities } : {}),
+  };
+  return parseSettings(JSON.stringify(next));
 }

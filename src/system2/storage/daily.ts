@@ -5,6 +5,7 @@ import { type PlayerProfile, type VerifiedEvent } from '../core';
 import { dayKey, dayOrdinal, weekKey, nextStreak, DAILY_RULES } from '../daily/calendar';
 import { dailyQuest, DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
 import { applyMissedDailyConsequence } from './aiState';
+import { attemptWasSuspicious } from '../daily/attempt';
 export type DailyState = { rerollsUsed?: number; attemptedQuestIds?: string[]; reasons?: Record<string,string>; dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
 async function state(db: SQLiteDatabase, key: string) { return (await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', key))?.value; }
 async function setState(db: SQLiteDatabase, key: string, value: string) { await db.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', key, value); }
@@ -29,7 +30,7 @@ export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlo
  const reasons = await db.getAllAsync<{quest_id:string;reason:string}>('SELECT quest_id,reason FROM daily_generation WHERE day_key=?',day);
  const attempted = await db.getAllAsync<{quest_id:string}>('SELECT DISTINCT a.quest_id FROM quest_attempts a JOIN daily_instances d ON d.id=a.quest_id WHERE d.day_key=?',day);
  const rerollsUsed = (await db.getFirstAsync<{n:number}>('SELECT COUNT(*) AS n FROM daily_rerolls WHERE day_key=?',day))?.n ?? 0;
- return { rerollsUsed, attemptedQuestIds: attempted.map(r=>r.quest_id), reasons: Object.fromEntries(reasons.map(r=>[r.quest_id,r.reason])), suspiciousQuestIds: attempts.filter(row => JSON.parse(row.payload).activity?.verdict === 'SUSPICIOUS').map(row => row.quest_id), dayKey: day, weekKey: week, questIds: rows.map(r => r.id), completed: await count('day_key', day), weeklyCompleted: await count('week_key', week),
+ return { rerollsUsed, attemptedQuestIds: attempted.map(r=>r.quest_id), reasons: Object.fromEntries(reasons.map(r=>[r.quest_id,r.reason])), suspiciousQuestIds: attempts.filter(row => attemptWasSuspicious(row.payload)).map(row => row.quest_id), dayKey: day, weekKey: week, questIds: rows.map(r => r.id), completed: await count('day_key', day), weeklyCompleted: await count('week_key', week),
  clear: Boolean(await db.getFirstAsync('SELECT bonus_key FROM protocol_bonuses WHERE bonus_key = ?', 'daily_clear:' + day)),
  weeklyClear: Boolean(await db.getFirstAsync('SELECT bonus_key FROM protocol_bonuses WHERE bonus_key = ?', 'weekly_complete:' + week)), clockAnomaly: anomaly };
 }

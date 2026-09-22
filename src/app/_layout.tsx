@@ -6,7 +6,6 @@ import { StatusBar } from 'expo-status-bar';
 
 import { SystemProvider } from '../system2/state/SystemProvider';
 import SessionGate from '../system2/components/SessionGate';
-import LevelUpCelebration from '../system2/components/LevelUpCelebration';
 import SystemBoundary from '../system2/components/SystemBoundary';
 import AwakeningCelebration from '../system2/components/AwakeningCelebration';
 import RewardEventSequence from '../system2/components/RewardEventSequence';

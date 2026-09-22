@@ -54,6 +54,7 @@
       ],
       "expo-video",
       "expo-sqlite",
+      "expo-notifications",
       "@maplibre/maplibre-react-native",
       [
         "expo-location",
