@@ -40,9 +40,9 @@ export function configureAudio(value:boolean|AudioConfig){
   if(typeof value==='boolean') configureAudioEngine({enabled:value});
   else configureAudioEngine({
     enabled:value.enabled,
-    music:value.musicVolume,
-    ambient:value.ambientVolume,
-    sfx:value.sfxVolume,
+    music:value.musicVolume ?? 0.8,
+    ambient:value.ambientVolume ?? 0.55,
+    sfx:value.sfxVolume ?? 0.9,
   });
 }
 
