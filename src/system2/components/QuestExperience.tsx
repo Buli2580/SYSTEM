@@ -60,12 +60,13 @@ export function QuestFlowRail({ status }: { status: string }) {
   </Animated.View>;
 }
 
-export function QuestRecoveryPanel({ title, message, onRetry, onHub, onHome }: {
+export function QuestRecoveryPanel({ title, message, onRetry, onHub, onHome, onSettings }: {
   title: string;
   message?: string | null;
   onRetry: () => void;
   onHub: () => void;
   onHome: () => void;
+  onSettings?: () => void;
 }) {
   return <Animated.View entering={FadeInUp.duration(300)} style={styles.recovery}>
     <Text style={styles.recoveryCode}>RECOVERY PROTOCOL</Text>
@@ -76,6 +77,7 @@ export function QuestRecoveryPanel({ title, message, onRetry, onHub, onHome }: {
       <Text style={styles.recoveryPrimaryText}>SPRÓBUJ PONOWNIE →</Text>
     </Pressable>
     <View style={styles.recoveryActions}>
+      {!!onSettings && <Pressable onPress={onSettings}><Text style={styles.recoveryLink}>OPEN SETTINGS</Text></Pressable>}
       <Pressable onPress={onHub}><Text style={styles.recoveryLink}>QUEST HUB</Text></Pressable>
       <Pressable onPress={onHome}><Text style={styles.recoveryLink}>HOME</Text></Pressable>
     </View>
