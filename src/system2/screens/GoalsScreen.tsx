@@ -5,10 +5,12 @@ import SystemPage,{pageStyles as s} from '../components/SystemPage';
 import Action from '../components/Action';
 import {useSystem} from '../state/SystemProvider';
 import {GOAL_CATEGORIES,GOAL_LABELS,type GoalCategory} from '../goals/model';
+import {useMountedRef} from '../hooks/useMountedRef';
 export default function GoalsScreen(){
  const {goals=[],journeys=[],createPlayerGoal,updateGoalStatus}=useSystem();
+ const mounted=useMountedRef();
  const [category,setCategory]=useState<GoalCategory>('GENERAL'),[priority,setPriority]=useState<1|2|3>(2),[title,setTitle]=useState(''),[description,setDescription]=useState(''),[target,setTarget]=useState(''),[targetDate,setTargetDate]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');const lock=useRef(false);
- async function run(task:()=>Promise<void>){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{await task();}catch(e){setError(e instanceof Error?e.message:'Nie udało się zapisać celu. Spróbuj ponownie.');}finally{lock.current=false;setBusy(false);}}
+ async function run(task:()=>Promise<void>){if(lock.current)return;lock.current=true;if(mounted.current){setBusy(true);setError('');}try{await task();}catch(e){if(mounted.current)setError(e instanceof Error?e.message:'Nie udało się zapisać celu. Spróbuj ponownie.');}finally{lock.current=false;if(mounted.current)setBusy(false);}}
  const [opened,setOpened]=useState<string|null>(null);
  const field={color:'#fff',minHeight:48,borderBottomWidth:1,borderBottomColor:'#417480',marginTop:8};
  return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':'height'}><SystemPage title="CELE" subtitle="SYSTEM DIRECTION">
@@ -25,7 +27,7 @@ export default function GoalsScreen(){
  <TextInput accessibilityLabel="Rezultat celu" placeholder="Rezultat (opcjonalny)" placeholderTextColor="#8397a3" value={target} onChangeText={setTarget} maxLength={120} style={field}/>
  <TextInput accessibilityLabel="Termin celu" placeholder="RRRR-MM-DD (opcjonalny)" placeholderTextColor="#8397a3" value={targetDate} onChangeText={setTargetDate} maxLength={10} style={field}/>
  {([1,2,3] as const).map(p=><Action key={p} label={`${priority===p?'● ':'○ '}PRIORYTET ${p}${p===3?' · WYSOKI':''}`} disabled={busy} onPress={()=>setPriority(p)}/>)}
- <Action label={busy?'ZAPISYWANIE…':'DODAJ CEL'} disabled={busy} onPress={()=>{void run(async()=>{await createPlayerGoal({category,priority,title,description,target,targetDate});setTitle('');setDescription('');setTarget('');setTargetDate('');});}}/>
+ <Action label={busy?'ZAPISYWANIE…':'DODAJ CEL'} disabled={busy} onPress={()=>{void run(async()=>{await createPlayerGoal({category,priority,title,description,target,targetDate});if(!mounted.current)return;setTitle('');setDescription('');setTarget('');setTargetDate('');});}}/>
  </View>{!!error&&<Text accessibilityRole="alert" style={s.body}>{error}</Text>}
  </SystemPage></KeyboardAvoidingView>;
 }
