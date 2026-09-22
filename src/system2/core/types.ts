@@ -225,6 +225,7 @@ export interface VerifiedEvent {
   durationSeconds?: number;
   steps?: number;
   photoCaptured?: boolean;
+  photoProofHash?: string;
 
   latitude?: number;
   longitude?: number;
