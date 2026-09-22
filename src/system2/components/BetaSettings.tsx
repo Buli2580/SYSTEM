@@ -17,7 +17,7 @@ import { pageStyles as s } from './SystemPage';
 import Action from './Action';
 function permissionLabel(p: { granted: boolean; status: string }) { return p.granted ? 'PRZYZNANE' : p.status === 'undetermined' ? 'NIEPYTANO' : 'ODRZUCONE'; }
 export default function BetaSettings() {
- const { player, settings, saveSettings, daily, awakeningCompleted, refreshPlayer, notificationError } = useSystem();
+ const { player, settings, saveSettings, refreshPlayer, notificationError } = useSystem();
  const [time, setTime] = useState(settings.reminderTime ?? '19:00'), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
  const [permissions, setPermissions] = useState('Sprawdzanie uprawnień…'), [diagnostics, setDiagnostics] = useState('');
  const lock = useRef(false), mounted = useRef(false);
@@ -41,8 +41,10 @@ export default function BetaSettings() {
    </View>
    <View style={s.panel}><Text style={s.label}>CODZIENNE PRZYPOMNIENIE</Text>
      <Switch accessibilityLabel="Codzienne przypomnienie" value={settings.dailyReminder ?? false} disabled={busy} onValueChange={value => { void run(async () => {
-       if (value && !await requestReminderPermission()) { if (mounted.current) setMessage('Powiadomienia są wyłączone — możesz zmienić zgodę w ustawieniach Androida.'); return; }
-       await saveSettings({ dailyReminder: value, reminderTime: time });
+       if (!value) { await saveSettings({ dailyReminder: false }); return; }
+       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) { if (mounted.current) setMessage('Wpisz poprawną godzinę HH:MM przed włączeniem przypomnienia.'); return; }
+       if (!await requestReminderPermission()) { if (mounted.current) setMessage('Powiadomienia są wyłączone — możesz zmienić zgodę w ustawieniach Androida.'); return; }
+       await saveSettings({ dailyReminder: true, reminderTime: time });
      }); }} />
      <TextInput accessibilityLabel="Godzina przypomnienia HH:MM" value={time} onChangeText={setTime} maxLength={5} placeholder="19:00" placeholderTextColor="#758c93" style={{ color: '#fff', minHeight: 48 }} />
      <Action label="ZAPISZ GODZINĘ" disabled={busy} onPress={() => { void run(async () => {
