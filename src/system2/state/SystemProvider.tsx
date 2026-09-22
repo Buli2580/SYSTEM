@@ -141,7 +141,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         setAIError(cause instanceof Error ? cause.message : 'AI GAME MASTER jest chwilowo niedostępny.');
       }
     } finally {
-      if (requestId === aiRequestRef.current) setAILoading(false);
+      if (requestId === aiRequestRef.current) {
+        if (epoch !== generation.current && aiDayRef.current === day) aiDayRef.current = null;
+        setAILoading(false);
+      }
     }
   }, []);
 
