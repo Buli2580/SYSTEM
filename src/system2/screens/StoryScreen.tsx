@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
@@ -12,7 +12,8 @@ import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 export default function StoryScreen() {
  const {story,refreshPlayer}=useSystem(),router=useRouter();
  const [entries,setEntries]=useState<StoryEvent[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- const lock=useRef(false),epoch=useRef(0);
+ const lock=useRef(false),epoch=useRef(0),mounted=useRef(true);
+ useEffect(()=>()=>{mounted.current=false;epoch.current++;},[]);
  const refreshChronicle=useCallback(async()=>{const id=++epoch.current;try{const value=await awaitWithTimeout(loadChronicle());if(id===epoch.current){setEntries(value);setError('');}}catch{if(id===epoch.current)setError('Nie udało się odczytać kroniki. Spróbuj ponownie.');}},[]);
  useFocusEffect(useCallback(()=>{void refreshChronicle();return()=>{epoch.current++;};},[story,refreshChronicle]));
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
@@ -28,7 +29,7 @@ export default function StoryScreen() {
   </View>)}
   <View style={s.panel}><Text style={s.label}>PROTOKÓŁ BOSSA // {story?.bossComplete?'POKONANY':story?.worldLinkComplete?'DOSTĘPNY':'ZABLOKOWANE'}</Text><Text style={s.title}>PIERWSZY MUR</Text>
    <Text style={s.body}>SKUPIENIE → RUCH → DYSCYPLINA. Postęp etapów jest zapisywany.</Text>
-   {story?.worldLinkComplete&&!boss&&<Action label="ROZPOCZNIJ PROTOKÓŁ BOSSA" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(request===epoch.current)setBusy(false);});}}/>}
+   {story?.worldLinkComplete&&!boss&&<Action label="ROZPOCZNIJ PROTOKÓŁ BOSSA" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(mounted.current&&request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(mounted.current)setBusy(false);});}}/>}
    {boss&&<>
     <Text style={s.body}>HP {story?.bossHp ?? 100}/100 · wsparcie zweryfikowanych misji: {story?.bossSupportDamage ?? 0}</Text>
     <Text style={s.body}>ETAP 1 // {boss.focus_at?'UKOŃCZONE':'DOSTĘPNY'} · 15 MIN SKUPIENIA</Text>
