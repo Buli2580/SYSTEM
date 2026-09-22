@@ -550,6 +550,23 @@ test('real background hands GPS off without failing and foreground can resume wi
   assert.equal(h.status(), 'TRACKING');
 });
 
+test('background after session prepare but before watcher handle still hands off safely', async t => {
+  const watch = deferred();
+  const h = screenHarness(t, { watch });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); await flush();
+  assert.equal(h.starts(), 1);
+  assert.equal(h.backgroundSession()?.mode, 'FOREGROUND');
+  h.appState('background');
+  await flush(); await flush();
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  watch.resolve();
+  await start; await flush();
+  assert.equal(h.removals(), 1);
+  assert.equal(h.awards(), 0);
+});
+
 test('background with a watcher but before the first fix hands off without fabricating distance', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
