@@ -173,7 +173,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
-      } finally { if (epoch === generation.current) refreshRef.current = null; }
+      } finally { if (refreshRef.current === operation) refreshRef.current = null; }
     })();
     refreshRef.current = operation; return operation;
   }, [runAIGameMaster, syncAchievements]);
