@@ -140,3 +140,10 @@ test('malformed season and friend network rows fail closed', async () => {
   const badFriends=api([{user_id:'u1',handle:'x',public_name:'X',real_level:'oops',rank:'E',status:'FRIENDS'}]);
   await assert.rejects(()=>badFriends.load('cloud/socialCore').getCloudFriendNetwork(),/friend identity/);
 });
+
+
+test('friend and guild mutations handle concurrent uniqueness races explicitly', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../migrations/20260922050000_social_gameplay_v1.sql'), 'utf8').toLowerCase();
+  assert.match(sql, /send_friend_request[\s\S]*exception when unique_violation[\s\S]*status='accepted'/);
+  assert.match(sql, /join_guild[\s\S]*get diagnostics v_inserted = row_count[\s\S]*v_inserted=0[\s\S]*already_in_guild/);
+});
