@@ -358,7 +358,6 @@ grant execute on function public.get_active_social_challenges() to authenticated
     into v_damage
   from public.reward_ledger l
   where l.user_id=v_uid and l.evidence_event_key=p_event_key and l.source_type='VERIFIED_EVENT'
-  order by l.created_at desc
   limit 1;
   if v_damage is null then raise exception 'UNVERIFIED_EVENT'; end if;
   -- p_damage is retained for mobile API compatibility but is never trusted.
