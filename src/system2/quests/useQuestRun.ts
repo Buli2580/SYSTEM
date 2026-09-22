@@ -31,7 +31,7 @@ export function useQuestRun(quest: RunnableQuest) {
   const isTimer = quest.verification.type === 'TIMER';
   const hasTimer = quest.verification.type !== 'GPS_DISTANCE';
   const targetSeconds = quest.verification.type !== 'GPS_DISTANCE' ? quest.verification.minimumDurationSeconds : 0;
-  const { completeVerifiedQuest, ready, error: databaseError, refreshPlayer, setActiveQuestId } = useSystem();
+  const { completeVerifiedQuest, ready, error: databaseError, refreshPlayer, setActiveQuestId, daily } = useSystem();
   const [status, setStatus] = useState<RunStatus>('CHECKING');
   const [error, setError] = useState<string | null>(null);
   const [distance, setDistance] = useState(0);
@@ -244,6 +244,21 @@ export function useQuestRun(quest: RunnableQuest) {
       focusedRef.current = false;
     };
   }, [checkCompletion, stopVerification, endAttempt, persistCheckpoint, pauseForegroundTracking, isTimer, quest.id]));
+
+  useEffect(() => {
+    if (!focusedRef.current || quest.category !== 'DAILY' || !quest.dayKey || !daily) return;
+    if (!daily.clockAnomaly && daily.dayKey === quest.dayKey) return;
+    if (['STARTING','TRACKING'].includes(statusRef.current)) {
+      endAttempt('INTERRUPTED','DAY_ROLLOVER');
+    }
+    backgroundSessionActiveRef.current = false;
+    if (!isTimer) void stopQuestBackgroundTracking(quest.id).catch(() => undefined);
+    stopVerification();
+    setError(daily.clockAnomaly
+      ? 'Daily jest wstrzymane do czasu sprawdzenia daty telefonu.'
+      : 'Rozpoczął się nowy dzień SYSTEMU. Ta misja Daily wygasła.');
+    transition('LOCKED');
+  }, [daily?.dayKey, daily?.clockAnomaly, quest.category, quest.dayKey, quest.id, endAttempt, isTimer, stopVerification, transition]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
