@@ -88,3 +88,22 @@ test('blocking prevents profiles from being followed or searched', () => {
   assert.match(sql, /follows_insert_own_public_target[\s\S]*not public\.is_social_blocked\(followed_id\)/);
   assert.match(sql, /search_players[\s\S]*not public\.is_social_blocked\(sp\.user_id\)/);
 });
+
+
+test('activity feed has no direct authenticated insert grant', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../migrations/20260922050000_social_gameplay_v1.sql'), 'utf8').toLowerCase();
+  assert.doesNotMatch(sql, /grant\s+insert\s+on\s+table\s+public\.social_activity\s+to\s+authenticated/);
+  assert.match(sql, /publish_verified_social_activity[\s\S]*evidence_event_key=p_event_key/);
+});
+
+test('mobile feed publisher uses verified RPC and rejects forged event types', async () => {
+  const h=api([]);
+  const social=h.load('cloud/socialCore');
+  await social.publishVerifiedQuestActivity('verified:quest-1');
+  assert.equal(h.calls[0][0],'/rest/v1/rpc/publish_verified_social_activity');
+  assert.deepEqual(JSON.parse(h.calls[0][1].body),{p_event_key:'verified:quest-1'});
+  await assert.rejects(
+    social.publishSocialActivity({type:'LEVEL_UP',createdAt:'2026-09-22T00:00:00Z',visibility:'PUBLIC',metadata:{eventKey:'verified:quest-1'}}),
+    /potwierdzone/
+  );
+});
