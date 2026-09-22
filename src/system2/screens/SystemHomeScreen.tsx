@@ -2,12 +2,13 @@ import { mainStoryObjective } from '../story/selectors';
 import SystemScreen from '../components/SystemScreen';
 import { DAILY_RULES } from '../daily/calendar';
 import RewardSummary from '../components/RewardSummary';
+import MotionProgress from '../components/MotionProgress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
 import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import {
     Pressable,
@@ -28,6 +29,7 @@ import Animated, {
     useSharedValue,
     withRepeat,
     withTiming,
+    FadeInDown,
 } from 'react-native-reanimated';
 
 import {
@@ -48,6 +50,19 @@ import {
 
 import { useSystem } from '../state/SystemProvider';
 import { questStatusPl, titlePl } from '../i18n/pl';
+import { playMusic, stopMusic } from '../identity/audio';
+
+function StreakValue({ value }: { value: number }) {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 850 }), -1, true);
+  }, [pulse]);
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.72, 1]),
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.96, 1.08]) }],
+  }));
+  return <Animated.Text style={[styles.quickNumber, style]}>{value}</Animated.Text>;
+}
 
 function SystemBackground() {
   const { width, height } = useWindowDimensions();
@@ -290,6 +305,11 @@ export default function SystemHomeScreen() {
   const { lastReward, daily, story } = useSystem();
   const router = useRouter();
 
+  useFocusEffect(useCallback(() => {
+    playMusic('DASHBOARD');
+    return () => stopMusic();
+  }, []));
+
   const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, error, refreshPlayer } = useSystem();
 
   const realProgress =
@@ -351,7 +371,7 @@ export default function SystemHomeScreen() {
 
         {/* PLAYER CARD */}
 
-        <View style={styles.playerCard}>
+        <Animated.View entering={FadeInDown.duration(480)} style={styles.playerCard}>
           <View style={styles.playerGlow} />
 
           <View style={styles.playerTop}>
@@ -478,19 +498,7 @@ export default function SystemHomeScreen() {
               </Text>
             </View>
 
-            <View style={styles.realXpTrack}>
-              <View
-                style={[
-                  styles.realXpFill,
-                  {
-                    width: `${Math.max(
-                      1.5,
-                      realProgress
-                    )}%`,
-                  },
-                ]}
-              />
-            </View>
+            <MotionProgress value={realProgress} height={8} style={{ marginTop: 12 }} />
           </View>
 
           {/* QUICK STATS */}
@@ -499,13 +507,7 @@ export default function SystemHomeScreen() {
 
           <View style={styles.quickStats}>
             <View style={styles.quickStat}>
-              <Text
-                style={
-                  styles.quickNumber
-                }
-              >
-                {player.streak}
-              </Text>
+              <StreakValue value={player.streak} />
 
               <Text
                 style={
@@ -564,7 +566,7 @@ export default function SystemHomeScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* SKILLS */}
 
@@ -610,7 +612,7 @@ export default function SystemHomeScreen() {
           title="GŁÓWNA MISJA"
         />
 
-        <View style={styles.mainQuest}>
+        <Animated.View entering={FadeInDown.delay(120).duration(480)} style={styles.mainQuest}>
           <View style={styles.questAccent} />
 
           <View style={styles.questContent}>
@@ -706,23 +708,7 @@ export default function SystemHomeScreen() {
               </View>
             </View>
 
-            <View
-              style={
-                styles.questProgressTrack
-              }
-            >
-              <View
-                style={[
-                  styles.questProgressFill,
-                  {
-                    width: `${Math.max(
-                      0,
-                      mainQuestPercent
-                    )}%`,
-                  },
-                ]}
-              />
-            </View>
+            <MotionProgress value={mainQuestPercent} height={7} style={{ marginTop: 24 }} />
 
             {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/story')}><Text style={styles.startQuestText}>HISTORIA / KRONIKA →</Text></Pressable>}
             {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
@@ -736,7 +722,7 @@ export default function SystemHomeScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {lastReward && <RewardSummary receipt={lastReward} />}
 
