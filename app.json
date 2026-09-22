@@ -62,6 +62,14 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SYSTEM używa zdjęcia tylko wtedy, gdy wybierzesz avatar lub dowód misji.",
+          "cameraPermission": "SYSTEM używa aparatu do avatara i dowodu aktywnej misji.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {
