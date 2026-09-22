@@ -225,13 +225,18 @@ export function useQuestRun(quest: RunnableQuest) {
         if (isTimer) {
           endAttempt('INTERRUPTED','LEFT_SCREEN');
           stopVerification();
-        } else {
+        } else if (backgroundSessionActiveRef.current) {
           const anchor = lastPointRef.current;
           // Queue the mode switch first so the background task begins
           // accounting locations immediately. Checkpoint persistence is independent.
           void handoffQuestToBackground(quest.id, anchor).catch(() => undefined);
           void persistCheckpoint(true).catch(() => undefined);
           pauseForegroundTracking();
+        } else {
+          // Leaving during permissions/startup before a durable background
+          // session exists must close the attempt instead of orphaning it.
+          endAttempt('INTERRUPTED','LEFT_SCREEN');
+          stopVerification();
         }
       } else if (!(statusRef.current === 'READY' && backgroundSessionActiveRef.current)) {
         stopVerification();
