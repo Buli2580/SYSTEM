@@ -39,21 +39,21 @@ export default function SettingsScreen() {
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
       <Action label="SPRAWDŹ / PONÓW ZGODĘ GPS" disabled={busy} onPress={() => { void run(async () => {
         const result = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
-        if (mounted.current) setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
+        if (mounted.current) if (mounted.current) setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
       }); }} />
       <Action label="WŁĄCZ LOKALIZACJĘ W TLE" disabled={busy} onPress={() => { void run(async () => {
         const disclosureAccepted = await confirmBackgroundLocationDisclosure();
         if (!disclosureAccepted) {
-          if (mounted.current) setPermission('Lokalizacja w tle nie została włączona.');
+          if (mounted.current) if (mounted.current) setPermission('Lokalizacja w tle nie została włączona.');
           return;
         }
         const foreground = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
         if (!foreground.granted) {
-          if (mounted.current) setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
+          if (mounted.current) if (mounted.current) setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
           return;
         }
         const granted = await awaitWithTimeout(requestBackgroundLocationAccess());
-        if (mounted.current) setPermission(granted
+        if (mounted.current) if (mounted.current) setPermission(granted
           ? 'Lokalizacja w tle: włączona. Misje ruchowe mogą działać przy wygaszonym ekranie.'
           : 'Lokalizacja w tle: brak zgody. W ustawieniach wybierz dostęp do lokalizacji „zawsze”, jeśli telefon udostępnia tę opcję.');
       }); }} />
