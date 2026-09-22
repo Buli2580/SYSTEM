@@ -13,17 +13,44 @@ import { createResetConfirmation } from '../identity/reset';
 import { requestBackgroundLocationAccess } from '../background/locationService';
 import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
+import { useMountedRef } from '../hooks/useMountedRef';
+
 export default function SettingsScreen() {
-  const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
+  const { player, settings, saveSettings, resetData } = useSystem();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const mounted = useMountedRef();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
   const [resetStep, setResetStep] = useState(0), [confirmation, setConfirmation] = useState('');
   const guard = useRef(createResetConfirmation()), lock = useRef(false);
+
   async function run(task: () => Promise<void>) {
-    if (lock.current) return; lock.current = true; setBusy(true); setError(null);
-    try { await task(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Operacja nie powiodła się.'); }
-    finally { lock.current = false; setBusy(false); }
+    if (lock.current) return;
+    lock.current = true;
+    if (mounted.current) {
+      setBusy(true);
+      setError(null);
+    }
+    try {
+      await task();
+    } catch (cause) {
+      if (mounted.current) setError(cause instanceof Error ? cause.message : 'Operacja nie powiodła się.');
+    } finally {
+      lock.current = false;
+      if (mounted.current) setBusy(false);
+    }
   }
-  function cancelReset() { guard.current.cancel(); setResetStep(0); setConfirmation(''); }
+
+  function setPermissionIfMounted(message: string) {
+    if (mounted.current) setPermission(message);
+  }
+
+  function cancelReset() {
+    guard.current.cancel();
+    setResetStep(0);
+    setConfirmation('');
+  }
+
   return <SystemPage title="WIĘCEJ" subtitle="USTAWIENIA SYSTEMU">
     <View style={s.panel}><Text style={s.label}>SYSTEM ID // TOŻSAMOŚĆ LOKALNA</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
@@ -37,21 +64,21 @@ export default function SettingsScreen() {
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
       <Action label="SPRAWDŹ / PONÓW ZGODĘ GPS" disabled={busy} onPress={() => { void run(async () => {
         const result = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
-        setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
+        setPermissionIfMounted(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
       }); }} />
       <Action label="WŁĄCZ LOKALIZACJĘ W TLE" disabled={busy} onPress={() => { void run(async () => {
         const disclosureAccepted = await confirmBackgroundLocationDisclosure();
         if (!disclosureAccepted) {
-          setPermission('Lokalizacja w tle nie została włączona.');
+          setPermissionIfMounted('Lokalizacja w tle nie została włączona.');
           return;
         }
         const foreground = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
         if (!foreground.granted) {
-          setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
+          setPermissionIfMounted('Najpierw zezwól na lokalizację podczas używania aplikacji.');
           return;
         }
         const granted = await awaitWithTimeout(requestBackgroundLocationAccess());
-        setPermission(granted
+        setPermissionIfMounted(granted
           ? 'Lokalizacja w tle: włączona. Misje ruchowe mogą działać przy wygaszonym ekranie.'
           : 'Lokalizacja w tle: brak zgody. W ustawieniach wybierz dostęp do lokalizacji „zawsze”, jeśli telefon udostępnia tę opcję.');
       }); }} />
@@ -77,7 +104,10 @@ export default function SettingsScreen() {
           <TextInput accessibilityLabel="Wpisz RESET" value={confirmation} onChangeText={setConfirmation} autoCapitalize="characters" style={{ color: '#fff', minHeight: 52, borderBottomWidth: 1, borderBottomColor: '#ffb9b9' }} />
           <Action label="USUŃ WSZYSTKIE DANE SYSTEMU" danger disabled={busy || confirmation !== 'RESET'} onPress={() => {
             const confirmed = guard.current.confirmErase(confirmation); setResetStep(0); setConfirmation('');
-            void run(async () => { await resetData(confirmed); router.replace('/'); });
+            void run(async () => {
+              await resetData(confirmed);
+              if (mounted.current) router.replace('/');
+            });
           }} />
         </>}
         <Action label="ANULUJ" onPress={cancelReset} />
