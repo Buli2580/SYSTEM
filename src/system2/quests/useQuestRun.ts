@@ -260,11 +260,12 @@ export function useQuestRun(quest: RunnableQuest) {
     if (!focusedRef.current || quest.category !== 'DAILY' || !quest.dayKey || !daily) return;
     if (!daily.clockAnomaly && daily.dayKey === quest.dayKey) return;
     if (['COMPLETING','COMPLETED'].includes(statusRef.current)) return;
-    if (['STARTING','TRACKING'].includes(statusRef.current)) {
-      endAttempt('INTERRUPTED','DAY_ROLLOVER');
-    }
+    if (attemptRef.current) endAttempt('INTERRUPTED','DAY_ROLLOVER');
     backgroundSessionActiveRef.current = false;
     if (!isTimer) void stopQuestBackgroundTracking(quest.id).catch(() => undefined);
+    void clearQuestCheckpoint(quest.id).catch(() => undefined);
+    checkpointRef.current = null;
+    activityBaseRef.current = null;
     stopVerification();
     setError(daily.clockAnomaly
       ? 'Daily jest wstrzymane do czasu sprawdzenia daty telefonu.'
