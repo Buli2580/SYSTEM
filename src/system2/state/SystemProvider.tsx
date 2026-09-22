@@ -288,11 +288,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     setAILoading(true); setAIError(null);
     try {
       const response = await requestGoalAIGameMaster(source, safeGoal);
-      if (epoch === generation.current && !resetting.current) setAIGameMaster(response);
+      if (requestId === aiRequestRef.current && epoch === generation.current && !resetting.current) {
+        setAIGameMaster(response);
+      }
       return response;
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'AI GAME MASTER jest chwilowo niedostępny.';
-      if (epoch === generation.current && !resetting.current) setAIError(message);
+      if (requestId === aiRequestRef.current && epoch === generation.current && !resetting.current) setAIError(message);
       throw cause;
     } finally {
       if (requestId === aiRequestRef.current) setAILoading(false);
