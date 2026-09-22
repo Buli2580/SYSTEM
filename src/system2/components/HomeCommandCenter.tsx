@@ -48,9 +48,16 @@ export default function HomeCommandCenter() {
     : system.aiError ? 'AI FALLBACK / RETRY AVAILABLE'
     : system.notificationError ? 'REMINDER SYNC ISSUE'
     : system.achievementError ? 'ACHIEVEMENT SYNC ISSUE'
+    : system.awakeningCompleted && !system.daily ? 'DAILY PREPARATION'
     : 'LOCAL CORE READY';
   const aiState = system.aiLoading ? 'AI ANALYZING' : system.aiGameMaster?.source === 'ai' ? 'AI ONLINE' : system.awakeningCompleted ? 'SAFE FALLBACK' : 'SEALED';
-  const hasSystemAlert = !!(system.daily?.clockAnomaly || system.aiError || system.notificationError || system.achievementError);
+  const hasSystemAlert = !!(system.daily?.clockAnomaly || system.aiError || system.notificationError || system.achievementError || (system.awakeningCompleted && !system.daily));
+  const repairSystem = () => {
+    if (system.aiError && system.awakeningCompleted) { void system.refreshAIGameMaster(); return; }
+    if (system.achievementError) { void system.refreshAchievements(); return; }
+    void system.refreshPlayer();
+  };
+  const repairLabel = system.aiError && system.awakeningCompleted ? 'RETRY AI →' : system.achievementError ? 'SYNC →' : 'REFRESH →';
 
   const openNext = () => {
     if (next.route === '/quest' && next.questId) {
@@ -64,19 +71,19 @@ export default function HomeCommandCenter() {
     {
       key: 'daily',
       label: 'DAILY',
-      value: system.awakeningCompleted ? `${dailyDone}/${dailyTotal}` : 'SEALED',
-      detail: system.daily?.clear ? 'COMPLETE' : system.daily?.clockAnomaly ? 'CHECK CLOCK' : 'TODAY',
+      value: !system.awakeningCompleted ? 'SEALED' : system.daily ? `${dailyDone}/${dailyTotal}` : 'PREP',
+      detail: system.daily?.clear ? 'COMPLETE' : system.daily?.clockAnomaly ? 'CHECK CLOCK' : system.daily ? 'TODAY' : 'GENERATING',
       route: '/quests',
       alert: !!system.daily?.clockAnomaly,
-      progress: system.awakeningCompleted ? dailyProgress : undefined,
+      progress: system.awakeningCompleted && !!system.daily ? dailyProgress : undefined,
     },
     {
       key: 'weekly',
       label: 'WEEKLY',
-      value: `${weeklyDone}/${DAILY_RULES.weeklyTarget}`,
-      detail: system.daily?.weeklyClear ? 'COMPLETE' : 'PROTOCOL',
+      value: system.daily ? `${weeklyDone}/${DAILY_RULES.weeklyTarget}` : system.awakeningCompleted ? 'PREP' : 'SEALED',
+      detail: system.daily?.weeklyClear ? 'COMPLETE' : system.daily ? 'PROTOCOL' : system.awakeningCompleted ? 'WAITING' : 'LOCKED',
       route: '/quests',
-      progress: system.awakeningCompleted ? weeklyProgress : undefined,
+      progress: system.awakeningCompleted && !!system.daily ? weeklyProgress : undefined,
     },
     {
       key: 'boss',
@@ -116,7 +123,7 @@ export default function HomeCommandCenter() {
         <Text style={[styles.statusCode, hasSystemAlert && styles.alertText]}>{systemAlert}</Text>
         <Text style={styles.statusMeta}>OFFLINE-FIRST // {aiState}</Text>
       </View>
-      {system.aiError && system.awakeningCompleted && <Pressable accessibilityRole="button" onPress={()=>{void system.refreshAIGameMaster();}}><Text style={styles.statusAction}>RETRY AI →</Text></Pressable>}
+      {hasSystemAlert && <Pressable accessibilityRole="button" onPress={repairSystem}><Text style={styles.statusAction}>{repairLabel}</Text></Pressable>}
     </View>
 
     <Pressable accessibilityRole="button" onPress={() => router.push('/character')} style={({pressed})=>[styles.identity,pressed&&styles.pressed]}>
