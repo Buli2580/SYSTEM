@@ -48,6 +48,7 @@ export function validateQuestEvidence(evidence: QuestEvidence): RunnableQuest {
       throw new Error('GPS nie potwierdził wymaganego dystansu.');
     }
   }
+  if (quest.proofMode && evidence.photoCaptured !== true) throw new Error('Brak wymaganego dowodu zdjęciowego.');
   if (quest.verification.type !== 'GPS_DISTANCE' && evidence.durationSeconds < quest.verification.minimumDurationSeconds) {
     throw new Error('Timer nie potwierdził wymaganego czasu.');
   }
