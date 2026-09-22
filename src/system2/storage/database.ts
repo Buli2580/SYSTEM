@@ -29,6 +29,8 @@ export type QuestCheckpoint = {
   durationSeconds: number;
   verificationScore: number;
   extendedGoal: boolean;
+  photoCaptured?: boolean;
+  photoProofHash?: string;
   activityFeatures?: ActivityFeatures;
   updatedAt: string;
 };
@@ -259,6 +261,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         gameEnergyAwarded: quest.rewards.gameEnergy ?? 0,
         distanceMeters: evidence.distanceMeters, durationSeconds: evidence.durationSeconds,
         photoCaptured: evidence.photoCaptured === true ? true : undefined,
+        photoProofHash: evidence.photoProofHash,
       };
       next = await completeStoryActivity(txn,next,quest,evidence);
       next = await awardProtocols(txn, next, quest.id, now);
@@ -546,6 +549,8 @@ function parseQuestCheckpoint(raw: string | undefined, questId: string): QuestCh
       durationSeconds: value.durationSeconds!,
       verificationScore: value.verificationScore!,
       extendedGoal: value.extendedGoal!,
+      ...(value.photoCaptured === true ? { photoCaptured: true } : {}),
+      ...(typeof value.photoProofHash === 'string' && /^[a-f0-9]{64}$/i.test(value.photoProofHash) ? { photoProofHash: value.photoProofHash } : {}),
       ...(value.activityFeatures ? { activityFeatures: value.activityFeatures } : {}),
       updatedAt: value.updatedAt!,
     };
@@ -565,16 +570,22 @@ export function loadQuestCheckpoint(questId: string): Promise<QuestCheckpoint | 
 
 export function saveQuestCheckpoint(checkpoint: QuestCheckpoint) {
   const quest = getQuest(checkpoint.questId);
-  if (!quest || quest.verification.type === 'TIMER') return clearQuestCheckpoint(checkpoint.questId);
-  if (!isFiniteNonNegative(checkpoint.distanceMeters) || checkpoint.distanceMeters <= 0 ||
+  if (!quest || (quest.verification.type === 'TIMER' && !quest.proofMode)) return clearQuestCheckpoint(checkpoint.questId);
+  const requiresDistance = quest.verification.type !== 'TIMER';
+  if (!isFiniteNonNegative(checkpoint.distanceMeters) || (requiresDistance && checkpoint.distanceMeters <= 0) ||
       !isFiniteNonNegative(checkpoint.durationSeconds) || !isFiniteNonNegative(checkpoint.verificationScore) ||
-      checkpoint.verificationScore > 100) return Promise.reject(new Error('Nieprawidłowy zapis postępu misji.'));
+      checkpoint.verificationScore > 100 ||
+      (checkpoint.photoProofHash !== undefined && !/^[a-f0-9]{64}$/i.test(checkpoint.photoProofHash))) {
+    return Promise.reject(new Error('Nieprawidłowy zapis postępu misji.'));
+  }
   const safe: QuestCheckpoint = {
     questId: checkpoint.questId,
     distanceMeters: checkpoint.distanceMeters,
     durationSeconds: checkpoint.durationSeconds,
     verificationScore: checkpoint.verificationScore,
     extendedGoal: Boolean(checkpoint.extendedGoal),
+    ...(checkpoint.photoCaptured === true ? { photoCaptured: true } : {}),
+    ...(checkpoint.photoProofHash ? { photoProofHash: checkpoint.photoProofHash } : {}),
     ...(checkpoint.activityFeatures ? { activityFeatures: { ...checkpoint.activityFeatures } } : {}),
     updatedAt: checkpoint.updatedAt,
   };
@@ -662,6 +673,7 @@ function cloudEvidencePayload(event: VerifiedEvent) {
     ...(event.durationSeconds !== undefined ? { duration_seconds: event.durationSeconds } : {}),
     ...(event.steps !== undefined ? { steps: event.steps } : {}),
     ...(event.photoCaptured === true ? { photo_captured: true } : {}),
+    ...(event.photoProofHash ? { photo_proof_hash: event.photoProofHash } : {}),
     ...(event.activity ? {
       activity: {
         expected: event.activity.activityTypeExpected,
