@@ -124,3 +124,10 @@ test('reward dismiss callback stays stable so a finished sequence cannot replay'
   assert.match(source, /const current = celebrationRef\.current/);
   assert.doesNotMatch(source, /const dismissCelebration[\s\S]{0,500}\}, \[celebration\]\)/);
 });
+
+
+test('pending reward replay never replaces an active foreground celebration', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/state/SystemProvider.tsx'), 'utf8');
+  assert.match(source, /if \(!active \|\| celebrationRef\.current \|\| resetting\.current\) return/);
+  assert.match(source, /celebrationRef\.current = null; setCelebration\(null\)/);
+});
