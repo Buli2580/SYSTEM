@@ -75,7 +75,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const aiRequestRef = useRef(0);
   const notificationRequestRef = useRef(0);
   const achievementRequestRef = useRef(0);
-  useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
+  useEffect(() => { configureAudio({ enabled: snapshot.settings.audio, musicVolume: snapshot.settings.musicVolume, ambientVolume: snapshot.settings.ambientVolume, sfxVolume: snapshot.settings.sfxVolume }); return stopAudio; }, [snapshot.settings.audio, snapshot.settings.musicVolume, snapshot.settings.ambientVolume, snapshot.settings.sfxVolume]);
   const refreshNotifications = useCallback(async (): Promise<void> => {
     const requestId = ++notificationRequestRef.current;
     try {
