@@ -1794,14 +1794,32 @@ test('World Link exact milestones, reward, title, event and Chronicle persist on
  s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,1);assert.equal(s.player.totalRealXp,before);
  const signal=await w.scanSignal(storyFix(h,));await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
  s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,2);assert.ok(!s.titles.includes('PATHFINDER'));
- for(const id of s.daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ let worldLinkCompletion;
+ for(const id of s.daily.questIds) worldLinkCompletion=await h.db.completeVerifiedQuest(dailyEvidence(h,id));
  s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,3);assert.equal(s.story.worldLinkComplete,true);assert.ok(s.titles.includes('PATHFINDER'));
+ assert.ok(worldLinkCompletion.receipt?.newTitles.includes('PATHFINDER'));
  const xp=s.player.totalRealXp;await Promise.all(Array.from({length:5},()=>h.db.loadSystemState()));assert.equal((await h.reload().loadSystemState()).player.totalRealXp,xp);
  const chronicle=await h.db.loadChronicle();assert.equal(chronicle.filter(e=>e.id==='world_link_chapter_2').length,1);assert.equal(chronicle.filter(e=>e.id==='title_pathfinder').length,1);
  await h.db.consumeStoryEvent('world_link_chapter_2');assert.ok(!(await h.db.loadSystemState()).story.pendingEvents.some(e=>e.id==='world_link_chapter_2'));
  assert.ok((await h.db.loadChronicle()).some(e=>e.id==='world_link_chapter_2'));
  await h.db.updateIdentity({currentTitle:'PATHFINDER'});assert.equal((await h.reload().loadSystemState()).player.currentTitle,'PATHFINDER');
 });
+test('third sector can complete World Link and persists PATHFINDER presentation',async t=>{
+ const h=await dailyHarness(t),w=h.load('storage/world');
+ let s=await h.db.loadSystemState();
+ for(const id of s.daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ for(let n=0;n<2;n++) await w.discoverSector(storyFix(h,52+n*.002,19));
+ const signal=await w.scanSignal(storyFix(h));
+ await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
+ s=await h.db.loadSystemState();assert.equal(s.story.chapters[1].completed,2);assert.equal(s.story.worldLinkComplete,false);
+ const result=await w.discoverSector(storyFix(h,52.004,19));
+ assert.equal(result.discovered,true);assert.ok(result.receipt);assert.equal(result.receipt.id,'world_link_chapter_2');
+ assert.ok(result.receipt.newTitles.includes('PATHFINDER'));
+ s=await h.db.loadSystemState();assert.equal(s.story.worldLinkComplete,true);assert.ok(s.titles.includes('PATHFINDER'));
+ const pending=await h.db.loadPendingRewardPresentations();
+ assert.ok(pending.some(receipt=>receipt.id==='world_link_chapter_2'&&receipt.newTitles.includes('PATHFINDER')));
+});
+
 for(const failure of ['INSERT INTO story_progress','INSERT INTO story_events','COMMIT']) test('World Link reward rolls back with last milestone: '+failure,async t=>{
  const h=await dailyHarness(t);const w=h.load('storage/world');for(let n=0;n<3;n++)await w.discoverSector(storyFix(h,52+n*.002,19));const signal=await w.scanSignal(storyFix(h,));await w.locateSignal(storyFix(h,signal.latitude,signal.longitude),signal.revision);
  const ids=(await h.db.loadSystemState()).daily.questIds;for(const id of ids.slice(0,2))await h.db.completeVerifiedQuest(dailyEvidence(h,id));const before=await h.db.loadSystemState();
@@ -1876,8 +1894,8 @@ test('Boss staged progression survives restart; requires future day and awards e
  const activity=classify('WALK',features({distanceMeters:2000,medianSpeedMps:1.5}));
  await h.db.completeVerifiedQuest({questId:'wall_walk_v1',verificationType:'GPS_DISTANCE',durationSeconds:600,distanceMeters:2000,verificationScore:87,activity});
  assert.equal(await h.db.getQuestAccess('wall_run_v1'),'LOCKED');s=await h.reload().loadSystemState();assert.ok(s.story.boss.move_at);assert.equal(s.story.boss.discipline_at,null);assert.equal(s.story.bossComplete,false);
- h.clock.now+=86400000;s=await h.db.loadSystemState();const before=s.player;const id=s.daily.questIds[0];await h.db.completeVerifiedQuest(dailyEvidence(h,id));s=await h.db.loadSystemState();
- assert.equal(s.story.bossComplete,true);assert.ok(s.titles.includes('WALLBREAKER'));assert.equal(s.player.totalRealXp-before.totalRealXp,500+h.load('quests/catalog').getQuest(id).rewards.realXp);
+ h.clock.now+=86400000;s=await h.db.loadSystemState();const before=s.player;const id=s.daily.questIds[0];const bossCompletion=await h.db.completeVerifiedQuest(dailyEvidence(h,id));s=await h.db.loadSystemState();
+ assert.equal(s.story.bossComplete,true);assert.ok(s.titles.includes('WALLBREAKER'));assert.ok(bossCompletion.receipt?.newTitles.includes('WALLBREAKER'));assert.equal(s.player.totalRealXp-before.totalRealXp,500+h.load('quests/catalog').getQuest(id).rewards.realXp);
  const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest(dailyEvidence(h,id));await h.db.startBossProtocol();assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
  assert.equal((await h.db.loadChronicle()).filter(e=>e.type==='BOSS_DEFEATED').length,1);
 });
