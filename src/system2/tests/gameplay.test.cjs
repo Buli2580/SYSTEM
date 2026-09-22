@@ -2127,16 +2127,22 @@ test('SystemProvider gates startup on health and blocks production reset',async(
   await assert.rejects(ctx.resetData(true));assert.equal(resetCalls,0);
  }finally{h.close();}
 });
-test('SystemProvider late refresh cannot overwrite committed reward',async()=>{
- const state=startupFixture();let release;
+test('SystemProvider late refresh cannot overwrite committed reward or freeze future refreshes',async()=>{
+ const state=startupFixture(),staleLoad=deferred();let loadCalls=0;
  const rewarded={...state,player:loader({})('core').addRealXp(state.player,100),awarded:true};
- const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>state,testerHealthCheck:async()=>({ok:true,issues:[]}),completeVerifiedQuest:async()=>rewarded};
+ const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>{loadCalls++;return state;},testerHealthCheck:async()=>({ok:true,issues:[]}),completeVerifiedQuest:async()=>rewarded};
  const h=providerUI(db);try {
   h.render();await flush();let ctx=h.render();assert.equal(ctx.ready,true);
-  db.loadSystemState=()=>new Promise(resolve=>{release=resolve;});const stale=ctx.refreshPlayer();await flush();
+  db.loadSystemState=()=>{loadCalls++;return staleLoad.promise;};
+  const stale=ctx.refreshPlayer();await flush();
   await ctx.completeVerifiedQuest(evidence);ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
-  release(state);await stale;ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
- }finally{h.close();}
+  db.loadSystemState=async()=>{loadCalls++;return rewarded;};
+  staleLoad.resolve(state);await stale;ctx=h.render();assert.equal(ctx.player.totalRealXp,100);
+  const before=loadCalls;
+  await ctx.refreshPlayer();await flush();ctx=h.render();
+  assert.equal(loadCalls,before+1);
+  assert.equal(ctx.player.totalRealXp,100);
+ }finally{staleLoad.resolve(state);h.close();}
 });
 test('SystemProvider reuses persisted AI Daily and manual refresh cannot replace accepted quests',async()=>{
  const player=loader({})('core').createNewPlayer('AI CACHE');
