@@ -230,7 +230,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     let active = true;
     void db.loadPendingRewardPresentations()
       .then(async queue => {
-        if (!active || celebration || resetting.current) return;
+        if (!active || celebrationRef.current || resetting.current) return;
         for (const receipt of queue) {
           if (seenRewards.current.has(receipt.id)) {
             await db.acknowledgeRewardPresentation(receipt.id).catch(() => undefined);
