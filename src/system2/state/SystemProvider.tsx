@@ -84,7 +84,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     } catch {
       setNotificationError('Nie udało się odświeżyć przypomnień. Spróbuj ponownie.');
     }
-  }, [snapshot.settings, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted]);
+  }, [snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted]);
   useEffect(() => {
     if (!ready) return;
     void refreshNotifications();
