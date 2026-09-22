@@ -39,9 +39,10 @@ export default function LeaderboardScreen(){
   const session=await getValidSession();
   if(!mounted.current||id!==loadEpoch.current)return;
   if(!session){setMyId(null);setMe(null);setFollowing(new Set());setRows([]);return;}
+  setMyId(session.user.id);
   const[profile,ids]=await Promise.all([getMySocialProfile(),getFollowingIds()]);
   if(!mounted.current||id!==loadEpoch.current)return;
-  setMyId(session.user.id);setMe(profile);setFollowing(new Set(ids));
+  setMe(profile);setFollowing(new Set(ids));
   const value=nextScope==='WORLD'?null:nextScope==='CONTINENT'?profile.continent_code:nextScope==='COUNTRY'?profile.country_code:nextScope==='REGION'?profile.region_code:profile.city_label;
   if(nextScope!=='WORLD'&&!value){setRows([]);return;}
   const nextRows=await getLeaderboard(nextScope,value,50);
