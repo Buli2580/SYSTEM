@@ -5,6 +5,7 @@ export const FINAL_TRIAL_QUEST: RunnableQuest = {
   description: 'Przejdź 600 metrów i utrzymaj aktywną próbę przez co najmniej 10 minut. SYSTEM wymaga obu warunków. GPS może działać w tle — możesz wygasić ekran lub przejść do innej aplikacji.',
   category: 'MAIN', difficulty: 'NORMAL', order: 3,
   primarySkill: 'VIT', secondarySkills: ['WIL'],
+  proofMode: 'GPS_TIME_PHOTO',
   verification: {
     type: 'MULTI', minimumDistanceMeters: 600, minimumDurationSeconds: 600, verificationScoreRequired: 80,
   },
