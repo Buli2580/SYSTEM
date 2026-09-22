@@ -372,17 +372,14 @@ export function loadSystemState(): Promise<SystemSnapshot> {
 }
 
 export function acknowledgeAwakening() {
-  return serialized(async () => {
-    await initSystemDatabase();
-    const db = await getDatabase();
-    await db.withExclusiveTransactionAsync(async txn => {
-      const snapshot = await snapshotInTransaction(txn);
-      if (!snapshot.awakeningCompleted) throw new Error('Przebudzenie nie zostało ukończone.');
-      await txn.runAsync(
-        'INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
-        'awakening_presentation_seen', 'true'
-      );
-    });
+  return profileTransaction(async txn => {
+    const snapshot = await snapshotInTransaction(txn);
+    if (!snapshot.awakeningCompleted) throw new Error('Przebudzenie nie zostało ukończone.');
+    await txn.runAsync(
+      'INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
+      'awakening_presentation_seen', 'true'
+    );
+    return snapshotInTransaction(txn);
   });
 }
 
