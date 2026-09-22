@@ -235,10 +235,11 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   const createFirstGoalAndPrepareAwakening = useCallback(async (input: Parameters<typeof db.createPlayerGoal>[0]) => {
-    const next = await applySnapshot(() => db.createPlayerGoal(input));
     const rawGoal = [input.title, input.description, input.target].filter(Boolean).join(' · ');
-    return requestAwakeningDirection(next, rawGoal);
-  }, [applySnapshot, requestAwakeningDirection]);
+    const direction = await requestAwakeningDirection(snapshot, rawGoal);
+    await applySnapshot(() => db.createPlayerGoal(input));
+    return direction;
+  }, [applySnapshot, requestAwakeningDirection, snapshot]);
   const prepareAwakeningDirection = useCallback(async (rawGoal: string) => requestAwakeningDirection(snapshot, rawGoal), [requestAwakeningDirection, snapshot]);
   const resetData = useCallback(async (confirmed: true) => {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
