@@ -199,7 +199,32 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     // Every reward sequence owns the root overlay until RewardEventSequence dismisses it.
     setCelebration(receipt);
   }, []);
-  const dismissCelebration = useCallback(() => setCelebration(null), []);
+  const dismissCelebration = useCallback(() => {
+    setCelebration(current => {
+      if (current) void db.acknowledgeRewardPresentation(current.id).catch(() => undefined);
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!ready || celebration || resetting.current) return;
+    let active = true;
+    void db.loadPendingRewardPresentations()
+      .then(async queue => {
+        if (!active || celebration || resetting.current) return;
+        for (const receipt of queue) {
+          if (seenRewards.current.has(receipt.id)) {
+            await db.acknowledgeRewardPresentation(receipt.id).catch(() => undefined);
+            continue;
+          }
+          if (active) presentReward(receipt);
+          break;
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [ready, celebration, snapshot.completedQuestIds.length, presentReward]);
+
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
