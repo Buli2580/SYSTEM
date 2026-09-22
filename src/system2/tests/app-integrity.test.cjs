@@ -86,3 +86,10 @@ test('superseded provider refresh always releases the in-flight promise', () => 
   assert.match(source, /if \(refreshRef\.current === operation\) refreshRef\.current = null/);
   assert.doesNotMatch(source, /if \(epoch === generation\.current\) refreshRef\.current = null/);
 });
+
+
+test('Next Action guards against /quest directives without a quest id', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/quests/nextAction.ts'), 'utf8');
+  assert.match(source, /directive\.route === '\/quest' && !directive\.questId/);
+  assert.match(source, /REFRESH QUEST PROTOCOL/);
+});
