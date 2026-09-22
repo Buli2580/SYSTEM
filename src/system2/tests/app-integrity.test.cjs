@@ -116,3 +116,11 @@ test('provider clears stale background sessions before exposing an active quest'
   assert.match(source, /access === 'LOCKED' \|\| access === 'COMPLETED'/);
   assert.match(source, /stopQuestBackgroundTracking\(backgroundQuest\.questId\)/);
 });
+
+
+test('reward dismiss callback stays stable so a finished sequence cannot replay', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/state/SystemProvider.tsx'), 'utf8');
+  assert.match(source, /const celebrationRef = useRef<RewardReceipt \| null>\(null\)/);
+  assert.match(source, /const current = celebrationRef\.current/);
+  assert.doesNotMatch(source, /const dismissCelebration[\s\S]{0,500}\}, \[celebration\]\)/);
+});
