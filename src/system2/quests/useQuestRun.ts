@@ -227,10 +227,10 @@ export function useQuestRun(quest: RunnableQuest) {
           stopVerification();
         } else {
           const anchor = lastPointRef.current;
-          void persistCheckpoint(true)
-            .catch(() => undefined)
-            .then(() => handoffQuestToBackground(quest.id, anchor))
-            .catch(() => undefined);
+          // Queue the mode switch first so the background task begins
+          // accounting locations immediately. Checkpoint persistence is independent.
+          void handoffQuestToBackground(quest.id, anchor).catch(() => undefined);
+          void persistCheckpoint(true).catch(() => undefined);
           pauseForegroundTracking();
         }
       } else if (!(statusRef.current === 'READY' && backgroundSessionActiveRef.current)) {
@@ -249,9 +249,8 @@ export function useQuestRun(quest: RunnableQuest) {
           ['STARTING','TRACKING'].includes(statusRef.current)) {
         const anchor = lastPointRef.current;
         backgroundHandoffRef.current = true;
-        void persistCheckpoint(true)
-          .then(() => handoffQuestToBackground(quest.id, anchor))
-          .catch(() => undefined);
+        void handoffQuestToBackground(quest.id, anchor).catch(() => undefined);
+        void persistCheckpoint(true).catch(() => undefined);
         pauseForegroundTracking();
         return;
       }
