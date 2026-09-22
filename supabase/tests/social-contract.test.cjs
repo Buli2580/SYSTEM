@@ -74,3 +74,17 @@ test('one verified event cannot damage multiple raids', () => {
   const sql = fs.readFileSync(path.resolve(__dirname, '../migrations/20260922050000_social_gameplay_v1.sql'), 'utf8').toLowerCase();
   assert.match(sql, /unique index if not exists raid_damage_verified_event_unique[\s\S]*\(user_id,event_key\)/);
 });
+
+
+test('friendship pairs are unique regardless of request direction', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../migrations/20260922050000_social_gameplay_v1.sql'), 'utf8').toLowerCase();
+  assert.match(sql, /friend_requests_pair_unique[\s\S]*least\(sender_id,receiver_id\)[\s\S]*greatest\(sender_id,receiver_id\)/);
+  assert.match(sql, /status='accepted'[\s\S]*return;/);
+});
+
+test('blocking prevents profiles from being followed or searched', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../migrations/20260922050000_social_gameplay_v1.sql'), 'utf8').toLowerCase();
+  assert.match(sql, /create or replace function public\.is_social_blocked/);
+  assert.match(sql, /follows_insert_own_public_target[\s\S]*not public\.is_social_blocked\(followed_id\)/);
+  assert.match(sql, /search_players[\s\S]*not public\.is_social_blocked\(sp\.user_id\)/);
+});
