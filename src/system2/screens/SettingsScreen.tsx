@@ -1,6 +1,6 @@
 import BetaSettings from '../components/BetaSettings';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Modal, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -33,7 +33,10 @@ export default function SettingsScreen() {
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
       <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ haptics: value })); }} />
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ audio: value })); }} />
-      <Text style={s.body}>Dźwięki startu misji, błędu/recovery, ukończenia i level-up. Nagroda nadal odtwarza tylko jeden kanoniczny efekt.</Text>
+      <Text style={s.body}>SYSTEM AUDIO ENGINE 2.0 // osobny miks muzyki, ambientu świata i efektów.</Text>
+      <MixControl label="MUZYKA" value={settings.musicVolume ?? 0.8} disabled={busy} onChange={value => { void run(() => saveSettings({ musicVolume: value })); }} />
+      <MixControl label="AMBIENT ŚWIATA" value={settings.ambientVolume ?? 0.55} disabled={busy} onChange={value => { void run(() => saveSettings({ ambientVolume: value })); }} />
+      <MixControl label="SFX" value={settings.sfxVolume ?? 0.9} disabled={busy} onChange={value => { void run(() => saveSettings({ sfxVolume: value })); }} />
     </View>
     <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
@@ -86,4 +89,16 @@ export default function SettingsScreen() {
       </ScrollView>
     </Modal>
   </SystemPage>;
+}
+
+
+function MixControl({label,value,onChange,disabled}:{label:string;value:number;onChange:(value:number)=>void;disabled:boolean}) {
+  const steps=[0,0.25,0.5,0.75,1];
+  return <View style={{marginTop:14}}>
+    <View style={{flexDirection:'row',justifyContent:'space-between'}}><Text style={s.label}>{label}</Text><Text style={s.body}>{Math.round(value*100)}%</Text></View>
+    <View style={{flexDirection:'row',gap:6,marginTop:8}}>
+      {steps.map(step=><Pressable key={step} disabled={disabled} accessibilityRole="button" accessibilityLabel={label+' '+Math.round(step*100)+'%'} onPress={()=>onChange(step)}
+        style={{flex:1,height:12,borderRadius:6,borderWidth:1,borderColor:'#315b66',backgroundColor:step<=value?'#25dff3':'rgba(49,91,102,.18)',opacity:disabled?.45:1}} />)}
+    </View>
+  </View>;
 }
