@@ -80,3 +80,16 @@ test('Quest Experience exposes a non-empty message and CTA for every runtime pha
     assert.ok(String(nextQuestCta(phase)).trim().length > 0, runtime + ' CTA');
   }
 });
+
+
+test('reward presentation starts with quest completion before level/rank unlocks', () => {
+  const { presentationEventsFromReceipt } = load('presentation/events');
+  const events = presentationEventsFromReceipt({
+    id:'reward-flow',realXp:120,skillXp:{WIL:30},energy:10,distanceMeters:0,
+    beforeLevel:9,afterLevel:10,beforeRank:'E',afterRank:'D',
+    skillLevels:[{key:'WIL',before:1,after:2}],newTitles:[],worldUnlocked:true,
+  });
+  assert.equal(events[0].kind,'QUEST_COMPLETE');
+  assert.ok(events.findIndex(x=>x.kind==='LEVEL_UP')>0);
+  assert.ok(events.findIndex(x=>x.kind==='RANK_UP')>events.findIndex(x=>x.kind==='LEVEL_UP'));
+});
