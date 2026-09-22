@@ -106,7 +106,7 @@ function validRewardReceipt(value: unknown): value is RewardReceipt {
   const skillXp = row.skillXp;
   const skillLevels = row.skillLevels;
   const newTitles = row.newTitles;
-  const ranks = ['E','D','C','B','A','S'];
+  const ranks = ['E','D','C','B','A','S','SS','SSS','ASCENDED'];
   const skills = ['STR','VIT','INT','WIL','CHA','CRE','RES'];
   const titles = ['UNAWAKENED','AWAKENED','SIGNAL HUNTER','PATHFINDER','WALLBREAKER'];
   return typeof row.id === 'string' && row.id.length > 0 && row.id.length <= 220
