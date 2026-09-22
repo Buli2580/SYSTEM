@@ -200,11 +200,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     setCelebration(receipt);
   }, []);
   const dismissCelebration = useCallback(() => {
-    setCelebration(current => {
-      if (current) void db.acknowledgeRewardPresentation(current.id).catch(() => undefined);
-      return null;
-    });
-  }, []);
+    const current = celebration;
+    setCelebration(null);
+    if (current) void db.acknowledgeRewardPresentation(current.id).catch(() => undefined);
+  }, [celebration]);
 
   useEffect(() => {
     if (!ready || celebration || resetting.current) return;
