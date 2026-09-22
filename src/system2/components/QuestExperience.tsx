@@ -42,7 +42,7 @@ export function QuestFlowRail({ status }: { status: string }) {
   const phase = questExperiencePhaseFromRun(status);
   const active = activeQuestFlowStep(phase);
   const activeIndex = QUEST_FLOW_STEPS.indexOf(active);
-  return <Animated.View entering={FadeInUp.duration(320)} style={styles.flow}>
+  return <Animated.View key={phase} entering={FadeInUp.duration(260)} style={[styles.flow, phase==='VERIFYING'&&styles.flowVerifying, phase==='COMPLETE'&&styles.flowComplete, phase==='RECOVERY'&&styles.flowRecovery]}>
     <View style={styles.flowHeader}>
       <View><Text style={styles.flowCode}>QUEST EXPERIENCE 2.0</Text><Text style={styles.flowPhase}>{phase}</Text></View>
       <Text style={styles.flowMessage}>{questExperienceMessage(phase)}</Text>
@@ -163,6 +163,9 @@ function Info({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   flow: { marginTop: 8, padding: 15, borderWidth: 1, borderColor: C.line, borderRadius: 18, backgroundColor: 'rgba(4,16,20,0.88)' },
+  flowVerifying: { borderColor: C.warning, backgroundColor: 'rgba(255,200,87,0.045)' },
+  flowComplete: { borderColor: C.success, backgroundColor: 'rgba(54,230,154,0.045)' },
+  flowRecovery: { borderColor: C.danger, backgroundColor: 'rgba(255,80,103,0.045)' },
   flowHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' },
   flowCode: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
   flowPhase: { color: C.white, fontSize: 14, fontWeight: '900', marginTop: 4 },
