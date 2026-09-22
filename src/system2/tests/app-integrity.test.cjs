@@ -93,3 +93,18 @@ test('Next Action guards against /quest directives without a quest id', () => {
   assert.match(source, /directive\.route === '\/quest' && !directive\.questId/);
   assert.match(source, /REFRESH QUEST PROTOCOL/);
 });
+
+
+test('Daily ignores corrupt non-authoritative attempt payloads', () => {
+  const { attemptWasSuspicious } = load('storage/daily');
+  assert.equal(attemptWasSuspicious('{"activity":{"verdict":"SUSPICIOUS"}}'), true);
+  assert.equal(attemptWasSuspicious('{"activity":{"verdict":"VERIFIED"}}'), false);
+  assert.equal(attemptWasSuspicious('{broken'), false);
+});
+
+test('background task stops locked or completed quests after rollover', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/background/locationTask.ts'), 'utf8');
+  assert.match(source, /getQuestAccess\(session\.questId\)/);
+  assert.match(source, /access === 'LOCKED' \|\| access === 'COMPLETED'/);
+  assert.match(source, /stopOrphanedLocationTask\(\)/);
+});
