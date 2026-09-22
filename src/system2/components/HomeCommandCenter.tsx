@@ -159,11 +159,11 @@ export default function HomeCommandCenter() {
     <Pressable accessibilityRole="button" onPress={openNext}
       style={({ pressed }) => [styles.next, pressed && styles.pressed]}>
       <View style={styles.nextTop}>
-        <Text style={styles.nextCode}>NEXT ACTION // PRIORITY {next.priority}</Text>
+        <Text style={styles.nextCode}>{activeQuest ? 'ACTIVE QUEST // RESUME' : `NEXT ACTION // PRIORITY ${next.priority}`}</Text>
         <Text style={styles.nextArrow}>→</Text>
       </View>
-      <Text style={styles.nextTitle}>{next.title}</Text>
-      <Text style={styles.nextDetail}>{activeQuest ? `ACTIVE // ${activeQuest.title}` : next.detail}</Text>
+      <Text style={styles.nextTitle}>{activeQuest ? activeQuest.title : next.title}</Text>
+      <Text style={styles.nextDetail}>{activeQuest ? 'MISJA W TOKU // WRÓĆ DO WERYFIKACJI I DOKOŃCZ CEL' : next.detail}</Text>
     </Pressable>
 
     <View style={styles.grid}>
@@ -176,16 +176,6 @@ export default function HomeCommandCenter() {
       </Pressable>)}
     </View>
 
-    {activeQuest && <View style={styles.active}>
-      <View style={styles.activeDot} />
-      <View style={styles.activeBody}>
-        <Text style={styles.activeCode}>ACTIVE QUEST</Text>
-        <Text style={styles.activeTitle}>{activeQuest.title}</Text>
-      </View>
-      <Pressable onPress={() => router.push({ pathname: '/quest', params: { questId: activeQuest.id } })}>
-        <Text style={styles.resume}>RESUME →</Text>
-      </Pressable>
-    </View>}
   </Animated.View>;
 }
 
@@ -227,8 +217,8 @@ const styles = StyleSheet.create({
   nextArrow: { color: C.cyan, fontSize: 25, fontWeight: '900' },
   nextTitle: { color: C.white, fontSize: 18, fontWeight: '900', marginTop: 5 },
   nextDetail: { color: C.textMuted, fontSize: 10, lineHeight: 15, marginTop: 6 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  tile: { width: '48%', flexGrow: 1, minHeight: 88, padding: 13, borderWidth: 1, borderColor: C.line, borderRadius: 15, backgroundColor: C.panel },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 },
+  tile: { width: '31%', flexGrow: 1, minHeight: 76, padding: 11, borderWidth: 1, borderColor: C.line, borderRadius: 14, backgroundColor: C.panel },
   tileAlert: { borderColor: C.warning, backgroundColor: 'rgba(255,200,87,0.055)' },
   tileLabel: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   tileValue: { color: C.white, fontSize: 17, fontWeight: '900', marginTop: 7 },
@@ -236,11 +226,5 @@ const styles = StyleSheet.create({
   tileTrack: { height: 4, borderRadius: 99, overflow: 'hidden', backgroundColor: C.line, marginTop: 9 },
   tileFill: { height: '100%', borderRadius: 99, backgroundColor: C.cyan },
   alertText: { color: C.warning },
-  active: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 13, borderTopWidth: 1, borderTopColor: C.line },
-  activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.success },
-  activeBody: { flex: 1 },
-  activeCode: { color: C.success, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
-  activeTitle: { color: C.white, fontSize: 11, fontWeight: '900', marginTop: 3 },
-  resume: { color: C.cyan, fontSize: 9, fontWeight: '900' },
   pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
 });
