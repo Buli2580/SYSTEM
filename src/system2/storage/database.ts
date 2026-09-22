@@ -97,6 +97,50 @@ export type SystemSnapshot = {
 };
 export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt };
 
+const PENDING_REWARD_PRESENTATIONS_KEY = 'pending_reward_presentations';
+
+function validRewardReceipt(value: unknown): value is RewardReceipt {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Partial<RewardReceipt>;
+  const numeric = [
+    row.realXp,row.energy,row.distanceMeters,row.beforeLevel,row.afterLevel,
+  ];
+  return typeof row.id === 'string' && row.id.length > 0 && row.id.length <= 220
+    && numeric.every(item => typeof item === 'number' && Number.isFinite(item))
+    && typeof row.beforeRank === 'string' && typeof row.afterRank === 'string'
+    && !!row.skillXp && typeof row.skillXp === 'object'
+    && Array.isArray(row.skillLevels) && Array.isArray(row.newTitles)
+    && typeof row.worldUnlocked === 'boolean';
+}
+
+function parsePendingRewardPresentations(raw?: string): RewardReceipt[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    return parsed.filter(validRewardReceipt).filter(receipt => {
+      if (seen.has(receipt.id)) return false;
+      seen.add(receipt.id);
+      return true;
+    }).slice(-16);
+  } catch {
+    return [];
+  }
+}
+
+async function enqueuePendingRewardPresentation(txn: SQLite.SQLiteDatabase, receipt: RewardReceipt) {
+  const row = await txn.getFirstAsync<{ value: string }>(
+    'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
+  );
+  const queue = parsePendingRewardPresentations(row?.value).filter(item => item.id !== receipt.id);
+  queue.push(receipt);
+  await txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    PENDING_REWARD_PRESENTATIONS_KEY, JSON.stringify(queue.slice(-16))
+  );
+}
+
 async function completedQuestIds(db: SQLite.SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ quest_id: string }>('SELECT quest_id FROM quest_completions');
   return rows.map(row => row.quest_id);
@@ -336,8 +380,15 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
         async result(awarded, before, event) {
           if (awarded && event) await enqueueCloudOutboxEvent(txn, event);
           const snapshot = await snapshotInTransaction(txn);
-          return { awarded, ...snapshot, ...(event ? { receipt: rewardReceipt(event.id, before, snapshot.player,
-            snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) } : {}) };
+          const receipt = event ? rewardReceipt(
+            event.id,
+            before,
+            snapshot.player,
+            snapshot.awakeningAwarded ? ['AWAKENED'] : [],
+            snapshot.awakeningAwarded,
+          ) : undefined;
+          if (awarded && receipt) await enqueuePendingRewardPresentation(txn, receipt);
+          return { awarded, ...snapshot, ...(receipt ? { receipt } : {}) };
         },
       }));
     });
@@ -349,6 +400,34 @@ export async function completeVerifiedQuest(input: CompleteQuestInput): Promise<
   const result = await completeQuestUseCase({ evidence: input, operationKey: input.operationKey });
   if ('value' in result) return result.value;
   throw new Error(result.reason);
+}
+
+export function loadPendingRewardPresentations(): Promise<RewardReceipt[]> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
+    );
+    const queue = parsePendingRewardPresentations(row?.value);
+    if (row && queue.length === 0) {
+      await txn.runAsync('DELETE FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY);
+    }
+    return queue;
+  });
+}
+
+export function acknowledgeRewardPresentation(receiptId: string): Promise<void> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
+    );
+    if (!row) return;
+    const queue = parsePendingRewardPresentations(row.value).filter(receipt => receipt.id !== receiptId);
+    if (queue.length) {
+      await txn.runAsync('UPDATE app_state SET value=? WHERE key=?', JSON.stringify(queue), PENDING_REWARD_PRESENTATIONS_KEY);
+    } else {
+      await txn.runAsync('DELETE FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY);
+    }
+  });
 }
 
 export function loadSystemState(): Promise<SystemSnapshot> {
