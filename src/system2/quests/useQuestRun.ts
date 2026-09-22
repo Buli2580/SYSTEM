@@ -312,10 +312,21 @@ export function useQuestRun(quest: RunnableQuest) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch {
       if (focusedRef.current && session === sessionRef.current) {
-        fail('Nie udało się potwierdzić zapisu nagrody. Sprawdź zapis ponownie. Jeśli misja nie została zapisana, rozpocznij nową próbę.');
+        // A UI timeout does not cancel the serialized SQLite transaction.
+        // Do not mark the attempt FAILED here: the commit may still succeed.
+        // Retry first re-reads canonical completion and only starts again when
+        // the quest is genuinely still AVAILABLE.
+        if (!isTimer) {
+          backgroundSessionActiveRef.current = false;
+          void stopQuestBackgroundTracking(quest.id).catch(() => undefined);
+        }
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined);
+        playFeedback('ERROR');
+        setError('Nie udało się potwierdzić zapisu nagrody. Sprawdź zapis ponownie — SYSTEM najpierw odczyta wynik transakcji.');
+        transition('ERROR');
       }
     }
-  }, [completeVerifiedQuest, fail, stopVerification, transition, hasTimer, quest.id, isTimer]);
+  }, [completeVerifiedQuest, stopVerification, transition, hasTimer, quest.id, isTimer]);
 
   useEffect(() => {
     if (status !== 'TRACKING') return;
