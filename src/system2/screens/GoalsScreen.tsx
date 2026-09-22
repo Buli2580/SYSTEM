@@ -16,7 +16,7 @@ export default function GoalsScreen(){
  const {goals=[],journeys=[],createPlayerGoal,createFirstGoalAndPrepareAwakening,updateGoalStatus}=useSystem();
  const router=useRouter();
  const firstGoal=goals.length===0;
- const [category,setCategory]=useState<GoalCategory>('GENERAL'),[priority,setPriority]=useState<1|2|3>(2),[title,setTitle]=useState(''),[description,setDescription]=useState(''),[target,setTarget]=useState(''),[targetDate,setTargetDate]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');const lock=useRef(false);
+ const [category,setCategory]=useState<GoalCategory>('GENERAL'),[priority,setPriority]=useState<1|2|3>(2),[title,setTitle]=useState(''),[description,setDescription]=useState(''),[target,setTarget]=useState(''),[targetDate,setTargetDate]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');const lock=useRef(false),goalOperationKey=useRef('goal:'+Date.now().toString(36)+':'+Math.random().toString(36).slice(2,12));
  async function run(task:()=>Promise<void>){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{await task();}catch(e){setError(e instanceof Error?e.message:'Nie udało się zapisać celu. Spróbuj ponownie.');}finally{lock.current=false;setBusy(false);}}
  const [opened,setOpened]=useState<string|null>(null);
  const field={color:'#fff',minHeight:48,borderBottomWidth:1,borderBottomColor:'#417480',marginTop:8};
@@ -36,7 +36,7 @@ export default function GoalsScreen(){
  <TextInput accessibilityLabel="Rezultat celu" placeholder="Rezultat (opcjonalny)" placeholderTextColor="#8397a3" value={target} onChangeText={setTarget} maxLength={120} style={field}/>
  <TextInput accessibilityLabel="Termin celu" placeholder="RRRR-MM-DD (opcjonalny)" placeholderTextColor="#8397a3" value={targetDate} onChangeText={setTargetDate} maxLength={10} style={field}/>
  {([1,2,3] as const).map(p=><Action key={p} label={`${priority===p?'● ':'○ '}PRIORYTET ${p}${p===3?' · WYSOKI':''}`} disabled={busy} onPress={()=>setPriority(p)}/>)}
- <Action label={busy?(firstGoal?'AI ANALIZUJE CEL…':'ZAPISYWANIE…'):(firstGoal?'UTWÓRZ ŚCIEŻKĘ →':'DODAJ CEL')} disabled={busy} onPress={()=>{void run(async()=>{const input={category,priority,title,description,target,targetDate};if(firstGoal){await createFirstGoalAndPrepareAwakening(input);router.replace('/awakening-path');}else{await createPlayerGoal(input);setTitle('');setDescription('');setTarget('');setTargetDate('');}});}}/>
+ <Action label={busy?(firstGoal?'AI ANALIZUJE CEL…':'ZAPISYWANIE…'):(firstGoal?'UTWÓRZ ŚCIEŻKĘ →':'DODAJ CEL')} disabled={busy} onPress={()=>{void run(async()=>{const input={category,priority,title,description,target,targetDate};if(firstGoal){await createFirstGoalAndPrepareAwakening(input);router.replace('/awakening-path');}else{await createPlayerGoal(input,goalOperationKey.current);goalOperationKey.current='goal:'+Date.now().toString(36)+':'+Math.random().toString(36).slice(2,12);setTitle('');setDescription('');setTarget('');setTargetDate('');}});}}/>
  </View>{!!error&&<Text accessibilityRole="alert" style={s.body}>{error}</Text>}
  </SystemPage></KeyboardAvoidingView>;
 }
