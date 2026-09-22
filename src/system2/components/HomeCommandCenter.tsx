@@ -44,6 +44,13 @@ export default function HomeCommandCenter() {
   const dailyProgress = dailyTotal > 0 ? Math.min(100, Math.round(dailyDone / dailyTotal * 100)) : 0;
   const weeklyProgress = Math.min(100, Math.round(weeklyDone / DAILY_RULES.weeklyTarget * 100));
   const energyState = player.gameEnergy <= 20 ? 'LOW' : player.gameEnergy >= 80 ? 'HIGH' : 'READY';
+  const systemAlert = system.daily?.clockAnomaly ? 'CLOCK CHECK REQUIRED'
+    : system.aiError ? 'AI FALLBACK / RETRY AVAILABLE'
+    : system.notificationError ? 'REMINDER SYNC ISSUE'
+    : system.achievementError ? 'ACHIEVEMENT SYNC ISSUE'
+    : 'LOCAL CORE READY';
+  const aiState = system.aiLoading ? 'AI ANALYZING' : system.aiGameMaster?.source === 'ai' ? 'AI ONLINE' : system.awakeningCompleted ? 'SAFE FALLBACK' : 'SEALED';
+  const hasSystemAlert = !!(system.daily?.clockAnomaly || system.aiError || system.notificationError || system.achievementError);
 
   const openNext = () => {
     if (next.route === '/quest' && next.questId) {
@@ -102,6 +109,14 @@ export default function HomeCommandCenter() {
         <Text style={styles.title}>DZISIAJ W SYSTEMIE</Text>
       </View>
       <View style={styles.rank}><Text style={styles.rankText}>RANK {player.rank}</Text></View>
+    </View>
+
+    <View style={[styles.statusStrip, hasSystemAlert && styles.statusStripAlert]}>
+      <View style={styles.statusBody}>
+        <Text style={[styles.statusCode, hasSystemAlert && styles.alertText]}>{systemAlert}</Text>
+        <Text style={styles.statusMeta}>OFFLINE-FIRST // {aiState}</Text>
+      </View>
+      {system.aiError && system.awakeningCompleted && <Pressable accessibilityRole="button" onPress={()=>{void system.refreshAIGameMaster();}}><Text style={styles.statusAction}>RETRY AI →</Text></Pressable>}
     </View>
 
     <Pressable accessibilityRole="button" onPress={() => router.push('/character')} style={({pressed})=>[styles.identity,pressed&&styles.pressed]}>
@@ -174,7 +189,13 @@ const styles = StyleSheet.create({
   title: { color: C.white, fontSize: 22, fontWeight: '900', marginTop: 5 },
   rank: { borderWidth: 1, borderColor: C.cyanDark, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   rankText: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, padding: 12, borderWidth: 1, borderColor: C.line, borderRadius: 16, backgroundColor: C.panel },
+  statusStrip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: C.line, borderRadius: 13, backgroundColor: 'rgba(3,12,15,0.7)' },
+  statusStripAlert: { borderColor: C.warning, backgroundColor: 'rgba(255,200,87,0.045)' },
+  statusBody: { flex: 1 },
+  statusCode: { color: C.success, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  statusMeta: { color: C.textVeryMuted, fontSize: 7, fontWeight: '800', marginTop: 3, letterSpacing: 0.8 },
+  statusAction: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10, padding: 12, borderWidth: 1, borderColor: C.line, borderRadius: 16, backgroundColor: C.panel },
   identityBody: { flex: 1 },
   identityCode: { color: C.cyan, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
   identityName: { color: C.white, fontSize: 15, fontWeight: '900', marginTop: 3 },
