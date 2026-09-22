@@ -59,6 +59,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [achievementState, setAchievementState] = useState<PlayerAchievementState>(EMPTY_ACHIEVEMENT_STATE);
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<RewardReceipt | null>(null);
+  const celebrationRef = useRef<RewardReceipt | null>(null);
   const [lastReward, setLastReward] = useState<RewardReceipt | null>(null);
   const [aiGameMaster, setAIGameMaster] = useState<AIGameMasterResponse | null>(null);
   const [aiLoading, setAILoading] = useState(false);
@@ -205,13 +206,15 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     setLastReward(receipt);
     // celebration is the global presentation lock, not only a level-up flag.
     // Every reward sequence owns the root overlay until RewardEventSequence dismisses it.
+    celebrationRef.current = receipt;
     setCelebration(receipt);
   }, []);
   const dismissCelebration = useCallback(() => {
-    const current = celebration;
+    const current = celebrationRef.current;
+    celebrationRef.current = null;
     setCelebration(null);
     if (current) void db.acknowledgeRewardPresentation(current.id).catch(() => undefined);
-  }, [celebration]);
+  }, []);
 
   useEffect(() => {
     if (!ready || celebration || resetting.current) return;
@@ -284,7 +287,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
-    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null); setAIGameMaster(null); aiRequestRef.current += 1; setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
+    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); celebrationRef.current = null; setCelebration(null); setLastReward(null); setAIGameMaster(null); aiRequestRef.current += 1; setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
     try {
       await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
