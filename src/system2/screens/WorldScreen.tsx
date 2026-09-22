@@ -14,6 +14,7 @@ import { signalDistance } from '../world/signals';
 import { SYSTEM_COLORS as C } from '../core';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import {worldBossMode} from '../beta/worldBoss';
+import SystemAudioScene from '../components/SystemAudioScene';
 
 export default function WorldScreen() {
   const router = useRouter();
@@ -45,7 +46,8 @@ function OnlineWorld() {
   const active = world.status === 'ACTIVE';
   const signalState = world.signal?.status ?? 'LOCKED';
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
-    <SystemAmbientBackground intensity="world" />
+    <SystemAmbientBackground intensity="world" screen={mode==="BOSS"?"BOSS":"WORLD"} scene={mode==="BOSS"?"BOSS_ZONE":"WORLD"} threat={mode==="BOSS"?3:1} level={player.realLevel} />
+    <SystemAudioScene cue={mode==="BOSS"?"BOSS":"WORLD"} />
     <View style={styles.heading}>
       <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD/BOSS 2.0 // {mode}</Text><Text style={styles.label}>STATUS ŚWIATA: ONLINE</Text>
       <Text style={styles.body}>EKSPLORACJA ŚWIATA · ODKRYTE SEKTORY {world.sectorIds.length}</Text>
