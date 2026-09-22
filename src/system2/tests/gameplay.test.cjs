@@ -289,6 +289,9 @@ function screenHarness(t, options = {}) {
       requestCameraPermissionsAsync: async () => ({ granted: true }),
       launchCameraAsync: async () => ({ canceled: false, assets: [{ uri: 'file:///proof.jpg' }] }),
     },
+    'expo-keep-awake': {
+      useKeepAwake() {},
+    },
     'expo-audio': {
       createAudioPlayer() { return { volume: 1, loop: false, play() {}, remove() {} }; },
     },
