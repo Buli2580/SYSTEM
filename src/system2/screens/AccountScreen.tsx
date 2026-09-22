@@ -79,11 +79,19 @@ export default function AccountScreen() {
       setSession(null);
       throw cause;
     }
-    const profile = await getMySocialProfile();
-    fillSocial(profile);
-    await refreshSyncStats();
-    setStatus('SYSTEM CLOUD // POŁĄCZONY');
+    // Authentication is already durable at this point. Keep the signed-in UI
+    // even if the optional social profile endpoint is temporarily unavailable.
     setSession(current);
+    await refreshSyncStats();
+    try {
+      const profile = await getMySocialProfile();
+      fillSocial(profile);
+      setStatus('SYSTEM CLOUD // POŁĄCZONY');
+    } catch (cause) {
+      setSocial(null);
+      setStatus('SYSTEM CLOUD // POŁĄCZONY · PROFIL ONLINE NIEDOSTĘPNY');
+      throw cause;
+    }
   }
 
   async function run(task: () => Promise<void>) {
