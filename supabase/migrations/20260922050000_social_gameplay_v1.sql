@@ -75,6 +75,7 @@ create table if not exists public.raid_damage (
   created_at timestamptz not null default now(),
   primary key (raid_id,event_key)
 );
+create unique index if not exists raid_damage_verified_event_unique on public.raid_damage(user_id,event_key);
 
 create table if not exists public.seasons (
   id uuid primary key default gen_random_uuid(),
@@ -131,16 +132,27 @@ drop policy if exists social_activity_insert_own on public.social_activity;
 create policy social_activity_insert_own on public.social_activity for insert to authenticated
 with check (user_id=(select auth.uid()));
 
+create or replace function public.is_guild_member(p_guild uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $
+  select exists(
+    select 1 from public.guild_members gm
+    where gm.guild_id=p_guild and gm.user_id=(select auth.uid())
+  )
+$;
+revoke all on function public.is_guild_member(uuid) from public,anon;
+grant execute on function public.is_guild_member(uuid) to authenticated;
+
 drop policy if exists guilds_read_authenticated on public.guilds;
 create policy guilds_read_authenticated on public.guilds for select to authenticated
-using (visibility='PUBLIC' or owner_id=(select auth.uid()) or exists (
-  select 1 from public.guild_members gm where gm.guild_id=id and gm.user_id=(select auth.uid())
-));
+using (visibility='PUBLIC' or owner_id=(select auth.uid()) or public.is_guild_member(id));
 drop policy if exists guild_members_read_related on public.guild_members;
 create policy guild_members_read_related on public.guild_members for select to authenticated
-using (user_id=(select auth.uid()) or exists (
-  select 1 from public.guild_members me where me.guild_id=public.guild_members.guild_id and me.user_id=(select auth.uid())
-));
+using (user_id=(select auth.uid()) or public.is_guild_member(guild_id));
 
 drop policy if exists raids_read_authenticated on public.raids;
 create policy raids_read_authenticated on public.raids for select to authenticated using (true);
