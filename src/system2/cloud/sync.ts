@@ -12,13 +12,24 @@ import { CloudRequestError } from './http';
 import { processPendingSyncEvents, submitSyncEvent } from './state';
 
 const INSTALL_ID_KEY = 'system.cloud.install.v1';
+let installIdPromise: Promise<string> | null = null;
 
-async function getInstallId() {
+async function createOrLoadInstallId() {
   let id = await AsyncStorage.getItem(INSTALL_ID_KEY);
   if (id) return id;
   id = 'install_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
   await AsyncStorage.setItem(INSTALL_ID_KEY, id);
   return id;
+}
+
+function getInstallId() {
+  if (!installIdPromise) {
+    installIdPromise = createOrLoadInstallId().catch(error => {
+      installIdPromise = null;
+      throw error;
+    });
+  }
+  return installIdPromise;
 }
 
 export type CloudSyncResult = {
