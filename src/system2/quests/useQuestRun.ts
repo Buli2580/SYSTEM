@@ -238,6 +238,17 @@ export function useQuestRun(quest: RunnableQuest) {
           endAttempt('INTERRUPTED','LEFT_SCREEN');
           stopVerification();
         }
+      } else if (statusRef.current === 'ERROR' && attemptRef.current) {
+        // Completion may have timed out in UI while its SQLite transaction is
+        // still queued. This interrupt is serialized behind it: a successful
+        // atomic completion wins and makes endAttempt a no-op; a true failure
+        // releases the open attempt so another mission can start.
+        endAttempt('INTERRUPTED','LEFT_SCREEN');
+        if (!isTimer) {
+          backgroundSessionActiveRef.current = false;
+          void stopQuestBackgroundTracking(quest.id).catch(() => undefined);
+        }
+        stopVerification();
       } else if (!(statusRef.current === 'READY' && backgroundSessionActiveRef.current)) {
         stopVerification();
       }
