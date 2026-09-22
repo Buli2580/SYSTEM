@@ -99,8 +99,7 @@ export default function OnboardingScreen() {
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 50 }]}>
       <Animated.View entering={FadeInDown.duration(450)}>
         <Text style={styles.kicker}>CINEMATIC AWAKENING // CHARACTER FORGE</Text>
-        <Text style={styles.title}>STWÓRZ{'
-'}POSTAĆ</Text>
+        <Text style={styles.title}>STWÓRZ{'\n'}POSTAĆ</Text>
         <Text style={styles.description}>Równy start: REAL LEVEL 1 · RANGA E. Twoje prawdziwe działania od tej chwili budują postać.</Text>
       </Animated.View>
 
