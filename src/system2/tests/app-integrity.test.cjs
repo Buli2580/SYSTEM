@@ -102,10 +102,10 @@ test('Daily ignores corrupt non-authoritative attempt payloads', () => {
   assert.equal(attemptWasSuspicious('{broken'), false);
 });
 
-test('background task stops locked or completed quests after rollover', () => {
+test('background task stops Daily quests after local day rollover without full snapshot reads', () => {
   const source = fs.readFileSync(path.join(root, 'src/system2/background/locationTask.ts'), 'utf8');
-  assert.match(source, /getQuestAccess\(session\.questId\)/);
-  assert.match(source, /access === 'LOCKED' \|\| access === 'COMPLETED'/);
+  assert.match(source, /quest\.category === 'DAILY' && quest\.dayKey !== dayKey\(\)/);
+  assert.doesNotMatch(source, /getQuestAccess\(/);
   assert.match(source, /stopOrphanedLocationTask\(\)/);
 });
 
