@@ -156,6 +156,23 @@ test('ambiguous success after commit is safe to retry', async t => {
   assert.equal((await db.loadOrCreatePlayer()).totalRealXp, 100);
 });
 
+
+test('reward presentation survives completion until explicitly acknowledged', async t => {
+  const { db } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  const result = await db.completeVerifiedQuest(evidence);
+  assert.equal(result.awarded, true);
+  assert.ok(result.receipt);
+  let pending = await db.loadPendingRewardPresentations();
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].id, result.receipt.id);
+  assert.equal((await db.completeVerifiedQuest(evidence)).awarded, false);
+  pending = await db.loadPendingRewardPresentations();
+  assert.equal(pending.length, 1);
+  await db.acknowledgeRewardPresentation(result.receipt.id);
+  assert.deepEqual(await db.loadPendingRewardPresentations(), []);
+});
+
 test('open/init failures are retryable; corrupt profile is not silently reset', async t => {
   const { db, faults, sql } = databaseHarness(t);
   faults.open = true;
@@ -229,6 +246,7 @@ function screenHarness(t, options = {}) {
   let removals = 0;
   let starts = 0;
   let awards = 0;
+  let endedAttempts = 0;
   let checkpoint = options.checkpoint ?? null;
   let backgroundSession = options.backgroundSession ?? null;
   let backgroundStarted = false;
@@ -324,7 +342,7 @@ function screenHarness(t, options = {}) {
       getQuestAccess: async () => options.access ?? 'AVAILABLE',
       recordActivityAttempt: async () => {},
       beginQuestAttempt: async (_quest,id) => id,
-      endQuestAttempt: async () => {},
+      endQuestAttempt: async () => { endedAttempts++; },
       loadQuestCheckpoint: async () => checkpoint,
       saveQuestCheckpoint: async value => { checkpoint = JSON.parse(JSON.stringify(value)); },
       clearQuestCheckpoint: async () => { checkpoint = null; },
@@ -367,7 +385,7 @@ function screenHarness(t, options = {}) {
     render, button,
     status: () => slots[0].value,
     distance: () => slots[2].value,
-    starts: () => starts, removals: () => removals, awards: () => awards, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
+    starts: () => starts, removals: () => removals, awards: () => awards, endedAttempts: () => endedAttempts, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
     disclosureCount: () => disclosureCount, backgroundPermissionRequests: () => backgroundPermissionRequests,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
@@ -396,6 +414,23 @@ test('double start is blocked while awaiting the first GPS fix', async t => {
   assert.equal(h.status(), 'STARTING');
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
+});
+
+test('leaving during GPS startup before background session exists closes the attempt', async t => {
+  const permission = deferred();
+  const h = screenHarness(t, { permission });
+  await flush(); h.render();
+  const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();
+  assert.equal(h.status(), 'STARTING');
+  assert.equal(h.backgroundSession(), null);
+  h.leave();
+  await flush(); await flush();
+  assert.equal(h.endedAttempts(), 1);
+  permission.resolve({ status: 'granted' });
+  await start; await flush();
+  assert.equal(h.starts(), 0);
+  assert.equal(h.backgroundSession(), null);
 });
 
 test('late GPS subscription is removed after leaving; stale callbacks are ignored', async t => {
