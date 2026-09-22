@@ -14,9 +14,11 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { MissionBriefing } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import { useMountedRef } from '../hooks/useMountedRef';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
+  const mounted = useMountedRef();
   const system = useSystem();
   const { story } = system;
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
@@ -88,7 +90,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
       .catch(() => undefined)
       .finally(() => {
         startInProgressRef.current = false;
-        setStartInProgress(false);
+        if (mounted.current) setStartInProgress(false);
       });
   };
 
