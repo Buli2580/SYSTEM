@@ -20,6 +20,7 @@ import {
 } from '../cloud/social';
 import { ensureCurrentCloudBinding, flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
 import { requestAccountDeletion } from '../cloud/account';
+import { useMountedRef } from '../hooks/useMountedRef';
 
 const inputStyle = {
   color: '#fff',
@@ -36,6 +37,7 @@ type SyncStats = { pending: number; synced: number; failed: number };
 export default function AccountScreen() {
   const router = useRouter();
   const { player } = useSystem();
+  const mounted = useMountedRef();
   const [session, setSession] = useState<CloudSession | null>(null);
   const [social, setSocial] = useState<SocialProfile | null>(null);
   const [syncStats, setSyncStats] = useState<SyncStats>({ pending: 0, synced: 0, failed: 0 });
@@ -56,6 +58,7 @@ export default function AccountScreen() {
   const lock = useRef(false);
 
   function fillSocial(profile: SocialProfile) {
+    if (!mounted.current) return;
     setSocial(profile);
     setHandle(profile.handle ?? '');
     setPublicName(profile.public_name ?? player.displayName);
@@ -68,7 +71,8 @@ export default function AccountScreen() {
   }
 
   async function refreshSyncStats() {
-    setSyncStats(await getLocalCloudSyncStatus());
+    const stats = await getLocalCloudSyncStatus();
+    if (mounted.current) setSyncStats(stats);
   }
 
   async function loadOnline(current: CloudSession) {
@@ -76,12 +80,13 @@ export default function AccountScreen() {
       await ensureCurrentCloudBinding();
     } catch (cause) {
       await signOutCloud().catch(() => undefined);
-      setSession(null);
+      if (mounted.current) setSession(null);
       throw cause;
     }
     const profile = await getMySocialProfile();
     fillSocial(profile);
     await refreshSyncStats();
+    if (!mounted.current) return;
     setStatus('SYSTEM CLOUD // POŁĄCZONY');
     setSession(current);
   }
@@ -89,15 +94,17 @@ export default function AccountScreen() {
   async function run(task: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
-    setBusy(true);
-    setError(null);
+    if (mounted.current) {
+      setBusy(true);
+      setError(null);
+    }
     try {
       await task();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Operacja SYSTEM CLOUD nie powiodła się.');
+      if (mounted.current) setError(cause instanceof Error ? cause.message : 'Operacja SYSTEM CLOUD nie powiodła się.');
     } finally {
       lock.current = false;
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
 
@@ -136,13 +143,16 @@ export default function AccountScreen() {
     const current = await signInWithPassword(email, password);
     await loadOnline(current);
     const result = await flushCloudOutbox(50);
-    setSyncStats({ pending: result.pending, synced: (await getLocalCloudSyncStatus()).synced, failed: result.failed });
+    const localStats = await getLocalCloudSyncStatus();
+    if (!mounted.current) return;
+    setSyncStats({ pending: result.pending, synced: localStats.synced, failed: result.failed });
     setPassword('');
   }
 
   async function signUp() {
     const result = await signUpWithPassword(email, password, player.displayName);
     if (!result.session) {
+      if (!mounted.current) return;
       setStatus(result.confirmationRequired
         ? 'KONTO UTWORZONE // POTWIERDŹ REJESTRACJĘ W E-MAILU'
         : 'KONTO UTWORZONE // ZALOGUJ SIĘ');
@@ -150,7 +160,7 @@ export default function AccountScreen() {
       return;
     }
     await loadOnline(result.session);
-    setPassword('');
+    if (mounted.current) setPassword('');
   }
 
   async function saveSocial() {
@@ -169,18 +179,19 @@ export default function AccountScreen() {
       city_label: city.trim() || null,
     });
     fillSocial(profile);
-    setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
+    if (mounted.current) setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
   }
 
   async function checkCloud() {
     const state = await fetchCloudState();
     const level = Number(state.state.player?.real_level ?? 1);
-    setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
+    if (mounted.current) setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
   }
 
   async function syncNow() {
     const result = await flushCloudOutbox(100);
     const stats = await getLocalCloudSyncStatus();
+    if (!mounted.current) return;
     setSyncStats(stats);
     setStatus(result.pending === 0
       ? 'SYNCHRONIZACJA // WSZYSTKO WYSŁANE'
@@ -189,6 +200,7 @@ export default function AccountScreen() {
 
   async function logout() {
     await signOutCloud();
+    if (!mounted.current) return;
     setSession(null);
     setSocial(null);
     setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY');
@@ -251,6 +263,7 @@ export default function AccountScreen() {
             <Text style={s.body}>To utworzy żądanie usunięcia konta SYSTEM CLOUD i powiązanych danych. Operacja nie usuwa danych natychmiast — żądanie trafia do obsługi usunięcia.</Text>
             <Action label="POTWIERDŹ ŻĄDANIE USUNIĘCIA" danger disabled={busy} onPress={() => { void run(async () => {
               await requestAccountDeletion();
+              if (!mounted.current) return;
               setDeleteConfirm(false);
               setStatus('USUNIĘCIE KONTA // ŻĄDANIE ZAPISANE');
             }); }} />
