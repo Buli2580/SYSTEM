@@ -18,7 +18,7 @@ async function ensureReminderChannel() {
 
 export async function requestReminderPermission() {
   await ensureReminderChannel();
-  return (await Notifications.requestPermissionsAsync()).granted;
+  return (await awaitWithTimeout(Notifications.requestPermissionsAsync())).granted;
 }
 
 export function syncReminders(settings: Settings, complete: boolean, unlocked: boolean) {
@@ -33,7 +33,7 @@ export function syncReminders(settings: Settings, complete: boolean, unlocked: b
     await ensureReminderChannel();
     const permission = await awaitWithTimeout(Notifications.getPermissionsAsync());
     for (const date of reminderPlan(true, settings.reminderTime ?? '19:00', permission.granted, complete)) {
-      await Notifications.scheduleNotificationAsync({
+      await awaitWithTimeout(Notifications.scheduleNotificationAsync({
         identifier: PREFIX + date,
         content: { title: 'SYSTEM // PROTOKÓŁ DZIENNY', body: 'Twoje dzisiejsze misje nadal czekają.' },
         trigger: {
@@ -41,7 +41,7 @@ export function syncReminders(settings: Settings, complete: boolean, unlocked: b
           date: new Date(date),
           ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
         },
-      });
+      }));
     }
   };
   const result = queue.then(task);
