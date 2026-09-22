@@ -424,8 +424,14 @@ export function loadPendingRewardPresentations(): Promise<RewardReceipt[]> {
       'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
     );
     const queue = parsePendingRewardPresentations(row?.value);
-    if (row && queue.length === 0) {
+    if (!row) return queue;
+    if (queue.length === 0) {
       await txn.runAsync('DELETE FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY);
+      return queue;
+    }
+    const canonical = JSON.stringify(queue);
+    if (canonical !== row.value) {
+      await txn.runAsync('UPDATE app_state SET value=? WHERE key=?', canonical, PENDING_REWARD_PRESENTATIONS_KEY);
     }
     return queue;
   });
