@@ -2155,9 +2155,16 @@ function providerUI(db,dev=false,achievementMocks={}) {
   useEffect(fn,deps){const i=cursor++;if(!slots[i]||!same(slots[i],deps)){slots[i]=deps;pending.push(fn);}},
  };
  const jsx=(type,props)=>typeof type==='function'?type(props):({type,props});
+ const database={
+  loadBackgroundQuestSession:async()=>null,
+  getQuestAccess:async()=> 'AVAILABLE',
+  loadPendingRewardPresentations:async()=>[],
+  acknowledgeRewardPresentation:async()=>{},
+  ...db,
+ };
  const load=loader({react,'react/jsx-runtime':{jsx,jsxs:jsx},__DEV__:dev,
   'react-native':{AppState:{addEventListener:()=>({remove(){}}),currentState:'active'}},
-  '../storage/database':db,
+  '../storage/database':database,
   '../cloud/sync':{flushCloudOutbox:async()=>({authenticated:false,sent:0,pending:0,failed:0})},
   '../ai':{requestDailyAIGameMaster:async()=>({
     quests:[],director:{mode:'normal',difficultyBias:0,headline:'DAILY DIRECTIVE',message:'TEST'},briefing:'',source:'fallback'
