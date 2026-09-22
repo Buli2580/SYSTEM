@@ -274,8 +274,7 @@ export default function AccountScreen() {
             <Text style={s.body}>To utworzy żądanie usunięcia konta SYSTEM CLOUD i powiązanych danych. Operacja nie usuwa danych natychmiast — żądanie trafia do obsługi usunięcia.</Text>
             <Action label="POTWIERDŹ ŻĄDANIE USUNIĘCIA" danger disabled={busy} onPress={() => { void run(async () => {
               await requestAccountDeletion();
-              setDeleteConfirm(false);
-              setStatus('USUNIĘCIE KONTA // ŻĄDANIE ZAPISANE');
+              if (mounted.current) { setDeleteConfirm(false); setStatus('USUNIĘCIE KONTA // ŻĄDANIE ZAPISANE'); }
             }); }} />
             <Action label="ANULUJ" disabled={busy} onPress={() => setDeleteConfirm(false)} />
           </>}
