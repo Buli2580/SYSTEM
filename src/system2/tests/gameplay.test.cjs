@@ -354,16 +354,24 @@ function screenHarness(t, options = {}) {
     pending = [];
     effects.forEach(fn => fn());
   }
-  function text(node) {
-    if (Array.isArray(node)) return node.map(text).join('');
-    if (node && typeof node === 'object') return text(node.props?.children);
+  function text(node, seen = new WeakSet()) {
+    if (node && typeof node === 'object') {
+      if (seen.has(node)) return '';
+      seen.add(node);
+    }
+    if (Array.isArray(node)) return node.map(item => text(item, seen)).join('');
+    if (node && typeof node === 'object') return text(node.props?.children, seen);
     return typeof node === 'string' || typeof node === 'number' ? String(node) : '';
   }
-  function button(label, node = tree) {
-    if (Array.isArray(node)) return node.map(n => button(label, n)).find(Boolean);
+  function button(label, node = tree, seen = new WeakSet()) {
+    if (node && typeof node === 'object') {
+      if (seen.has(node)) return undefined;
+      seen.add(node);
+    }
+    if (Array.isArray(node)) return node.map(item => button(label, item, seen)).find(Boolean);
     if (!node || typeof node !== 'object') return undefined;
     if (node.type === 'Pressable' && text(node).includes(label)) return node;
-    return button(label, node.props?.children ?? null);
+    return button(label, node.props?.children ?? null, seen);
   }
   t.after(() => slots.forEach(slot => slot?.cleanup?.()));
   render();
