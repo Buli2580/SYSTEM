@@ -144,7 +144,6 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAIGameMaster = useCallback(async () => {
-    aiDayRef.current = null;
     await runAIGameMaster(snapshot, generation.current, true);
   }, [runAIGameMaster, snapshot]);
   const refreshPlayer = useCallback((): Promise<void> => {
@@ -245,7 +244,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
-    setReady(false); setError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null); setAIGameMaster(null); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
+    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null); setAIGameMaster(null); setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
     try {
       await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
