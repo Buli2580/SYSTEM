@@ -1305,8 +1305,11 @@ test('ambiguous signal commit can be retried after restart without a second awar
   const h = databaseHarness(t); const w = await unlockWorld(h); const signal = await w.scanSignal(worldFix());
   const near = worldFix(signal.latitude, signal.longitude); const before = await h.db.loadSystemState();
   h.faults.afterCommit = true; await assert.rejects(w.locateSignal(near, signal.revision));
+  const pendingAfterCommit = await h.db.loadPendingRewardPresentations();
+  assert.ok(pendingAfterCommit.some(receipt=>receipt.id==='first_world_signal_v1'));
   assert.equal((await h.reloadWorld().locateSignal(near, signal.revision)).awarded, false);
   assert.equal((await h.db.loadSystemState()).player.totalRealXp, before.player.totalRealXp + 50);
+  assert.equal((await h.db.loadPendingRewardPresentations()).filter(receipt=>receipt.id==='first_world_signal_v1').length,1);
 });
 test('World initial fix timeout and GPS unavailable are recoverable errors', async t => {
   const h = worldTrackingHarness(t, { initial: () => new Promise(() => {}), timeoutMs: 10 });
