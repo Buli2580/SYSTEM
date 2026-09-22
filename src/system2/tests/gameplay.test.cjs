@@ -273,15 +273,33 @@ function screenHarness(t, options = {}) {
           action?.onPress?.();
         },
       },
-      Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s },
+      Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', Image: 'Image', StyleSheet: { create: s => s },
+      Animated: { Value: class { constructor(value){ this.value=value; } interpolate(){ return '0%'; } }, spring(){ return { start(){} }; } },
     },
     'expo-router': {
-      useRouter: () => ({ back() { focusCleanup?.(); } }),
+      useRouter: () => ({ back() { focusCleanup?.(); }, replace() { focusCleanup?.(); }, push() {} }),
       useFocusEffect(fn) { react.useEffect(() => { focusCleanup = fn(); return focusCleanup; }, [fn]); },
     },
     'expo-haptics': {
       ImpactFeedbackStyle: { Medium: 1 }, NotificationFeedbackType: { Success: 1 },
       impactAsync: async () => {}, notificationAsync: async () => {},
+    },
+    'expo-image-picker': {
+      requestCameraPermissionsAsync: async () => ({ granted: true }),
+      launchCameraAsync: async () => ({ canceled: false, assets: [{ uri: 'file:///proof.jpg' }] }),
+    },
+    'expo-audio': {
+      createAudioPlayer() { return { volume: 1, loop: false, play() {}, remove() {} }; },
+    },
+    'react-native-reanimated': {
+      __esModule: true,
+      default: { View: 'AnimatedView', Text: 'AnimatedText' },
+      FadeInDown: { duration(){ return this; }, delay(){ return this; } },
+      interpolate: () => 1,
+      useAnimatedStyle: fn => fn(),
+      useSharedValue: value => ({ value }),
+      withRepeat: value => value,
+      withTiming: value => value,
     },
     'expo-location': {
       Accuracy: { BestForNavigation: 1 },
@@ -649,7 +667,7 @@ test('background during focus STARTING prevents a delayed start', async t => {
   assert.equal(h.awards(), 0);
 });
 
-const multiEvidence = { questId: 'final_trial_v1', verificationType: 'MULTI', verificationScore: 95, durationSeconds: 600, distanceMeters: 603 };
+const multiEvidence = { questId: 'final_trial_v1', verificationType: 'MULTI', verificationScore: 95, durationSeconds: 600, distanceMeters: 603, photoCaptured: true };
 
 test('quest ordering is enforced in SQLite and existing completions survive a fresh module instance', async t => {
   const { db, reload } = databaseHarness(t);
@@ -782,7 +800,9 @@ test('MULTI waits for ten minutes after reaching 600 meters early', async t => {
   // Keep valid stationary fixes flowing while the foreground timer continues.
   for (let i = 0; i < 58; i++) { h.fix(610); h.advance(0); }
   assert.equal(h.awards(), 0); // 595 seconds since the first fix.
-  h.fix(610); h.advance(0); await flush();
+  h.fix(610); h.advance(0); await flush(); h.render();
+  assert.equal(h.awards(), 0);
+  await h.button('ZRÓB ZDJĘCIE DOWODOWE').props.onPress(); await flush(); h.render();
   assert.equal(h.status(), 'COMPLETED');
   assert.equal(h.awards(), 1);
   assert.equal(h.removals(), 1);
@@ -800,7 +820,9 @@ test('MULTI waits for 600 meters after time is satisfied with only 450 meters', 
   // Resuming after a pause can discard an anchor segment; use accepted distance.
   for (let meters = 460; meters <= 650 && h.awards() === 0; meters += 10) h.fix(meters);
   assert.ok(h.distance() >= 600);
-  await flush();
+  await flush(); h.render();
+  assert.equal(h.awards(), 0);
+  await h.button('ZRÓB ZDJĘCIE DOWODOWE').props.onPress(); await flush(); h.render();
   assert.equal(h.awards(), 1);
   assert.equal(h.status(), 'COMPLETED');
 });
@@ -1470,13 +1492,14 @@ test('notification rejects invalid times; DST uses local calendar not fixed 24 h
  for(const time of ['24:00','19:60','x','1:00']) assert.throws(()=>plan(true,time,true,false));
  assert.ok(plan(true,'19:00',true,false,new Date(2026,2,28,10).getTime()).every(n=>new Date(n).getHours()===19));
 });
-test('audio rewards prioritize one level-up, OFF prevents native player creation',()=>{
+test('audio rewards prioritize level-up, OFF blocks players and quest start has a real cue',()=>{
  let created=0;
- const load=loader({'expo-audio':{createAudioPlayer(){created++;return{play(){},remove(){}};}}});
+ const load=loader({'expo-audio':{createAudioPlayer(){created++;return{volume:1,loop:false,play(){},remove(){}};}}});
  const a=load('identity/audio');a.configureAudio(false);a.playFeedback('QUEST_COMPLETE');assert.equal(created,0);
  assert.equal(a.rewardSound({beforeLevel:1,afterLevel:2,skillLevels:[]}), 'LEVEL_UP');
- assert.equal(a.rewardSound({beforeLevel:1,afterLevel:1,skillLevels:[]}), 'QUEST_COMPLETE');
- a.configureAudio(true);a.playFeedback('QUEST_START');assert.equal(created,0);a.stopAudio();
+ assert.equal(a.rewardSound({beforeLevel:1,afterLevel:1,skillLevels:[]}), 'XP');
+ a.configureAudio({enabled:true,sfxVolume:0.8,musicVolume:0.3});a.playFeedback('QUEST_START');assert.equal(created,1);
+ a.playMusic('BOSS');assert.equal(created,2);a.stopAudio();
 });
 
 
