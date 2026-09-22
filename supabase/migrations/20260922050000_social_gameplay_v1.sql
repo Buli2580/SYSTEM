@@ -2,8 +2,6 @@
 -- Repository contract only. Do not deploy to production without an explicit release decision.
 -- Depends on the existing SYSTEM core/social foundation (social_profiles, follows, reward_ledger).
 
-create extension if not exists pgcrypto;
-
 create table if not exists public.friend_requests (
   sender_id uuid not null references auth.users(id) on delete cascade,
   receiver_id uuid not null references auth.users(id) on delete cascade,
