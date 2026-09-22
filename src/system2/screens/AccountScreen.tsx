@@ -54,9 +54,10 @@ export default function AccountScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const lock = useRef(false);
+  const lock = useRef(false), mounted = useRef(true);
 
   function fillSocial(profile: SocialProfile) {
+    if (!mounted.current) return;
     setSocial(profile);
     setHandle(profile.handle ?? '');
     setPublicName(profile.public_name ?? player.displayName);
@@ -69,7 +70,8 @@ export default function AccountScreen() {
   }
 
   async function refreshSyncStats() {
-    setSyncStats(await getLocalCloudSyncStatus());
+    const stats = await getLocalCloudSyncStatus();
+    if (mounted.current) setSyncStats(stats);
   }
 
   async function loadOnline(current: CloudSession) {
@@ -77,20 +79,19 @@ export default function AccountScreen() {
       await ensureCurrentCloudBinding();
     } catch (cause) {
       await signOutCloud().catch(() => undefined);
-      setSession(null);
+      if (mounted.current) setSession(null);
       throw cause;
     }
     // Authentication is already durable at this point. Keep the signed-in UI
     // even if the optional social profile endpoint is temporarily unavailable.
-    setSession(current);
+    if (mounted.current) setSession(current);
     await refreshSyncStats();
     try {
       const profile = await getMySocialProfile();
       fillSocial(profile);
-      setStatus('SYSTEM CLOUD // POŁĄCZONY');
+      if (mounted.current) setStatus('SYSTEM CLOUD // POŁĄCZONY');
     } catch (cause) {
-      setSocial(null);
-      setStatus('SYSTEM CLOUD // POŁĄCZONY · PROFIL ONLINE NIEDOSTĘPNY');
+      if (mounted.current) { setSocial(null); setStatus('SYSTEM CLOUD // POŁĄCZONY · PROFIL ONLINE NIEDOSTĘPNY'); }
       throw cause;
     }
   }
@@ -98,19 +99,19 @@ export default function AccountScreen() {
   async function run(task: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
-    setBusy(true);
-    setError(null);
+    if (mounted.current) { setBusy(true); setError(null); }
     try {
       await task();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Operacja SYSTEM CLOUD nie powiodła się.');
+      if (mounted.current) setError(cause instanceof Error ? cause.message : 'Operacja SYSTEM CLOUD nie powiodła się.');
     } finally {
       lock.current = false;
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
 
   useEffect(() => {
+    mounted.current = true;
     let active = true;
     void (async () => {
       try {
@@ -138,28 +139,29 @@ export default function AccountScreen() {
         if (active) setError(cause instanceof Error ? cause.message : 'Nie udało się odczytać sesji SYSTEM CLOUD.');
       }
     })();
-    return () => { active = false; };
+    return () => { active = false; mounted.current = false; };
   }, []);
 
   async function signIn() {
     const current = await signInWithPassword(email, password);
-    setPassword('');
+    if (mounted.current) setPassword('');
     await loadOnline(current);
     const result = await flushCloudOutbox(50);
-    setSyncStats({ pending: result.pending, synced: (await getLocalCloudSyncStatus()).synced, failed: result.failed });
-    setPassword('');
+    const stats = await getLocalCloudSyncStatus();
+    if (mounted.current) setSyncStats({ pending: result.pending, synced: stats.synced, failed: result.failed });
+    if (mounted.current) setPassword('');
   }
 
   async function signUp() {
     const result = await signUpWithPassword(email, password, player.displayName);
     if (!result.session) {
-      setStatus(result.confirmationRequired
+      if (mounted.current) setStatus(result.confirmationRequired
         ? 'KONTO UTWORZONE // POTWIERDŹ REJESTRACJĘ W E-MAILU'
         : 'KONTO UTWORZONE // ZALOGUJ SIĘ');
-      setPassword('');
+      if (mounted.current) setPassword('');
       return;
     }
-    setPassword('');
+    if (mounted.current) setPassword('');
     await loadOnline(result.session);
   }
 
@@ -186,26 +188,24 @@ export default function AccountScreen() {
       city_label: normalizeCity(city) ?? null,
     });
     fillSocial(profile);
-    setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
+    if (mounted.current) setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
   }
 
   async function checkCloud() {
     const state = await fetchCloudState();
     const level = Number(state.state.player?.real_level ?? 1);
-    setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
+    if (mounted.current) setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
   }
 
   async function syncNow() {
     const result = await flushCloudOutbox(100);
     if (!result.authenticated) {
-      setSession(null);
-      setSocial(null);
-      setStatus('SYSTEM CLOUD // SESJA WYGASŁA');
+      if (mounted.current) { setSession(null); setSocial(null); setStatus('SYSTEM CLOUD // SESJA WYGASŁA'); }
       throw new Error('Sesja SYSTEM CLOUD wygasła. Zaloguj się ponownie.');
     }
     const stats = await getLocalCloudSyncStatus();
-    setSyncStats(stats);
-    setStatus(result.failed > 0
+    if (mounted.current) setSyncStats(stats);
+    if (mounted.current) setStatus(result.failed > 0
       ? 'SYNCHRONIZACJA // WYMAGA PONOWIENIA'
       : result.pending === 0
         ? 'SYNCHRONIZACJA // SPRAWDZONO KOLEJKĘ'
@@ -214,9 +214,7 @@ export default function AccountScreen() {
 
   async function logout() {
     await signOutCloud();
-    setSession(null);
-    setSocial(null);
-    setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY');
+    if (mounted.current) { setSession(null); setSocial(null); setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY'); }
   }
 
   return <SystemPage title="SYSTEM ONLINE" subtitle="KONTO // CHMURA // SPOŁECZNOŚĆ">
