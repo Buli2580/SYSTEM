@@ -193,6 +193,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           const access = await awaitWithTimeout(db.getQuestAccess(backgroundQuest.questId)).catch(() => null);
           if (access === 'LOCKED' || access === 'COMPLETED') {
             await stopQuestBackgroundTracking(backgroundQuest.questId).catch(() => undefined);
+            await db.clearQuestCheckpoint(backgroundQuest.questId).catch(() => undefined);
             resumableBackground = null;
           }
         }
