@@ -7,6 +7,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useEffect, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
+import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
@@ -16,6 +17,11 @@ import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
 import { difficultyPl, verificationPl } from '../i18n/pl';
 import { playFeedback, playMusic, stopMusic } from '../identity/audio';
+
+function ActiveQuestWakeLock() {
+  useKeepAwake('SYSTEM_ACTIVE_QUEST');
+  return null;
+}
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -106,6 +112,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   return (
     <View style={styles.root}>
+      {(status === 'STARTING' || status === 'TRACKING') && <ActiveQuestWakeLock />}
       <ScrollView
         contentContainerStyle={
           [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
