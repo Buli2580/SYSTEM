@@ -1,5 +1,5 @@
 import BetaSettings from '../components/BetaSettings';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, Modal, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,11 +17,12 @@ export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
   const [resetStep, setResetStep] = useState(0), [confirmation, setConfirmation] = useState('');
-  const guard = useRef(createResetConfirmation()), lock = useRef(false);
+  const guard = useRef(createResetConfirmation()), lock = useRef(false), mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
   async function run(task: () => Promise<void>) {
-    if (lock.current) return; lock.current = true; setBusy(true); setError(null);
-    try { await task(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Operacja nie powiodła się.'); }
-    finally { lock.current = false; setBusy(false); }
+    if (lock.current) return; lock.current = true; if (mounted.current) { setBusy(true); setError(null); }
+    try { await task(); } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : 'Operacja nie powiodła się.'); }
+    finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
   function cancelReset() { guard.current.cancel(); setResetStep(0); setConfirmation(''); }
   return <SystemPage title="WIĘCEJ" subtitle="USTAWIENIA SYSTEMU">
@@ -38,21 +39,21 @@ export default function SettingsScreen() {
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
       <Action label="SPRAWDŹ / PONÓW ZGODĘ GPS" disabled={busy} onPress={() => { void run(async () => {
         const result = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
-        setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
+        if (mounted.current) setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
       }); }} />
       <Action label="WŁĄCZ LOKALIZACJĘ W TLE" disabled={busy} onPress={() => { void run(async () => {
         const disclosureAccepted = await confirmBackgroundLocationDisclosure();
         if (!disclosureAccepted) {
-          setPermission('Lokalizacja w tle nie została włączona.');
+          if (mounted.current) setPermission('Lokalizacja w tle nie została włączona.');
           return;
         }
         const foreground = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
         if (!foreground.granted) {
-          setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
+          if (mounted.current) setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
           return;
         }
         const granted = await awaitWithTimeout(requestBackgroundLocationAccess());
-        setPermission(granted
+        if (mounted.current) setPermission(granted
           ? 'Lokalizacja w tle: włączona. Misje ruchowe mogą działać przy wygaszonym ekranie.'
           : 'Lokalizacja w tle: brak zgody. W ustawieniach wybierz dostęp do lokalizacji „zawsze”, jeśli telefon udostępnia tę opcję.');
       }); }} />
