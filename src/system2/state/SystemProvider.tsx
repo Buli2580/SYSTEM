@@ -72,17 +72,21 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const aiDayRef = useRef<string | null>(null);
   const aiLastRequestAt = useRef(0);
   const aiRequestRef = useRef(0);
+  const notificationRequestRef = useRef(0);
   useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
   const refreshNotifications = useCallback(async (): Promise<void> => {
+    const requestId = ++notificationRequestRef.current;
     try {
       await awaitWithTimeout(syncReminders(
         snapshot.settings,
         snapshot.daily?.clear ?? false,
         snapshot.awakeningCompleted && !snapshot.daily?.clockAnomaly,
       ));
-      setNotificationError(null);
+      if (requestId === notificationRequestRef.current) setNotificationError(null);
     } catch {
-      setNotificationError('Nie udało się odświeżyć przypomnień. Spróbuj ponownie.');
+      if (requestId === notificationRequestRef.current) {
+        setNotificationError('Nie udało się odświeżyć przypomnień. Spróbuj ponownie.');
+      }
     }
   }, [snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted]);
   useEffect(() => {
@@ -299,7 +303,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
-    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); celebrationRef.current = null; setCelebration(null); setLastReward(null); setAIGameMaster(null); aiRequestRef.current += 1; setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
+    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); celebrationRef.current = null; setCelebration(null); setLastReward(null); setAIGameMaster(null); aiRequestRef.current += 1; notificationRequestRef.current += 1; setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
     try {
       await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
