@@ -13,7 +13,7 @@ export type RunnableQuest = Omit<Quest, 'verification' | 'status'> & {
     | { type: 'MULTI'; minimumDistanceMeters: number; minimumDurationSeconds: number; verificationScoreRequired: number };
 };
 
-export type QuestEvidence = { questId: string; attemptId?: string; activity?: import('../activity/types').ActivityEvidence; verificationScore: number; durationSeconds: number; photoCaptured?: boolean } & (
+export type QuestEvidence = { questId: string; attemptId?: string; activity?: import('../activity/types').ActivityEvidence; verificationScore: number; durationSeconds: number; photoCaptured?: boolean; photoProofHash?: string } & (
   | { verificationType: 'GPS_DISTANCE' | 'MULTI'; distanceMeters: number }
   | { verificationType: 'TIMER'; distanceMeters?: never }
 );
