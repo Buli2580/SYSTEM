@@ -248,6 +248,7 @@ export function useQuestRun(quest: RunnableQuest) {
   useEffect(() => {
     if (!focusedRef.current || quest.category !== 'DAILY' || !quest.dayKey || !daily) return;
     if (!daily.clockAnomaly && daily.dayKey === quest.dayKey) return;
+    if (['COMPLETING','COMPLETED'].includes(statusRef.current)) return;
     if (['STARTING','TRACKING'].includes(statusRef.current)) {
       endAttempt('INTERRUPTED','DAY_ROLLOVER');
     }
