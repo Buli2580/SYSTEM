@@ -27,5 +27,14 @@ export async function getCloudSocialCounts():Promise<SocialCounts>{
  return{followers:countValue(a,'followers count'),following:countValue(b,'following count'),friends:countValue(c,'friends count')};
 }
 export type CloudFriendRow={user_id:string;handle:string|null;public_name:string|null;real_level:number;rank:string;status:'REQUEST_SENT'|'REQUEST_RECEIVED'|'FRIENDS'};
-export async function getCloudFriendNetwork():Promise<CloudFriendRow[]>{const s=await session();return cloudRequest<CloudFriendRow[]>('/rest/v1/rpc/get_friend_network',{method:'POST',body:'{}'},s.accessToken);}
+function mapFriend(row:CloudFriendRow):CloudFriendRow{
+ const level=Number(row.real_level);
+ if(!row?.user_id?.trim()||!Number.isSafeInteger(level)||level<1)throw new Error('Nieprawidłowe dane SYSTEM CLOUD: friend identity.');
+ if(!['REQUEST_SENT','REQUEST_RECEIVED','FRIENDS'].includes(row.status))throw new Error('Nieprawidłowe dane SYSTEM CLOUD: friend status.');
+ if(typeof row.rank!=='string'||!row.rank.trim())throw new Error('Nieprawidłowe dane SYSTEM CLOUD: friend rank.');
+ if(row.handle!==null&&typeof row.handle!=='string')throw new Error('Nieprawidłowe dane SYSTEM CLOUD: friend handle.');
+ if(row.public_name!==null&&typeof row.public_name!=='string')throw new Error('Nieprawidłowe dane SYSTEM CLOUD: friend name.');
+ return{...row,real_level:level};
+}
+export async function getCloudFriendNetwork():Promise<CloudFriendRow[]>{const s=await session();const rows=await cloudRequest<CloudFriendRow[]>('/rest/v1/rpc/get_friend_network',{method:'POST',body:'{}'},s.accessToken);return rows.map(mapFriend);}
 export async function removeCloudFriend(id:string){const s=await session();await cloudRequest('/rest/v1/rpc/remove_friend',{method:'POST',body:JSON.stringify({p_target:cleanTarget(id)})},s.accessToken);}
