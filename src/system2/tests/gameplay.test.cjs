@@ -173,6 +173,18 @@ test('reward presentation survives completion until explicitly acknowledged', as
   assert.equal((await db.loadPendingRewardPresentations()).length, 0);
 });
 
+test('corrupt pending reward presentation is discarded instead of reaching UI', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  sql.prepare("INSERT INTO app_state(key,value) VALUES('pending_reward_presentations',?)").run(JSON.stringify([{
+    id:'bad-reward',realXp:-10,skillXp:{STR:2},energy:1,distanceMeters:0,
+    beforeLevel:1,afterLevel:1,beforeRank:'BANAN',afterRank:'E',
+    skillLevels:[],newTitles:[],worldUnlocked:false,
+  }]));
+  assert.equal((await db.loadPendingRewardPresentations()).length,0);
+  assert.equal(sql.prepare("SELECT count(*) n FROM app_state WHERE key='pending_reward_presentations'").get().n,0);
+});
+
 test('open/init failures are retryable; corrupt profile is not silently reset', async t => {
   const { db, faults, sql } = databaseHarness(t);
   faults.open = true;
@@ -1690,6 +1702,14 @@ test('Hidden/Rematch require real prior failure; repeated interrupts do not stac
  const base=h.load('quests/catalog').getQuest(id).rewards.skillXp.WIL??0;assert.equal(s.player.stats.WIL.totalXp-before.stats.WIL.totalXp,base+50+15);
  const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,1);
+});
+test('day rollover interruption never fabricates Rematch eligibility',async t=>{
+ const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];
+ await h.db.beginQuestAttempt(id,'rollover');h.clock.now+=10000;
+ await h.db.endQuestAttempt('rollover','INTERRUPTED','DAY_ROLLOVER',10,0);
+ const attempt=(await h.db.listQuestAttempts()).find(x=>x.attempt_id==='rollover');
+ assert.equal(attempt.eligible,0);
+ assert.ok(!(await h.db.loadSystemState()).story.rematchQuestIds.includes(id));
 });
 for(const reason of ['PERMISSION_DENIED','TECHNICAL_ERROR']) test('technical failure has no story rematch or hidden: '+reason,async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'technical');h.clock.now+=10000;await h.db.endQuestAttempt('technical','FAILED',reason,10,0);h.clock.now+=1000;
