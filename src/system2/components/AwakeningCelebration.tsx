@@ -5,24 +5,26 @@ import * as Haptics from '../identity/feedback';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
+import { useMountedRef } from '../hooks/useMountedRef';
 
 // Presentation acknowledgement is independent of the already committed reward.
 // If the app closes here, the celebration can be shown again without awarding XP.
 export default function AwakeningCelebration() {
   const { ready, awakeningPending, acknowledgeAwakening, celebration, onboardingComplete } = useSystem();
   const router = useRouter();
+  const mounted = useMountedRef();
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const visible = ready && onboardingComplete && awakeningPending && !celebration;
   const finish = useCallback(async () => {
     if (busyRef.current) return;
     busyRef.current = true;
-    setError(null);
+    if (mounted.current) setError(null);
     try {
       await acknowledgeAwakening();
-      router.replace('/');
+      if (mounted.current) router.replace('/');
     } catch {
-      setError('Nagroda jest zapisana. Nie udało się zamknąć podsumowania. Spróbuj ponownie.');
+      if (mounted.current) setError('Nagroda jest zapisana. Nie udało się zamknąć podsumowania. Spróbuj ponownie.');
     } finally { busyRef.current = false; }
   }, [acknowledgeAwakening, router]);
   useEffect(() => {
