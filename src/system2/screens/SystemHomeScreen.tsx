@@ -41,7 +41,6 @@ import {
 } from '../core';
 
 import { useSystem } from '../state/SystemProvider';
-import { questStatusPl, titlePl } from '../i18n/pl';
 
 function WorldSignalBeacon({ active }: { active: boolean }) {
   const pulse = useSharedValue(0);
@@ -189,7 +188,7 @@ export default function SystemHomeScreen() {
             </Text>
 
             <Text style={styles.awakening}>
-              PRZEBUDZENIE
+              {awakeningCompleted ? 'COMMAND CENTER' : 'PRZEBUDZENIE'}
             </Text>
           </View>
 
