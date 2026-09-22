@@ -32,7 +32,7 @@ export default function SettingsScreen() {
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
       <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
-      <Text style={s.body}>Dźwięk ukończenia lub level-up. Jeden efekt dla jednej nagrody.</Text>
+      <Text style={s.body}>Dźwięki startu misji, błędu/recovery, ukończenia i level-up. Nagroda nadal odtwarza tylko jeden kanoniczny efekt.</Text>
     </View>
     <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
