@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import SystemAudioScene from '../components/SystemAudioScene';
 import HomeCommandCenter from '../components/HomeCommandCenter';
 import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress } from '../quests/catalog';
 import { useCallback } from 'react';
@@ -170,7 +171,8 @@ export default function SystemHomeScreen() {
 
   return (
     <SystemScreen style={styles.root}>
-      <SystemAmbientBackground intensity="hero" />
+      <SystemAmbientBackground intensity="hero" screen="HOME" scene={worldUnlocked?"CITY":"RUINS"} threat={worldUnlocked?1:0} level={player.realLevel} />
+      <SystemAudioScene cue="HOME" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
