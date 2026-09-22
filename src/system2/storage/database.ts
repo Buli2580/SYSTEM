@@ -258,6 +258,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         skillXpAwarded: { ...quest.rewards.skillXp },
         gameEnergyAwarded: quest.rewards.gameEnergy ?? 0,
         distanceMeters: evidence.distanceMeters, durationSeconds: evidence.durationSeconds,
+        photoCaptured: evidence.photoCaptured === true ? true : undefined,
       };
       next = await completeStoryActivity(txn,next,quest,evidence);
       next = await awardProtocols(txn, next, quest.id, now);
@@ -660,6 +661,7 @@ function cloudEvidencePayload(event: VerifiedEvent) {
     ...(event.distanceMeters !== undefined ? { distance_meters: event.distanceMeters } : {}),
     ...(event.durationSeconds !== undefined ? { duration_seconds: event.durationSeconds } : {}),
     ...(event.steps !== undefined ? { steps: event.steps } : {}),
+    ...(event.photoCaptured === true ? { photo_captured: true } : {}),
     ...(event.activity ? {
       activity: {
         expected: event.activity.activityTypeExpected,
