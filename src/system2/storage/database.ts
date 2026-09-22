@@ -26,7 +26,7 @@ import { getQuest } from '../quests/catalog';
 import * as SQLite from 'expo-sqlite';
 import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
-import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
+import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, mergeSettings, type Settings, type SettingsPatch, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
 import type { AIGameMasterResponse } from '../ai/types';
 import { candidatesFromAI } from '../ai/bridge';
@@ -425,9 +425,11 @@ export function updateIdentity(patch: { displayName?: string; birthDate?: string
     return snapshotInTransaction(txn);
   });
 }
-export function saveSettings(settings: Settings) {
-  const safe = parseSettings(JSON.stringify(settings));
+export function saveSettings(patch: SettingsPatch) {
   return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'settings');
+    const current = parseSettings(row?.value);
+    const safe = mergeSettings(current, patch);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', 'settings', JSON.stringify(safe));
     return snapshotInTransaction(txn);
   });
