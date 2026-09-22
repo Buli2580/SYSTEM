@@ -140,14 +140,17 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     setAIError(null);
     try {
       const response = await requestDailyAIGameMaster(next);
-      if (epoch !== generation.current || resetting.current) return;
+      if (requestId !== aiRequestRef.current || aiDayRef.current !== day ||
+          epoch !== generation.current || resetting.current) return;
       setAIGameMaster(response);
       if (response.source === 'ai') {
         const applied = await awaitWithTimeout(db.applyAIDailyPlan(response));
-        if (epoch === generation.current && !resetting.current) setSnapshot(applied);
+        if (requestId === aiRequestRef.current && aiDayRef.current === day &&
+            epoch === generation.current && !resetting.current) setSnapshot(applied);
       }
     } catch (cause) {
-      if (epoch === generation.current && !resetting.current) {
+      if (requestId === aiRequestRef.current && aiDayRef.current === day &&
+          epoch === generation.current && !resetting.current) {
         setAIError(cause instanceof Error ? cause.message : 'AI GAME MASTER jest chwilowo niedostępny.');
       }
     } finally {
