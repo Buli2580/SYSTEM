@@ -20,6 +20,7 @@ import {
 } from '../cloud/social';
 import { ensureCurrentCloudBinding, flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
 import { requestAccountDeletion } from '../cloud/account';
+import { normalizeCity, normalizeCountryCode } from '../social/validation';
 
 const inputStyle = {
   color: '#fff',
@@ -163,18 +164,25 @@ export default function AccountScreen() {
 
   async function saveSocial() {
     const normalizedHandle = handle.trim().toLowerCase();
-    if (isPublic && !/^[a-z0-9_]{3,24}$/.test(normalizedHandle)) {
-      throw new Error('Publiczny profil wymaga nazwy użytkownika o długości 3–24 znaków: a–z, 0–9 lub _.');
+    if (normalizedHandle && !/^[a-z0-9_]{3,24}$/.test(normalizedHandle)) {
+      throw new Error('Nazwa użytkownika: 3–24 znaki, tylko a–z, 0–9 lub _.');
     }
+    if (isPublic && !normalizedHandle) {
+      throw new Error('Publiczny profil wymaga nazwy użytkownika.');
+    }
+    const continentCode = continent.trim() ? normalizeCountryCode(continent) : undefined;
+    const countryCode = country.trim() ? normalizeCountryCode(country) : undefined;
+    if (continent.trim() && !continentCode) throw new Error('Kontynent wpisz jako dwuliterowy kod, np. EU.');
+    if (country.trim() && !countryCode) throw new Error('Kraj wpisz jako dwuliterowy kod, np. PL.');
     const profile = await updateMySocialProfile({
       handle: normalizedHandle || null,
       public_name: publicName.trim() || player.displayName,
       bio: bio.trim() || null,
       visibility: isPublic ? 'public' : 'private',
-      continent_code: continent.trim() || null,
-      country_code: country.trim() || null,
-      region_code: region.trim() || null,
-      city_label: city.trim() || null,
+      continent_code: continentCode ?? null,
+      country_code: countryCode ?? null,
+      region_code: region.trim().replace(/\s+/g,' ') || null,
+      city_label: normalizeCity(city) ?? null,
     });
     fillSocial(profile);
     setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
