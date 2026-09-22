@@ -404,26 +404,8 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
           bossAccessible: quest?.category === 'BOSS' ? await bossAccess(txn, id) : false });
       }, {
         async apply(player, quest, evidence, now) {
-          if (evidence.attemptId) {
-            const attempt = await txn.getFirstAsync<{ quest_id: string; result: AttemptResult | null }>(
-              'SELECT quest_id,result FROM quest_attempts WHERE attempt_id=?',
-              evidence.attemptId,
-            );
-            if (!attempt || attempt.quest_id !== quest.id) throw new Error('Attempt identity mismatch.');
-            if (attempt.result !== null) throw new Error('Attempt is already closed.');
-            const distance = evidence.verificationType === 'TIMER' ? 0 : evidence.distanceMeters;
-            const closed = await txn.runAsync(
-              `UPDATE quest_attempts
-               SET ended_at=?,result='COMPLETED',reason=NULL,duration=?,distance=?,eligible=0
-               WHERE attempt_id=? AND quest_id=? AND result IS NULL`,
-              now,
-              Math.max(0, evidence.durationSeconds),
-              Math.max(0, distance),
-              evidence.attemptId,
-              quest.id,
-            );
-            if (closed.changes !== 1) throw new Error('Attempt completion conflict.');
-          }
+          // completeStoryActivity owns attempt validation + closure because it
+          // also derives rematch/hidden-story rewards from the still-open attempt.
           const storyPlayer = await completeStoryActivity(txn, player, quest, evidence);
           const journeyPlayer = await advanceJourney(txn, storyPlayer, quest, now);
           const protocolPlayer = await awardProtocols(txn, journeyPlayer, quest.id, now);
