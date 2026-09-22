@@ -2157,6 +2157,7 @@ test('Android config retains release identity and background quest location perm
  const config=JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8')).expo;
  assert.equal(config.name,'SYSTEM');assert.equal(config.android.package,'pl.systemworld.app');assert.ok(config.android.versionCode>=1);
  const location=config.plugins.find(p=>Array.isArray(p)&&p[0]==='expo-location')[1];assert.equal(location.isAndroidBackgroundLocationEnabled,true);assert.equal(location.isAndroidForegroundServiceEnabled,true);
+ assert.ok(config.plugins.some(p=>p==='expo-notifications'||(Array.isArray(p)&&p[0]==='expo-notifications')));
  assert.ok(config.android.permissions.includes('android.permission.FOREGROUND_SERVICE_LOCATION'));assert.ok(config.android.permissions.includes('android.permission.ACCESS_BACKGROUND_LOCATION'));
 });
 
