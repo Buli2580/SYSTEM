@@ -157,10 +157,21 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         if (await awaitWithTimeout(db.hasAvatarCleanupPending())) {
           removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
         }
-        const next = await awaitWithTimeout(db.loadSystemState());
+        const [next, backgroundQuest] = await awaitWithTimeout(Promise.all([
+          db.loadSystemState(),
+          db.loadBackgroundQuestSession().catch(() => null),
+        ]));
         const health = await awaitWithTimeout(db.testerHealthCheck());
         if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); void syncAchievements(next.player, epoch); setReady(true); void flushCloudOutbox().catch(() => undefined); void runAIGameMaster(next, epoch); }
+        if (epoch === generation.current) {
+          configureHaptics(next.settings.haptics);
+          setSnapshot(next);
+          if (backgroundQuest?.questId) setActiveQuestId(backgroundQuest.questId);
+          void syncAchievements(next.player, epoch);
+          setReady(true);
+          void flushCloudOutbox().catch(() => undefined);
+          void runAIGameMaster(next, epoch);
+        }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError(cause instanceof Error ? cause.message : 'Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
