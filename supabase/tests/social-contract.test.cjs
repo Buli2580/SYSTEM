@@ -26,9 +26,9 @@ test('social gameplay migration declares every mobile backend surface', () => {
 });
 
 test('guild rows map snake_case database columns into the mobile domain', async () => {
-  const h = api([{ id:'g1', name:'Raiders', tag:'SYS', owner_id:'u1', member_count:7, level:3, xp:4200, visibility:'PUBLIC' }]);
+  const h = api([{ id:'g1', name:'Raiders', tag:'SYS', owner_id:'u1', member_count:'7', level:'3', xp:'4200', visibility:'INVITE_ONLY' }]);
   const rows = await h.load('cloud/guilds').listGuilds();
-  assert.deepEqual(JSON.parse(JSON.stringify(rows[0])), { id:'g1', name:'Raiders', tag:'SYS', ownerId:'u1', memberCount:7, level:3, xp:4200, visibility:'PUBLIC' });
+  assert.deepEqual(JSON.parse(JSON.stringify(rows[0])), { id:'g1', name:'Raiders', tag:'SYS', ownerId:'u1', memberCount:7, level:3, xp:4200, visibility:'INVITE_ONLY' });
 });
 
 test('raid and season rows map database timestamps and boss fields correctly', async () => {
@@ -106,4 +106,28 @@ test('mobile feed publisher uses verified RPC and rejects forged event types', a
     social.publishSocialActivity({type:'LEVEL_UP',createdAt:'2026-09-22T00:00:00Z',visibility:'PUBLIC',metadata:{eventKey:'verified:quest-1'}}),
     /potwierdzone/
   );
+});
+
+
+test('malformed social numeric rows fail closed instead of becoming fake zero progress', async () => {
+  const badGuild = api([{ id:'g1', name:'Raiders', tag:'SYS', owner_id:'u1', member_count:'oops', level:1, xp:0, visibility:'PUBLIC' }]);
+  await assert.rejects(() => badGuild.load('cloud/guilds').listGuilds(), /member_count/);
+
+  const badRaid = api([{ id:'r1', title:'Wall', boss_hp:'oops', damage:'0', starts_at:'2026-09-22T00:00:00Z', ends_at:'2026-09-23T00:00:00Z', status:'ACTIVE' }]);
+  await assert.rejects(() => badRaid.load('cloud/raids').getActiveRaids(), /boss_hp/);
+
+  const badChallenge = api([{ id:'c1', title:'Move', metric:'DISTANCE', target:'oops', starts_at:'2026-09-22T00:00:00Z', ends_at:'2026-09-23T00:00:00Z', visibility:'PUBLIC' }]);
+  await assert.rejects(() => badChallenge.load('cloud/challenges').getSocialChallenges(), /challenge target/);
+
+  let n=0;
+  const badCounts = api(() => [{ count: n++ === 0 ? 'NaN' : '0' }]);
+  await assert.rejects(() => badCounts.load('cloud/socialCore').getCloudSocialCounts(), /followers count/);
+});
+
+test('raid submission rejects invalid client evidence before network', async () => {
+  const h=api([]);
+  const raids=h.load('cloud/raids');
+  await assert.rejects(() => raids.submitRaidDamage('raid-1','forged:quest',5), /klucz zweryfikowanego/);
+  await assert.rejects(() => raids.submitRaidDamage('raid-1','verified:quest-1',Number.NaN), /damage/);
+  assert.equal(h.calls.length,0);
 });
