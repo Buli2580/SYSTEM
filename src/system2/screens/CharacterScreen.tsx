@@ -60,7 +60,7 @@ export default function CharacterScreen() {
       <Action label="AVATAR Z GALERII" disabled={busy} onPress={() => { void run(() => chooseAvatar(false)); }} />
       <Action label="ZRÓB ZDJĘCIE" disabled={busy} onPress={() => { void run(() => chooseAvatar(true)); }} />
       {player.avatarUri && <Action label="USUŃ AVATAR" disabled={busy} onPress={() => { void run(async () => { await updateIdentity({ avatarUri: null }); removeOwnedAvatar(player.avatarUri); }); }} />}
-      {error && <SystemError message={error} retry={() => setError(null)} />}
+      {error && <SystemError message={error} retry={() => setError(null)} actionLabel="ZAMKNIJ" />}
     </View>
     <View style={s.panel}><Text style={s.label}>ZDOBYTE TYTUŁY</Text>
       {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${titlePl(title)}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
