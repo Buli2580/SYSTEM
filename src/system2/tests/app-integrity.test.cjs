@@ -79,3 +79,10 @@ test('Next Action never exposes an uncleareable manual achievement claim', () =>
   assert.doesNotMatch(source, /CLAIM ACHIEVEMENTS/);
   assert.match(source, /Achievements unlock automatically/);
 });
+
+
+test('superseded provider refresh always releases the in-flight promise', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/state/SystemProvider.tsx'), 'utf8');
+  assert.match(source, /if \(refreshRef\.current === operation\) refreshRef\.current = null/);
+  assert.doesNotMatch(source, /if \(epoch === generation\.current\) refreshRef\.current = null/);
+});
