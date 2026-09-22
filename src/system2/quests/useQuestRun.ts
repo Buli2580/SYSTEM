@@ -221,7 +221,7 @@ export function useQuestRun(quest: RunnableQuest) {
         fail('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
       }
     }
-  }, [stopVerification, transition, fail, refreshPlayer, quest.id, quest.activityType, quest.verification.type, flushAttempt, isTimer]);
+  }, [stopVerification, transition, fail, refreshPlayer, quest.id, quest.activityType, quest.verification.type, quest.proofMode, flushAttempt, isTimer]);
 
   useFocusEffect(useCallback(() => {
     focusedRef.current = true;
