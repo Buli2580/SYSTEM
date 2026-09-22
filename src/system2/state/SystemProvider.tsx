@@ -7,7 +7,7 @@ import { createContext, type ReactNode, type Dispatch, type SetStateAction, useC
 import { createNewPlayer } from '../core';
 import * as db from '../storage/database';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
-import { DEFAULT_SETTINGS, type Settings } from '../identity/model';
+import { DEFAULT_SETTINGS } from '../identity/model';
 import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
@@ -32,7 +32,7 @@ type SystemContextValue = db.SystemSnapshot & {
   refreshPlayer: () => Promise<void>;
   finishOnboarding: (name: string, birthDate?: string) => Promise<void>;
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
-  saveSettings: (settings: Settings) => Promise<void>;
+  saveSettings: (patch: Parameters<typeof db.saveSettings>[0]) => Promise<void>;
   resetData: (confirmed: true) => Promise<void>;
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
@@ -261,7 +261,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     createPlayerGoal: input => apply(() => db.createPlayerGoal(input)), createFirstGoalAndPrepareAwakening, prepareAwakeningDirection,
     updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
     rerollDailyQuest: id => apply(() => db.rerollDailyQuest(id)),
-    saveSettings: settings => apply(() => db.saveSettings(settings)), resetData, achievementState, achievementError, refreshAchievements,
+    saveSettings: patch => apply(() => db.saveSettings(patch)), resetData, achievementState, achievementError, refreshAchievements,
     aiGameMaster, aiLoading, aiError, refreshAIGameMaster,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;
