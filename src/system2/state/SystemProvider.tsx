@@ -256,7 +256,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [ready, celebration, snapshot.completedQuestIds.length, presentReward]);
+  }, [ready, celebration, snapshot.completedQuestIds.length, snapshot.player.totalRealXp, presentReward]);
 
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
