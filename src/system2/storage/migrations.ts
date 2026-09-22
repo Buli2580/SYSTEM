@@ -40,6 +40,7 @@ const steps = [
 
 const CANONICAL_GOALS_SQL = `
 CREATE TABLE IF NOT EXISTS player_goals(id INTEGER PRIMARY KEY AUTOINCREMENT,payload TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS goal_operations(operation_key TEXT PRIMARY KEY NOT NULL,goal_id INTEGER NOT NULL,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS daily_generation(quest_id TEXT PRIMARY KEY,day_key TEXT,template_id TEXT,category TEXT,reason TEXT,recovery INTEGER,version INTEGER);
 CREATE INDEX IF NOT EXISTS generation_day ON daily_generation(day_key);
 CREATE TABLE IF NOT EXISTS daily_rerolls(day_key TEXT PRIMARY KEY,old_id TEXT,new_id TEXT);
