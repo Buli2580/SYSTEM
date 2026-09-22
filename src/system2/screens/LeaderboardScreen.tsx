@@ -185,6 +185,6 @@ export default function LeaderboardScreen() {
       </View>
     </>}
 
-    {error && <SystemError message={error} retry={() => setError(null)} />}
+    {error && <SystemError message={error} retry={() => setError(null)} actionLabel="ZAMKNIJ" />}
   </SystemPage>;
 }
