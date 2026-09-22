@@ -173,6 +173,27 @@ test('reward presentation survives completion until explicitly acknowledged', as
   assert.equal((await db.loadPendingRewardPresentations()).length, 0);
 });
 
+test('pending reward presentation accepts SS, SSS and ASCENDED ranks', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  const receipt = {
+    id:'high-rank-reward',realXp:100,skillXp:{WIL:10},energy:5,distanceMeters:0,
+    beforeLevel:199,afterLevel:200,beforeRank:'SS',afterRank:'SSS',
+    skillLevels:[{key:'WIL',before:20,after:21}],newTitles:[],worldUnlocked:true,
+  };
+  sql.prepare("INSERT OR REPLACE INTO app_state(key,value) VALUES('pending_reward_presentations',?)").run(JSON.stringify([receipt]));
+  const pending = await db.loadPendingRewardPresentations();
+  assert.equal(pending.length,1);
+  assert.equal(pending[0].beforeRank,'SS');
+  assert.equal(pending[0].afterRank,'SSS');
+
+  receipt.beforeLevel=299; receipt.afterLevel=300; receipt.beforeRank='SSS'; receipt.afterRank='ASCENDED';
+  sql.prepare("UPDATE app_state SET value=? WHERE key='pending_reward_presentations'").run(JSON.stringify([receipt]));
+  const ascended = await db.loadPendingRewardPresentations();
+  assert.equal(ascended.length,1);
+  assert.equal(ascended[0].afterRank,'ASCENDED');
+});
+
 test('corrupt pending reward presentation is discarded instead of reaching UI', async t => {
   const { db, sql } = databaseHarness(t);
   await db.loadOrCreatePlayer();
