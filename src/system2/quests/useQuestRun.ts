@@ -54,6 +54,7 @@ export function useQuestRun(quest: RunnableQuest) {
   const statusRef = useRef<RunStatus>('CHECKING');
   const startupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backgroundHandoffRef = useRef(false);
+  const backgroundSessionActiveRef = useRef(false);
 
   const activityWindow = useRef<ReturnType<typeof createActivityWindow> | null>(null);
   const activityBaseRef = useRef<ActivityFeatures | null>(null);
@@ -155,7 +156,7 @@ export function useQuestRun(quest: RunnableQuest) {
   const fail = useCallback((message: string, denied = false, result: Exclude<AttemptResult,'COMPLETED'> = 'FAILED', reason: AttemptReason = denied ? 'PERMISSION_DENIED' : 'TECHNICAL_ERROR') => {
     endAttempt(result,reason);
     stopVerification();
-    if (!isTimer) void stopQuestBackgroundTracking(quest.id).catch(() => undefined);
+    if (!isTimer) { backgroundSessionActiveRef.current = false; void stopQuestBackgroundTracking(quest.id).catch(() => undefined); }
     if (!focusedRef.current) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     playFeedback('ERROR');
@@ -179,13 +180,16 @@ export function useQuestRun(quest: RunnableQuest) {
           awaitWithTimeout(loadBackgroundQuestSession()),
         ]);
       } else if (access === 'COMPLETED' || access === 'LOCKED') {
+        backgroundSessionActiveRef.current = false;
         await awaitWithTimeout(clearQuestCheckpoint(quest.id));
         if (quest.verification.type !== 'TIMER') {
           await stopQuestBackgroundTracking(quest.id).catch(() => undefined);
         }
       }
       if (!focusedRef.current || session !== sessionRef.current) return;
-      if (backgroundSession?.questId === quest.id) attemptRef.current = backgroundSession.attemptId;
+      const ownsBackgroundSession = backgroundSession?.questId === quest.id;
+      backgroundSessionActiveRef.current = ownsBackgroundSession;
+      if (ownsBackgroundSession) { attemptRef.current = backgroundSession.attemptId; setActiveQuestId(quest.id); }
       checkpointRef.current = checkpoint;
       activityBaseRef.current = checkpoint?.activityFeatures ?? null;
       distanceRef.current = checkpoint?.distanceMeters ?? 0;
@@ -228,7 +232,7 @@ export function useQuestRun(quest: RunnableQuest) {
             .catch(() => undefined);
           pauseForegroundTracking();
         }
-      } else {
+      } else if (!(statusRef.current === 'READY' && backgroundSessionActiveRef.current)) {
         stopVerification();
       }
       focusedRef.current = false;
@@ -273,7 +277,10 @@ export function useQuestRun(quest: RunnableQuest) {
     try {
       const result = await awaitWithTimeout(completeVerifiedQuest(evidence));
       await awaitWithTimeout(clearQuestCheckpoint(quest.id));
-      if (!isTimer) await stopQuestBackgroundTracking(quest.id).catch(() => undefined);
+      if (!isTimer) {
+        backgroundSessionActiveRef.current = false;
+        await stopQuestBackgroundTracking(quest.id).catch(() => undefined);
+      }
       checkpointRef.current = null;
       activityBaseRef.current = null;
       if (attemptRef.current === evidence.attemptId) attemptRef.current = null;
@@ -489,6 +496,7 @@ export function useQuestRun(quest: RunnableQuest) {
         attemptId,
         extendedGoal: extendedRef.current,
       });
+      backgroundSessionActiveRef.current = true;
       await markQuestForeground(quest.id);
       if (!active()) return;
       const servicesEnabled = await Location.hasServicesEnabledAsync();
