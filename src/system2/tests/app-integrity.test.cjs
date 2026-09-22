@@ -96,7 +96,7 @@ test('Next Action guards against /quest directives without a quest id', () => {
 
 
 test('Daily ignores corrupt non-authoritative attempt payloads', () => {
-  const { attemptWasSuspicious } = load('storage/daily');
+  const { attemptWasSuspicious } = load('daily/attempt');
   assert.equal(attemptWasSuspicious('{"activity":{"verdict":"SUSPICIOUS"}}'), true);
   assert.equal(attemptWasSuspicious('{"activity":{"verdict":"VERIFIED"}}'), false);
   assert.equal(attemptWasSuspicious('{broken'), false);
