@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useMemo,useState} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {useSystem} from '../state/SystemProvider';
 import SystemEventOverlay,{type SystemEvent} from './SystemEventOverlay';
 import {presentationEventsFromReceipt} from '../presentation/events';
@@ -7,13 +7,19 @@ export default function RewardEventSequence(){
   const {lastReward,ready,dismissCelebration,awakeningPending}=useSystem();
   const events=useMemo(()=>lastReward?presentationEventsFromReceipt(lastReward):[],[lastReward]);
   const [index,setIndex]=useState(0);
+  const awakeningOwnedReward=useRef<string|null>(null);
 
   useEffect(()=>{
-    if(awakeningPending){
-      // Awakening owns the full-screen presentation for its completion reward.
-      // Release the generic celebration gate so the two overlays never deadlock.
+    if(awakeningPending&&lastReward?.id){
+      // Awakening owns this receipt's full-screen presentation. Remember the
+      // receipt so it is not replayed when awakeningPending is acknowledged.
+      awakeningOwnedReward.current=lastReward.id;
       setIndex(events.length);
       dismissCelebration();
+      return;
+    }
+    if(lastReward?.id&&awakeningOwnedReward.current===lastReward.id){
+      setIndex(events.length);
       return;
     }
     setIndex(0);
