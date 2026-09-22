@@ -2,8 +2,9 @@ import { DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates
 import type { PlayerProfile, SkillKey } from '../core/types';
 import { SKILL_KEYS } from '../core/progression';
 export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
-export type Settings = { haptics: boolean; audio: boolean; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
-export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false };
+export type AvatarStyle = 'DARK' | 'CYBER' | 'WARLORD';
+export type Settings = { haptics: boolean; audio: boolean; sfxVolume?: number; musicVolume?: number; avatarStyle?: AvatarStyle; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
+export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: true, sfxVolume: 0.8, musicVolume: 0.35, avatarStyle: 'CYBER' };
 export function earnedTitles(awakening: boolean, signal: boolean, worldLink = false, boss = false): Title[] {
   return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : []), ...(worldLink ? ['PATHFINDER' as const] : []), ...(boss ? ['WALLBREAKER' as const] : [])];
 }
@@ -26,7 +27,11 @@ export function parseSettings(value?: string): Settings {
   if (settings.activities && ['walking','running','cycling'].some(key => typeof settings.activities[key] !== 'boolean')) throw new Error('Nieprawidłowe preferencje aktywności.');
   if (settings.reminderTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.reminderTime)) throw new Error('Wpisz godzinę HH:MM.');
   if (settings.dailyReminder !== undefined && typeof settings.dailyReminder !== 'boolean') throw new Error('Nieprawidłowe ustawienie przypomnienia.');
+  const volume = (candidate: unknown, fallback: number) =>
+    typeof candidate === 'number' && Number.isFinite(candidate) && candidate >= 0 && candidate <= 1 ? candidate : fallback;
+  const avatarStyle: AvatarStyle = ['DARK','CYBER','WARLORD'].includes(settings.avatarStyle) ? settings.avatarStyle : DEFAULT_SETTINGS.avatarStyle!;
   return { haptics: settings.haptics, audio: settings.audio,
+    sfxVolume: volume(settings.sfxVolume, DEFAULT_SETTINGS.sfxVolume!), musicVolume: volume(settings.musicVolume, DEFAULT_SETTINGS.musicVolume!), avatarStyle,
     ...(settings.activities ? { activities: { ...DEFAULT_ACTIVITIES, ...settings.activities } } : {}),
     ...(settings.dailyReminder !== undefined ? { dailyReminder: settings.dailyReminder } : {}),
     ...(settings.reminderTime !== undefined ? { reminderTime: settings.reminderTime } : {}) };
