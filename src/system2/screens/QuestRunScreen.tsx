@@ -1,7 +1,7 @@
 import { useSystem } from '../state/SystemProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
@@ -344,6 +344,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           title={renderStatus === 'DENIED' ? 'BRAK DOSTĘPU DO WERYFIKACJI' : rematch ? 'REMATCH AVAILABLE' : 'PRÓBA ZATRZYMANA'}
           message={error}
           onRetry={() => { void retryQuest(); }}
+          onSettings={renderStatus === 'DENIED' ? () => { void Linking.openSettings(); } : undefined}
           onHub={() => router.replace('/quests')}
           onHome={() => router.replace('/')}
         />}
