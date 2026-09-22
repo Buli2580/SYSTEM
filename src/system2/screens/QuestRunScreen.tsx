@@ -5,6 +5,7 @@ import MotionProgress from '../components/MotionProgress';
 import QuestFlowHeader from '../components/QuestFlowHeader';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS } from '../core';
@@ -512,7 +513,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
         {receipt && <RewardSummary receipt={receipt} />}
         {status ===
           'COMPLETED' && (
-          <View
+          <Animated.View
+            entering={FadeInDown.duration(480)}
             style={
               styles.completeCard
             }
@@ -560,7 +562,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 {nextQuest ? 'NASTĘPNA MISJA →' : 'WRÓĆ DO SYSTEMU'}
               </Text>
             </Pressable>
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </View>
