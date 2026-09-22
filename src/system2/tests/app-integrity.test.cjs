@@ -131,3 +131,16 @@ test('pending reward replay never replaces an active foreground celebration', ()
   assert.match(source, /if \(!active \|\| celebrationRef\.current \|\| resetting\.current\) return/);
   assert.match(source, /celebrationRef\.current = null; setCelebration\(null\)/);
 });
+
+
+test('AI daily responses are rejected when a newer day/request owns the slot', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/state/SystemProvider.tsx'), 'utf8');
+  assert.match(source, /requestId !== aiRequestRef\.current \|\| aiDayRef\.current !== day/);
+  assert.match(source, /requestId === aiRequestRef\.current && aiDayRef\.current === day/);
+});
+
+test('notification sync ignores stale async completions', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/state/SystemProvider.tsx'), 'utf8');
+  assert.match(source, /const requestId = \+\+notificationRequestRef\.current/);
+  assert.match(source, /requestId === notificationRequestRef\.current/);
+});
