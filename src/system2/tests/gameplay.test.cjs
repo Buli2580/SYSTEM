@@ -1573,11 +1573,13 @@ test('notification service only manages its own IDs and serializes clear/OFF cha
   getAllScheduledNotificationsAsync:async()=>[...scheduled.keys()].map(identifier=>({identifier})),
   cancelScheduledNotificationAsync:async id=>{calls.push(['cancel',id]);scheduled.delete(id);},
   getPermissionsAsync:async()=>({granted:true}),
+  setNotificationChannelAsync:async(id)=>{calls.push(['channel',id]);},
   scheduleNotificationAsync:async n=>{calls.push(['add',n.identifier]);scheduled.set(n.identifier,n);return n.identifier;},
+  AndroidImportance:{DEFAULT:3},
   SchedulableTriggerInputTypes:{DATE:'date'},
  };
  const service=loader({'expo-notifications':notifications,'react-native':{Platform:{OS:'android'}}},{now:new Date(2026,8,18,10).getTime()})('notifications/service');
- await service.syncReminders({dailyReminder:true,reminderTime:'19:00'},false,true);assert.equal(scheduled.size,8);
+ await service.syncReminders({dailyReminder:true,reminderTime:'19:00'},false,true);assert.equal(scheduled.size,8);assert.ok(calls.some(x=>x[0]==='channel'&&x[1]==='system2-daily'));
  await service.syncReminders({dailyReminder:true,reminderTime:'19:00'},true,true);assert.equal(scheduled.size,7);
  await Promise.all([service.syncReminders({dailyReminder:true,reminderTime:'20:00'},false,true),service.syncReminders({dailyReminder:false},false,true)]);
  assert.equal(scheduled.size,1);assert.ok(scheduled.has('legacy-reminder'));
