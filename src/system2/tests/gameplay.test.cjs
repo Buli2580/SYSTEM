@@ -170,7 +170,7 @@ test('reward presentation survives completion until explicitly acknowledged', as
   pending = await db.loadPendingRewardPresentations();
   assert.equal(pending.length, 1);
   await db.acknowledgeRewardPresentation(result.receipt.id);
-  assert.deepEqual(await db.loadPendingRewardPresentations(), []);
+  assert.equal((await db.loadPendingRewardPresentations()).length, 0);
 });
 
 test('open/init failures are retryable; corrupt profile is not silently reset', async t => {
