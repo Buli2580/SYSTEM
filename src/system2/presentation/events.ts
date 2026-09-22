@@ -56,5 +56,5 @@ export function presentationEventsFromReceipt(receipt: RewardReceipt): Presentat
     accent: 'GOLD',
     priority: 45,
   });
-  return events.sort((a,b)=>b.priority-a.priority);
+  return events.sort((a,b)=>a.priority-b.priority);
 }
