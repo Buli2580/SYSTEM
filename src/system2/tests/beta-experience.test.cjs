@@ -82,6 +82,20 @@ test('Quest Experience exposes a non-empty message and CTA for every runtime pha
 });
 
 
+test('reward presentation renders canonical unlocked titles', () => {
+  const { presentationEventsFromReceipt } = load('presentation/events');
+  const events = presentationEventsFromReceipt({
+    id:'title-flow',realXp:400,skillXp:{RES:100},energy:25,distanceMeters:0,
+    beforeLevel:4,afterLevel:5,beforeRank:'E',afterRank:'E',
+    skillLevels:[],newTitles:['PATHFINDER','WALLBREAKER'],worldUnlocked:false,
+  });
+  assert.equal(events[0].kind,'QUEST_COMPLETE');
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(events.filter(x=>x.kind==='TITLE_UNLOCKED').map(x=>x.title))),
+    ['PATHFINDER','WALLBREAKER']
+  );
+});
+
 test('reward presentation starts with quest completion before level/rank unlocks', () => {
   const { presentationEventsFromReceipt } = load('presentation/events');
   const events = presentationEventsFromReceipt({
