@@ -190,7 +190,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (seenRewards.current.size > 128) seenRewards.current.delete(seenRewards.current.values().next().value!);
     playFeedback(rewardSound(receipt));
     setLastReward(receipt);
-    if (receipt.afterLevel > receipt.beforeLevel || receipt.skillLevels.length) setCelebration(receipt);
+    // celebration is the global presentation lock, not only a level-up flag.
+    // Every reward sequence owns the root overlay until RewardEventSequence dismisses it.
+    setCelebration(receipt);
   }, []);
   const dismissCelebration = useCallback(() => setCelebration(null), []);
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
