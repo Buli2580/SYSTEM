@@ -180,11 +180,19 @@ export default function AccountScreen() {
 
   async function syncNow() {
     const result = await flushCloudOutbox(100);
+    if (!result.authenticated) {
+      setSession(null);
+      setSocial(null);
+      setStatus('SYSTEM CLOUD // SESJA WYGASŁA');
+      throw new Error('Sesja SYSTEM CLOUD wygasła. Zaloguj się ponownie.');
+    }
     const stats = await getLocalCloudSyncStatus();
     setSyncStats(stats);
-    setStatus(result.pending === 0
-      ? 'SYNCHRONIZACJA // WSZYSTKO WYSŁANE'
-      : 'SYNCHRONIZACJA // OCZEKUJE ' + result.pending);
+    setStatus(result.failed > 0
+      ? 'SYNCHRONIZACJA // WYMAGA PONOWIENIA'
+      : result.pending === 0
+        ? 'SYNCHRONIZACJA // SPRAWDZONO KOLEJKĘ'
+        : 'SYNCHRONIZACJA // OCZEKUJE ' + result.pending);
   }
 
   async function logout() {
@@ -264,7 +272,7 @@ export default function AccountScreen() {
         <Text style={s.body}>
           Wysłane: {syncStats.synced} · po błędzie: {syncStats.failed}. SYSTEM wysyła wyłącznie podsumowania zweryfikowanych zdarzeń — bez surowych tras GPS i zdjęć.
         </Text>
-        <Action label="SYNCHRONIZUJ TERAZ" disabled={busy || syncStats.pending === 0} onPress={() => { void run(syncNow); }} />
+        <Action label={syncStats.pending === 0 ? "SPRAWDŹ SYNCHRONIZACJĘ" : "SYNCHRONIZUJ TERAZ"} disabled={busy} onPress={() => { void run(syncNow); }} />
       </View>
 
       <View style={s.panel}>
