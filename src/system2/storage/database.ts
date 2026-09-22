@@ -102,23 +102,30 @@ const PENDING_REWARD_PRESENTATIONS_KEY = 'pending_reward_presentations';
 function validRewardReceipt(value: unknown): value is RewardReceipt {
   if (!value || typeof value !== 'object') return false;
   const row = value as Partial<RewardReceipt>;
-  const numeric = [row.realXp,row.energy,row.distanceMeters,row.beforeLevel,row.afterLevel];
+  const rewards = [row.realXp,row.energy,row.distanceMeters];
   const skillXp = row.skillXp;
   const skillLevels = row.skillLevels;
   const newTitles = row.newTitles;
+  const ranks = ['E','D','C','B','A','S'];
+  const skills = ['STR','VIT','INT','WIL','CHA','CRE','RES'];
+  const titles = ['UNAWAKENED','AWAKENED','SIGNAL HUNTER','PATHFINDER','WALLBREAKER'];
   return typeof row.id === 'string' && row.id.length > 0 && row.id.length <= 220
-    && numeric.every(item => typeof item === 'number' && Number.isFinite(item))
-    && typeof row.beforeRank === 'string' && typeof row.afterRank === 'string'
+    && rewards.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0)
+    && Number.isSafeInteger(row.beforeLevel) && Number(row.beforeLevel) >= 1
+    && Number.isSafeInteger(row.afterLevel) && Number(row.afterLevel) >= Number(row.beforeLevel)
+    && typeof row.beforeRank === 'string' && ranks.includes(row.beforeRank)
+    && typeof row.afterRank === 'string' && ranks.includes(row.afterRank)
     && !!skillXp && typeof skillXp === 'object' && !Array.isArray(skillXp)
     && Object.entries(skillXp).every(([key,xp]) =>
-      ['STR','VIT','INT','WIL','CHA','CRE','RES'].includes(key)
-      && typeof xp === 'number' && Number.isFinite(xp))
-    && Array.isArray(skillLevels) && skillLevels.every(item =>
-      !!item && typeof item === 'object'
-      && ['STR','VIT','INT','WIL','CHA','CRE','RES'].includes(String((item as {key?:unknown}).key))
-      && Number.isFinite((item as {before?:number}).before)
-      && Number.isFinite((item as {after?:number}).after))
-    && Array.isArray(newTitles) && newTitles.every(title => typeof title === 'string' && title.length <= 80)
+      skills.includes(key) && typeof xp === 'number' && Number.isSafeInteger(xp) && xp >= 0)
+    && Array.isArray(skillLevels) && skillLevels.every(item => {
+      if (!item || typeof item !== 'object') return false;
+      const candidate = item as {key?:unknown;before?:unknown;after?:unknown};
+      return skills.includes(String(candidate.key))
+        && typeof candidate.before === 'number' && Number.isSafeInteger(candidate.before) && candidate.before >= 1
+        && typeof candidate.after === 'number' && Number.isSafeInteger(candidate.after) && candidate.after > candidate.before;
+    })
+    && Array.isArray(newTitles) && newTitles.every(title => typeof title === 'string' && titles.includes(title))
     && typeof row.worldUnlocked === 'boolean';
 }
 
