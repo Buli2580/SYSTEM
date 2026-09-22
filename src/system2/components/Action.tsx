@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { SYSTEM_COLORS as C } from '../core';
+import { playFeedback } from '../identity/audio';
 export default function Action({ label, onPress, disabled = false, danger = false }: { label: string; onPress: () => void; disabled?: boolean; danger?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={() => { playFeedback('UI_TAP'); onPress(); }}
     style={({ pressed }) => [styles.root, danger ? styles.danger : styles.normal, disabled && styles.disabled, pressed && styles.pressed]}>
     <Text style={[styles.text, danger ? styles.dangerText : styles.normalText]}>{label}</Text>
   </Pressable>;
