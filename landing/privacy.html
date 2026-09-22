@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#05090d" />
+  <meta name="description" content="Polityka prywatności aplikacji SYSTEM." />
   <title>SYSTEM — Polityka prywatności</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
@@ -13,34 +14,61 @@
       <a class="brand" href="/" style="color:inherit;text-decoration:none">SYSTEM<span>//PRIVACY</span></a>
       <a class="nav-cta" href="/">WRÓĆ</a>
     </header>
+
     <article class="legal">
-      <div class="section-kicker">PRIVACY POLICY // BETA</div>
+      <div class="section-kicker">PRIVACY POLICY // SYSTEM</div>
       <h1>Polityka prywatności SYSTEM.</h1>
-      <p>Ta polityka opisuje dane przetwarzane przez aplikację mobilną SYSTEM oraz stronę projektu.</p>
+      <p>Niniejsza polityka wyjaśnia, jakie dane mogą być przetwarzane przez aplikację mobilną SYSTEM i stronę projektu, w jakim celu są używane oraz jakie prawa ma użytkownik.</p>
 
-      <h2>Lokalizacja</h2>
-      <p>SYSTEM używa danych o lokalizacji do mierzenia dystansu i weryfikowania aktywnych misji ruchowych. Jeżeli użytkownik włączy lokalizację w tle, pomiar może działać także przy wygaszonym ekranie lub gdy aplikacja nie jest używana. Lokalizacja nie jest używana do reklam. Aplikacja nie wysyła do SYSTEM CLOUD pełnej historii trasy GPS; synchronizowane są zagregowane dane potrzebne do weryfikacji misji.</p>
+      <h2>1. Zakres danych</h2>
+      <p>W zależności od używanych funkcji SYSTEM może przetwarzać:</p>
+      <ul>
+        <li>dane konta: adres e-mail, identyfikator konta i dane profilu podane przez użytkownika;</li>
+        <li>dane progresji: ukończone misje, XP, poziomy, cechy, streaki, historię weryfikacji i zdarzenia synchronizacji;</li>
+        <li>dane lokalizacyjne podczas aktywnej misji ruchowej, jeśli użytkownik udzieli wymaganej zgody;</li>
+        <li>dane techniczne potrzebne do stabilności, diagnostyki i bezpieczeństwa aplikacji;</li>
+        <li>adres e-mail podany dobrowolnie przy zapisie do bety lub listy oczekujących.</li>
+      </ul>
 
-      <h2>Konto i profil</h2>
-      <p>Po utworzeniu konta SYSTEM CLOUD przetwarzany jest adres e-mail, identyfikator konta oraz dane profilu podane przez użytkownika. Publiczny profil może zawierać nazwę użytkownika, publiczną nazwę, opis oraz dobrowolnie wpisaną lokalizację rankingową. Użytkownik może pozostawić profil prywatny.</p>
+      <h2>2. Lokalizacja i działanie w tle</h2>
+      <p>SYSTEM używa lokalizacji do mierzenia dystansu i weryfikowania aktywnych misji ruchowych. Po wyraźnym uruchomieniu takiej misji i udzieleniu odpowiednich zgód pomiar może działać także przy wygaszonym ekranie lub gdy aplikacja znajduje się w tle. Lokalizacja nie jest wykorzystywana do reklam.</p>
+      <p>Pełna historia trasy GPS nie jest wysyłana do SYSTEM CLOUD. Do synchronizacji mogą trafiać zagregowane wyniki potrzebne do weryfikacji misji, takie jak dystans, czas, wynik weryfikacji i identyfikator zdarzenia.</p>
 
-      <h2>Progres i aktywność</h2>
-      <p>SYSTEM zapisuje dane progresji, takie jak ukończone misje, XP, poziomy, cechy, streaki, historia weryfikacji i techniczne zdarzenia synchronizacji. Dane lokalne są przechowywane w SQLite na urządzeniu. Wybrane zagregowane zdarzenia mogą być synchronizowane z SYSTEM CLOUD.</p>
+      <h2>3. Konto i profil społecznościowy</h2>
+      <p>Konto SYSTEM CLOUD jest opcjonalne dla lokalnej części aplikacji. Po zalogowaniu aplikacja może synchronizować profil i wybrane zagregowane dane progresji. Publiczny profil może zawierać nazwę użytkownika, publiczną nazwę, opis oraz dobrowolnie podaną lokalizację rankingową. Użytkownik może pozostawić profil prywatny.</p>
 
-      <h2>Lista oczekujących i strona</h2>
-      <p>Jeżeli użytkownik zapisze się na listę oczekujących, przechowujemy podany adres e-mail, język formularza, źródło zapisu, status oraz czas zapisu. Analityka strony nie powinna zawierać adresu e-mail.</p>
+      <h2>4. Cel przetwarzania</h2>
+      <p>Dane są używane wyłącznie do działania aplikacji, weryfikacji misji, zapisywania progresu, synchronizacji między funkcjami SYSTEMU, obsługi konta, funkcji społecznościowych, bezpieczeństwa, diagnostyki i komunikacji dotyczącej bety.</p>
 
-      <h2>Usługi zewnętrzne</h2>
-      <p>Supabase obsługuje konta, bazę danych i synchronizację. Vercel publikuje stronę projektu. Amplitude może otrzymywać pseudonimowe zdarzenia techniczne i produktowe, bez haseł oraz bez pełnych tras GPS.</p>
+      <h2>5. Usługi zewnętrzne</h2>
+      <p>SYSTEM może korzystać z następujących usług:</p>
+      <ul>
+        <li><strong>Supabase</strong> — obsługa kont, bazy danych i synchronizacji SYSTEM CLOUD;</li>
+        <li><strong>Vercel</strong> — hosting publicznej strony projektu i niniejszej polityki;</li>
+        <li><strong>Amplitude</strong> — pseudonimowa analityka techniczna i produktowa, jeśli jest aktywna w danej wersji aplikacji.</li>
+      </ul>
+      <p>Hasła oraz pełne trasy GPS nie są przekazywane do narzędzi analitycznych.</p>
 
-      <h2>Usunięcie danych</h2>
-      <p>Dane lokalne można usunąć z poziomu Ustawień aplikacji. Zalogowany użytkownik może w SYSTEM ONLINE utworzyć żądanie usunięcia konta chmurowego i powiązanych danych.</p>
-      <p><strong>Przed pierwszym zgłoszeniem aplikacji do Google Play ta sekcja zostanie uzupełniona o publiczny zewnętrzny kanał żądania usunięcia konta oraz dane kontaktowe wydawcy.</strong></p>
+      <h2>6. Bezpieczeństwo</h2>
+      <p>Dane przesyłane do usług sieciowych są chronione przy użyciu szyfrowanych połączeń HTTPS/TLS. Dostęp do danych konta jest ograniczony mechanizmami uwierzytelniania i regułami dostępu po stronie backendu. Dane lokalne są przechowywane w pamięci aplikacji na urządzeniu.</p>
 
-      <h2>Administrator i kontakt</h2>
-      <p>Administratorem danych jest wydawca aplikacji SYSTEM wskazany w Google Play. Finalne dane kontaktowe zostaną uzupełnione przed pierwszym zgłoszeniem aplikacji do Play Console.</p>
+      <h2>7. Przechowywanie danych</h2>
+      <p>Dane lokalne są przechowywane do momentu ich usunięcia przez użytkownika, wyczyszczenia danych aplikacji lub odinstalowania aplikacji. Dane konta chmurowego są przechowywane tak długo, jak konto jest aktywne lub przez okres niezbędny do realizacji żądania usunięcia, zapewnienia bezpieczeństwa oraz spełnienia obowiązków prawnych.</p>
 
-      <p>Ostatnia aktualizacja: 19 września 2026.</p>
+      <h2>8. Usuwanie danych i konta</h2>
+      <p>Dane lokalne można usunąć z poziomu ustawień aplikacji. Zalogowany użytkownik może w aplikacji przejść do <strong>SYSTEM ONLINE → Prywatność i konto → Zażądaj usunięcia konta</strong>.</p>
+      <p>Instrukcje dotyczące usuwania konta są również dostępne na stronie <a href="/delete-account.html">Usuwanie konta SYSTEM</a>.</p>
+
+      <h2>9. Dane dzieci i osób niepełnoletnich</h2>
+      <p>SYSTEM nie jest aplikacją medyczną ani narzędziem do podejmowania decyzji medycznych. Funkcje związane z wiekiem są wykorzystywane do dostosowania doświadczenia i poziomu trudności. Zakres docelowej grupy odbiorców jest deklarowany zgodnie z ustawieniami aplikacji w Google Play.</p>
+
+      <h2>10. Kontakt</h2>
+      <p>W sprawach dotyczących prywatności można skontaktować się z wydawcą SYSTEM za pomocą adresu e-mail dewelopera podanego na stronie aplikacji SYSTEM w Google Play w sekcji „Kontakt z deweloperem”.</p>
+
+      <h2>11. Zmiany polityki</h2>
+      <p>Polityka może być aktualizowana wraz z rozwojem SYSTEMU. Aktualna wersja jest zawsze dostępna pod tym samym publicznym adresem.</p>
+
+      <p><strong>Ostatnia aktualizacja: 22 września 2026.</strong></p>
       <p><a href="/">← Powrót do SYSTEM</a></p>
     </article>
   </main>
