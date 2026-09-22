@@ -1,7 +1,6 @@
 import { questAvailability } from '../quests/availability';
 import { mainStoryObjective } from '../story/selectors';
 import SystemScreen from '../components/SystemScreen';
-import { DAILY_RULES } from '../daily/calendar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
