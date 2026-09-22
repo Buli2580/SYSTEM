@@ -73,6 +73,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const aiLastRequestAt = useRef(0);
   const aiRequestRef = useRef(0);
   const notificationRequestRef = useRef(0);
+  const achievementRequestRef = useRef(0);
   useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
   const refreshNotifications = useCallback(async (): Promise<void> => {
     const requestId = ++notificationRequestRef.current;
@@ -94,18 +95,23 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     void refreshNotifications();
   }, [ready, snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.dayKey, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted, refreshNotifications]);
   useEffect(() => { configureHaptics(snapshot.settings.haptics); }, [snapshot.settings.haptics]);
-  const loadAchievements = useCallback(async (epoch: number): Promise<void> => {
+  const loadAchievements = useCallback(async (epoch: number, requestId: number): Promise<void> => {
     const [achievements, titles] = await awaitWithTimeout(Promise.all([loadAchievementsState(), loadTitlesState()]));
-    if (epoch !== generation.current) return;
+    if (epoch !== generation.current || requestId !== achievementRequestRef.current) return;
     setAchievementState({ achievements: Object.fromEntries(Object.entries(achievements).map(([id, item]) => [id, { achievementId: id, ...item }])), titles, lastEvaluatedAt: new Date().toISOString() });
     setAchievementError(null);
   }, []);
   const syncAchievements = useCallback(async (player: db.SystemSnapshot['player'], epoch: number): Promise<void> => {
+    const requestId = ++achievementRequestRef.current;
     try {
       await awaitWithTimeout(reconcileAchievements(player));
-      if (epoch === generation.current) await loadAchievements(epoch);
+      if (epoch === generation.current && requestId === achievementRequestRef.current) {
+        await loadAchievements(epoch, requestId);
+      }
     } catch (cause) {
-      if (epoch === generation.current) setAchievementError('Nie udało się odświeżyć osiągnięć. Spróbuj ponownie.');
+      if (epoch === generation.current && requestId === achievementRequestRef.current) {
+        setAchievementError('Nie udało się odświeżyć osiągnięć. Spróbuj ponownie.');
+      }
       if (__DEV__) console.error('Achievement sync failed', cause);
     }
   }, [loadAchievements]);
@@ -303,7 +309,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
-    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); celebrationRef.current = null; setCelebration(null); setLastReward(null); setAIGameMaster(null); aiRequestRef.current += 1; notificationRequestRef.current += 1; setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
+    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); celebrationRef.current = null; setCelebration(null); setLastReward(null); setAIGameMaster(null); aiRequestRef.current += 1; notificationRequestRef.current += 1; achievementRequestRef.current += 1; setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
     try {
       await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
