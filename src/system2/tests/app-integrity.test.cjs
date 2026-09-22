@@ -72,3 +72,10 @@ test('critical completion and cloud screens do not depend on router.back recover
     assert.doesNotMatch(source, /router\.back\(\)/, relative);
   }
 });
+
+
+test('Next Action never exposes an uncleareable manual achievement claim', () => {
+  const source = fs.readFileSync(path.join(root, 'src/system2/quests/nextAction.ts'), 'utf8');
+  assert.doesNotMatch(source, /CLAIM ACHIEVEMENTS/);
+  assert.match(source, /Achievements unlock automatically/);
+});
