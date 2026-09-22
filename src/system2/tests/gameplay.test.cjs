@@ -23,6 +23,7 @@ function loader(mocks, clock = { now: Date.now() }) {
     }).outputText;
     const requireMock = name => {
       if (Object.hasOwn(mocks, name)) return mocks[name];
+      if (/\.(wav|mp3)$/.test(name)) return name;
       if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
       throw new Error('Unexpected dependency: ' + name);
     };
@@ -865,6 +866,7 @@ function uiHarness(context = {}) {
     'expo-router': { usePathname: () => '/', useRouter: () => ({ push: value => navigation.push(value), replace: value => navigation.push(value) }) },
     '../state/SystemProvider': { useSystem: () => context },
     '../components/SystemPage': { __esModule: true, default: 'SystemPage', pageStyles: {} },
+    '../identity/audio': { playFeedback() {}, playMusic() {}, stopMusic() {} },
   });
   return { load, navigation };
 }
