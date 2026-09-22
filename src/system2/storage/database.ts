@@ -145,7 +145,7 @@ function parsePendingRewardPresentations(raw?: string): RewardReceipt[] {
   }
 }
 
-async function enqueuePendingRewardPresentation(txn: SQLite.SQLiteDatabase, receipt: RewardReceipt) {
+export async function enqueuePendingRewardPresentation(txn: SQLite.SQLiteDatabase, receipt: RewardReceipt) {
   const row = await txn.getFirstAsync<{ value: string }>(
     'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
   );
