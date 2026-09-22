@@ -13,7 +13,8 @@ export default function StoryScreen() {
  const {story,refreshPlayer}=useSystem(),router=useRouter();
  const [entries,setEntries]=useState<StoryEvent[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const lock=useRef(false),epoch=useRef(0);
- useFocusEffect(useCallback(()=>{const id=++epoch.current;void awaitWithTimeout(loadChronicle()).then(value=>{if(id===epoch.current)setEntries(value);}).catch(()=>{if(id===epoch.current)setError('Nie udało się odczytać kroniki. Otwórz ekran ponownie.');});return()=>{epoch.current++;};},[story]));
+ const refreshChronicle=useCallback(async()=>{const id=++epoch.current;try{const value=await awaitWithTimeout(loadChronicle());if(id===epoch.current){setEntries(value);setError('');}}catch{if(id===epoch.current)setError('Nie udało się odczytać kroniki. Spróbuj ponownie.');}},[]);
+ useFocusEffect(useCallback(()=>{void refreshChronicle();return()=>{epoch.current++;};},[story,refreshChronicle]));
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
  const boss=story?.boss;
  return <SystemPage title="HISTORIA / KRONIKA" subtitle={`AKT 01 // ${ARC.title}`}>
@@ -41,7 +42,7 @@ export default function StoryScreen() {
    <Text style={s.label}>+{STORY_REWARDS.boss.realXp} REAL XP · +{STORY_REWARDS.boss.skillXp.WIL} WIL XP · +{STORY_REWARDS.boss.skillXp.VIT} VIT XP · +{STORY_REWARDS.boss.gameEnergy} ENERGII · POGROMCA MURU</Text>
   </View>
   <View style={s.panel}><Text style={s.label}>ROZDZIAŁ 03 // NIEZNANY // ZABLOKOWANY</Text></View>
-  {!!error&&<Text style={s.body}>{error}</Text>}
+  {!!error&&<View style={s.panel}><Text style={s.body}>{error}</Text><Action label="ODŚWIEŻ KRONIKĘ →" disabled={busy} onPress={()=>{void refreshChronicle();}}/></View>}
   <Text style={s.title}>CHRONICLE</Text>
     {entries.length === 0 ? <View style={s.panel}><Text style={s.body}>Chronicle zacznie się od pierwszego wydarzenia fabularnego.</Text></View> : entries.map(event=><View key={event.id} style={s.panel}><Text style={s.label}>{storyEventTypePl(event.type)}</Text><Text style={s.title}>{event.title}</Text>{!!event.subtitle&&<Text style={s.body}>{event.subtitle}</Text>}<Text style={s.body}>{new Date(event.created_at).toLocaleString()}</Text></View>)}
  </SystemPage>;
