@@ -166,7 +166,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         if (epoch === generation.current) {
           configureHaptics(next.settings.haptics);
           setSnapshot(next);
-          if (backgroundQuest?.questId) setActiveQuestId(backgroundQuest.questId);
+          setActiveQuestId(current => backgroundQuest?.questId ?? (current && next.completedQuestIds.includes(current) ? null : current));
           void syncAchievements(next.player, epoch);
           setReady(true);
           void flushCloudOutbox().catch(() => undefined);
