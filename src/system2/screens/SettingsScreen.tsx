@@ -1,5 +1,5 @@
 import BetaSettings from '../components/BetaSettings';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { requestBackgroundLocationAccess } from '../background/locationService';
 import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { playFeedback, playMusic, stopMusic } from '../identity/audio';
+import Slider from '@expo/ui/community/slider';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
@@ -102,25 +103,33 @@ export default function SettingsScreen() {
 
 
 function VolumeControl({ label, value, onChange, disabled }: { label: string; value: number; onChange: (value: number) => void; disabled?: boolean }) {
-  const steps = [0, 0.2, 0.4, 0.6, 0.8, 1];
+  const [draft, setDraft] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => setDraft(value), [value]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  function change(next: number) {
+    setDraft(next);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onChange(next), 220);
+  }
   return <View style={{ marginTop: 16, opacity: disabled ? 0.4 : 1 }}>
-    <View style={audioStyles.volumeHeader}><Text style={audioStyles.volumeLabel}>{label}</Text><Text style={audioStyles.volumeValue}>{Math.round(value * 100)}%</Text></View>
-    <View style={audioStyles.slider}>
-      {steps.map(step => <Pressable key={step} disabled={disabled} accessibilityRole="button"
-        accessibilityLabel={`${label} ${Math.round(step * 100)} procent`}
-        onPress={() => onChange(step)}
-        style={[audioStyles.segment, step <= value + 0.001 && audioStyles.segmentActive]} />)}
-    </View>
+    <View style={audioStyles.volumeHeader}><Text style={audioStyles.volumeLabel}>{label}</Text><Text style={audioStyles.volumeValue}>{Math.round(draft * 100)}%</Text></View>
+    <Slider
+      accessibilityLabel={`${label} głośność`}
+      disabled={disabled}
+      minimumValue={0}
+      maximumValue={1}
+      step={0.01}
+      value={draft}
+      minimumTrackTintColor="#62efff"
+      onValueChange={change}
+    />
   </View>;
 }
-
 const audioStyles = StyleSheet.create({
   volumeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   volumeLabel: { color: '#9bb0b9', fontSize: 9, fontWeight: '900', letterSpacing: 2 },
   volumeValue: { color: '#62efff', fontSize: 10, fontWeight: '900' },
-  slider: { flexDirection: 'row', gap: 5, marginTop: 9 },
-  segment: { flex: 1, height: 9, borderRadius: 5, backgroundColor: '#17333e', borderWidth: 1, borderColor: '#28505f' },
-  segmentActive: { backgroundColor: '#62efff', borderColor: '#62efff' },
   row: { flexDirection: 'row', gap: 7, marginTop: 15 },
   test: { flex: 1, borderWidth: 1, borderColor: '#28505f', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   testText: { color: '#62efff', fontSize: 7, fontWeight: '900', letterSpacing: 1 },
