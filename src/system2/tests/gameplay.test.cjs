@@ -502,6 +502,7 @@ for (const saveError of [false, true]) {
     assert.equal(h.status(), saveError ? 'ERROR' : 'COMPLETED');
     assert.equal(h.awards(), 1);
     assert.equal(h.removals(), 1);
+    assert.equal(h.endedAttempts(), 0, 'ambiguous completion/save failure must stay unresolved until canonical re-read');
     h.fix(530);
     assert.equal(h.awards(), 1);
   });
