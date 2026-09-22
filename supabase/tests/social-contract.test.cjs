@@ -131,3 +131,12 @@ test('raid submission rejects invalid client evidence before network', async () 
   await assert.rejects(() => raids.submitRaidDamage('raid-1','verified:quest-1',Number.NaN), /damage/);
   assert.equal(h.calls.length,0);
 });
+
+
+test('malformed season and friend network rows fail closed', async () => {
+  const badSeason=api([{id:'s1',name:'Origin',starts_at:'2026-10-01T00:00:00Z',ends_at:'2026-09-01T00:00:00Z'}]);
+  await assert.rejects(()=>badSeason.load('cloud/seasons').getCurrentSeason(),/season window/);
+
+  const badFriends=api([{user_id:'u1',handle:'x',public_name:'X',real_level:'oops',rank:'E',status:'FRIENDS'}]);
+  await assert.rejects(()=>badFriends.load('cloud/socialCore').getCloudFriendNetwork(),/friend identity/);
+});
