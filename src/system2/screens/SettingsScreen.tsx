@@ -30,8 +30,8 @@ export default function SettingsScreen() {
       <Action label="AI GAME MASTER →" onPress={() => router.push('/game-master')} />
       <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /><Action label="SYSTEM ONLINE // HUB →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI // SYSTEM ONLINE →" onPress={() => router.push('/leaderboard')} /><Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} /></View>
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
-      <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
-      <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
+      <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ haptics: value })); }} />
+      <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ audio: value })); }} />
       <Text style={s.body}>Dźwięki startu misji, błędu/recovery, ukończenia i level-up. Nagroda nadal odtwarza tylko jeden kanoniczny efekt.</Text>
     </View>
     <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
