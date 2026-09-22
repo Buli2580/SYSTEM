@@ -1,10 +1,17 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SYSTEM_COLORS as C } from '../core';
-export default function SystemError({ message, retry }: { message: string; retry: () => void }) {
+
+export default function SystemError({ message, retry, actionLabel = 'SPRÓBUJ PONOWNIE' }: {
+  message: string;
+  retry: () => void;
+  actionLabel?: string;
+}) {
   return <View accessibilityRole="alert" style={styles.root}>
     <Text style={styles.title}>BŁĄD SYSTEMU</Text>
     <Text style={styles.message}>{message}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="Ponów operację" onPress={retry} style={({ pressed }) => [styles.retry, pressed && styles.pressed]}><Text style={styles.retryText}>SPRÓBUJ PONOWNIE</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={retry} style={({ pressed }) => [styles.retry, pressed && styles.pressed]}>
+      <Text style={styles.retryText}>{actionLabel}</Text>
+    </Pressable>
   </View>;
 }
 const styles = StyleSheet.create({
