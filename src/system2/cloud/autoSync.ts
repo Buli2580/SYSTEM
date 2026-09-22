@@ -16,6 +16,7 @@ export class AutoCloudSync {
   start() {
     if (!this.stopped) return;
     this.stopped = false;
+    this.appState = AppState.currentState;
     this.appStateSubscription = AppState.addEventListener('change', this.onAppState);
     void this.syncNow();
   }
