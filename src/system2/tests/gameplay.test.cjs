@@ -146,6 +146,20 @@ for (const failure of ['INSERT INTO quest_completions', 'UPDATE app_state', 'INS
   });
 }
 
+test('active attempt is closed exactly once by canonical quest completion', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  await db.beginQuestAttempt(evidence.questId,'attempt-canonical-complete');
+  const result = await db.completeVerifiedQuest({ ...evidence, attemptId:'attempt-canonical-complete' });
+  assert.equal(result.awarded,true);
+  const attempt = sql.prepare('SELECT result,reason FROM quest_attempts WHERE attempt_id=?').get('attempt-canonical-complete');
+  assert.equal(attempt.result,'COMPLETED');
+  assert.equal(attempt.reason,null);
+  const replay = await db.completeVerifiedQuest({ ...evidence, attemptId:'attempt-canonical-complete' });
+  assert.equal(replay.awarded,false);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM verified_events WHERE quest_id=?').get(evidence.questId).n,1);
+});
+
 test('ambiguous success after commit is safe to retry', async t => {
   const { db, faults } = databaseHarness(t);
   await db.loadOrCreatePlayer();
