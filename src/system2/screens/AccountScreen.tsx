@@ -201,7 +201,7 @@ export default function AccountScreen() {
       <Text style={s.body}>
         SYSTEM działa lokalnie także bez internetu. Konto online jest dodatkową warstwą i nie usuwa progresu zapisanego w telefonie.
       </Text>
-      <Action label="← WRÓĆ" onPress={() => router.back()} />
+      <Action label="← WRÓĆ" onPress={() => router.replace('/more')} />
     </View>
 
     {!session ? <View style={s.panel}>
