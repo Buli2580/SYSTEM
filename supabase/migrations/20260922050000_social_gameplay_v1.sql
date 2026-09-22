@@ -567,7 +567,7 @@ begin
 
   if v_damage is null then raise exception 'UNVERIFIED_EVENT'; end if;
 
-  -- p_damage stays in the mobile RPC signature for compatibility. It is never trusted.
+  -- p_damage is retained in the mobile RPC signature for compatibility and is never trusted.
   insert into public.raid_damage(raid_id,event_key,user_id,damage)
   values(p_raid,p_event_key,v_uid,v_damage)
   on conflict do nothing;
