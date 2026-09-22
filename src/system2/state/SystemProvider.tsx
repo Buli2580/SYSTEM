@@ -271,7 +271,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     rerollDailyQuest: id => apply(() => db.rerollDailyQuest(id)),
     saveSettings: patch => apply(() => db.saveSettings(patch)), resetData, achievementState, achievementError, refreshAchievements,
     aiGameMaster, aiLoading, aiError, refreshAIGameMaster,
-    acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
+    acknowledgeAwakening: () => apply(() => db.acknowledgeAwakening()),
   }}>{children}</SystemContext.Provider>;
 }
 export function useSystem() {
