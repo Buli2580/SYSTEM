@@ -23,7 +23,7 @@ export default function HomeCommandCenter() {
   const router = useRouter();
   const system = useSystem();
   const player = system.player;
-  const activeQuest = system.activeQuestId ? getQuest(system.activeQuestId) : undefined;
+  const activeQuest = system.activeQuestId && !system.completedQuestIds.includes(system.activeQuestId) ? getQuest(system.activeQuestId) : undefined;
   const next = getNextAction({
     ...system,
     player,
