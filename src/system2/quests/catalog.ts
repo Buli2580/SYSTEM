@@ -5,11 +5,12 @@ import { supportsStrength, phoneProvider } from '../activity/capabilities';
 import { FIRST_MOVEMENT_QUEST } from './firstMovement';
 import { FOCUS_PROTOCOL_QUEST } from './focusProtocol';
 import { FINAL_TRIAL_QUEST } from './finalTrial';
+import { PHOTO_PROOF_QUEST } from './photoProof';
 import type { RunnableQuest, QuestEvidence, QuestAvailability } from './types';
 
 export const AWAKENING_CHAPTER_ID = 'awakening_chapter_1';
 export const AWAKENING_REWARD_XP = 300;
-export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PROTOCOL_QUEST, FINAL_TRIAL_QUEST, ...BOSS_QUESTS];
+export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PROTOCOL_QUEST, FINAL_TRIAL_QUEST, PHOTO_PROOF_QUEST, ...BOSS_QUESTS];
 export const AWAKENING_QUESTS = QUESTS.filter(quest => quest.arc === 'AWAKENING' && quest.chapter === 1)
   .sort((a, b) => a.order - b.order);
 export function getQuest(id: string) { return QUESTS.find(quest => quest.id === id) ?? dailyQuest(id); }
@@ -47,6 +48,10 @@ export function validateQuestEvidence(evidence: QuestEvidence): RunnableQuest {
         evidence.distanceMeters < quest.verification.minimumDistanceMeters) {
       throw new Error('GPS nie potwierdził wymaganego dystansu.');
     }
+  }
+  if (quest.proofMode && evidence.photoCaptured !== true) throw new Error('Brak wymaganego dowodu zdjęciowego.');
+  if (evidence.photoProofHash !== undefined && !/^[a-f0-9]{64}$/i.test(evidence.photoProofHash)) {
+    throw new Error('Nieprawidłowy identyfikator dowodu zdjęciowego.');
   }
   if (quest.verification.type !== 'GPS_DISTANCE' && evidence.durationSeconds < quest.verification.minimumDurationSeconds) {
     throw new Error('Timer nie potwierdził wymaganego czasu.');

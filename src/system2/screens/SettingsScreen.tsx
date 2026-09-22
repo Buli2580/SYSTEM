@@ -1,6 +1,6 @@
 import BetaSettings from '../components/BetaSettings';
-import { useRef, useState } from 'react';
-import { Linking, Modal, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -13,6 +13,8 @@ import { createResetConfirmation } from '../identity/reset';
 import { requestBackgroundLocationAccess } from '../background/locationService';
 import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
+import { playFeedback, playMusic, stopMusic } from '../identity/audio';
+import Slider from '@expo/ui/community/slider';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
@@ -31,8 +33,21 @@ export default function SettingsScreen() {
       <Action label="HISTORIA SYSTEMU →" onPress={() => router.push('/system-log')} /></View>
     <View style={s.panel}><Text style={s.label}>WIBRACJE</Text>
       <Switch accessibilityLabel="Wibracje włączone lub wyłączone" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
-      <Text style={s.label}>DŹWIĘK</Text><Switch accessibilityLabel="Dźwięk włączony lub wyłączony" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
-      <Text style={s.body}>Dźwięk ukończenia misji lub awansu poziomu. Jeden efekt dla jednej nagrody.</Text>
+      <Text style={[s.label, { marginTop: 18 }]}>AUDIO SYSTEMU</Text>
+      <Switch accessibilityLabel="Dźwięk włączony lub wyłączony" value={settings.audio} disabled={busy} onValueChange={value => { void run(async () => {
+        await saveSettings({ ...settings, audio: value });
+        if (value) playFeedback('SYSTEM_WAKE'); else stopMusic();
+      }); }} />
+      <VolumeControl label="EFEKTY" value={settings.sfxVolume ?? 0.8} disabled={busy || !settings.audio}
+        onChange={value => { void run(async () => { await saveSettings({ ...settings, sfxVolume: value }); playFeedback('UI_TAP'); }); }} />
+      <VolumeControl label="MUZYKA / AMBIENT" value={settings.musicVolume ?? 0.35} disabled={busy || !settings.audio}
+        onChange={value => { void run(async () => { await saveSettings({ ...settings, musicVolume: value }); playMusic('DASHBOARD'); }); }} />
+      <View style={audioStyles.row}>
+        <Pressable disabled={!settings.audio} style={audioStyles.test} onPress={() => playFeedback('QUEST_START')}><Text style={audioStyles.testText}>TEST SFX</Text></Pressable>
+        <Pressable disabled={!settings.audio} style={audioStyles.test} onPress={() => playMusic('DASHBOARD')}><Text style={audioStyles.testText}>TEST MUSIC</Text></Pressable>
+        <Pressable style={audioStyles.test} onPress={stopMusic}><Text style={audioStyles.testText}>STOP</Text></Pressable>
+      </View>
+      <Text style={s.body}>Efekty obejmują UI, przebudzenie, start questa, weryfikację, XP, level-up i błędy. Boss ma osobny motyw.</Text>
     </View>
     <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
@@ -85,3 +100,37 @@ export default function SettingsScreen() {
     </Modal>
   </SystemPage>;
 }
+
+
+function VolumeControl({ label, value, onChange, disabled }: { label: string; value: number; onChange: (value: number) => void; disabled?: boolean }) {
+  const [draft, setDraft] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => setDraft(value), [value]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  function change(next: number) {
+    setDraft(next);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onChange(next), 220);
+  }
+  return <View style={{ marginTop: 16, opacity: disabled ? 0.4 : 1 }}>
+    <View style={audioStyles.volumeHeader}><Text style={audioStyles.volumeLabel}>{label}</Text><Text style={audioStyles.volumeValue}>{Math.round(draft * 100)}%</Text></View>
+    <Slider
+      accessibilityLabel={`${label} głośność`}
+      disabled={disabled}
+      minimumValue={0}
+      maximumValue={1}
+      step={0.01}
+      value={draft}
+      minimumTrackTintColor="#62efff"
+      onValueChange={change}
+    />
+  </View>;
+}
+const audioStyles = StyleSheet.create({
+  volumeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  volumeLabel: { color: '#9bb0b9', fontSize: 9, fontWeight: '900', letterSpacing: 2 },
+  volumeValue: { color: '#62efff', fontSize: 10, fontWeight: '900' },
+  row: { flexDirection: 'row', gap: 7, marginTop: 15 },
+  test: { flex: 1, borderWidth: 1, borderColor: '#28505f', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  testText: { color: '#62efff', fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+});

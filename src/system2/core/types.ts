@@ -224,6 +224,8 @@ export interface VerifiedEvent {
   distanceMeters?: number;
   durationSeconds?: number;
   steps?: number;
+  photoCaptured?: boolean;
+  photoProofHash?: string;
 
   latitude?: number;
   longitude?: number;

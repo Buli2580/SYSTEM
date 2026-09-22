@@ -43,7 +43,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const refreshRef = useRef<Promise<void> | null>(null);
   const generation = useRef(0);
   const resetting = useRef(false);
-  useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
+  useEffect(() => {
+    configureAudio({
+      enabled: snapshot.settings.audio,
+      sfxVolume: snapshot.settings.sfxVolume,
+      musicVolume: snapshot.settings.musicVolume,
+    });
+    return stopAudio;
+  }, [snapshot.settings.audio, snapshot.settings.sfxVolume, snapshot.settings.musicVolume]);
   useEffect(() => {
     if (!ready) return;
     let active = true;

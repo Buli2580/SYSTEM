@@ -4,6 +4,7 @@ export type RunnableQuest = Omit<Quest, 'verification' | 'status'> & {
   order: number;
   templateId?: string; dayKey?: string;
   activityType?: import('../activity/types').ActivityType;
+  proofMode?: 'PHOTO' | 'GPS_TIME_PHOTO';
   verificationStrength?: import('../activity/types').VerificationStrength;
   secondarySkills: NonNullable<Quest['secondarySkills']>;
   verification:
@@ -12,7 +13,7 @@ export type RunnableQuest = Omit<Quest, 'verification' | 'status'> & {
     | { type: 'MULTI'; minimumDistanceMeters: number; minimumDurationSeconds: number; verificationScoreRequired: number };
 };
 
-export type QuestEvidence = { questId: string; attemptId?: string; activity?: import('../activity/types').ActivityEvidence; verificationScore: number; durationSeconds: number } & (
+export type QuestEvidence = { questId: string; attemptId?: string; activity?: import('../activity/types').ActivityEvidence; verificationScore: number; durationSeconds: number; photoCaptured?: boolean; photoProofHash?: string } & (
   | { verificationType: 'GPS_DISTANCE' | 'MULTI'; distanceMeters: number }
   | { verificationType: 'TIMER'; distanceMeters?: never }
 );

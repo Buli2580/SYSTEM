@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 
 import { SYSTEM_COLORS } from '../core';
+import { playFeedback } from '../identity/audio';
 
 export default function BottomNavigation() {
   const insets = useSafeAreaInsets();
@@ -79,7 +80,7 @@ function NavItem({
   unavailable?: boolean;
 }) {
   return (
-    <Pressable style={styles.item} onPress={onPress} disabled={unavailable}
+    <Pressable style={styles.item} onPress={() => { playFeedback('UI_TAP'); onPress?.(); }} disabled={unavailable}
       accessibilityRole="button" accessibilityState={{ disabled: unavailable, selected: active }}
       accessibilityLabel={label + (unavailable ? ' — wkrótce' : '')}>
       {shape === 'diamond' && (

@@ -63,6 +63,10 @@ export function useQuestRun(quest: RunnableQuest) {
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [extendedGoal, setExtendedGoal] = useState(false);
   const extendedRef = useRef(false);
+  const [photoProof, setPhotoProof] = useState(false);
+  const photoProofRef = useRef(false);
+  const [photoProofHash, setPhotoProofHash] = useState<string | null>(null);
+  const photoProofHashRef = useRef<string | null>(null);
   const attemptRef = useRef<string | null>(null);
   const trackingSince = useRef<number | null>(null);
   const pendingEnd = useRef<Parameters<typeof endQuestAttempt> | null>(null);
@@ -84,7 +88,9 @@ export function useQuestRun(quest: RunnableQuest) {
   }, [flushAttempt, refreshPlayer]);
 
   const persistCheckpoint = useCallback(async (force = false) => {
-    if (quest.verification.type === 'TIMER' || distanceRef.current <= 0) return;
+    const proofCheckpoint = Boolean(quest.proofMode && photoProofRef.current);
+    if ((quest.verification.type === 'TIMER' && !proofCheckpoint) ||
+        (quest.verification.type !== 'TIMER' && distanceRef.current <= 0 && !proofCheckpoint)) return;
     const now = Date.now();
     if (!force && distanceRef.current - checkpointWriteRef.current.distance < 10 &&
         now - checkpointWriteRef.current.at < 5000) return;
@@ -100,13 +106,15 @@ export function useQuestRun(quest: RunnableQuest) {
       ),
       verificationScore: activityRef.current?.verificationScore ?? scoreRef.current,
       extendedGoal: extendedRef.current,
+      ...(photoProofRef.current ? { photoCaptured: true } : {}),
+      ...(photoProofHashRef.current ? { photoProofHash: photoProofHashRef.current } : {}),
       ...(activityRef.current ? { activityFeatures: activityRef.current.features } : {}),
       updatedAt: new Date(now).toISOString(),
     };
     checkpointRef.current = checkpoint;
     checkpointWriteRef.current = { distance: checkpoint.distanceMeters, at: now };
     await saveQuestCheckpoint(checkpoint);
-  }, [quest.id, quest.verification.type]);
+  }, [quest.id, quest.verification.type, quest.proofMode]);
   const chooseExtendedGoal = (value:boolean) => {
     if (statusRef.current !== 'READY' || quest.category !== 'DAILY' || !quest.activityType) return;
     extendedRef.current = value; setExtendedGoal(value);
@@ -171,11 +179,11 @@ export function useQuestRun(quest: RunnableQuest) {
       const access = await awaitWithTimeout(getQuestAccess(quest.id));
       let checkpoint: QuestCheckpoint | null = null;
       let backgroundSession = null;
-      if (access === 'AVAILABLE' && quest.verification.type !== 'TIMER') {
-        [checkpoint, backgroundSession] = await Promise.all([
-          awaitWithTimeout(loadQuestCheckpoint(quest.id)),
-          awaitWithTimeout(loadBackgroundQuestSession()),
-        ]);
+      if (access === 'AVAILABLE' && (quest.verification.type !== 'TIMER' || quest.proofMode)) {
+        checkpoint = await awaitWithTimeout(loadQuestCheckpoint(quest.id));
+        if (quest.verification.type !== 'TIMER') {
+          backgroundSession = await awaitWithTimeout(loadBackgroundQuestSession());
+        }
       } else if (access === 'COMPLETED' || access === 'LOCKED') {
         await awaitWithTimeout(clearQuestCheckpoint(quest.id));
         if (quest.verification.type !== 'TIMER') {
@@ -193,6 +201,10 @@ export function useQuestRun(quest: RunnableQuest) {
       setDistance(checkpoint?.distanceMeters ?? 0);
       setDuration(checkpoint?.durationSeconds ?? 0);
       setExtendedGoal(checkpoint?.extendedGoal ?? false);
+      photoProofRef.current = checkpoint?.photoCaptured === true;
+      setPhotoProof(checkpoint?.photoCaptured === true);
+      photoProofHashRef.current = checkpoint?.photoProofHash ?? null;
+      setPhotoProofHash(checkpoint?.photoProofHash ?? null);
       if (quest.activityType && checkpoint?.activityFeatures) {
         const restored = classifyActivity(quest.activityType, checkpoint.activityFeatures);
         activityRef.current = restored;
@@ -209,7 +221,7 @@ export function useQuestRun(quest: RunnableQuest) {
         fail('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
       }
     }
-  }, [stopVerification, transition, fail, refreshPlayer, quest.id, quest.activityType, quest.verification.type, flushAttempt, isTimer]);
+  }, [stopVerification, transition, fail, refreshPlayer, quest.id, quest.activityType, quest.verification.type, quest.proofMode, flushAttempt, isTimer]);
 
   useFocusEffect(useCallback(() => {
     focusedRef.current = true;
@@ -300,7 +312,7 @@ export function useQuestRun(quest: RunnableQuest) {
         const sample = timerRef.current?.sample();
         if (!sample) return;
         setDuration(sample.seconds);
-        const evidence = buildEvidence(quest, distanceRef.current, sample.seconds, scoreRef.current);
+        const evidence = buildEvidence(quest, distanceRef.current, sample.seconds, scoreRef.current, photoProofRef.current, photoProofHashRef.current ?? undefined);
         if (evidence) void finishQuest(evidence);
       } else if (startTimeRef.current) setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
     }, 1000);
@@ -337,8 +349,9 @@ export function useQuestRun(quest: RunnableQuest) {
           checkpointRef.current = null;
           activityBaseRef.current = null;
           fail((result.verdict === 'SUSPICIOUS' ? 'AKTYWNOŚĆ WYMAGA PONOWNEJ WERYFIKACJI — ' : 'MISJA NIEZALICZONA — ') + verdictMessage(result), false, result.verdict, result.verdict === 'REJECTED' ? 'VERIFICATION_REJECTED' : 'LOW_CONFIDENCE'); return; }
-        void finishQuest({ questId: quest.id, verificationType: 'GPS_DISTANCE', distanceMeters: distanceRef.current,
-          durationSeconds: result.features.durationSeconds, verificationScore: result.verificationScore, activity: result });
+        if (!quest.proofMode || photoProofRef.current) void finishQuest({ questId: quest.id, verificationType: 'GPS_DISTANCE', distanceMeters: distanceRef.current,
+          durationSeconds: result.features.durationSeconds, verificationScore: result.verificationScore, activity: result,
+          ...(quest.proofMode ? { photoCaptured: true, ...(photoProofHashRef.current ? { photoProofHash: photoProofHashRef.current } : {}) } : {}) });
       }
       return;
     }
@@ -381,7 +394,7 @@ export function useQuestRun(quest: RunnableQuest) {
     void persistCheckpoint().catch(() => undefined);
     const seconds = hasTimer ? timerRef.current?.sample().seconds ?? 0
       : Math.max(1, Math.floor((Date.now() - startTimeRef.current!) / 1000));
-    const evidence = buildEvidence(quest, distanceRef.current, seconds, scoreRef.current);
+    const evidence = buildEvidence(quest, distanceRef.current, seconds, scoreRef.current, photoProofRef.current, photoProofHashRef.current ?? undefined);
     if (evidence) void finishQuest(evidence);
   }
 
@@ -409,6 +422,8 @@ export function useQuestRun(quest: RunnableQuest) {
       setActivity(null);
     }
     setCurrentSpeed(0);
+    photoProofRef.current = false;
+    setPhotoProof(false);
     setDistance(distanceRef.current);
     setDuration(0);
     setAccuracy(null);
@@ -525,8 +540,29 @@ export function useQuestRun(quest: RunnableQuest) {
     if (focusedRef.current && statusRef.current === 'READY') await startQuest();
   }
 
+  async function markPhotoProof(proofHash?: string) {
+    if (!quest.proofMode || !['TRACKING', 'READY'].includes(statusRef.current)) return;
+    photoProofRef.current = true;
+    setPhotoProof(true);
+    photoProofHashRef.current = proofHash ?? null;
+    setPhotoProofHash(proofHash ?? null);
+    await persistCheckpoint(true);
+    const seconds = Math.max(
+      1,
+      activityRef.current?.features.durationSeconds ??
+        timerRef.current?.sample().seconds ??
+        (startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : duration),
+    );
+    const score = activityRef.current?.verificationScore ?? scoreRef.current;
+    const evidence = buildEvidence(quest, distanceRef.current, seconds, score, true, photoProofHashRef.current ?? undefined);
+    if (!evidence) return;
+    if (activityRef.current) evidence.activity = activityRef.current;
+    await finishQuest(evidence);
+  }
+
   return {
     status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
+    photoProof, photoProofHash, markPhotoProof,
     ready, databaseError, refreshPlayer, startQuest, retryQuest,
   };
 }
