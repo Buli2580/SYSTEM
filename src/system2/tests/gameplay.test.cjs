@@ -360,7 +360,10 @@ function screenHarness(t, options = {}) {
         return options.backgroundPermission?.promise ?? Promise.resolve({ status: 'granted' });
       },
       isBackgroundLocationAvailableAsync: async () => true,
-      hasStartedLocationUpdatesAsync: async () => backgroundStarted,
+      hasStartedLocationUpdatesAsync: async () => {
+        if (options.backgroundTaskStatusError) throw new Error('TaskManager status failed');
+        return backgroundStarted;
+      },
       startLocationUpdatesAsync: async () => { backgroundStarted = true; },
       stopLocationUpdatesAsync: async () => { backgroundStarted = false; },
       hasServicesEnabledAsync: async () => true,
@@ -507,6 +510,16 @@ for (const saveError of [false, true]) {
     assert.equal(h.awards(), 1);
   });
 }
+
+test('native background task startup/status failure releases GPS session ownership', async t => {
+  const h = screenHarness(t, { backgroundTaskStatusError: true });
+  await flush(); h.render();
+  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush(); h.render();
+  assert.equal(h.status(), 'ERROR');
+  assert.equal(h.backgroundSession(), null);
+  assert.equal(h.starts(), 0);
+});
 
 test('background location disclosure is shown before the first background permission request', async t => {
   const h = screenHarness(t);
