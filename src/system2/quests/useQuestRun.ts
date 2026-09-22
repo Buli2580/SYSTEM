@@ -542,6 +542,13 @@ export function useQuestRun(quest: RunnableQuest) {
       backgroundSessionActiveRef.current = true;
       await markQuestForeground(quest.id);
       if (!active()) return;
+      if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
+        backgroundHandoffRef.current = true;
+        void handoffQuestToBackground(quest.id, lastPointRef.current).catch(() => undefined);
+        void persistCheckpoint(true).catch(() => undefined);
+        pauseForegroundTracking();
+        return;
+      }
       const servicesEnabled = await Location.hasServicesEnabledAsync();
       if (!active()) return;
       if (!servicesEnabled) {
@@ -564,6 +571,14 @@ export function useQuestRun(quest: RunnableQuest) {
       );
       if (!active()) {
         watcher.remove();
+        return;
+      }
+      if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
+        watcher.remove();
+        backgroundHandoffRef.current = true;
+        void handoffQuestToBackground(quest.id, lastPointRef.current).catch(() => undefined);
+        void persistCheckpoint(true).catch(() => undefined);
+        pauseForegroundTracking();
         return;
       }
       watcherRef.current = watcher;
