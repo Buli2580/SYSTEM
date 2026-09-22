@@ -50,6 +50,9 @@ export function validateQuestEvidence(evidence: QuestEvidence): RunnableQuest {
     }
   }
   if (quest.proofMode && evidence.photoCaptured !== true) throw new Error('Brak wymaganego dowodu zdjęciowego.');
+  if (evidence.photoProofHash !== undefined && !/^[a-f0-9]{64}$/i.test(evidence.photoProofHash)) {
+    throw new Error('Nieprawidłowy identyfikator dowodu zdjęciowego.');
+  }
   if (quest.verification.type !== 'GPS_DISTANCE' && evidence.durationSeconds < quest.verification.minimumDurationSeconds) {
     throw new Error('Timer nie potwierdził wymaganego czasu.');
   }
