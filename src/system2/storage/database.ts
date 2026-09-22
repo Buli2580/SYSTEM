@@ -396,6 +396,7 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
     await db.withExclusiveTransactionAsync(async txn => {
       // Lock before reads; uniqueness on completion/event remains the final duplicate guard.
       await txn.runAsync('UPDATE app_state SET value = value WHERE key = ?', 'player');
+      const presentationBefore = await snapshotInTransaction(txn);
       result = await work(completionRepositories(txn, () => readPlayer(txn), async id => {
         const quest = getQuest(id);
         const ids = await completedQuestIds(txn);
@@ -419,8 +420,8 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
             event.id,
             before,
             snapshot.player,
-            snapshot.awakeningAwarded ? ['AWAKENED'] : [],
-            snapshot.awakeningAwarded,
+            snapshot.titles.filter(title => !presentationBefore.titles.includes(title)),
+            !presentationBefore.worldUnlocked && snapshot.worldUnlocked,
           ) : undefined;
           if (awarded && receipt) await enqueuePendingRewardPresentation(txn, receipt);
           return { awarded, ...snapshot, ...(receipt ? { receipt } : {}) };
