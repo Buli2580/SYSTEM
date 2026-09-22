@@ -115,6 +115,7 @@ test('provider clears stale background sessions before exposing an active quest'
   assert.match(source, /getQuestAccess\(backgroundQuest\.questId\)/);
   assert.match(source, /access === 'LOCKED' \|\| access === 'COMPLETED'/);
   assert.match(source, /stopQuestBackgroundTracking\(backgroundQuest\.questId\)/);
+  assert.match(source, /clearQuestCheckpoint\(backgroundQuest\.questId\)/);
 });
 
 
