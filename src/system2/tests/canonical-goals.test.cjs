@@ -230,6 +230,17 @@ test('goal creation is idempotent across ambiguous retry',async t=>{
  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_events WHERE type='GOAL_CREATED'").get().n,1);
 });
 
+test('reset clears goal idempotency journal so first-goal key can be reused',async t=>{
+ const h=await dailyHarness(t),input={category:'DISCIPLINE',priority:3,title:'Dyscyplina',description:''};
+ await h.db.createPlayerGoal(input,'awakening:first-goal:v1');
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,1);
+ await h.db.resetSystemData(true);
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,0);
+ const next=await h.db.createPlayerGoal(input,'awakening:first-goal:v1');
+ assert.equal(next.goals.length,1);
+ assert.equal((await h.db.testerHealthCheck()).ok,true);
+});
+
 test('goal changes affect next local day only; generation event and loadout persist once',async t=>{
  const h=await dailyHarness(t),first=await h.db.loadSystemState();await h.db.createPlayerGoal({category:'LEARNING',title:'Angielski',description:'',priority:3});
  await Promise.all(Array.from({length:4},()=>h.db.loadSystemState()));
