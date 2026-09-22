@@ -6,6 +6,7 @@ import {
   clearBackgroundQuestSession,
   clearQuestCheckpoint,
   completeVerifiedQuest,
+  getQuestAccess,
   loadBackgroundQuestSession,
   loadQuestCheckpoint,
   saveQuestCheckpoint,
@@ -92,6 +93,14 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   const quest = getQuest(session.questId);
   if (!quest || quest.verification.type === 'TIMER') {
     await clearBackgroundQuestSession(session.questId);
+    await stopOrphanedLocationTask();
+    return;
+  }
+
+  const access = await getQuestAccess(session.questId).catch(() => null);
+  if (access === 'LOCKED' || access === 'COMPLETED') {
+    await clearQuestCheckpoint(session.questId).catch(() => undefined);
+    await clearBackgroundQuestSession(session.questId).catch(() => undefined);
     await stopOrphanedLocationTask();
     return;
   }
