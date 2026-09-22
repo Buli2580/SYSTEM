@@ -37,6 +37,7 @@ type SystemContextValue = db.SystemSnapshot & {
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
   lastReward: RewardReceipt | null; notificationError: string | null;
+  refreshNotifications: () => Promise<void>;
   achievementState: PlayerAchievementState;
   achievementError: string | null;
   refreshAchievements: () => Promise<void>;
@@ -72,14 +73,22 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const aiLastRequestAt = useRef(0);
   const aiRequestRef = useRef(0);
   useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
+  const refreshNotifications = useCallback(async (): Promise<void> => {
+    try {
+      await awaitWithTimeout(syncReminders(
+        snapshot.settings,
+        snapshot.daily?.clear ?? false,
+        snapshot.awakeningCompleted && !snapshot.daily?.clockAnomaly,
+      ));
+      setNotificationError(null);
+    } catch {
+      setNotificationError('Nie udało się odświeżyć przypomnień. Spróbuj ponownie.');
+    }
+  }, [snapshot.settings, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted]);
   useEffect(() => {
     if (!ready) return;
-    let active = true;
-    void awaitWithTimeout(syncReminders(snapshot.settings, snapshot.daily?.clear ?? false, snapshot.awakeningCompleted && !snapshot.daily?.clockAnomaly))
-      .then(() => { if (active) setNotificationError(null); })
-      .catch(() => { if (active) setNotificationError('Nie udało się odświeżyć przypomnień. Ponów zapis w ustawieniach.'); });
-    return () => { active = false; };
-  }, [ready, snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.dayKey, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted]);
+    void refreshNotifications();
+  }, [ready, snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.dayKey, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted, refreshNotifications]);
   useEffect(() => { configureHaptics(snapshot.settings.haptics); }, [snapshot.settings.haptics]);
   const loadAchievements = useCallback(async (epoch: number): Promise<void> => {
     const [achievements, titles] = await awaitWithTimeout(Promise.all([loadAchievementsState(), loadTitlesState()]));
@@ -299,7 +308,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     finally { resetting.current = false; }
   }, [syncAchievements]);
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
-    completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
+    completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, refreshNotifications, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(() => db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(() => db.updateIdentity(patch)),
     createPlayerGoal: input => apply(() => db.createPlayerGoal(input)), createFirstGoalAndPrepareAwakening, prepareAwakeningDirection,
     updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
