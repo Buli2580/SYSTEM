@@ -1002,8 +1002,8 @@ export function cloudOutboxStats() {
   });
 }
 
-export function createPlayerGoal(input: GoalInput) {
- return profileTransaction(async txn => { await insertGoal(txn,input); return snapshotInTransaction(txn); });
+export function createPlayerGoal(input: GoalInput, operationKey?: string) {
+ return profileTransaction(async txn => { await insertGoal(txn,input,Date.now(),operationKey); return snapshotInTransaction(txn); });
 }
 export function updateGoalStatus(id: string, status: GoalStatus) {
  return profileTransaction(async txn => { await changeGoalStatus(txn,id,status); return snapshotInTransaction(txn); });
