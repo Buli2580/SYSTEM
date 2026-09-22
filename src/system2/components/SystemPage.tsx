@@ -13,7 +13,7 @@ export default function SystemPage({ title, subtitle, children, intensity = 'qui
   const { ready, error, refreshPlayer } = useSystem();
   return <SystemScreen style={styles.root}>
     <SystemAmbientBackground intensity={intensity} />
-    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: (showNavigation ? 150 : 44) + insets.bottom }]}>
+    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: (showNavigation ? 150 : 44) + insets.bottom }]}>
       <Text style={styles.code}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
       {ready ? children : <View style={styles.panel}>
