@@ -106,9 +106,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
       >
         <View style={styles.topBar}>
           <Pressable accessibilityRole="button"
-            onPress={() =>
-              router.back()
-            }
+            onPress={() => router.replace('/quests')}
             style={styles.backButton}
           >
             <Text
@@ -405,9 +403,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.returnText
                 }
               >
-                {alreadyCompleted ? 'WRÓĆ DO SYSTEMU' : nextAction.title}
+                {alreadyCompleted ? 'WRÓĆ DO QUEST HUB' : nextAction.title}
               </Text>
             </Pressable>
+            <View style={styles.completeActions}>
+              {!alreadyCompleted && nextAction.route !== '/quests' && <Pressable accessibilityRole="button" onPress={() => router.replace('/quests')}><Text style={styles.completeLink}>QUEST HUB</Text></Pressable>}
+              <Pressable accessibilityRole="button" onPress={() => router.replace('/')}><Text style={styles.completeLink}>HOME</Text></Pressable>
+            </View>
           </Animated.View>
         )}
       </ScrollView>
@@ -429,6 +431,8 @@ function isLiveQuestStatus(status: string) {
 
 const styles =
   StyleSheet.create({
+    completeActions: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 16 },
+    completeLink: { color: SYSTEM_COLORS.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
     liveMissionHeader: { marginTop: 12, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.05)' },
     liveMissionCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
     liveMissionTitle: { color: SYSTEM_COLORS.white, fontSize: 20, fontWeight: '900', marginTop: 7 },
