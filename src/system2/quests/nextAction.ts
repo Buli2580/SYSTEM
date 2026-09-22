@@ -76,10 +76,8 @@ export function getNextAction(input: NextActionInput): NextAction {
     return { kind: 'STORY', title: 'ADVANCE MAIN STORY', detail: 'Open the next WORLD LINK objective', route: '/story', priority: 60 };
   }
 
-  const unclaimed = Object.values(input.achievements?.achievements ?? {}).filter(item => item.unlockedAt && !item.claimedAt).length;
-  if (unclaimed > 0) {
-    return { kind: 'ACHIEVEMENTS', title: 'CLAIM ACHIEVEMENTS', detail: `${unclaimed} reward${unclaimed === 1 ? '' : 's'} ready`, route: '/achievements', priority: 50 };
-  }
+  // Achievements unlock automatically. Until a durable "seen" state exists,
+  // they must not become a sticky command-deck action that the player cannot clear.
 
   return {
     kind: 'PROGRESSION',
