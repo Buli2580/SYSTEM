@@ -54,10 +54,14 @@ export default function HomeCommandCenter() {
   const hasSystemAlert = !!(system.daily?.clockAnomaly || system.aiError || system.notificationError || system.achievementError || (system.awakeningCompleted && !system.daily));
   const repairSystem = () => {
     if (system.aiError && system.awakeningCompleted) { void system.refreshAIGameMaster(); return; }
+    if (system.notificationError) { void system.refreshNotifications(); return; }
     if (system.achievementError) { void system.refreshAchievements(); return; }
     void system.refreshPlayer();
   };
-  const repairLabel = system.aiError && system.awakeningCompleted ? 'RETRY AI →' : system.achievementError ? 'SYNC →' : 'REFRESH →';
+  const repairLabel = system.aiError && system.awakeningCompleted ? 'RETRY AI →'
+    : system.notificationError ? 'RETRY REMINDER →'
+    : system.achievementError ? 'SYNC →'
+    : 'REFRESH →';
 
   const openNext = () => {
     if (next.route === '/quest' && next.questId) {
