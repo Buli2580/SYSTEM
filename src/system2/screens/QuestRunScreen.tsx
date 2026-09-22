@@ -1,7 +1,11 @@
 import { useSystem } from '../state/SystemProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import MotionProgress from '../components/MotionProgress';
+import QuestFlowHeader from '../components/QuestFlowHeader';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
@@ -10,6 +14,7 @@ import { useQuestRun } from '../quests/useQuestRun';
 import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
 import { difficultyPl, verificationPl } from '../i18n/pl';
+import { playFeedback, playMusic, stopMusic } from '../identity/audio';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -17,7 +22,10 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
   const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
+    photoProof, markPhotoProof,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
+  const [proofUri, setProofUri] = useState<string | null>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
@@ -43,6 +51,57 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   const seconds =
     duration % 60;
+
+  const awakeningIndex = AWAKENING_QUESTS.findIndex(item => item.id === quest.id);
+  const nextQuest = awakeningIndex >= 0 ? AWAKENING_QUESTS[awakeningIndex + 1] : undefined;
+
+  useEffect(() => {
+    if (status === 'STARTING') {
+      playFeedback('QUEST_START');
+      playMusic(quest.category === 'BOSS' ? 'BOSS' : 'QUEST');
+    } else if (status === 'TRACKING') {
+      playMusic(quest.category === 'BOSS' ? 'BOSS' : 'QUEST');
+    } else if (status === 'COMPLETING') {
+      playFeedback('VERIFY');
+    } else if (status === 'COMPLETED') {
+      playFeedback('QUEST_COMPLETE');
+      stopMusic();
+    } else if (status === 'ERROR' || status === 'DENIED') {
+      playFeedback('ERROR');
+      stopMusic();
+    }
+  }, [status, quest.category]);
+
+  useEffect(() => () => stopMusic(), []);
+
+  async function captureProof() {
+    setProofError(null);
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setProofError('Brak zgody na aparat. Włącz dostęp do aparatu w ustawieniach aplikacji.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7,
+        exif: false,
+        base64: false,
+      });
+      if (result.canceled) return;
+      const uri = result.assets[0]?.uri;
+      if (!uri) {
+        setProofError('Aparat nie zwrócił zdjęcia. Spróbuj ponownie.');
+        return;
+      }
+      setProofUri(uri);
+      playFeedback('VERIFY');
+      await markPhotoProof();
+    } catch (cause) {
+      setProofError(cause instanceof Error ? cause.message : 'Nie udało się wykonać dowodu zdjęciowego.');
+    }
+  }
 
   return (
     <View style={styles.root}>
@@ -80,6 +139,8 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
+        <QuestFlowHeader status={status} boss={quest.category === 'BOSS'} />
+
         <View
           style={styles.questCard}
         >
@@ -89,7 +150,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             <Text
               style={styles.category}
             >
-              {verificationPl(quest.verification.type)}
+              {quest.proofMode === 'GPS_TIME_PHOTO' ? 'GPS + CZAS + FOTO' : quest.proofMode === 'PHOTO' ? 'FOTO' : verificationPl(quest.verification.type)}
             </Text>
 
             <Text
@@ -166,7 +227,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.metricCyan
                 }
               >
-                {isMulti ? 'GPS + CZAS' : isTimer ? 'CZAS' : 'GPS'}
+                {quest.proofMode === 'GPS_TIME_PHOTO' ? 'GPS + CZAS + FOTO' : quest.proofMode === 'PHOTO' ? 'FOTO' : isMulti ? 'GPS + CZAS' : isTimer ? 'CZAS' : 'GPS'}
               </Text>
             </View>
           </View>
@@ -178,6 +239,25 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · KROKI — · KADENCJA —</Text>
           <Text style={styles.description}>TYLKO GPS // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
+
+        {quest.proofMode && <View style={styles.proofCard}>
+          <Text style={styles.proofLabel}>CAMERA VERIFICATION 1.0 // {quest.proofMode}</Text>
+          <Text style={styles.proofTitle}>{photoProof ? 'DOWÓD PRZYJĘTY' : 'DOWÓD FOTO WYMAGANY'}</Text>
+          <Text style={styles.description}>
+            Zdjęcie wykonujesz bezpośrednio w aktywnej misji. SYSTEM nie dodaje surowej fotografii do telemetrii ani cloud evidence.
+          </Text>
+          {proofUri && <Image source={{ uri: proofUri }} style={styles.proofImage} />}
+          {proofError && <Text style={styles.proofError}>{proofError}</Text>}
+          <Pressable
+            accessibilityRole="button"
+            disabled={status !== 'TRACKING' || photoProof}
+            style={[styles.proofButton, (status !== 'TRACKING' || photoProof) && styles.proofButtonDisabled]}
+            onPress={() => { void captureProof(); }}
+          >
+            <Text style={styles.proofButtonText}>{photoProof ? '✓ FOTO POTWIERDZONE' : status === 'TRACKING' ? 'ZRÓB ZDJĘCIE DOWODOWE' : 'NAJPIERW URUCHOM MISJĘ'}</Text>
+          </Pressable>
+        </View>}
+
         <View
           style={styles.tracker}
         >
@@ -207,21 +287,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </Text>
           </View>
 
-          <View
-            style={styles.progressTrack}
-          >
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.max(
-                    1,
-                    progress
-                  )}%`,
-                },
-              ]}
-            />
-          </View>
+          <MotionProgress value={progress} height={8} style={{ marginTop: 14 }} />
 
           <View
             style={styles.liveStats}
@@ -481,16 +547,17 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
               style={
                 styles.returnButton
               }
-              onPress={() =>
-                router.back()
-              }
+              onPress={() => {
+                if (nextQuest) router.replace({ pathname: '/quest', params: { questId: nextQuest.id } });
+                else router.replace('/');
+              }}
             >
               <Text
                 style={
                   styles.returnText
                 }
               >
-                WRÓĆ DO SYSTEMU
+                {nextQuest ? 'NASTĘPNA MISJA →' : 'WRÓĆ DO SYSTEMU'}
               </Text>
             </Pressable>
           </View>
@@ -886,4 +953,19 @@ const styles =
       fontWeight: '900',
       letterSpacing: 2,
     },
+    proofCard: {
+      borderWidth: 1,
+      borderColor: '#2a5867',
+      borderRadius: 24,
+      backgroundColor: '#061217',
+      padding: 18,
+      marginBottom: 14,
+    },
+    proofLabel: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 2 },
+    proofTitle: { color: '#fff', fontSize: 19, fontWeight: '900', marginTop: 9 },
+    proofImage: { width: '100%', height: 210, borderRadius: 16, marginTop: 14, backgroundColor: '#020709' },
+    proofError: { color: '#ff9a8d', fontSize: 11, lineHeight: 17, marginTop: 10 },
+    proofButton: { marginTop: 15, minHeight: 56, borderRadius: 16, backgroundColor: SYSTEM_COLORS.cyan, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+    proofButtonDisabled: { opacity: 0.35 },
+    proofButtonText: { color: '#001015', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   });
