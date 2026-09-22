@@ -284,9 +284,23 @@ begin
       set status='accepted',updated_at=now()
       where sender_id=p_target and receiver_id=v_uid;
   else
-    insert into public.friend_requests(sender_id,receiver_id,status)
-    values(v_uid,p_target,'pending')
-    on conflict(sender_id,receiver_id) do update set updated_at=now();
+    begin
+      insert into public.friend_requests(sender_id,receiver_id,status)
+      values(v_uid,p_target,'pending')
+      on conflict(sender_id,receiver_id) do update set updated_at=now();
+    exception when unique_violation then
+      update public.friend_requests
+        set status='accepted',updated_at=now()
+        where sender_id=p_target and receiver_id=v_uid and status='pending';
+      if not found and not exists(
+        select 1 from public.friend_requests fr
+        where fr.status='accepted'
+          and ((fr.sender_id=v_uid and fr.receiver_id=p_target)
+            or (fr.sender_id=p_target and fr.receiver_id=v_uid))
+      ) then
+        raise;
+      end if;
+    end;
   end if;
 end
 $$;
@@ -471,6 +485,7 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_visibility text;
+  v_inserted integer;
 begin
   if v_uid is null then raise exception 'AUTH_REQUIRED'; end if;
 
@@ -489,6 +504,14 @@ begin
   insert into public.guild_members(guild_id,user_id,role)
   values(p_guild,v_uid,'MEMBER')
   on conflict(user_id) do nothing;
+  get diagnostics v_inserted = row_count;
+
+  if v_inserted=0 and not exists(
+    select 1 from public.guild_members gm
+    where gm.user_id=v_uid and gm.guild_id=p_guild
+  ) then
+    raise exception 'ALREADY_IN_GUILD';
+  end if;
 
   update public.guilds g
   set member_count=(
