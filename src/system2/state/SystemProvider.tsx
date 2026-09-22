@@ -69,6 +69,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const resetting = useRef(false);
   const aiDayRef = useRef<string | null>(null);
   const aiLastRequestAt = useRef(0);
+  const aiRequestRef = useRef(0);
   useEffect(() => { configureAudio(snapshot.settings.audio); return stopAudio; }, [snapshot.settings.audio]);
   useEffect(() => {
     if (!ready) return;
@@ -124,6 +125,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     }
     aiDayRef.current = day;
     aiLastRequestAt.current = Date.now();
+    const requestId = ++aiRequestRef.current;
     setAILoading(true);
     setAIError(null);
     try {
@@ -139,7 +141,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         setAIError(cause instanceof Error ? cause.message : 'AI GAME MASTER jest chwilowo niedostępny.');
       }
     } finally {
-      if (epoch === generation.current) setAILoading(false);
+      if (requestId === aiRequestRef.current) setAILoading(false);
     }
   }, []);
 
@@ -220,6 +222,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   }, [applySnapshot]);
   const requestAwakeningDirection = useCallback(async (source: db.SystemSnapshot, rawGoal: string) => {
     const epoch = generation.current;
+    const requestId = ++aiRequestRef.current;
     const trimmed = rawGoal.trim();
     const safeGoal = trimmed.length >= 5 ? trimmed : 'Mój cel: ' + (trimmed || 'rozwój');
     setAILoading(true); setAIError(null);
@@ -232,7 +235,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       if (epoch === generation.current && !resetting.current) setAIError(message);
       throw cause;
     } finally {
-      if (epoch === generation.current) setAILoading(false);
+      if (requestId === aiRequestRef.current) setAILoading(false);
     }
   }, []);
   const createFirstGoalAndPrepareAwakening = useCallback(async (input: Parameters<typeof db.createPlayerGoal>[0]) => {
@@ -246,7 +249,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
     if (resetting.current) return;
     resetting.current = true; const epoch = ++generation.current; refreshRef.current = null;
-    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null); setAIGameMaster(null); setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
+    setReady(false); setError(null); setNotificationError(null); setAchievementError(null); setActiveQuestId(null); setCelebration(null); setLastReward(null); setAIGameMaster(null); aiRequestRef.current += 1; setAILoading(false); setAIError(null); aiDayRef.current = null; aiLastRequestAt.current = 0;
     try {
       await stopQuestBackgroundTracking().catch(() => undefined);
       await awaitWithTimeout(resetTesterProfile('RESET TESTER PROFILE'));
