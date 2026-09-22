@@ -13,6 +13,7 @@ create table if not exists public.friend_requests (
   constraint friend_requests_no_self check (sender_id <> receiver_id)
 );
 create index if not exists friend_requests_receiver_idx on public.friend_requests(receiver_id,status,created_at desc);
+create unique index if not exists friend_requests_pair_unique on public.friend_requests(least(sender_id,receiver_id),greatest(sender_id,receiver_id));
 
 create table if not exists public.social_blocks (
   blocker_id uuid not null references auth.users(id) on delete cascade,
@@ -21,6 +22,23 @@ create table if not exists public.social_blocks (
   primary key (blocker_id, blocked_id),
   constraint social_blocks_no_self check (blocker_id <> blocked_id)
 );
+
+create or replace function public.is_social_blocked(p_target uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $
+  select exists(
+    select 1 from public.social_blocks b
+    where (b.blocker_id=(select auth.uid()) and b.blocked_id=p_target)
+       or (b.blocker_id=p_target and b.blocked_id=(select auth.uid()))
+  )
+$;
+revoke all on function public.is_social_blocked(uuid) from public,anon;
+grant execute on function public.is_social_blocked(uuid) to authenticated;
+
 
 create table if not exists public.social_activity (
   id uuid primary key default gen_random_uuid(),
@@ -128,6 +146,30 @@ drop policy if exists social_blocks_delete_own on public.social_blocks;
 create policy social_blocks_delete_own on public.social_blocks for delete to authenticated
 using (blocker_id=(select auth.uid()));
 
+drop policy if exists social_profiles_select_visible on public.social_profiles;
+create policy social_profiles_select_visible
+on public.social_profiles for select to authenticated
+using (
+  (select auth.uid()) is not null
+  and (
+    user_id=(select auth.uid())
+    or (visibility='public' and not public.is_social_blocked(user_id))
+  )
+);
+
+drop policy if exists follows_insert_own_public_target on public.follows;
+create policy follows_insert_own_public_target
+on public.follows for insert to authenticated
+with check (
+  (select auth.uid()) is not null
+  and follower_id=(select auth.uid())
+  and not public.is_social_blocked(followed_id)
+  and exists (
+    select 1 from public.social_profiles sp
+    where sp.user_id=followed_id and sp.visibility='public'
+  )
+);
+
 drop policy if exists social_activity_insert_own on public.social_activity;
 create policy social_activity_insert_own on public.social_activity for insert to authenticated
 with check (user_id=(select auth.uid()));
@@ -196,7 +238,13 @@ begin
   if exists(select 1 from public.social_blocks b where (b.blocker_id=v_uid and b.blocked_id=p_target) or (b.blocker_id=p_target and b.blocked_id=v_uid)) then
     raise exception 'BLOCKED';
   end if;
-  if exists(select 1 from public.friend_requests fr where fr.sender_id=p_target and fr.receiver_id=v_uid and fr.status='pending') then
+  if exists(
+    select 1 from public.friend_requests fr
+    where fr.status='accepted'
+      and ((fr.sender_id=v_uid and fr.receiver_id=p_target) or (fr.sender_id=p_target and fr.receiver_id=v_uid))
+  ) then
+    return;
+  elsif exists(select 1 from public.friend_requests fr where fr.sender_id=p_target and fr.receiver_id=v_uid and fr.status='pending') then
     update public.friend_requests set status='accepted',updated_at=now()
     where sender_id=p_target and receiver_id=v_uid;
   else
@@ -216,6 +264,7 @@ begin
     update public.friend_requests set status='accepted',updated_at=now()
     where sender_id=p_sender and receiver_id=v_uid and status='pending';
     if not found then raise exception 'NO_REQUEST'; end if;
+    delete from public.friend_requests where sender_id=v_uid and receiver_id=p_sender and status='pending';
   else
     delete from public.friend_requests where sender_id=p_sender and receiver_id=v_uid and status='pending';
   end if;
@@ -366,6 +415,7 @@ as $
   from public.social_profiles sp,input i
   where sp.visibility='public'
     and char_length(i.q) between 2 and 40
+    and not public.is_social_blocked(sp.user_id)
     and (
       strpos(lower(coalesce(sp.handle,'')),i.q)=1
       or strpos(lower(coalesce(sp.public_name,'')),i.q)>0
