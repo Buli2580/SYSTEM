@@ -25,7 +25,7 @@ create table if not exists public.social_blocks (
 create table if not exists public.social_activity (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  event_type text not null,
+  event_type text not null check (event_type in ('QUEST_COMPLETED','ACHIEVEMENT_UNLOCKED','LEVEL_UP','RANK_UP','STREAK_MILESTONE','BOSS_DEFEATED','WORLD_SECTOR_DISCOVERED','TITLE_UNLOCKED')),
   visibility text not null default 'friends' check (visibility in ('public','friends','private')),
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
@@ -317,6 +317,59 @@ as $$
   where now()>=c.starts_at and now()<c.ends_at
   order by c.ends_at asc
 $$;
+
+
+create or replace function public.search_players(
+  p_query text,
+  p_limit integer default 20
+)
+returns table (
+  user_id uuid,
+  handle text,
+  public_name text,
+  bio text,
+  visibility text,
+  continent_code text,
+  country_code text,
+  region_code text,
+  city_label text,
+  real_level integer,
+  rank text,
+  real_total_xp bigint,
+  follower_count integer,
+  following_count integer
+)
+language sql
+stable
+security invoker
+set search_path = ''
+as $
+  with input as (
+    select lower(trim(coalesce(p_query,''))) as q
+  )
+  select
+    sp.user_id,sp.handle,sp.public_name,sp.bio,sp.visibility,
+    sp.continent_code,sp.country_code,sp.region_code,sp.city_label,
+    sp.real_level,sp.rank,sp.real_total_xp,sp.follower_count,sp.following_count
+  from public.social_profiles sp,input i
+  where sp.visibility='public'
+    and char_length(i.q) between 2 and 40
+    and (
+      strpos(lower(coalesce(sp.handle,'')),i.q)=1
+      or strpos(lower(coalesce(sp.public_name,'')),i.q)>0
+    )
+  order by
+    case when lower(coalesce(sp.handle,''))=i.q then 0
+         when lower(coalesce(sp.public_name,''))=i.q then 1
+         when strpos(lower(coalesce(sp.handle,'')),i.q)=1 then 2
+         else 3 end,
+    sp.real_total_xp desc,
+    sp.user_id
+  limit greatest(1,least(coalesce(p_limit,20),50))
+$;
+
+revoke all on function public.search_players(text,integer) from public,anon;
+grant execute on function public.search_players(text,integer) to authenticated;
 
 revoke all on table public.friend_requests,public.social_blocks,public.social_activity,public.guilds,public.guild_members,public.raids,public.raid_damage,public.seasons,public.social_challenges,public.challenge_progress from anon,authenticated;
 grant select on table public.friend_requests,public.social_blocks,public.guilds,public.guild_members,public.raids,public.seasons,public.social_challenges,public.challenge_progress to authenticated;
