@@ -18,6 +18,7 @@ import { flushCloudOutbox } from '../cloud/sync';
 import { stopQuestBackgroundTracking } from '../background/locationService';
 import { requestDailyAIGameMaster, requestGoalAIGameMaster, type AIGameMasterResponse } from '../ai';
 import { aiRetryRemainingMs } from '../ai/requestBudget';
+import { getQuest } from '../quests/catalog';
 
 type SystemContextValue = db.SystemSnapshot & {
   createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0], operationKey?: string) => Promise<void>;
@@ -202,7 +203,15 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         if (epoch === generation.current) {
           configureHaptics(next.settings.haptics);
           setSnapshot(next);
-          setActiveQuestId(current => resumableBackground?.questId ?? (current && next.completedQuestIds.includes(current) ? null : current));
+          setActiveQuestId(current => {
+            if (resumableBackground?.questId) return resumableBackground.questId;
+            if (!current || next.completedQuestIds.includes(current)) return null;
+            const quest = getQuest(current);
+            if (!quest) return null;
+            if (quest.category === 'DAILY' && (!next.daily || next.daily.clockAnomaly || !next.daily.questIds.includes(current))) return null;
+            if (quest.category === 'BOSS' && (!next.story?.worldLinkComplete || next.story.bossComplete)) return null;
+            return current;
+          });
           void syncAchievements(next.player, epoch);
           setReady(true);
           void flushCloudOutbox().catch(() => undefined);
