@@ -165,12 +165,20 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           db.loadSystemState(),
           db.loadBackgroundQuestSession().catch(() => null),
         ]));
+        let resumableBackground = backgroundQuest;
+        if (backgroundQuest) {
+          const access = await awaitWithTimeout(db.getQuestAccess(backgroundQuest.questId)).catch(() => null);
+          if (access === 'LOCKED' || access === 'COMPLETED') {
+            await stopQuestBackgroundTracking(backgroundQuest.questId).catch(() => undefined);
+            resumableBackground = null;
+          }
+        }
         const health = await awaitWithTimeout(db.testerHealthCheck());
         if (!health.ok) throw new Error('Kontrola zapisu SYSTEMU: ' + health.issues.map(issue => issue.code).join(', '));
         if (epoch === generation.current) {
           configureHaptics(next.settings.haptics);
           setSnapshot(next);
-          setActiveQuestId(current => backgroundQuest?.questId ?? (current && next.completedQuestIds.includes(current) ? null : current));
+          setActiveQuestId(current => resumableBackground?.questId ?? (current && next.completedQuestIds.includes(current) ? null : current));
           void syncAchievements(next.player, epoch);
           setReady(true);
           void flushCloudOutbox().catch(() => undefined);
