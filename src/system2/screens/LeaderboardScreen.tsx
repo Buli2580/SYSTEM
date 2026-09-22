@@ -59,6 +59,7 @@ export default function LeaderboardScreen() {
   };
 
   async function load(nextScope: Scope = scope) {
+    setRows([]);
     const session = await getValidSession();
     if (!session) {
       setMyId(null);
@@ -116,6 +117,7 @@ export default function LeaderboardScreen() {
   }
 
   async function searchNow() {
+    setSearch([]);
     setSearch(await searchPlayers(query, 20));
   }
 
