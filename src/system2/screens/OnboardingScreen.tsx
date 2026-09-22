@@ -7,6 +7,7 @@ import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import { pageStyles as s } from '../components/SystemPage';
 import { useSystem } from '../state/SystemProvider';
+import { useMountedRef } from '../hooks/useMountedRef';
 const pages = [
   ['SYSTEM', 'ROZWIJAJ SWOJE PRAWDZIWE ŻYCIE', 'Twoje prawdziwe działania rozwijają cyfrową postać.'],
   ['RÓWNY START', 'REAL LEVEL 1 · RANGA E', 'STR 1 · VIT 1 · INT 1 · WIL 1\nCHA 1 · CRE 1 · RES 1\n\nTwoja przeszłość ustala poziom trudności.\nNie ustala Twojego poziomu.'],
@@ -16,13 +17,13 @@ const pages = [
 export default function OnboardingScreen() {
   const [step, setStep] = useState(0), [name, setName] = useState(''), [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const [birthDate, setBirthDate] = useState('');
-  const busyRef = useRef(false); const insets = useSafeAreaInsets(); const router = useRouter();
+  const busyRef = useRef(false); const insets = useSafeAreaInsets(); const router = useRouter(); const mounted = useMountedRef();
   const { finishOnboarding } = useSystem();
   async function enter() {
-    if (busyRef.current) return; busyRef.current = true; setBusy(true); setError(null);
-    try { await finishOnboarding(name, validateBirthDate(birthDate)); router.replace('/'); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać SYSTEM IDENTITY.'); }
-    finally { busyRef.current = false; setBusy(false); }
+    if (busyRef.current) return; busyRef.current = true; if (mounted.current) { setBusy(true); setError(null); }
+    try { await finishOnboarding(name, validateBirthDate(birthDate)); if (mounted.current) router.replace('/'); }
+    catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać SYSTEM IDENTITY.'); }
+    finally { busyRef.current = false; if (mounted.current) setBusy(false); }
   }
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#030709' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 26, paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }}>
