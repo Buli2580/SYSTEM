@@ -14,6 +14,7 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -82,6 +83,27 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     return () => clearTimeout(timer);
   }, [status]);
 
+  useEffect(() => {
+    if (quest.category === 'BOSS') {
+      playAudioTheme('BOSS');
+    } else if (status === 'TRACKING') {
+      playAudioTheme('ACTIVE_QUEST');
+    } else if (status === 'COMPLETED') {
+      stopAudioTheme();
+      playAudioTheme('VICTORY');
+      playFeedback('QUEST_COMPLETE');
+    } else if (status === 'COMPLETING') {
+      playAudioTheme('QUEST');
+      playFeedback('VERIFY');
+    } else if (status === 'ERROR' || status === 'DENIED') {
+      stopAudioTheme();
+      playFeedback('ERROR');
+    } else {
+      playAudioTheme('QUEST');
+    }
+    return () => stopAudioTheme();
+  }, [status, quest.category]);
+
   const handleStartQuest = () => {
     if (startInProgressRef.current) return;
     startInProgressRef.current = true;
@@ -97,7 +119,13 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   return (
     <View style={styles.root}>
-      <SystemAmbientBackground intensity={quest.category === 'BOSS' ? 'world' : status === 'COMPLETING' || status === 'COMPLETED' ? 'hero' : status === 'TRACKING' ? 'default' : 'quiet'} />
+      <SystemAmbientBackground
+        intensity={quest.category === 'BOSS' ? 'world' : status === 'COMPLETING' || status === 'COMPLETED' ? 'hero' : status === 'TRACKING' ? 'default' : 'quiet'}
+        screen={quest.category === 'BOSS' ? 'BOSS' : 'QUESTS'}
+        scene={quest.category === 'BOSS' ? 'BOSS_ZONE' : status === 'TRACKING' ? 'CITY' : status === 'COMPLETED' ? 'PORTAL' : 'RUINS'}
+        threat={quest.category === 'BOSS' ? 3 : status === 'TRACKING' || status === 'COMPLETING' ? 2 : 1}
+        level={system.player.realLevel}
+      />
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={
