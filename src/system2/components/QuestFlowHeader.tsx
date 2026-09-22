@@ -26,17 +26,26 @@ function indexFor(status: Status) {
 export default function QuestFlowHeader({ status, boss = false }: { status: Status; boss?: boolean }) {
   const active = indexFor(status);
   const pulse = useSharedValue(0);
+  const rotation = useSharedValue(0);
   useEffect(() => {
     pulse.value = withRepeat(withTiming(1, { duration: boss ? 650 : 1100 }), -1, true);
-  }, [boss, pulse]);
+    rotation.value = withRepeat(withTiming(1, { duration: boss ? 4200 : 9000 }), -1, false);
+  }, [boss, pulse, rotation]);
   const core = useAnimatedStyle(() => ({
     opacity: interpolate(pulse.value, [0, 1], [0.35, 1]),
     transform: [{ scale: interpolate(pulse.value, [0, 1], [0.86, 1.12]) }],
   }));
+  const bossEmblem = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.45, 1]),
+    transform: [{ rotate: `${rotation.value * 360}deg` }, { scale: interpolate(pulse.value, [0, 1], [0.9, 1.08]) }],
+  }));
   return <Animated.View entering={FadeInDown.duration(420)} style={[styles.root, boss && styles.boss]}>
     <View style={styles.header}>
-      <Animated.View style={[styles.core, core, boss && styles.bossCore]} />
-      <Text style={[styles.title, boss && styles.bossText]}>{boss ? 'BOSS PROTOCOL' : 'QUEST EXPERIENCE 2.1'}</Text>
+      {boss ? <Animated.View style={[styles.bossEmblem, bossEmblem]}><View style={styles.bossEmblemInner} /></Animated.View> : <Animated.View style={[styles.core, core]} />}
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.title, boss && styles.bossText]}>{boss ? 'BOSS DETECTED // COMBAT PROTOCOL' : 'QUEST EXPERIENCE 2.1'}</Text>
+        {boss && <Text style={styles.bossSub}>THREAT SIGNAL LOCKED</Text>}
+      </View>
     </View>
     <View style={styles.phases}>
       {phases.map((phase, index) => <View key={phase} style={styles.phase}>
@@ -53,6 +62,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   core: { width: 9, height: 9, borderRadius: 5, backgroundColor: C.cyan, marginRight: 9 },
   bossCore: { backgroundColor: '#ff6d5c' },
+  bossEmblem: { width: 28, height: 28, borderWidth: 2, borderColor: '#ff6d5c', transform: [{ rotate: '45deg' }], marginRight: 12, alignItems: 'center', justifyContent: 'center' },
+  bossEmblemInner: { width: 8, height: 8, backgroundColor: '#ff6d5c' },
+  bossSub: { color: '#8d5550', fontSize: 6, fontWeight: '900', letterSpacing: 2, marginTop: 4 },
   title: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 2 },
   bossText: { color: '#ff8b7e' },
   phases: { flexDirection: 'row', justifyContent: 'space-between' },
