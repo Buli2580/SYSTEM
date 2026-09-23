@@ -2741,9 +2741,13 @@ test('ACTION 3.0 boss phases progress from awaken to final and defeated', () => 
 
 test('ACTION 3.0 smart reminders prioritize expiring events and critical boss state', () => {
   const { smartReminderCopy } = loader({})('notifications/smart');
-  const event = smartReminderCopy({streak:6,nextStreakMilestone:7,weeklyCompleted:4,weeklyTarget:5,bossHp:10,worldEventTitle:'SECTOR ANOMALY',worldEventRemaining:'42MIN'});
+  const event = smartReminderCopy({streak:6,nextStreakMilestone:7,weeklyCompleted:4,weeklyTarget:5,bossHp:10,worldEventTitle:'SECTOR ANOMALY',worldEventRemaining:'42MIN',worldEventEndsAt:new Date(Date.now()+42*60000).toISOString()});
   assert.match(event.title,/WORLD EVENT/);
-  assert.match(event.body,/42MIN/);
+  assert.match(event.body,/4[12] min/);
+  const expired = smartReminderCopy({streak:2,worldEventTitle:'EXPIRED PORTAL',worldEventEndsAt:new Date(Date.now()-1000).toISOString()});
+  assert.doesNotMatch(expired.title,/WORLD EVENT/);
+  const stale = smartReminderCopy({streak:2,bossHp:10},Date.now()+3600000);
+  assert.doesNotMatch(stale.title,/BOSS CRITICAL/);
   const boss = smartReminderCopy({streak:2,bossHp:10});
   assert.match(boss.title,/BOSS CRITICAL/);
   const weekly = smartReminderCopy({streak:2,weeklyCompleted:4,weeklyTarget:5});
