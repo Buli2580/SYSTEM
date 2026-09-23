@@ -19,6 +19,18 @@ create table if not exists public.move_group_members (
 );
 create index if not exists move_group_members_user_idx on public.move_group_members(user_id,joined_at desc);
 
+create table if not exists public.move_group_invites (
+  code text primary key,
+  group_id uuid not null references public.move_groups(id) on delete cascade,
+  role text not null check (role in ('PARENT','CHILD','MEMBER','TEACHER','STUDENT')),
+  created_by uuid not null references auth.users(id) on delete cascade,
+  expires_at timestamptz not null,
+  max_uses integer not null default 1 check (max_uses between 1 and 100),
+  used_count integer not null default 0 check (used_count>=0 and used_count<=max_uses),
+  created_at timestamptz not null default now()
+);
+create index if not exists move_group_invites_group_idx on public.move_group_invites(group_id,expires_at);
+
 create table if not exists public.move_contributions (
   group_id uuid not null references public.move_groups(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -35,6 +47,7 @@ create index if not exists move_contributions_group_day_idx on public.move_contr
 
 alter table public.move_groups enable row level security;
 alter table public.move_group_members enable row level security;
+alter table public.move_group_invites enable row level security;
 alter table public.move_contributions enable row level security;
 
 create or replace function public.is_move_group_member(p_group uuid)
@@ -55,6 +68,11 @@ drop policy if exists move_group_members_group_read on public.move_group_members
 create policy move_group_members_group_read on public.move_group_members
 for select to authenticated
 using (user_id=(select auth.uid()) or public.is_move_group_member(group_id));
+
+drop policy if exists move_group_invites_creator_read on public.move_group_invites;
+create policy move_group_invites_creator_read on public.move_group_invites
+for select to authenticated
+using (created_by=(select auth.uid()));
 
 drop policy if exists move_contributions_group_read on public.move_contributions;
 create policy move_contributions_group_read on public.move_contributions
@@ -83,21 +101,62 @@ begin
 end
 $$;
 
-create or replace function public.join_move_group(p_group uuid,p_role text)
-returns void language plpgsql security definer set search_path=''
+create or replace function public.create_move_group_invite(
+  p_group uuid,p_role text,p_max_uses integer default 1,p_expires_hours integer default 24
+)
+returns text language plpgsql security definer set search_path=''
 as $$
 declare
   v_uid uuid:=auth.uid();
   v_kind text;
   v_role text:=upper(trim(coalesce(p_role,'')));
+  v_code text;
 begin
   if v_uid is null then raise exception 'AUTH_REQUIRED'; end if;
-  select kind into v_kind from public.move_groups where id=p_group;
-  if v_kind is null then raise exception 'GROUP_NOT_FOUND'; end if;
+  select g.kind into v_kind from public.move_groups g
+  where g.id=p_group and (g.owner_id=v_uid or exists(
+    select 1 from public.move_group_members m where m.group_id=g.id and m.user_id=v_uid and m.role in ('PARENT','TEACHER')
+  ));
+  if v_kind is null then raise exception 'INVITE_NOT_ALLOWED'; end if;
   if v_kind='FAMILY' and v_role not in ('PARENT','CHILD','MEMBER') then raise exception 'INVALID_ROLE'; end if;
   if v_kind='SCHOOL' and v_role not in ('TEACHER','STUDENT') then raise exception 'INVALID_ROLE'; end if;
-  insert into public.move_group_members(group_id,user_id,role) values(p_group,v_uid,v_role)
+  if coalesce(p_max_uses,0)<1 or p_max_uses>100 then raise exception 'INVALID_MAX_USES'; end if;
+  if coalesce(p_expires_hours,0)<1 or p_expires_hours>168 then raise exception 'INVALID_EXPIRY'; end if;
+  loop
+    v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,12));
+    exit when not exists(select 1 from public.move_group_invites i where i.code=v_code);
+  end loop;
+  insert into public.move_group_invites(code,group_id,role,created_by,expires_at,max_uses)
+  values(v_code,p_group,v_role,v_uid,now()+make_interval(hours=>p_expires_hours),p_max_uses);
+  return v_code;
+end
+$$;
+
+create or replace function public.join_move_group(p_code text)
+returns uuid language plpgsql security definer set search_path=''
+as $$
+declare
+  v_uid uuid:=auth.uid();
+  v_group uuid;
+  v_role text;
+begin
+  if v_uid is null then raise exception 'AUTH_REQUIRED'; end if;
+  select i.group_id,i.role into v_group,v_role
+  from public.move_group_invites i
+  where i.code=upper(trim(coalesce(p_code,'')))
+    and i.expires_at>now()
+    and i.used_count<i.max_uses
+  for update;
+  if v_group is null then raise exception 'INVITE_INVALID_OR_EXPIRED'; end if;
+
+  insert into public.move_group_members(group_id,user_id,role)
+  values(v_group,v_uid,v_role)
   on conflict(group_id,user_id) do nothing;
+
+  update public.move_group_invites set used_count=used_count+1
+  where code=upper(trim(p_code)) and used_count<max_uses;
+
+  return v_group;
 end
 $$;
 
@@ -179,12 +238,14 @@ as $$
 $$;
 
 revoke all on function public.create_move_group(text,text) from public;
-revoke all on function public.join_move_group(uuid,text) from public;
+revoke all on function public.create_move_group_invite(uuid,text,integer,integer) from public;
+revoke all on function public.join_move_group(text) from public;
 revoke all on function public.submit_move_contribution(uuid,text,text,text,integer,date) from public;
 revoke all on function public.get_my_move_groups() from public;
 revoke all on function public.get_move_group_leaderboard(uuid,integer) from public;
 grant execute on function public.create_move_group(text,text) to authenticated;
-grant execute on function public.join_move_group(uuid,text) to authenticated;
+grant execute on function public.create_move_group_invite(uuid,text,integer,integer) to authenticated;
+grant execute on function public.join_move_group(text) to authenticated;
 grant execute on function public.submit_move_contribution(uuid,text,text,text,integer,date) to authenticated;
 grant execute on function public.get_my_move_groups() to authenticated;
 grant execute on function public.get_move_group_leaderboard(uuid,integer) to authenticated;
