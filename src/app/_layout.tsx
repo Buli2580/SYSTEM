@@ -29,8 +29,8 @@ export default function RootLayout() {
       <AwakeningCelebration />
       <RewardEventSequence />
       <StoryNotice />
-      <LaunchGate />
       <SessionGate />
+      <LaunchGate />
     </SystemProvider></SystemBoundary>
   );
 }
