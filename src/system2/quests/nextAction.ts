@@ -7,10 +7,10 @@ import type { StoryState } from '../story/types';
 import { AWAKENING_QUESTS, getQuest } from './catalog';
 
 export type NextAction = {
-  kind: 'RESUME' | 'AWAKENING' | 'DAILY' | 'STORY' | 'BOSS' | 'ACHIEVEMENTS' | 'PROGRESSION' | 'GOAL' | 'JOURNEY';
+  kind: 'RESUME' | 'AWAKENING' | 'DAILY' | 'STORY' | 'BOSS' | 'WORLD_EVENT' | 'ACHIEVEMENTS' | 'PROGRESSION' | 'GOAL' | 'JOURNEY';
   title: string;
   detail: string;
-  route: '/quest' | '/quests' | '/story' | '/achievements' | '/character' | '/goals';
+  route: '/quest' | '/quests' | '/story' | '/world' | '/achievements' | '/character' | '/goals';
   questId?: string;
   priority: number;
 };
@@ -60,8 +60,8 @@ export function getNextAction(input: NextActionInput): NextAction {
           priority: 85,
         };
       }
-      return { kind: directive.route === '/goals' ? 'GOAL' : directive.journeyId ? 'JOURNEY' : directive.kind === 'CHALLENGE_BOSS' ? 'BOSS' : 'DAILY',
-        title: directive.title, detail: directive.reason, route: directive.route, questId: directive.questId, priority: 85 };
+      return { kind: directive.kind === 'WORLD_EVENT' ? 'WORLD_EVENT' : directive.route === '/goals' ? 'GOAL' : directive.journeyId ? 'JOURNEY' : directive.kind === 'CHALLENGE_BOSS' ? 'BOSS' : 'DAILY',
+        title: directive.title, detail: directive.reason, route: directive.route, questId: directive.questId, priority: directive.kind === 'WORLD_EVENT' ? 88 : 85 };
     }
   }
 
