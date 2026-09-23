@@ -14,6 +14,7 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import AudioEnableAction from '../components/AudioEnableAction';
 import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
 import {calculateAge} from '../identity/age';
 import {capturePrivateQuestPhoto,removePrivateQuestPhoto,purgeStalePrivateQuestPhotos} from '../quests/privatePhoto';
@@ -211,6 +212,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
+        <AudioEnableAction cue={status==='TRACKING'?'ACTIVE_QUEST':quest.category==='BOSS'?'BOSS':'QUEST'}/>
         <QuestFlowRail status={status} />
         {showBriefing && <MissionBriefing
           quest={quest}
