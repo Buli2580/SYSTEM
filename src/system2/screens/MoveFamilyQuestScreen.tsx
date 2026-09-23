@@ -10,7 +10,7 @@ import {SYSTEM_COLORS as C} from '../core';
 export default function MoveFamilyQuestScreen(){
  const {questId}=useLocalSearchParams<{questId?:string}>(),router=useRouter();
  const family=useMemo(()=>WEEKEND_FAMILY_QUESTS.find(q=>q.id===questId),[questId]);
- const canonical=useMemo(()=>family?MOVE_QUESTS.find(q=>q.kind==='FAMILY'&&q.minutes<=family.minutes):undefined,[family]);
+ const canonical=useMemo(()=>family?MOVE_QUESTS.find(q=>q.id===family.id):undefined,[family]);
  const[running,setRunning]=useState(false),[elapsed,setElapsed]=useState(0),[approved,setApproved]=useState(false),[busy,setBusy]=useState(false);
  const timer=useRef<ReturnType<typeof setInterval>|null>(null);
  useEffect(()=>()=>{if(timer.current)clearInterval(timer.current)},[]);
@@ -21,7 +21,7 @@ export default function MoveFamilyQuestScreen(){
   if(!ready||!approved||busy)return;
   setBusy(true);
   try{
-   await completeMoveActivity({questId:canonical.id,dayKey:dayKey(),durationSeconds:Math.max(elapsed,canonical.minutes*60),parentApproved:true});
+   await completeMoveActivity({questId:canonical.id,dayKey:dayKey(),durationSeconds:elapsed,parentApproved:true});
    router.replace('/move-family');
   }finally{setBusy(false)}
  }
