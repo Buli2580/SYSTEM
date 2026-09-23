@@ -58,8 +58,8 @@ export default function MoveScreen(){
    <View style={styles.panel}><Text style={styles.next}>{moveDirectorLine(plan,completed)}</Text><Text style={styles.body}>{plan.recovery?'EASY DAY // po słabszym dniu SYSTEM wybiera lżejszy plan.':`PLANOWANE ${plan.plannedMinutes} MIN // cel 60 MIN`}</Text></View>
 
    <Text style={styles.section}>DAILY MOVE QUESTS</Text>
-   {plan.quests.map(q=>{const done=completed.includes(q.id),supported=q.verification==='TIMER';return <Pressable key={q.id} disabled={done||!supported} onPress={()=>router.push({pathname:'/move-quest',params:{questId:q.id}})} style={[styles.quest,done&&styles.done,!supported&&styles.locked]}>
-    <View style={styles.row}><Text style={styles.questCode}>{q.kind} // {q.minutes} MIN</Text><Text style={styles.questStatus}>{done?'COMPLETE':supported?'START':'VERIFY NEXT'}</Text></View>
+   {plan.quests.map(q=>{const done=completed.includes(q.id),supported=!moveLocked;return <Pressable key={q.id} disabled={done||!supported} onPress={()=>router.push({pathname:'/move-quest',params:{questId:q.id}})} style={[styles.quest,done&&styles.done,!supported&&styles.locked]}>
+    <View style={styles.row}><Text style={styles.questCode}>{q.kind} // {q.minutes} MIN</Text><Text style={styles.questStatus}>{done?'COMPLETE':supported?'START':'LOCKED'}</Text></View>
     <Text style={styles.questTitle}>{q.title}</Text><Text style={styles.body}>{q.description}</Text>
     <Text style={styles.questSkills}>{q.skills.join(' · ')} // {q.verification}</Text>
    </Pressable>})}
