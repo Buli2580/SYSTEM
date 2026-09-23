@@ -198,6 +198,12 @@ export default function SystemHomeScreen() {
 
         <HomeCommandCenter />
 
+        <Pressable accessibilityRole="button" accessibilityLabel="Otwórz SYSTEM MOVE" onPress={()=>router.push('/move')} style={({pressed})=>[styles.moveEntry,pressed&&styles.moveEntryPressed]}>
+          <View style={styles.moveEntryTop}><Text style={styles.moveEntryCode}>SYSTEM MOVE 1.0</Text><Text style={styles.moveEntryArrow}>→</Text></View>
+          <Text style={styles.moveEntryTitle}>60 MIN MISSION</Text>
+          <Text style={styles.moveEntryBody}>Daily Move Quests · Movement Skills · Move Streak · Family / School.</Text>
+        </Pressable>
+
         {/* CHARACTER SNAPSHOT MOVED INTO HOME COMMAND CENTER */}
 
         {/* SKILLS */}
@@ -439,6 +445,7 @@ export default function SystemHomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  moveEntry:{marginTop:12,padding:16,borderWidth:1,borderColor:'rgba(108,238,255,.34)',borderRadius:18,backgroundColor:'rgba(5,17,20,.94)'},moveEntryPressed:{opacity:.75},moveEntryTop:{flexDirection:'row',justifyContent:'space-between'},moveEntryCode:{color:'#6ceeff',fontSize:9,fontWeight:'900',letterSpacing:1.2},moveEntryArrow:{color:'#6ceeff',fontSize:16,fontWeight:'900'},moveEntryTitle:{color:'#fff',fontSize:20,fontWeight:'900',marginTop:7},moveEntryBody:{color:'#8fa6ae',fontSize:10,lineHeight:15,marginTop:5},
   betaDeck:{marginHorizontal:18,marginTop:8,padding:16,borderWidth:1,borderColor:'rgba(108,238,255,0.25)',borderRadius:18,backgroundColor:'rgba(5,17,20,0.92)'},
   betaDeckCode:{color:'#6ceeff',fontSize:9,fontWeight:'900',letterSpacing:1.6},
   betaDeckTitle:{color:'#fff',fontSize:20,fontWeight:'900',marginTop:7},
