@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
+import {useEffect,useState} from 'react';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { DAILY_RULES } from '../daily/calendar';
@@ -24,6 +25,8 @@ type CommandTile = {
 
 export default function HomeCommandCenter() {
   const router = useRouter();
+  const [clock,setClock]=useState(()=>Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(timer)},[]);
   const system = useSystem();
   const player = system.player;
   const activeQuest = system.activeQuestId && !system.completedQuestIds.includes(system.activeQuestId) ? getQuest(system.activeQuestId) : undefined;
@@ -44,10 +47,10 @@ export default function HomeCommandCenter() {
   const weeklyDone = Math.min(DAILY_RULES.weeklyTarget, system.daily?.weeklyCompleted ?? 0);
   const bossActive = !!system.story?.worldLinkComplete && !system.story?.bossComplete;
   const bossHp = Math.max(0, system.story?.bossHp ?? 0);
-  const worldEvent = activeWorldEvent(player, system.worldUnlocked);
+  const worldEvent = activeWorldEvent(player, system.worldUnlocked, clock);
   const archetype = archetypeForPlayer(player);
   const perks = playerPerks(player, (system.failedQuestIds?.length ?? 0) > 0);
-  const activePerk = perks.find(perk => perk.active);
+  const unlockedPerk = perks.find(perk => perk.unlocked);
   const bossPhase = bossActive ? bossPhaseState(bossHp, 100, Date.now(), system.story?.boss?.started_at) : null;
   const dailyProgress = dailyTotal > 0 ? Math.min(100, Math.round(dailyDone / dailyTotal * 100)) : 0;
   const weeklyProgress = Math.min(100, Math.round(weeklyDone / DAILY_RULES.weeklyTarget * 100));
@@ -140,8 +143,8 @@ export default function HomeCommandCenter() {
 
     {worldEvent && <Pressable accessibilityRole="button" onPress={() => router.push('/world')} style={({pressed})=>[styles.worldEvent,pressed&&styles.pressed]}>
       <View style={styles.worldEventTop}>
-        <Text style={styles.worldEventCode}>WORLD EVENT // {worldEvent.kind.replaceAll('_',' ')}</Text>
-        <Text style={styles.worldEventTimer}>{formatWorldEventRemaining(worldEvent)}</Text>
+        <Text style={styles.worldEventCode}>WORLD SIGNAL // {worldEvent.kind.replaceAll('_',' ')}</Text>
+        <Text style={styles.worldEventTimer}>{formatWorldEventRemaining(worldEvent,clock)}</Text>
       </View>
       <Text style={styles.worldEventTitle}>{worldEvent.title}</Text>
       <Text style={styles.worldEventDetail}>{worldEvent.sector} · THREAT {worldEvent.threat} · {worldEvent.subtitle}</Text>
@@ -153,8 +156,8 @@ export default function HomeCommandCenter() {
         <Text style={styles.liveValue}>{archetype}</Text>
       </View>
       <View style={styles.liveCell}>
-        <Text style={styles.liveLabel}>ACTIVE PERK</Text>
-        <Text numberOfLines={2} style={styles.liveValue}>{activePerk?.title ?? 'NONE'}</Text>
+        <Text style={styles.liveLabel}>UNLOCKED PERK</Text>
+        <Text numberOfLines={2} style={styles.liveValue}>{unlockedPerk?.title ?? 'NONE'}</Text>
       </View>
       <View style={[styles.liveCell,bossActive&&styles.liveCellAlert]}>
         <Text style={styles.liveLabel}>BOSS PHASE</Text>
