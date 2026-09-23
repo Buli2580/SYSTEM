@@ -22,6 +22,7 @@ import {buildMovementProgressCard} from '../move/card';
 export default function MoveScreen(){
  const router=useRouter(),{player}=useSystem();
  const ageMode=moveAgeMode(player.birthDate),today=dayKey();
+ const moveLocked=ageMode==='UNDER_6'||ageMode==='UNKNOWN';
  const[state,setState]=useState<MoveState|null>(null);
  const refresh=useCallback(()=>{void loadMoveState().then(setState).catch(()=>setState(null))},[]);
  useFocusEffect(refresh);
@@ -38,6 +39,7 @@ export default function MoveScreen(){
    <Text style={styles.code}>SYSTEM MOVE 1.0 // {moveAgeLabel(ageMode)}</Text>
    <Text style={styles.hero}>RUCH STAJE SIĘ GRĄ.</Text>
    <Text style={styles.body}>Codzienny cel jest dzielony na krótkie misje. Liczy się regularność, ruch i wkład — nie waga ani wygląd.</Text>
+   {moveLocked&&<View style={styles.safety}><Text style={styles.label}>MOVE LOCKED // {moveAgeLabel(ageMode)}</Text><Text style={styles.body}>{ageMode==='UNKNOWN'?'Ustaw datę urodzenia w profilu, aby SYSTEM dobrał bezpieczny tryb wieku.':'SYSTEM MOVE 1.0 jest przeznaczony od 6 roku życia.'}</Text></View>}
 
    <View style={styles.panel}>
     <View style={styles.row}><Text style={styles.label}>60 MIN MISSION</Text><Text style={styles.value}>{state?.activeMinutes??0}/60 MIN</Text></View>
@@ -78,8 +80,9 @@ export default function MoveScreen(){
    {MOVE_CHALLENGE_TEMPLATES.map(c=><View key={c.id} style={styles.panel}><Text style={styles.label}>{c.audience}</Text><Text style={styles.questTitle}>{c.title}</Text><Text style={styles.body}>TARGET {c.targetMinutes.toLocaleString()} MIN · {c.rewardLabel}</Text></View>)}
 
    <Text style={styles.section}>FAMILY / SCHOOL</Text>
+   <Pressable onPress={()=>router.push('/move-family')} style={styles.panel}><Text style={styles.label}>FAMILY MODE</Text><Text style={styles.body}>Wspólne weekend questy, rodzinny wkład i boss damage. →</Text></Pressable>
    <Pressable onPress={()=>router.push('/move-parent')} style={styles.panel}><Text style={styles.label}>PARENT DASHBOARD</Text><Text style={styles.body}>Czas ruchu, Move Streak, historia i Movement Skills. Bez dokładnej lokalizacji dziecka. →</Text></Pressable>
-   <View style={styles.panel}><Text style={styles.label}>SCHOOL MODE FOUNDATION</Text><Text style={styles.body}>School Raids liczą wkład przez zweryfikowane minuty i regularność. Bez rankingów wagi, wyglądu ani parametrów ciała.</Text></View>
+   <Pressable onPress={()=>router.push('/move-school')} style={styles.panel}><Text style={styles.label}>SCHOOL MODE</Text><Text style={styles.body}>Lokalny wkład ucznia, zasady School Raid i bezpieczne rankingi regularności. →</Text></Pressable>
    <View style={styles.safety}><Text style={styles.label}>SAFE MOVE POLICY</Text><Text style={styles.body}>PRECISE LOCATION PUBLIC: OFF · BODY RANKING: OFF · MINOR DM: OFF · PARENT APPROVAL: {policy.parentApprovalRequired?'ON':'OPTIONAL'}</Text></View>
   </ScrollView>
   <BottomNavigation/>
