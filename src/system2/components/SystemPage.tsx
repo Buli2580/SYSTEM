@@ -35,12 +35,12 @@ export default function SystemPage({
   </SystemScreen>;
 }
 export const pageStyles=StyleSheet.create({
-  panel:{padding:20,marginTop:16,backgroundColor:'rgba(4,12,16,0.82)',borderWidth:1,borderColor:C.line,borderRadius:20},
-  label:{color:C.cyan,fontSize:11,fontWeight:'900',letterSpacing:1.5},
-  title:{color:C.white,fontSize:23,fontWeight:'900',marginTop:12},
-  body:{color:C.textMuted,fontSize:13,lineHeight:21,marginTop:12},
+  panel:{padding:20,marginTop:16,minWidth:0,backgroundColor:'rgba(4,12,16,0.82)',borderWidth:1,borderColor:C.line,borderRadius:20},
+  label:{color:C.cyan,fontSize:11,lineHeight:16,fontWeight:'900',letterSpacing:1.35,flexShrink:1},
+  title:{color:C.white,fontSize:23,lineHeight:29,fontWeight:'900',marginTop:12,flexShrink:1},
+  body:{color:C.textMuted,fontSize:13,lineHeight:21,marginTop:12,flexShrink:1},
   value:{color:C.white,fontSize:28,fontWeight:'900',marginTop:10},
-  link:{color:C.cyan,fontSize:12,fontWeight:'900',marginTop:20},
+  link:{color:C.cyan,fontSize:12,lineHeight:18,fontWeight:'900',marginTop:20,flexShrink:1},
 });
 const styles=StyleSheet.create({
   ...pageStyles,
