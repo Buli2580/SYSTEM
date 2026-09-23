@@ -1,5 +1,6 @@
+import { applyQuestRewards } from '../core/questEngine';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { addRealXp, type PlayerProfile, type VerifiedEvent } from '../core';
+import { type PlayerProfile, type VerifiedEvent } from '../core';
 import { AWAKENING_CHAPTER_ID, AWAKENING_REWARD_XP, getAwakeningProgress } from '../quests/catalog';
 
 // Only called inside the same exclusive transaction as quest/profile writes.
@@ -14,7 +15,7 @@ export async function awardAwakeningIfEligible(db: SQLiteDatabase, player: Playe
     AWAKENING_CHAPTER_ID, now
   );
   if (claim.changes === 0) return { player, awakeningCompleted: true, awakeningAwarded: false };
-  const next = addRealXp(player, AWAKENING_REWARD_XP);
+  const next = applyQuestRewards(player, { realXp: AWAKENING_REWARD_XP }, now);
   const event: VerifiedEvent = {
     id: 'chapter_' + AWAKENING_CHAPTER_ID, questId: AWAKENING_CHAPTER_ID, playerId: player.id,
     createdAt: now, verificationType: 'MULTI', verificationScore: 100, verified: true,

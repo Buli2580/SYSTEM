@@ -1,35 +1,93 @@
 import { useSystem } from '../state/SystemProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
 import type { RunnableQuest } from '../quests/types';
 import { useQuestRun } from '../quests/useQuestRun';
 import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
-import { difficultyPl, verificationPl } from '../i18n/pl';
+import { getNextAction } from '../quests/nextAction';
+import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../components/QuestExperience';
+import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
+import {calculateAge} from '../identity/age';
+import {capturePrivateQuestPhoto,removePrivateQuestPhoto,purgeStalePrivateQuestPhotos} from '../quests/privatePhoto';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
-  const { story } = useSystem();
+  const system = useSystem();
+  const { story } = system;
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
   const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
+  const [questAccepted, setQuestAccepted] = useState(false);
+  const [startInProgress, setStartInProgress] = useState(false);
+  const startInProgressRef = useRef(false);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const adultAge = calculateAge(system.player.birthDate);
+  const adultPhotoEnabled = adultAge !== null && adultAge >= 18;
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [localPhotoBusy, setLocalPhotoBusy] = useState(false);
+  const [localPhotoError, setLocalPhotoError] = useState<string | null>(null);
+  const photoUriRef = useRef<string | null>(null);
+  const photoActiveRef = useRef(false);
+  const photoBusyRef = useRef(false);
+  const questStatusRef = useRef(status);
+  questStatusRef.current = status;
+
+  useFocusEffect(useCallback(() => {
+    photoActiveRef.current = true;
+    try { purgeStalePrivateQuestPhotos(); } catch { /* Cache deletion retries next visit. */ }
+    setLocalPhotoUri(null);
+    setLocalPhotoError(null);
+    return () => {
+      photoActiveRef.current = false;
+      const uri = photoUriRef.current;
+      photoUriRef.current = null;
+      if (uri) { try { removePrivateQuestPhoto(uri); } catch { /* OS cache may be temporarily unavailable. */ } }
+    };
+  }, []));
+
+  const takePrivatePhoto = async () => {
+    if (!adultPhotoEnabled || questStatusRef.current !== 'TRACKING' || photoBusyRef.current) return;
+    photoBusyRef.current = true;
+    setLocalPhotoBusy(true);
+    setLocalPhotoError(null);
+    try {
+      const uri = await capturePrivateQuestPhoto();
+      if (!uri) return;
+      if (!photoActiveRef.current || questStatusRef.current !== 'TRACKING') {
+        removePrivateQuestPhoto(uri);
+        return;
+      }
+      const previous = photoUriRef.current;
+      photoUriRef.current = uri;
+      setLocalPhotoUri(uri);
+      if (previous) removePrivateQuestPhoto(previous);
+    } catch (cause) {
+      if (photoActiveRef.current) {
+        setLocalPhotoError(cause instanceof Error ? cause.message : 'Nie udało się wykonać lokalnego zdjęcia.');
+      }
+    } finally {
+      photoBusyRef.current = false;
+      if (photoActiveRef.current) setLocalPhotoBusy(false);
+    }
+  };
+
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
     ? quest.verification.minimumDurationSeconds : quest.verification.minimumDistanceMeters * (extendedGoal ? 1.25 : 1);
   const formatTime = formatQuestTime;
-  const progress =
-    Math.min(
-      100,
-      ((isTimer ? duration : distance) /
-        target) *
-        100
-    );
+  const progress = target > 0 && Number.isFinite(target)
+    ? Math.min(100, Math.max(0, (isTimer ? duration : distance) / target * 100))
+    : 0;
 
   const metersLeft =
     Math.max(
@@ -43,19 +101,92 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   const seconds =
     duration % 60;
+  const showLiveTracker = isLiveQuestStatus(status);
+  const showBriefing = status === 'CHECKING' || status === 'READY' || status === 'STARTING';
+  const renderStatus: string = status;
+  const nextAction = getNextAction({
+    ...system,
+    player: system.player,
+    completedQuestIds: system.completedQuestIds,
+    failedQuestIds: system.failedQuestIds,
+    activeQuestId: status === 'COMPLETED' ? null : system.activeQuestId,
+    awakeningCompleted: system.awakeningCompleted,
+    daily: system.daily,
+    story: system.story,
+    achievements: system.achievementState,
+  });
+  const continueSystem = () => {
+    if (nextAction.route === '/quest' && nextAction.questId) {
+      router.replace({ pathname: '/quest', params: { questId: nextAction.questId } });
+      return;
+    }
+    router.replace(nextAction.route);
+  };
+
+  useEffect(() => {
+    if (!questAccepted) return;
+    const timer = setTimeout(() => setQuestAccepted(false), 1200);
+    return () => clearTimeout(timer);
+  }, [questAccepted]);
+
+  useEffect(() => {
+    if (!['COMPLETED','ERROR','DENIED'].includes(status)) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180);
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  useEffect(() => {
+    if (quest.category === 'BOSS') {
+      playAudioTheme('BOSS');
+    } else if (status === 'TRACKING') {
+      playAudioTheme('ACTIVE_QUEST');
+    } else if (status === 'COMPLETED') {
+      stopAudioTheme();
+      playAudioTheme('VICTORY');
+      playFeedback('QUEST_COMPLETE');
+    } else if (status === 'COMPLETING') {
+      playAudioTheme('QUEST');
+      playFeedback('VERIFY');
+    } else if (status === 'ERROR' || status === 'DENIED') {
+      stopAudioTheme();
+      playFeedback('ERROR');
+    } else {
+      playAudioTheme('QUEST');
+    }
+    return () => stopAudioTheme();
+  }, [status, quest.category]);
+
+  const handleStartQuest = () => {
+    if (startInProgressRef.current) return;
+    startInProgressRef.current = true;
+    setStartInProgress(true);
+    setQuestAccepted(true);
+    return startQuest()
+      .catch(() => undefined)
+      .finally(() => {
+        startInProgressRef.current = false;
+        setStartInProgress(false);
+      });
+  };
 
   return (
     <View style={styles.root}>
+      <SystemAmbientBackground
+        intensity={quest.category === 'BOSS' ? 'world' : status === 'COMPLETING' || status === 'COMPLETED' ? 'hero' : status === 'TRACKING' ? 'default' : 'quiet'}
+        screen={quest.category === 'BOSS' ? 'BOSS' : 'QUESTS'}
+        scene={quest.category === 'BOSS' ? 'BOSS_ZONE' : status === 'TRACKING' ? 'CITY' : status === 'COMPLETED' ? 'PORTAL' : 'RUINS'}
+        threat={quest.category === 'BOSS' ? 3 : status === 'TRACKING' || status === 'COMPLETING' ? 2 : 1}
+        level={system.player.realLevel}
+      />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={
           [styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]
         }
       >
         <View style={styles.topBar}>
           <Pressable accessibilityRole="button"
-            onPress={() =>
-              router.back()
-            }
+            onPress={() => router.replace('/quests')}
             style={styles.backButton}
           >
             <Text
@@ -65,7 +196,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </Text>
           </Pressable>
 
-          <View>
+          <View style={styles.topTitle}>
             <Text
               style={styles.systemLabel}
             >
@@ -80,97 +211,35 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         </View>
 
-        <View
-          style={styles.questCard}
-        >
-          <View
-            style={styles.questHeader}
-          >
-            <Text
-              style={styles.category}
-            >
-              {verificationPl(quest.verification.type)}
-            </Text>
+        <QuestFlowRail status={status} />
+        {showBriefing && <MissionBriefing
+          quest={quest}
+          status={status}
+          onStart={status === 'READY' && ready ? handleStartQuest : undefined}
+          startDisabled={startInProgress || !ready}
+          resume={distance > 0 || duration > 0}
+        />}
+        {(status === 'TRACKING' || status === 'COMPLETING') && <Animated.View entering={FadeIn.duration(220)} style={styles.liveMissionHeader}>
+          <Text style={styles.liveMissionCode}>{status === 'COMPLETING' ? 'VERIFYING // CANONICAL' : 'MISSION ACTIVE // LIVE'}</Text>
+          <Text style={styles.liveMissionTitle}>{quest.title}</Text>
+          <Text style={styles.liveMissionHint}>{status === 'COMPLETING' ? 'Nie zamykaj ekranu. SYSTEM zapisuje wynik i nagrodę.' : 'Wykonuj cel. Weryfikacja działa na żywo.'}</Text>
+        </Animated.View>}
 
-            <Text
-              style={styles.difficulty}
-            >
-              {difficultyPl(quest.difficulty)}
-            </Text>
+        {adultPhotoEnabled && (status === 'TRACKING' || localPhotoUri !== null) && (
+          <View style={styles.privatePhotoPanel}>
+            <Text style={styles.privatePhotoHeader}>CAMERA // PRYWATNY PODGLĄD</Text>
+            <Text style={styles.privatePhotoHint}>Opcjonalne zdjęcie z aktywnej misji, dostępne tylko na tym ekranie. Nie zalicza misji, nie dodaje XP i nie jest wysyłane do chmury. Wykonuj je tylko w bezpiecznym miejscu.</Text>
+            {localPhotoUri !== null && <Image source={{uri:localPhotoUri}} style={styles.privatePhotoImage} />}
+            {localPhotoError !== null && <Text style={styles.privatePhotoError}>{localPhotoError}</Text>}
+            {status === 'TRACKING' && (
+              <Pressable accessibilityRole="button" disabled={localPhotoBusy}
+                style={[styles.privatePhotoButton, localPhotoBusy && {opacity:0.35}]}
+                onPress={() => {void takePrivatePhoto();}}>
+                <Text style={styles.privatePhotoButtonText}>{localPhotoBusy ? 'URUCHAMIANIE APARATU…' : localPhotoUri ? 'ZRÓB NOWE ZDJĘCIE' : 'ZRÓB PRYWATNE ZDJĘCIE'}</Text>
+              </Pressable>
+            )}
           </View>
-
-          <Text
-            style={styles.questTitle}
-          >
-            {quest.title}
-          </Text>
-
-          <Text
-            style={
-              styles.description
-            }
-          >
-            {quest.description} Ukończenie następuje automatycznie po weryfikacji.
-          </Text>
-
-          <View
-            style={styles.targetRow}
-          >
-            <View>
-              <Text
-                style={
-                  styles.metricLabel
-                }
-              >
-                CEL
-              </Text>
-
-              <Text
-                style={
-                  styles.metricBig
-                }
-              >
-                {isTimer ? formatTime(target) : target + ' M'}
-              </Text>
-            </View>
-
-            <View>
-              <Text
-                style={
-                  styles.metricLabel
-                }
-              >
-                CECHA
-              </Text>
-
-              <Text
-                style={
-                  styles.metricCyan
-                }
-              >
-                {[quest.primarySkill, ...quest.secondarySkills].join(' + ')}
-              </Text>
-            </View>
-
-            <View>
-              <Text
-                style={
-                  styles.metricLabel
-                }
-              >
-                WERYFIKACJA
-              </Text>
-
-              <Text
-                style={
-                  styles.metricCyan
-                }
-              >
-                {isMulti ? 'GPS + CZAS' : isTimer ? 'CZAS' : 'GPS'}
-              </Text>
-            </View>
-          </View>
-        </View>
+        )}
 
         {!!quest.activityType && <View style={styles.questCard}>
           <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
@@ -178,9 +247,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · KROKI — · KADENCJA —</Text>
           <Text style={styles.description}>TYLKO GPS // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
-        <View
-          style={styles.tracker}
-        >
+        {showLiveTracker && <View style={styles.tracker}>
           <Text
             style={styles.trackerLabel}
           >
@@ -207,9 +274,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </Text>
           </View>
 
-          <View
-            style={styles.progressTrack}
-          >
+          <View accessibilityRole="progressbar" accessibilityLabel="Mission progress" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }} style={styles.progressTrack}>
             <View
               style={[
                 styles.progressFill,
@@ -280,7 +345,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.liveValue
                 }
               >
-                {isTimer ? (status === 'TRACKING' ? 'WŁ.' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
+                {isTimer ? (renderStatus === 'TRACKING' ? 'ON' : '--') : accuracy === null ? '--' : Math.round(accuracy)}
               </Text>
 
               <Text
@@ -293,70 +358,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           </View>
 
-          {(status === 'CHECKING' || status === 'STARTING') && (
-            <View style={styles.trackingBox}>
-              <Text style={styles.trackingText}>
-                {status === 'CHECKING' ? 'SPRAWDZANIE ZAPISU…' : isTimer ? 'URUCHAMIANIE CZASU…' : 'OCZEKIWANIE NA GPS…'}
-              </Text>
-            </View>
-          )}
-
-          {status === 'LOCKED' && <View style={styles.errorBox}>
-            <Text style={styles.errorTitle}>MISJA ZABLOKOWANA</Text>
-            <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu dziennego. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Przebudzenia, aby rozpocząć tę próbę.'}</Text>
-            <Pressable onPress={() => router.replace('/quests')}><Text style={styles.retry}>PRZEJDŹ DO QUESTÓW</Text></Pressable>
-          </View>}
-
-          {!ready && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{databaseError ?? 'Trwa odczyt profilu SYSTEMU...'}</Text>
-              {databaseError && <Pressable onPress={() => { void refreshPlayer(); }}>
-                <Text style={styles.retry}>PONÓW ODCZYT PROFILU</Text>
-              </Pressable>}
-            </View>
-          )}
-
-          {status === 'READY' && distance > 0 && quest.verification.type !== 'TIMER' && <View style={styles.trackingBox}>
-            <Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text>
-            <Text style={styles.description}>
-              {quest.verification.type === 'MULTI'
-                ? 'Dystans i czas aktywnej próby mogą być liczone w tle. Po powrocie SYSTEM odczyta najnowszy zweryfikowany postęp.'
-                : 'Możesz wygasić ekran albo przejść do innej aplikacji. Aktywna misja nadal liczy zweryfikowany dystans w tle.'}
-            </Text>
-          </View>}
-          {status === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)}>
-            <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
-            <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
-          </Pressable>}
-          {rematch && <Text style={styles.retry}>WIADOMOŚĆ SYSTEMU // REWANŻ DOSTĘPNY</Text>}
-          {status === 'READY' && ready && (
-            <Pressable accessibilityRole="button"
-              style={
-                styles.startButton
-              }
-              onPress={
-                startQuest
-              }
-            >
-              <Text
-                style={
-                  styles.startButtonText
-                }
-              >
-                {rematch ? 'ROZPOCZNIJ REWANŻ' : distance > 0 ? 'WZNÓW MISJĘ' : 'ROZPOCZNIJ MISJĘ'}
-              </Text>
-
-              <Text
-                style={
-                  styles.startArrow
-                }
-              >
-                →
-              </Text>
-            </Pressable>
-          )}
-
-          {status ===
+          {renderStatus ===
             'TRACKING' && (
             <View
               style={
@@ -379,7 +381,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-          {status ===
+          {renderStatus ===
             'COMPLETING' && (
             <View
               style={
@@ -396,57 +398,62 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-          {(status === 'DENIED' || status === 'ERROR') && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorTitle}>
-                {status === 'DENIED' ? 'BRAK DOSTĘPU DO GPS' : 'PRÓBA ZAKOŃCZONA // ANALIZA SYSTEMU'}
-              </Text>
-              <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => { void retryQuest(); }}>
-                <Text style={styles.retry}>{rematch ? 'ROZPOCZNIJ REWANŻ' : 'SPRÓBUJ PONOWNIE'}</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
+        </View>}
 
-        {quest.verification.type === 'MULTI' && <MultiProgress
+        {(renderStatus === 'CHECKING' || renderStatus === 'STARTING') && (
+          <View style={styles.trackingBox}>
+            <Text style={styles.trackingText}>
+              {renderStatus === 'CHECKING' ? 'SPRAWDZANIE ZAPISU...' : isTimer ? 'URUCHAMIANIE TIMERA...' : 'OCZEKIWANIE NA GPS...'}
+            </Text>
+          </View>
+        )}
+
+        {renderStatus === 'LOCKED' && <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>QUEST LOCKED</Text>
+          <Text style={styles.errorText}>{quest.category === 'DAILY' ? 'Ta misja nie należy do dostępnego zestawu Daily. Sprawdź datę telefonu i odśwież listę questów.' : 'Ukończ poprzednie misje Awakening, aby rozpocząć tę próbę.'}</Text>
+          <View style={styles.errorActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Przejdź do questów" onPress={() => router.replace('/quests')}><Text style={styles.retry}>QUEST HUB →</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć do Home" onPress={() => router.replace('/')}><Text style={styles.retry}>HOME →</Text></Pressable>
+          </View>
+        </View>}
+
+        {!ready && <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{databaseError ?? 'Trwa odczyt profilu SYSTEMU...'}</Text>
+          {databaseError && <View style={styles.errorActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ponów odczyt profilu" onPress={() => { void refreshPlayer(); }}>
+              <Text style={styles.retry}>PONÓW ODCZYT →</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć do Home" onPress={() => router.replace('/')}>
+              <Text style={styles.retry}>HOME →</Text>
+            </Pressable>
+          </View>}
+        </View>}
+
+        {renderStatus === 'READY' && distance > 0 && !isTimer && <View style={styles.trackingBox}><Text style={styles.trackingText}>ZAPISANY POSTĘP · {Math.floor(distance)} M</Text><Text style={styles.description}>Wznów zapisaną próbę. Aktywna misja ruchowa może mierzyć dystans w tle przy wymaganych uprawnieniach.</Text></View>}
+        {renderStatus === 'READY' && quest.category === 'DAILY' && !!quest.activityType && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: extendedGoal }} onPress={() => chooseExtendedGoal(!extendedGoal)} style={styles.optionButton}>
+          <Text style={styles.retry}>{extendedGoal ? '✓ ' : ''}CEL ROZSZERZONY 125%</Text>
+          <Text style={styles.description}>Wybór przed startem. Automatyczne ukończenie nastąpi po dłuższym dystansie.</Text>
+        </Pressable>}
+        {rematch && <Text style={styles.retry}>SYSTEM MESSAGE // REMATCH AVAILABLE</Text>}
+
+        {(renderStatus === 'DENIED' || renderStatus === 'ERROR') && <QuestRecoveryPanel
+          title={renderStatus === 'DENIED' ? 'BRAK DOSTĘPU DO WERYFIKACJI' : rematch ? 'REMATCH AVAILABLE' : 'PRÓBA ZATRZYMANA'}
+          message={error}
+          onRetry={() => { void retryQuest(); }}
+          onSettings={renderStatus === 'DENIED' ? () => { void Linking.openSettings(); } : undefined}
+          onHub={() => router.replace('/quests')}
+          onHome={() => router.replace('/')}
+        />}
+
+        {quest.verification.type === 'MULTI' && showLiveTracker && <MultiProgress
           distance={distance} duration={duration} meters={quest.verification.minimumDistanceMeters}
           seconds={quest.verification.minimumDurationSeconds} />}
 
-        <View
-          style={styles.rewardCard}
-        >
-          <Text
-            style={styles.rewardTitle}
-          >
-            MOŻLIWA NAGRODA
-          </Text>
-
-          <View
-            style={styles.rewardRow}
-          >
-            <Text
-              style={styles.reward}
-            >
-              +{quest.rewards.realXp} REAL XP
-            </Text>
-
-            {Object.entries(quest.rewards.skillXp ?? {}).map(([skill, xp]) => (
-              <Text key={skill} style={styles.reward}>+{xp} {skill} XP</Text>
-            ))}
-
-            <Text
-              style={styles.reward}
-            >
-              +{quest.rewards.gameEnergy ?? 0} ENERGII
-            </Text>
-          </View>
-        </View>
-
         {receipt && <RewardSummary receipt={receipt} />}
-        {status ===
+        {renderStatus ===
           'COMPLETED' && (
-          <View
+          <Animated.View
+            entering={FadeInUp.duration(420)}
             style={
               styles.completeCard
             }
@@ -476,34 +483,64 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                 ? 'Ta misja została już wcześniej zaliczona. Nagrody nie mogą zostać odebrane drugi raz.'
                 : 'Cel został zweryfikowany. Nagrody zostały zapisane w profilu SYSTEMU.'}
             </Text>
+            {!alreadyCompleted && <View style={styles.nextProtocol}>
+              <Text style={styles.nextProtocolCode}>NEXT PROTOCOL</Text>
+              <Text style={styles.nextProtocolTitle}>{nextAction.title}</Text>
+              <Text style={styles.nextProtocolDetail}>{nextAction.detail}</Text>
+            </View>}
 
             <Pressable accessibilityRole="button"
               style={
                 styles.returnButton
               }
-              onPress={() =>
-                router.back()
-              }
+              onPress={alreadyCompleted ? () => router.replace('/quests') : continueSystem}
             >
               <Text
                 style={
                   styles.returnText
                 }
               >
-                WRÓĆ DO SYSTEMU
+                {alreadyCompleted ? 'WRÓĆ DO QUEST HUB' : nextAction.title}
               </Text>
             </Pressable>
-          </View>
+            <View style={styles.completeActions}>
+              {!alreadyCompleted && nextAction.route !== '/quests' && <Pressable accessibilityRole="button" onPress={() => router.replace('/quests')}><Text style={styles.completeLink}>QUEST HUB</Text></Pressable>}
+              <Pressable accessibilityRole="button" onPress={() => router.replace('/')}><Text style={styles.completeLink}>HOME</Text></Pressable>
+            </View>
+          </Animated.View>
         )}
       </ScrollView>
+
+      {questAccepted && (
+        <Animated.View pointerEvents="none" entering={FadeIn.duration(220)} exiting={FadeOut.duration(220)} style={styles.questOverlay}>
+          <Text style={styles.questOverlayLabel}>QUEST ACCEPTED</Text>
+          <Text style={styles.questOverlayTitle}>{quest.title}</Text>
+        </Animated.View>
+      )}
+
     </View>
   );
 }
 
+function isLiveQuestStatus(status: string) {
+  return status === 'TRACKING' || status === 'COMPLETING';
+}
+
 const styles =
   StyleSheet.create({
+    completeActions: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 16 },
+    completeLink: { color: SYSTEM_COLORS.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+    liveMissionHeader: { marginTop: 12, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.05)' },
+    liveMissionCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+    liveMissionTitle: { color: SYSTEM_COLORS.white, fontSize: 20, fontWeight: '900', marginTop: 7 },
+    liveMissionHint: { color: SYSTEM_COLORS.textMuted, fontSize: 10, lineHeight: 15, marginTop: 6 },
+    nextProtocol: { width: '100%', marginTop: 18, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, backgroundColor: 'rgba(0,229,255,0.045)' },
+    nextProtocolCode: { color: SYSTEM_COLORS.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+    nextProtocolTitle: { color: SYSTEM_COLORS.white, fontSize: 15, fontWeight: '900', marginTop: 6 },
+    nextProtocolDetail: { color: SYSTEM_COLORS.textMuted, fontSize: 10, lineHeight: 15, marginTop: 5 },
     root: {
       flex: 1,
+      position: 'relative',
       backgroundColor:
         SYSTEM_COLORS.background,
     },
@@ -539,20 +576,26 @@ const styles =
       lineHeight: 38,
     },
 
+    topTitle: { flex: 1, minWidth: 0 },
+
     systemLabel: {
       color:
         SYSTEM_COLORS.cyan,
       fontSize: 10,
       fontWeight: '900',
-      letterSpacing: 3,
+      letterSpacing: 2.2,
+      lineHeight: 15,
+      flexShrink: 1,
     },
 
     screenTitle: {
       color:
         SYSTEM_COLORS.white,
       fontSize: 26,
+      lineHeight: 32,
       fontWeight: '900',
       marginTop: 4,
+      flexShrink: 1,
     },
 
     questCard: {
@@ -565,18 +608,14 @@ const styles =
       padding: 22,
     },
 
-    questHeader: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-    },
-
     category: {
       color:
         SYSTEM_COLORS.cyan,
       fontWeight: '900',
       fontSize: 11,
-      letterSpacing: 2,
+      letterSpacing: 1.4,
+      lineHeight: 16,
+      flexShrink: 1,
     },
 
     difficulty: {
@@ -584,16 +623,9 @@ const styles =
         SYSTEM_COLORS.textMuted,
       fontWeight: '900',
       fontSize: 9,
-      letterSpacing: 2,
-    },
-
-    questTitle: {
-      color:
-        SYSTEM_COLORS.white,
-      fontSize: 30,
-      lineHeight: 34,
-      fontWeight: '900',
-      marginTop: 22,
+      letterSpacing: 1.25,
+      lineHeight: 16,
+      flexShrink: 1,
     },
 
     description: {
@@ -602,36 +634,6 @@ const styles =
       fontSize: 14,
       lineHeight: 22,
       marginTop: 14,
-    },
-
-    targetRow: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-      marginTop: 28,
-    },
-
-    metricLabel: {
-      color:
-        SYSTEM_COLORS.textVeryMuted,
-      fontSize: 8,
-      fontWeight: '900',
-      letterSpacing: 2,
-      marginBottom: 7,
-    },
-
-    metricBig: {
-      color:
-        SYSTEM_COLORS.white,
-      fontSize: 20,
-      fontWeight: '900',
-    },
-
-    metricCyan: {
-      color:
-        SYSTEM_COLORS.cyan,
-      fontSize: 20,
-      fontWeight: '900',
     },
 
     tracker: {
@@ -730,6 +732,12 @@ const styles =
       justifyContent:
         'space-between',
       paddingHorizontal: 24,
+      transform: [{ scale: 1 }],
+    },
+
+    startButtonPressed: {
+      transform: [{ scale: 0.985 }],
+      opacity: 0.96,
     },
 
     startButtonText: {
@@ -766,11 +774,16 @@ const styles =
     },
 
     trackingText: {
+      flex: 1,
+      minWidth: 0,
+      textAlign: 'center',
       color:
         SYSTEM_COLORS.cyan,
       fontSize: 10,
+      lineHeight: 16,
       fontWeight: '900',
-      letterSpacing: 2,
+      letterSpacing: 1.15,
+      flexShrink: 1,
     },
 
     errorBox: {
@@ -796,6 +809,8 @@ const styles =
       lineHeight: 20,
     },
 
+    errorActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 2 },
+
     retry: {
       color:
         SYSTEM_COLORS.white,
@@ -803,35 +818,43 @@ const styles =
       marginTop: 18,
     },
 
-    rewardCard: {
-      marginTop: 16,
-      borderWidth: 1,
-      borderColor:
-        SYSTEM_COLORS.line,
-      borderRadius: 22,
-      padding: 20,
-      backgroundColor:
-        '#061115',
+    optionButton: {
+      marginTop: 18,
+      paddingVertical: 4,
     },
 
-    rewardTitle: {
-      color:
-        SYSTEM_COLORS.textMuted,
-      fontSize: 9,
+    questOverlay: {
+      position: 'absolute',
+      inset: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(2, 9, 15, 0.72)',
+      paddingHorizontal: 26,
+    },
+
+    questCompleteOverlay: {
+      position: 'absolute',
+      inset: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(3, 18, 16, 0.8)',
+      paddingHorizontal: 26,
+    },
+
+    questOverlayLabel: {
+      color: SYSTEM_COLORS.cyan,
+      fontSize: 11,
       fontWeight: '900',
-      letterSpacing: 3,
+      letterSpacing: 4,
+      textAlign: 'center',
     },
 
-    rewardRow: {
-      gap: 9,
-      marginTop: 16,
-    },
-
-    reward: {
-      color:
-        SYSTEM_COLORS.cyan,
-      fontSize: 14,
+    questOverlayTitle: {
+      color: SYSTEM_COLORS.white,
+      fontSize: 36,
       fontWeight: '900',
+      textAlign: 'center',
+      marginTop: 10,
     },
 
     completeCard: {
@@ -886,4 +909,18 @@ const styles =
       fontWeight: '900',
       letterSpacing: 2,
     },
+    privatePhotoPanel: {
+      borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright,
+      borderRadius: 18, padding: 16, marginTop: 14,
+      backgroundColor: '#06171d',
+    },
+    privatePhotoHeader: {color: SYSTEM_COLORS.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.2},
+    privatePhotoHint: {color: SYSTEM_COLORS.textMuted, marginTop: 7, fontSize: 11, lineHeight: 17},
+    privatePhotoImage: {width: '100%', height: 190, borderRadius: 12, marginTop: 12},
+    privatePhotoError: {color: '#ff9a8d', fontSize: 11, marginTop: 9},
+    privatePhotoButton: {
+      marginTop: 12, minHeight: 48, borderRadius: 12,
+      backgroundColor: SYSTEM_COLORS.cyan, alignItems: 'center', justifyContent: 'center',
+    },
+    privatePhotoButtonText: {color: '#001014', fontWeight: '900', fontSize: 11},
   });

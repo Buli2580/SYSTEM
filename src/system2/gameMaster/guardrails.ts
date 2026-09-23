@@ -1,0 +1,3 @@
+import type {GoalCampaign} from './planner';
+const BLOCKED=[/hazard/i,/pożycz/i,/głodów/i,/nie śpij|bez snu/i,/samobój/i,/ukrad|włam/i];
+export function validateCampaign(c:GoalCampaign){const issues:string[]=[];if(!c.goal.trim()||c.goal.length>200)issues.push('invalid-goal');if(c.weeks<1||c.weeks>52)issues.push('invalid-weeks');if(c.daily.length<1||c.daily.length>10)issues.push('invalid-daily-count');for(const q of c.daily){if(!q.title.trim()||q.title.length>80)issues.push('invalid-title');if(q.minutes<1||q.minutes>180)issues.push('invalid-duration');if(!q.description.trim()||q.description.length>280)issues.push('invalid-description');if(BLOCKED.some(rx=>rx.test(q.title+' '+q.description)))issues.push('unsafe-content');}return{ok:issues.length===0,issues};}

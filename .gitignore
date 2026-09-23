@@ -47,3 +47,10 @@ server/.env
 
 # Legacy avatar server runtime output
 /server/generated/
+
+# Canonical development tools, caches and build output stay on this drive.
+.tools/
+.cache/
+artifacts/
+
+supabase/.temp/

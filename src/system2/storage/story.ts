@@ -1,5 +1,7 @@
+import { dailyBossDamage, bossHealth } from '../story/damage';
+import { applyQuestRewards } from '../core/questEngine';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { addRealXp, addSkillXp, type PlayerProfile, type QuestReward, type SkillKey } from '../core';
+import { type PlayerProfile, type QuestReward } from '../core';
 import type { RunnableQuest, QuestEvidence } from '../quests/types';
 import { BOSS_ID, BOSS_FOCUS, BOSS_WALK, BOSS_RUN, CHAPTERS, STORY_REWARDS, WORLD_LINK_ID, qualifiesExtraMile, EXTRA_MILE, NO_TURNING_BACK } from '../story/catalog';
 import type { BossProgress, QuestAttempt, StoryEvent, StoryEventType, StoryState } from '../story/types';
@@ -11,9 +13,7 @@ export async function storyEvent(db: SQLiteDatabase, id: string, type: StoryEven
 async function award(db: SQLiteDatabase, player: PlayerProfile, id: string, reward: QuestReward, type: StoryEventType, title: string) {
  const claim=await db.runAsync('INSERT INTO story_progress(id,completed_at) VALUES (?,?) ON CONFLICT(id) DO NOTHING',id,nowISO());
  if(!claim.changes) return player;
- let next=addRealXp(player,reward.realXp);
- for(const [key,xp] of Object.entries(reward.skillXp??{})) next=addSkillXp(next,key as SkillKey,xp);
- next={...next,gameEnergy:next.gameEnergy+(reward.gameEnergy??0),updatedAt:nowISO()};
+ const next=applyQuestRewards(player,reward,nowISO());
  await db.runAsync('UPDATE app_state SET value=? WHERE key=?',JSON.stringify(next),'player');
  await storyEvent(db,id,type,title,`+${reward.realXp} REAL XP · ${Object.entries(reward.skillXp??{}).map(([k,v])=>`+${v} ${k} XP`).join(' · ')} · +${reward.gameEnergy??0} ENERGII`);
  return next;
@@ -51,7 +51,8 @@ export async function reconcileStory(db: SQLiteDatabase, player: PlayerProfile, 
  const has=async(id:string)=>Boolean(await db.getFirstAsync('SELECT id FROM story_progress WHERE id=?',id));
  const worldLinkComplete=await has(WORLD_LINK_ID),bossComplete=await has(BOSS_ID);
  const rematches=await db.getAllAsync<{quest_id:string}>(`SELECT DISTINCT a.quest_id FROM quest_attempts a WHERE a.eligible=1 AND NOT EXISTS (SELECT 1 FROM quest_completions c WHERE c.quest_id=a.quest_id) ORDER BY a.started_at DESC LIMIT 50`);
- return {player:next,story:{ milestones,worldLinkComplete,bossComplete,boss,sideComplete:await has('extra_mile_v1'),hiddenComplete:await has('no_turning_back_v1'),
+ const bossSupportDamage=Math.min(20,(await db.getFirstAsync<{n:number}>('SELECT COALESCE(SUM(damage),0) AS n FROM boss_contributions WHERE boss_id=?',BOSS_ID))?.n??0);
+ return {player:next,story:{ bossSupportDamage,bossHp:bossHealth(boss,bossSupportDamage),milestones,worldLinkComplete,bossComplete,boss,sideComplete:await has('extra_mile_v1'),hiddenComplete:await has('no_turning_back_v1'),
  rematchQuestIds:rematches.map(r=>r.quest_id),pendingEvents:await db.getAllAsync<StoryEvent>('SELECT * FROM story_events WHERE consumed=0 ORDER BY created_at,id LIMIT 20'),
  chapters:CHAPTERS.map((c,index)=>({...c,completed:index===0?c.questIds.filter(id=>completedIds.includes(id)).length:progress,total:3,
  status:index===0?(chapter1?'COMPLETED':completedIds.some(id=>c.questIds.includes(id))?'ACTIVE':'AVAILABLE'):worldLinkComplete?'COMPLETED':!chapter1?'LOCKED':progress?'ACTIVE':'AVAILABLE'}))}};
@@ -76,6 +77,8 @@ export async function completeStoryActivity(db:SQLiteDatabase,player:PlayerProfi
    await storyEvent(db,'boss_stage_'+(column==='focus_at'?'1':'2'),'BOSS_STAGE_COMPLETED',`PIERWSZY MUR // ETAP ${column==='focus_at'?'1':'2'} UKOŃCZONY`);
  }
  if(quest.category==='DAILY') {
+   const activeBoss=await db.getFirstAsync<BossProgress>('SELECT * FROM boss_progress WHERE id=?',BOSS_ID);
+   if(activeBoss&&!activeBoss.discipline_at)await db.runAsync('INSERT INTO boss_contributions(quest_id,boss_id,damage,created_at) VALUES (?,?,?,?) ON CONFLICT(quest_id) DO NOTHING',quest.id,BOSS_ID,dailyBossDamage(quest,player),nowISO());
    const boss=await db.getFirstAsync<BossProgress>('SELECT * FROM boss_progress WHERE id=?',BOSS_ID);
    // At least the following local day: a missed day must not permanently lock a multi-day boss.
    if(boss?.move_at&&!boss.discipline_at&&quest.dayKey&&dayOrdinal(quest.dayKey)>dayOrdinal(boss.start_day)) {

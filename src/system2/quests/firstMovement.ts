@@ -39,7 +39,7 @@ export const FIRST_MOVEMENT_QUEST: RunnableQuest = {
   progress: 0,
   progressTarget: 500,
 
-  createdAt: new Date().toISOString(),
+  createdAt: '2026-09-17T00:00:00.000Z',
 
   chapter: 1,
   arc: 'AWAKENING',
