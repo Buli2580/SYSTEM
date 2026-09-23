@@ -35,7 +35,7 @@ export default function StoryScreen() {
    {boss&&<>
     <Text style={s.label}>BOSS ENGINE 3.0 // {bossPhase?.label}</Text>
     <Text style={s.body}>HP {story?.bossHp ?? 100}/100 · wsparcie zweryfikowanych misji: {story?.bossSupportDamage ?? 0}</Text>
-    <Text style={s.body}>WEAK POINT: {bossPhase?.weakPoint} · DAMAGE MODIFIER ×{bossPhase?.damageMultiplier.toFixed(2)}{bossPhase?.enrage?' · ENRAGE ACTIVE':''}</Text>
+    <Text style={s.body}>FAZA WIZUALNA // WEAK POINT: {bossPhase?.weakPoint}{bossPhase?.enrage?' · ENRAGE':''}</Text>
     {bossPhase?.finisherReady&&<Text style={[s.label,{color:'#ffd36c'}]}>FINAL STRIKE READY // DOKOŃCZ PROTOKÓŁ</Text>}
     <Text style={s.body}>ETAP 1 // {boss.focus_at?'UKOŃCZONE':'DOSTĘPNY'} · 15 MIN SKUPIENIA</Text>
     {!boss.focus_at&&<Action label="ROZPOCZNIJ SKUPIENIE" onPress={()=>open(BOSS_FOCUS)}/>}
