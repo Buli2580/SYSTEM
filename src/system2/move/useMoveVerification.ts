@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import * as Location from 'expo-location';
+import {AppState} from 'react-native';
 import {createActivityWindow} from '../activity/features';
 import {classifyActivity} from '../activity/classifier';
 import type {ActivityEvidence} from '../activity/types';
@@ -25,6 +26,7 @@ export function useMoveVerification(quest:MoveQuest){
  // A late native subscription must be removed, never installed after reset/unmount.
  const generation=useRef(0);
  const mounted=useRef(true);
+ const startingRef=useRef(false);
 
  const cleanup=useCallback(()=>{
   if(tick.current!==null)clearInterval(tick.current);
@@ -34,7 +36,25 @@ export function useMoveVerification(quest:MoveQuest){
  },[]);
  useEffect(()=>{
   mounted.current=true;
-  return()=>{mounted.current=false;generation.current++;cleanup();sessionRef.current=null;};
+  return()=>{mounted.current=false;generation.current++;startingRef.current=false;cleanup();sessionRef.current=null;};
+ },[cleanup]);
+
+ // Foreground-only MOVE must not grant active minutes while the app is
+ // suspended and the native foreground GPS watcher may have stopped.
+ useEffect(()=>{
+  const sub=AppState.addEventListener('change',state=>{
+   if(state!=='background'||(!startingRef.current&&!sessionRef.current))return;
+   generation.current++;
+   startingRef.current=false;
+   cleanup();
+   sessionRef.current=null;
+   windowRef.current=null;
+   if(mounted.current){
+    setStatus('ERROR');
+    setError('Misja MOVE została przerwana po przejściu w tło. Uruchom ją ponownie.');
+   }
+  });
+  return()=>sub.remove();
  },[cleanup]);
 
  const update=useCallback(()=>{
@@ -46,6 +66,7 @@ export function useMoveVerification(quest:MoveQuest){
    generation.current++;
    cleanup();
    sessionRef.current=null;
+   startingRef.current=false;
    setStatus('ERROR');
    setError('Zegar sesji MOVE został zresetowany. Uruchom misję ponownie.');
    return;
@@ -59,12 +80,14 @@ export function useMoveVerification(quest:MoveQuest){
   cleanup();
   sessionRef.current=null;
   windowRef.current=null;
+  startingRef.current=true;
   setError(null);setElapsed(0);setDistance(0);setActivity(null);setStatus('STARTING');
-  const live=()=>mounted.current&&generation.current===run;
+  const live=()=>mounted.current&&generation.current===run&&AppState.currentState!=='background';
   const beginTracking=()=>{
    if(!live())return;
    // Never credit time spent in the Android permission dialog or waiting
    // for a native GPS subscription/health provider to initialize.
+   startingRef.current=false;
    sessionRef.current=createMoveSessionClock(Date.now(),performance.now());
    tick.current=setInterval(update,1000);
    setStatus('TRACKING');
@@ -74,7 +97,7 @@ export function useMoveVerification(quest:MoveQuest){
     const permission=await Location.requestForegroundPermissionsAsync();
     if(!live())return;
     if(permission.status!=='granted'){
-     cleanup();sessionRef.current=null;setStatus('DENIED');
+     startingRef.current=false;cleanup();sessionRef.current=null;setStatus('DENIED');
      setError('MOVE wymaga dostępu do lokalizacji podczas tej misji.');return;
     }
     const window=createActivityWindow();
@@ -94,7 +117,7 @@ export function useMoveVerification(quest:MoveQuest){
     beginTracking();
    }catch{
     if(!live())return;
-    cleanup();sessionRef.current=null;setStatus('ERROR');
+    startingRef.current=false;cleanup();sessionRef.current=null;setStatus('ERROR');
     setError('Nie udało się uruchomić GPS MOVE.');
    }
    return;
@@ -104,7 +127,7 @@ export function useMoveVerification(quest:MoveQuest){
     const available=await moveHealthAvailable();
     if(!live())return;
     if(!available){
-     cleanup();sessionRef.current=null;setStatus('UNAVAILABLE');
+     startingRef.current=false;cleanup();sessionRef.current=null;setStatus('UNAVAILABLE');
      setError('Kroki wymagają Health Connect / Apple Health. Provider nie jest jeszcze dostępny na tym urządzeniu.');
      return;
     }
@@ -123,6 +146,7 @@ export function useMoveVerification(quest:MoveQuest){
   // Cancels late native subscriptions and prevents another start from
   // publishing stale evidence. Time credit never depends on Date.now().
   const run=++generation.current;
+  startingRef.current=false;
   setStatus('VERIFYING');
   try{
    const endMono=performance.now();
@@ -162,6 +186,7 @@ export function useMoveVerification(quest:MoveQuest){
 
  const reset=useCallback(()=>{
   generation.current++;
+  startingRef.current=false;
   cleanup();sessionRef.current=null;windowRef.current=null;
   setStatus('READY');setError(null);setElapsed(0);setDistance(0);setActivity(null);
  },[cleanup]);
