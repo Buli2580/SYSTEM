@@ -8,6 +8,7 @@ import {
   ensureCloudUserBinding,
 } from '../storage/database';
 import { getValidSession } from './auth';
+import {reconcileRecentMoveContributions} from './move';
 import { CloudRequestError } from './http';
 import { processPendingSyncEvents, submitSyncEvent } from './state';
 
@@ -85,6 +86,16 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
   } catch (cause) {
     // Allow the mobile update to run against Online 0.3 during migration rollout.
     if (!(cause instanceof CloudRequestError && cause.code === 'PGRST202')) throw cause;
+  }
+
+  // A cloud sync may make older MOVE sessions eligible for Family/School
+  // scoring. Reconcile only from PROCESSED server evidence; failure in this
+  // optional feature must not invalidate already-synced core gameplay.
+  try{
+    await reconcileRecentMoveContributions();
+  }catch{
+    // Group backend can be offline or pending its separate migration.
+    // Persisted local MOVE history is retried at the next cloud sync.
   }
 
   const stats = await cloudOutboxStats();

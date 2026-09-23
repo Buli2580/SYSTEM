@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import * as Location from 'expo-location';
+import {AppState} from 'react-native';
 import {createActivityWindow} from '../activity/features';
 import {classifyActivity} from '../activity/classifier';
 import type {ActivityEvidence} from '../activity/types';
@@ -7,6 +8,7 @@ import type {MoveQuest} from './types';
 import {moveExpectedActivity,type MoveVerificationEvidence} from './verification';
 import {moveHealthAvailable,readMoveHealth} from './health';
 import {sumHealthSamples} from '../health/contract';
+import {createMoveSessionClock,moveElapsedMs,moveWallEndMs,type MoveSessionClock} from './sessionClock';
 
 export type MoveRunStatus='READY'|'STARTING'|'TRACKING'|'VERIFYING'|'UNAVAILABLE'|'DENIED'|'ERROR';
 
@@ -16,70 +18,177 @@ export function useMoveVerification(quest:MoveQuest){
  const[distance,setDistance]=useState(0);
  const[activity,setActivity]=useState<ActivityEvidence|null>(null);
  const[error,setError]=useState<string|null>(null);
- const startAt=useRef<number|null>(null);
+ const sessionRef=useRef<MoveSessionClock|null>(null);
  const tick=useRef<ReturnType<typeof setInterval>|null>(null);
  const watcher=useRef<Location.LocationSubscription|null>(null);
  const windowRef=useRef<ReturnType<typeof createActivityWindow>|null>(null);
+ // Every async permission/provider/watcher continuation checks its generation.
+ // A late native subscription must be removed, never installed after reset/unmount.
+ const generation=useRef(0);
+ const mounted=useRef(true);
+ const startingRef=useRef(false);
 
- const cleanup=useCallback(()=>{if(tick.current)clearInterval(tick.current);tick.current=null;watcher.current?.remove();watcher.current=null;},[]);
- useEffect(()=>cleanup,[cleanup]);
+ const cleanup=useCallback(()=>{
+  if(tick.current!==null)clearInterval(tick.current);
+  tick.current=null;
+  watcher.current?.remove();
+  watcher.current=null;
+ },[]);
+ useEffect(()=>{
+  mounted.current=true;
+  return()=>{mounted.current=false;generation.current++;startingRef.current=false;cleanup();sessionRef.current=null;};
+ },[cleanup]);
+
+ // Foreground-only MOVE must not grant active minutes while the app is
+ // suspended and the native foreground GPS watcher may have stopped.
+ useEffect(()=>{
+  const sub=AppState.addEventListener('change',state=>{
+   if(state!=='background'||(!startingRef.current&&!sessionRef.current))return;
+   generation.current++;
+   startingRef.current=false;
+   cleanup();
+   sessionRef.current=null;
+   windowRef.current=null;
+   if(mounted.current){
+    setStatus('ERROR');
+    setError('Misja MOVE została przerwana po przejściu w tło. Uruchom ją ponownie.');
+   }
+  });
+  return()=>sub.remove();
+ },[cleanup]);
 
  const update=useCallback(()=>{
-  if(startAt.current===null)return;
-  setElapsed(Math.max(0,Math.floor((Date.now()-startAt.current)/1000)));
+  const session=sessionRef.current;
+  if(!session)return;
+  try{
+   setElapsed(Math.floor(moveElapsedMs(session,performance.now())/1000));
+  }catch{
+   generation.current++;
+   cleanup();
+   sessionRef.current=null;
+   startingRef.current=false;
+   setStatus('ERROR');
+   setError('Zegar sesji MOVE został zresetowany. Uruchom misję ponownie.');
+   return;
+  }
   const features=windowRef.current?.features();
   if(features)setDistance(Math.round(features.distanceMeters));
- },[]);
+ },[cleanup]);
 
  const start=useCallback(async()=>{
-  cleanup();setError(null);setElapsed(0);setDistance(0);setActivity(null);setStatus('STARTING');
-  startAt.current=Date.now();
-  tick.current=setInterval(update,1000);
+  const run=++generation.current;
+  cleanup();
+  sessionRef.current=null;
+  windowRef.current=null;
+  startingRef.current=true;
+  setError(null);setElapsed(0);setDistance(0);setActivity(null);setStatus('STARTING');
+  const live=()=>mounted.current&&generation.current===run&&AppState.currentState!=='background';
+  const beginTracking=()=>{
+   if(!live())return;
+   // Never credit time spent in the Android permission dialog or waiting
+   // for a native GPS subscription/health provider to initialize.
+   startingRef.current=false;
+   sessionRef.current=createMoveSessionClock(Date.now(),performance.now());
+   tick.current=setInterval(update,1000);
+   setStatus('TRACKING');
+  };
   if(quest.verification==='GPS_DISTANCE'||quest.verification==='MIXED'){
+   try{
     const permission=await Location.requestForegroundPermissionsAsync();
-    if(permission.status!=='granted'){cleanup();setStatus('DENIED');setError('MOVE wymaga dostępu do lokalizacji podczas tej misji.');return;}
-    const w=createActivityWindow();windowRef.current=w;
-    try{
-      watcher.current=await Location.watchPositionAsync({
-        accuracy:Location.Accuracy.High,
-        timeInterval:1000,
-        distanceInterval:3,
-      },point=>{w.add(point);const f=w.features();setDistance(Math.round(f.distanceMeters));});
-      setStatus('TRACKING');return;
-    }catch{cleanup();setStatus('ERROR');setError('Nie udało się uruchomić GPS MOVE.');return;}
+    if(!live())return;
+    if(permission.status!=='granted'){
+     startingRef.current=false;cleanup();sessionRef.current=null;setStatus('DENIED');
+     setError('MOVE wymaga dostępu do lokalizacji podczas tej misji.');return;
+    }
+    const window=createActivityWindow();
+    windowRef.current=window;
+    const subscription=await Location.watchPositionAsync({
+     accuracy:Location.Accuracy.High,
+     timeInterval:1000,
+     distanceInterval:3,
+    },point=>{
+     if(!live()||sessionRef.current===null)return;
+     window.add(point);
+     const features=window.features();
+     setDistance(Math.round(features.distanceMeters));
+    });
+    if(!live()){subscription.remove();return;}
+    watcher.current=subscription;
+    beginTracking();
+   }catch{
+    if(!live())return;
+    startingRef.current=false;cleanup();sessionRef.current=null;setStatus('ERROR');
+    setError('Nie udało się uruchomić GPS MOVE.');
+   }
+   return;
   }
   if(quest.verification==='STEPS'||quest.verification==='HEALTH'){
-    if(!await moveHealthAvailable()){cleanup();setStatus('UNAVAILABLE');setError('Kroki wymagają Health Connect / Apple Health. Provider nie jest jeszcze dostępny na tym urządzeniu.');return;}
+   try{
+    const available=await moveHealthAvailable();
+    if(!live())return;
+    if(!available){
+     startingRef.current=false;cleanup();sessionRef.current=null;setStatus('UNAVAILABLE');
+     setError('Kroki wymagają Health Connect / Apple Health. Provider nie jest jeszcze dostępny na tym urządzeniu.');
+     return;
+    }
+   }catch{
+    if(!live())return;
+    cleanup();sessionRef.current=null;setStatus('ERROR');
+    setError('Nie udało się sprawdzić dostawcy danych zdrowotnych.');return;
+   }
   }
-  setStatus('TRACKING');
+  beginTracking();
  },[cleanup,quest.verification,update]);
 
  const buildEvidence=useCallback(async(parentApproved=false):Promise<MoveVerificationEvidence>=>{
-  if(startAt.current===null)throw new Error('MOVE_NOT_STARTED');
-  setStatus('VERIFYING');update();
-  const end=Date.now(),duration=Math.max(elapsed,Math.floor((end-startAt.current)/1000));
-  if(quest.verification==='GPS_DISTANCE'||quest.verification==='MIXED'){
+  const session=sessionRef.current;
+  if(!session||status!=='TRACKING')throw new Error('MOVE_NOT_TRACKING');
+  // Cancels late native subscriptions and prevents another start from
+  // publishing stale evidence. Time credit never depends on Date.now().
+  const run=++generation.current;
+  startingRef.current=false;
+  setStatus('VERIFYING');
+  try{
+   const endMono=performance.now();
+   const duration=Math.floor(moveElapsedMs(session,endMono)/1000);
+   if(quest.verification==='GPS_DISTANCE'||quest.verification==='MIXED'){
     const features=windowRef.current?.features();
     if(features){
-      const classified=classifyActivity(moveExpectedActivity(quest),features);
-      setActivity(classified);
-      cleanup();
-      return{questId:quest.id,durationSeconds:Math.max(duration,Math.floor(features.durationSeconds)),distanceMeters:features.distanceMeters,parentApproved,activity:classified,source:quest.verification==='MIXED'?'MIXED':'GPS'};
+     const classified=classifyActivity(moveExpectedActivity(quest),features);
+     if(mounted.current&&run===generation.current)setActivity(classified);
+     return{questId:quest.id,durationSeconds:Math.max(duration,Math.floor(features.durationSeconds)),distanceMeters:features.distanceMeters,parentApproved,activity:classified,source:quest.verification==='MIXED'?'MIXED':'GPS'};
     }
-  }
-  if(quest.verification==='STEPS'||quest.verification==='HEALTH'){
-    const startIso=new Date(startAt.current).toISOString(),endIso=new Date(end).toISOString();
+   }
+   if(quest.verification==='STEPS'||quest.verification==='HEALTH'){
+    const startIso=new Date(session.startedAtWallMs).toISOString();
+    const endIso=new Date(moveWallEndMs(session,endMono)).toISOString();
     const metric=quest.verification==='STEPS'?'STEPS':'ACTIVE_MINUTES';
     const rows=await readMoveHealth(metric,startIso,endIso);
-    cleanup();
+    if(!mounted.current||run!==generation.current)throw new Error('MOVE_CANCELLED');
     return quest.verification==='STEPS'
-      ?{questId:quest.id,durationSeconds:duration,steps:Math.floor(sumHealthSamples(rows)),source:'STEPS'}
-      :{questId:quest.id,durationSeconds:duration,activeMinutes:Math.floor(sumHealthSamples(rows)),source:'HEALTH'};
+     ?{questId:quest.id,durationSeconds:duration,steps:Math.floor(sumHealthSamples(rows)),source:'STEPS'}
+     :{questId:quest.id,durationSeconds:duration,activeMinutes:Math.floor(sumHealthSamples(rows)),source:'HEALTH'};
+   }
+   return{questId:quest.id,durationSeconds:duration,parentApproved,source:quest.verification==='PARENT_APPROVAL'?'PARENT':'TIMER'};
+  }catch(error){
+   if(mounted.current&&run===generation.current){
+    setStatus('ERROR');
+    setError('Nie udało się zweryfikować sesji MOVE. Spróbuj ponownie.');
+   }
+   throw error;
+  }finally{
+   if(run===generation.current){
+    cleanup();
+    sessionRef.current=null;
+   }
   }
-  cleanup();
-  return{questId:quest.id,durationSeconds:duration,parentApproved,source:quest.verification==='PARENT_APPROVAL'?'PARENT':'TIMER'};
- },[cleanup,elapsed,quest]);
+ },[cleanup,quest,status]);
 
- const reset=useCallback(()=>{cleanup();startAt.current=null;windowRef.current=null;setStatus('READY');setError(null);setElapsed(0);setDistance(0);setActivity(null)},[cleanup]);
+ const reset=useCallback(()=>{
+  generation.current++;
+  startingRef.current=false;
+  cleanup();sessionRef.current=null;windowRef.current=null;
+  setStatus('READY');setError(null);setElapsed(0);setDistance(0);setActivity(null);
+ },[cleanup]);
  return{status,elapsed,distance,activity,error,start,buildEvidence,reset,running:status==='TRACKING'||status==='STARTING'};
 }

@@ -451,3 +451,109 @@ test('local Monday attribution survives Sunday UTC upload and forged days are re
  const bonus=await submit(id,progressionClaim('weekly:2026-W39:weekly_quest_master'),'monday:bonus');assert.equal((await event(bonus)).processing_status,'PROCESSED');
  const other=await user();const invalid=await submit(other,{...movement,completed_day:'2099-12-31'},'forged:day');assert.equal((await event(invalid)).rejection_reason,'INVALID_PAYLOAD');
 });
+
+
+// Ranked MOVE requires separately PROCESSED core evidence. Merely posting
+// local timer/GPS metadata must not alter official group totals.
+test('MOVE legacy self-reported claims cannot inflate official rankings',async()=>{
+ const owner=await user();
+ const group=(await asUser(owner,"select public.create_move_group('FAMILY','MVP secure group') as id")).rows[0].id;
+ await assert.rejects(asUser(owner,
+   "select public.submit_move_contribution($1,'move:fake','move_walk_10','GPS',100,current_date)",
+   [group]),/permission denied|MOVE_SERVER_EVIDENCE_REQUIRED/i);
+ // Preserve an old entry for audit, but quarantine it from official totals.
+ await db.query("insert into public.move_contributions(group_id,user_id,event_key,quest_id,verified_minutes,verification_method,verification_score,day_key) values($1,$2,'move:untrusted-old','move_bike_20',20,'GPS',100,current_date)",[group,owner]);
+ const groups=await asUser(owner,'select * from public.get_my_move_groups()');
+ assert.equal(Number(groups.rows[0].total_minutes),0);
+ const board=await asUser(owner,'select * from public.get_move_group_leaderboard($1)',[group]);
+ assert.equal(board.rows.length,0);
+});
+
+test('MOVE trusted source cannot be forged, double-claimed, reassigned, or seen across groups',async()=>{
+ const owner=await user(),outsider=await user();
+ const group=(await asUser(owner,"select public.create_move_group('FAMILY','Verified group') as id")).rows[0].id;
+ const today=(await db.query('select current_date::text as day')).rows[0].day;
+ const key='verified:move-ranked-'+randomUUID().replaceAll('-','');
+ const coreQuest='daily:'+today+':walk_protocol_1';
+ await assert.rejects(asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_walk_10',today]),/MOVE_SERVER_EVIDENCE_REQUIRED/);
+ await db.query(`insert into public.sync_events(user_id,event_key,entity_type,entity_id,payload,processing_status,schema_version)
+   values($1,$2,'VERIFIED_EVENT',$3,'{}'::jsonb,'PROCESSED',1)`,[owner,key,coreQuest]);
+ await db.query(`insert into public.verification_summaries(user_id,event_key,activity_type,verdict,confidence_score,distance_meters,duration_seconds)
+   values($1,$2,'WALK','VERIFIED',85,1600,750)`,[owner,key]);
+ // An outsider cannot submit another member's trusted proof.
+ await assert.rejects(asUser(outsider,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_walk_10',today]),/NOT_GROUP_MEMBER/);
+ await assert.rejects(asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_bike_20',today]),/MOVE_SERVER_EVIDENCE_REQUIRED/);
+ await assert.rejects(asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_walk_10','2026-09-18']),/MOVE_SERVER_EVIDENCE_REQUIRED|INVALID_MOVE_DAY/);
+ const accepted=await asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date) as minutes',
+   [group,key,'move_walk_10',today]);
+ assert.equal(accepted.rows[0].minutes,10);
+ const repeated=await asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date) as minutes',
+   [group,key,'move_walk_10',today]);
+ assert.equal(repeated.rows[0].minutes,0);
+ const groupStatus=await asUser(owner,'select * from public.get_my_move_groups()');
+ assert.equal(Number(groupStatus.rows[0].total_minutes),10);
+ const board=await asUser(owner,'select * from public.get_move_group_leaderboard($1)',[group]);
+ assert.equal(board.rows.length,1);assert.equal(Number(board.rows[0].verified_minutes),10);
+ const source=await asUser(owner,'select * from public.get_my_move_verified_source($1,$2::date)',['move_walk_10',today]);
+ assert.equal(source.rows[0].event_key,key);
+ const invisible=await asUser(outsider,'select * from public.get_my_move_verified_source($1,$2::date)',['move_walk_10',today]);
+ assert.equal(invisible.rows.length,0);
+});
+
+test('MOVE invited family member can see group totals but not individual rankings',async()=>{
+ const parent=await user(),member=await user();
+ const group=(await asUser(parent,"select public.create_move_group('FAMILY','Privacy group') as id")).rows[0].id;
+ const code=(await asUser(parent,"select public.create_move_group_invite($1,'MEMBER',1,24) as code",[group])).rows[0].code;
+ await asUser(member,'select public.join_move_group($1)',[code]);
+ const groups=await asUser(member,'select * from public.get_my_move_groups()');
+ assert.equal(groups.rows[0].name,'Privacy group');
+ const board=await asUser(member,'select * from public.get_move_group_leaderboard($1)',[group]);
+ assert.equal(board.rows.length,0);
+});
+
+test('concurrent two-install claim replay preserves exactly-once core XP',async()=>{
+ const id=await user();
+ const attempts=[
+  ...Array.from({length:8},()=>submit(id,movement,'verified:install-a-first-move')),
+  ...Array.from({length:8},(_,i)=>submit(id,movement,'verified:install-b-retry-'+i)),
+ ];
+ await Promise.all(attempts);
+ assert.equal(Number((await state(id)).real_total_xp),100);
+ assert.equal(await count('reward_ledger',id),1);
+ assert.equal(await count('verification_summaries',id),1);
+ const completions=await db.query("select count(*)::int as n from public.quest_completions where user_id=$1 and quest_id='first_movement_v1'",[id]);
+ assert.equal(completions.rows[0].n,1);
+});
+
+
+test('MOVE privacy: students and children cannot query peers individual contribution rows',async()=>{
+ const parent=await user(),childA=await user(),childB=await user();
+ const group=(await asUser(parent,"select public.create_move_group('FAMILY','Children privacy check') as id")).rows[0].id;
+ const invite=(await asUser(parent,"select public.create_move_group_invite($1,'CHILD',2,24) as code",[group])).rows[0].code;
+ await asUser(childA,'select public.join_move_group($1)',[invite]);
+ await asUser(childB,'select public.join_move_group($1)',[invite]);
+ await db.query(`insert into public.move_contributions
+   (group_id,user_id,event_key,quest_id,verified_minutes,verification_method,verification_score,day_key)
+   values($1,$2,'move:a','move_walk_10',10,'GPS',90,current_date),
+         ($1,$3,'move:b','move_walk_10',10,'GPS',90,current_date)`,[group,childA,childB]);
+ const childRoster=(await asUser(childA,'select user_id from public.move_group_members where group_id=$1',[group])).rows;
+ assert.deepEqual(childRoster.map(row=>row.user_id),[childA]);
+ const guardianRoster=(await asUser(parent,'select user_id from public.move_group_members where group_id=$1',[group])).rows;
+ assert.deepEqual(guardianRoster.map(row=>row.user_id).sort(),[parent,childA,childB].sort());
+ const a=(await asUser(childA,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
+ assert.deepEqual(a.map(row=>row.user_id),[childA]);
+ const guardian=(await asUser(parent,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
+ assert.deepEqual(guardian.map(row=>row.user_id).sort(),[childA,childB].sort());
+ const other=(await asUser(childA,'select * from public.get_move_group_leaderboard($1)',[group])).rows;
+ assert.equal(other.length,0);
+});
