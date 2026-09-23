@@ -7,6 +7,7 @@ import {SYSTEM_COLORS as C} from '../core';
 import {loadMoveState} from '../storage/database';
 import type {MoveState} from '../move/state';
 import {schoolContributionScore,schoolRaidDamage,SCHOOL_RANKING_RULE} from '../move/school';
+import MoveCloudGroupPanel from '../components/MoveCloudGroupPanel';
 
 export default function MoveSchoolScreen(){
  const router=useRouter(),[state,setState]=useState<MoveState|null>(null);
@@ -33,6 +34,7 @@ export default function MoveSchoolScreen(){
 
    <View style={styles.panel}><Text style={styles.label}>SCHOOL RAID RULE</Text><Text style={styles.body}>{SCHOOL_RANKING_RULE.replaceAll('_',' ')}</Text><Text style={styles.body}>Zweryfikowane minuty → wkład do raidu. Regularność zwiększa contribution score. Dane lokalizacyjne nie są częścią publicznego wyniku.</Text></View>
 
+   <MoveCloudGroupPanel kind="SCHOOL"/>
    <View style={styles.safe}><Text style={styles.label}>CHILD SAFETY</Text><Text style={styles.body}>PUBLIC PRECISE LOCATION: OFF · BODY METRICS: OFF · APPEARANCE RANKING: OFF · DIRECT MINOR MESSAGES: OFF</Text></View>
    <Pressable onPress={()=>router.replace('/move')}><Text style={styles.back}>← SYSTEM MOVE</Text></Pressable>
   </ScrollView>
