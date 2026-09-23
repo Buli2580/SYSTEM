@@ -43,14 +43,14 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   useFocusEffect(useCallback(() => {
     photoActiveRef.current = true;
-    purgeStalePrivateQuestPhotos();
+    try { purgeStalePrivateQuestPhotos(); } catch { /* Cache deletion retries next visit. */ }
     setLocalPhotoUri(null);
     setLocalPhotoError(null);
     return () => {
       photoActiveRef.current = false;
       const uri = photoUriRef.current;
       photoUriRef.current = null;
-      if (uri) removePrivateQuestPhoto(uri);
+      if (uri) { try { removePrivateQuestPhoto(uri); } catch { /* OS cache may be temporarily unavailable. */ } }
     };
   }, []));
 
