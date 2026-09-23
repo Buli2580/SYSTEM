@@ -712,8 +712,10 @@ const styles =
       color:
         SYSTEM_COLORS.cyan,
       fontSize: 10,
+      lineHeight: 16,
       fontWeight: '900',
-      letterSpacing: 2,
+      letterSpacing: 1.15,
+      flexShrink: 1,
     },
 
     errorBox: {
