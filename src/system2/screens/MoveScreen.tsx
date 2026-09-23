@@ -15,6 +15,9 @@ import {moveProgress,moveRecentAverage,type MoveState} from '../move/state';
 import {MOVEMENT_SKILLS} from '../move/skills';
 import {nextMoveStreakMilestone,moveStreakReward} from '../move/streak';
 import {moveSafetyPolicy} from '../move/safety';
+import {WEEKEND_FAMILY_QUESTS} from '../move/family';
+import {MOVE_CHALLENGE_TEMPLATES} from '../move/challenges';
+import {buildMovementProgressCard} from '../move/card';
 
 export default function MoveScreen(){
  const router=useRouter(),{player}=useSystem();
@@ -28,6 +31,7 @@ export default function MoveScreen(){
  const completed=state?.completedQuestIds??[];
  const progress=state?Math.round(moveProgress(state)*100):0;
  const nextMilestone=nextMoveStreakMilestone(state?.streak??0),reward=moveStreakReward(state?.streak??0),policy=moveSafetyPolicy(ageMode);
+ const progressCard=state?buildMovementProgressCard(player.displayName,state):null;
  return <SystemScreen style={styles.root}>
   <SystemAmbientBackground intensity="world" screen="WORLD" scene="FOREST" threat={1} level={player.realLevel}/>
   <ScrollView contentContainerStyle={styles.content}>
@@ -48,7 +52,7 @@ export default function MoveScreen(){
     <Text style={styles.body}>{event.minutes} MIN · SKILL {event.skill} · EVENT WINDOW 3H</Text>
    </View>
 
-   <Text style={styles.section}>AI MOVE DIRECTOR</Text>
+   <Text style={styles.section}>MOVE DIRECTOR // LOCAL</Text>
    <View style={styles.panel}><Text style={styles.next}>{moveDirectorLine(plan,completed)}</Text><Text style={styles.body}>{plan.recovery?'EASY DAY // po słabszym dniu SYSTEM wybiera lżejszy plan.':`PLANOWANE ${plan.plannedMinutes} MIN // cel 60 MIN`}</Text></View>
 
    <Text style={styles.section}>DAILY MOVE QUESTS</Text>
@@ -64,8 +68,17 @@ export default function MoveScreen(){
    <Text style={styles.section}>MOVEMENT SKILLS</Text>
    <View style={styles.skillGrid}>{MOVEMENT_SKILLS.map(key=>{const skill=state?.skills[key];return <View key={key} style={styles.skill}><Text style={styles.skillName}>{key}</Text><Text style={styles.skillLevel}>LV.{skill?.level??1}</Text><Text style={styles.skillXp}>{skill?.xp??0}/{skill?.xpToNext??0} XP</Text></View>})}</View>
 
+   <Text style={styles.section}>MOVEMENT PROGRESS CARD</Text>
+   <View style={styles.panel}><Text style={styles.label}>{progressCard?.title??'SYSTEM MOVE CARD'}</Text><Text style={styles.next}>{progressCard?.subtitle??'0/60 MIN'}</Text><Text style={styles.body}>{progressCard?`${progressCard.bestSkill} LV.${progressCard.bestSkillLevel} · ${progressCard.streak} DAY STREAK`:'Pierwsza karta powstanie po aktywności MOVE.'}</Text></View>
+
+   <Text style={styles.section}>FAMILY WEEKEND</Text>
+   {WEEKEND_FAMILY_QUESTS.map(q=><View key={q.id} style={styles.panel}><Text style={styles.label}>{q.title}</Text><Text style={styles.body}>{q.minutes} MIN · MIN. {q.memberGoal} OSOBY · SAFE LOCATION REQUIRED</Text></View>)}
+
+   <Text style={styles.section}>NATIONAL / SPONSOR CHALLENGES</Text>
+   {MOVE_CHALLENGE_TEMPLATES.map(c=><View key={c.id} style={styles.panel}><Text style={styles.label}>{c.audience}</Text><Text style={styles.questTitle}>{c.title}</Text><Text style={styles.body}>TARGET {c.targetMinutes.toLocaleString()} MIN · {c.rewardLabel}</Text></View>)}
+
    <Text style={styles.section}>FAMILY / SCHOOL</Text>
-   <View style={styles.panel}><Text style={styles.label}>FAMILY MODE FOUNDATION</Text><Text style={styles.body}>Weekend Family Quest, wspólny boss i parent approval mają własny model. Dokładna lokalizacja dziecka nigdy nie trafia do publicznego profilu.</Text></View>
+   <Pressable onPress={()=>router.push('/move-parent')} style={styles.panel}><Text style={styles.label}>PARENT DASHBOARD</Text><Text style={styles.body}>Czas ruchu, Move Streak, historia i Movement Skills. Bez dokładnej lokalizacji dziecka. →</Text></Pressable>
    <View style={styles.panel}><Text style={styles.label}>SCHOOL MODE FOUNDATION</Text><Text style={styles.body}>School Raids liczą wkład przez zweryfikowane minuty i regularność. Bez rankingów wagi, wyglądu ani parametrów ciała.</Text></View>
    <View style={styles.safety}><Text style={styles.label}>SAFE MOVE POLICY</Text><Text style={styles.body}>PRECISE LOCATION PUBLIC: OFF · BODY RANKING: OFF · MINOR DM: OFF · PARENT APPROVAL: {policy.parentApprovalRequired?'ON':'OPTIONAL'}</Text></View>
   </ScrollView>
