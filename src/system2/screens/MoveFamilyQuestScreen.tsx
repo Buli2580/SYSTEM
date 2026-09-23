@@ -6,6 +6,8 @@ import {MOVE_QUESTS} from '../move/catalog';
 import {completeMoveActivity} from '../storage/database';
 import {dayKey} from '../daily/calendar';
 import {SYSTEM_COLORS as C} from '../core';
+import {verifyMoveQuest} from '../move/verification';
+import {publishVerifiedMoveToGroups} from '../cloud/move';
 
 export default function MoveFamilyQuestScreen(){
  const {questId}=useLocalSearchParams<{questId?:string}>(),router=useRouter();
@@ -21,7 +23,15 @@ export default function MoveFamilyQuestScreen(){
   if(!ready||!approved||busy)return;
   setBusy(true);
   try{
-   await completeMoveActivity({questId:canonical.id,dayKey:dayKey(),durationSeconds:elapsed,parentApproved:true,source:'PARENT'});
+   const today=dayKey();
+   const evidence={questId:canonical.id,durationSeconds:elapsed,parentApproved:true,source:'PARENT' as const};
+   const verified=verifyMoveQuest(canonical,evidence);
+   if(!verified.ok)throw new Error('MOVE_VERIFICATION_FAILED:'+verified.code);
+   await completeMoveActivity({...evidence,dayKey:today});
+   void publishVerifiedMoveToGroups({
+     kinds:['FAMILY','SCHOOL'],eventKey:`move:${today}:${canonical.id}`,questId:canonical.id,
+     verificationMethod:'PARENT',verificationScore:verified.score,dayKey:today,
+   }).catch(()=>undefined);
    router.replace('/move-family');
   }finally{setBusy(false)}
  }
