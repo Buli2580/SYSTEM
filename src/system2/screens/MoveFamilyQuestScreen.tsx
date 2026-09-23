@@ -7,7 +7,6 @@ import {completeMoveActivity} from '../storage/database';
 import {dayKey} from '../daily/calendar';
 import {SYSTEM_COLORS as C} from '../core';
 import {verifyMoveQuest} from '../move/verification';
-import {publishVerifiedMoveToGroups} from '../cloud/move';
 
 export default function MoveFamilyQuestScreen(){
  const {questId}=useLocalSearchParams<{questId?:string}>(),router=useRouter();
@@ -28,10 +27,6 @@ export default function MoveFamilyQuestScreen(){
    const verified=verifyMoveQuest(canonical,evidence);
    if(!verified.ok)throw new Error('MOVE_VERIFICATION_FAILED:'+verified.code);
    await completeMoveActivity({...evidence,dayKey:today});
-   void publishVerifiedMoveToGroups({
-     kinds:['FAMILY','SCHOOL'],eventKey:`move:${today}:${canonical.id}`,questId:canonical.id,
-     verificationMethod:'PARENT',verificationScore:verified.score,dayKey:today,
-   }).catch(()=>undefined);
    router.replace('/move-family');
   }finally{setBusy(false)}
  }
@@ -46,7 +41,7 @@ export default function MoveFamilyQuestScreen(){
    <Pressable disabled={!approved||busy} style={[styles.button,(!approved||busy)&&styles.disabled]} onPress={()=>void finish()}><Text style={styles.buttonText}>VERIFY FAMILY QUEST</Text></Pressable>
   </>}
   {running&&!ready&&<Text style={styles.wait}>QUEST ACTIVE // POZOSTAŁO {Math.ceil((required-elapsed)/60)} MIN</Text>}
-  <Text style={styles.notice}>Potwierdzenie opiekuna jest lokalnym mechanizmem MVP. Nie zastępuje konta rodzica ani zdalnej autoryzacji.</Text>
+  <Text style={styles.notice}>Potwierdzenie opiekuna działa lokalnie. Nie jest dowodem z osobnego konta rodzica i nie daje punktów do rankingów online. Potwierdzanie przez drugiego opiekuna będzie dodane w kolejnej wersji.</Text>
   <Pressable onPress={()=>router.replace('/move-family')}><Text style={styles.back}>← FAMILY MODE</Text></Pressable>
  </View>;
 }
