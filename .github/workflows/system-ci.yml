@@ -57,6 +57,9 @@ jobs:
       - name: Character Forge tests
         run: node --test src/system2/tests/character-forge.test.cjs
 
+      - name: Camera private photo tests
+        run: node --test src/system2/tests/private-photo.test.cjs
+
       - name: AI Game Master tests
         run: node --test src/system2/tests/ai-game-master.test.cjs
 
