@@ -11,6 +11,7 @@ import {WEEKEND_FAMILY_QUESTS,familyBossDamage} from '../move/family';
 import {MOVE_QUESTS} from '../move/catalog';
 import {moveAgeMode,moveAgeLabel} from '../move/age';
 import {moveSafetyPolicy} from '../move/safety';
+import MoveCloudGroupPanel from '../components/MoveCloudGroupPanel';
 
 export default function MoveFamilyScreen(){
  const router=useRouter(),{player}=useSystem();
@@ -46,6 +47,7 @@ export default function MoveFamilyScreen(){
     <Text style={styles.body}>Wymagana bezpieczna przestrzeń i potwierdzenie opiekuna po zakończeniu.</Text>
    </Pressable>)}
 
+   <MoveCloudGroupPanel kind="FAMILY"/>
    <View style={styles.safe}><Text style={styles.label}>FAMILY SAFETY</Text><Text style={styles.body}>PRECISE LOCATION PUBLIC: OFF · BODY RANKING: OFF · MINOR DM: OFF · FAMILY RESULT: CONTRIBUTION ONLY</Text></View>
    <Pressable onPress={()=>router.replace('/move')}><Text style={styles.back}>← SYSTEM MOVE</Text></Pressable>
   </ScrollView>
