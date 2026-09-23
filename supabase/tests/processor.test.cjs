@@ -546,6 +546,10 @@ test('MOVE privacy: students and children cannot query peers individual contribu
    (group_id,user_id,event_key,quest_id,verified_minutes,verification_method,verification_score,day_key)
    values($1,$2,'move:a','move_walk_10',10,'GPS',90,current_date),
          ($1,$3,'move:b','move_walk_10',10,'GPS',90,current_date)`,[group,childA,childB]);
+ const childRoster=(await asUser(childA,'select user_id from public.move_group_members where group_id=$1',[group])).rows;
+ assert.deepEqual(childRoster.map(row=>row.user_id),[childA]);
+ const guardianRoster=(await asUser(parent,'select user_id from public.move_group_members where group_id=$1',[group])).rows;
+ assert.deepEqual(guardianRoster.map(row=>row.user_id).sort(),[parent,childA,childB].sort());
  const a=(await asUser(childA,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
  assert.deepEqual(a.map(row=>row.user_id),[childA]);
  const guardian=(await asUser(parent,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
