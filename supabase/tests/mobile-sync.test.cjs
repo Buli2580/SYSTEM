@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const loader = require('./mobile-loader.cjs');
 class CloudRequestError extends Error { constructor(code) { super(code); this.code = code; } }
 
-function harness({ session = { user: { id: 'user-a' } }, rows = [], failure } = {}) {
+function harness({ session = { user: { id: 'user-a' } }, rows = [], failure, moveFailure } = {}) {
   const calls = [];
   const load = loader({
     '@react-native-async-storage/async-storage': { getItem: async () => 'install-test' },
@@ -16,6 +16,7 @@ function harness({ session = { user: { id: 'user-a' } }, rows = [], failure } = 
       markCloudOutboxAttempt: async key => calls.push(['failed', key]),
     },
     './auth': { getValidSession: async () => session },
+    './move': { reconcileRecentMoveContributions: async () => { calls.push(['reconcile']); if(moveFailure) throw moveFailure; } },
     './http': { CloudRequestError },
     './state': {
       submitSyncEvent: async input => calls.push(['submit',input.eventKey]),
@@ -26,14 +27,14 @@ function harness({ session = { user: { id: 'user-a' } }, rows = [], failure } = 
 }
 test('empty local outbox still retries remote RECEIVED events after account binding', async () => {
   const h=harness();const result=await h.sync.flushCloudOutbox(50);
-  assert.deepEqual(h.calls,[['bind','user-a'],['backfill'],['process',50]]);
+  assert.deepEqual(h.calls,[['bind','user-a'],['backfill'],['process',50],['reconcile']]);
   assert.equal(result.sent,0);
 });
 test('uploaded events are marked sent before remote processing, never local XP writes', async () => {
   const h=harness({rows:[{event_key:'verified:test',entity_type:'VERIFIED_EVENT',payload:'{}'}]});
   const result=await h.sync.flushCloudOutbox();
   assert.equal(result.sent,1);
-  assert.deepEqual(h.calls.map(c=>c[0]),['bind','backfill','submit','synced','process']);
+  assert.deepEqual(h.calls.map(c=>c[0]),['bind','backfill','submit','synced','process','reconcile']);
 });
 test('offline session never invokes cloud processing', async () => {
   const h=harness({session:null});const result=await h.sync.flushCloudOutbox();
@@ -102,4 +103,11 @@ test('MOVE cloud scoring only sends the accepted server evidence identifier',asy
    p_move_quest_id:'move_walk_10',p_day_key:'2026-09-23',
  });
  assert.equal(calls.some(([route])=>route.endsWith('/submit_move_contribution')),false);
+});
+
+test('optional MOVE group recovery failures never erase successful core sync',async()=>{
+ const h=harness({moveFailure:new Error('MOVE server temporarily unavailable')});
+ const result=await h.sync.flushCloudOutbox();
+ assert.equal(result.authenticated,true);
+ assert.deepEqual(h.calls.map(c=>c[0]),['bind','backfill','process','reconcile']);
 });
