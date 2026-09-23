@@ -62,6 +62,10 @@ export function verifyMoveQuest(quest:MoveQuest,e:MoveVerificationEvidence):Move
     if(steps<=0)return{ok:false,score:0,code:'STEPS_REQUIRED',verifiedMinutes:0,distanceMeters:distance,steps};
     return{ok:true,score:90,code:'STEPS_VERIFIED',verifiedMinutes:quest.minutes,distanceMeters:distance,steps};
   }
+  if(quest.verification==='HEALTH'){
+    if(activeMinutes<quest.minutes)return{ok:false,score:0,code:'HEALTH_ACTIVE_MINUTES_REQUIRED',verifiedMinutes:activeMinutes,distanceMeters:distance,steps};
+    return{ok:true,score:90,code:'HEALTH_VERIFIED',verifiedMinutes:quest.minutes,distanceMeters:distance,steps};
+  }
   if(quest.verification==='MIXED'){
     const healthOk=activeMinutes>=quest.minutes||steps>0;
     const gpsOk=!!e.activity&&e.activity.verdict==='VERIFIED'&&distance>=moveMinimumDistance(quest);
