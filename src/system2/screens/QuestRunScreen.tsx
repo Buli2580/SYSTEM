@@ -1,10 +1,10 @@
 import { useSystem } from '../state/SystemProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
 import type { RunnableQuest } from '../quests/types';
@@ -15,6 +15,8 @@ import { getNextAction } from '../quests/nextAction';
 import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
+import {calculateAge} from '../identity/age';
+import {capturePrivateQuestPhoto,removePrivateQuestPhoto} from '../quests/privatePhoto';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -28,6 +30,55 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const [startInProgress, setStartInProgress] = useState(false);
   const startInProgressRef = useRef(false);
   const scrollRef = useRef<ScrollView | null>(null);
+  const adultAge = calculateAge(system.player.birthDate);
+  const adultPhotoEnabled = adultAge !== null && adultAge >= 18;
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [localPhotoBusy, setLocalPhotoBusy] = useState(false);
+  const [localPhotoError, setLocalPhotoError] = useState<string | null>(null);
+  const photoUriRef = useRef<string | null>(null);
+  const photoActiveRef = useRef(false);
+  const photoBusyRef = useRef(false);
+  const questStatusRef = useRef(status);
+  questStatusRef.current = status;
+
+  useFocusEffect(useCallback(() => {
+    photoActiveRef.current = true;
+    setLocalPhotoUri(null);
+    setLocalPhotoError(null);
+    return () => {
+      photoActiveRef.current = false;
+      const uri = photoUriRef.current;
+      photoUriRef.current = null;
+      if (uri) removePrivateQuestPhoto(uri);
+    };
+  }, []));
+
+  const takePrivatePhoto = async () => {
+    if (!adultPhotoEnabled || questStatusRef.current !== 'TRACKING' || photoBusyRef.current) return;
+    photoBusyRef.current = true;
+    setLocalPhotoBusy(true);
+    setLocalPhotoError(null);
+    try {
+      const uri = await capturePrivateQuestPhoto();
+      if (!uri) return;
+      if (!photoActiveRef.current || questStatusRef.current !== 'TRACKING') {
+        removePrivateQuestPhoto(uri);
+        return;
+      }
+      const previous = photoUriRef.current;
+      photoUriRef.current = uri;
+      setLocalPhotoUri(uri);
+      if (previous) removePrivateQuestPhoto(previous);
+    } catch (cause) {
+      if (photoActiveRef.current) {
+        setLocalPhotoError(cause instanceof Error ? cause.message : 'Nie udało się wykonać lokalnego zdjęcia.');
+      }
+    } finally {
+      photoBusyRef.current = false;
+      if (photoActiveRef.current) setLocalPhotoBusy(false);
+    }
+  };
+
   const isTimer = quest.verification.type === 'TIMER';
   const isMulti = quest.verification.type === 'MULTI';
   const target = quest.verification.type === 'TIMER'
@@ -172,6 +223,22 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text style={styles.liveMissionTitle}>{quest.title}</Text>
           <Text style={styles.liveMissionHint}>{status === 'COMPLETING' ? 'Nie zamykaj ekranu. SYSTEM zapisuje wynik i nagrodę.' : 'Wykonuj cel. Weryfikacja działa na żywo.'}</Text>
         </Animated.View>}
+
+        {adultPhotoEnabled && (status === 'TRACKING' || localPhotoUri !== null) && (
+          <View style={styles.privatePhotoPanel}>
+            <Text style={styles.privatePhotoHeader}>CAMERA // PRYWATNY PODGLĄD</Text>
+            <Text style={styles.privatePhotoHint}>Opcjonalne zdjęcie z aktywnej misji, dostępne tylko na tym ekranie. Nie zalicza misji, nie dodaje XP i nie jest wysyłane do chmury. Wykonuj je tylko w bezpiecznym miejscu.</Text>
+            {localPhotoUri !== null && <Image source={{uri:localPhotoUri}} style={styles.privatePhotoImage} />}
+            {localPhotoError !== null && <Text style={styles.privatePhotoError}>{localPhotoError}</Text>}
+            {status === 'TRACKING' && (
+              <Pressable accessibilityRole="button" disabled={localPhotoBusy}
+                style={[styles.privatePhotoButton, localPhotoBusy && {opacity:0.35}]}
+                onPress={() => {void takePrivatePhoto();}}>
+                <Text style={styles.privatePhotoButtonText}>{localPhotoBusy ? 'URUCHAMIANIE APARATU…' : localPhotoUri ? 'ZRÓB NOWE ZDJĘCIE' : 'ZRÓB PRYWATNE ZDJĘCIE'}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {!!quest.activityType && <View style={styles.questCard}>
           <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
@@ -841,4 +908,18 @@ const styles =
       fontWeight: '900',
       letterSpacing: 2,
     },
+    privatePhotoPanel: {
+      borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright,
+      borderRadius: 18, padding: 16, marginTop: 14,
+      backgroundColor: '#06171d',
+    },
+    privatePhotoHeader: {color: SYSTEM_COLORS.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.2},
+    privatePhotoHint: {color: SYSTEM_COLORS.textMuted, marginTop: 7, fontSize: 11, lineHeight: 17},
+    privatePhotoImage: {width: '100%', height: 190, borderRadius: 12, marginTop: 12},
+    privatePhotoError: {color: '#ff9a8d', fontSize: 11, marginTop: 9},
+    privatePhotoButton: {
+      marginTop: 12, minHeight: 48, borderRadius: 12,
+      backgroundColor: SYSTEM_COLORS.cyan, alignItems: 'center', justifyContent: 'center',
+    },
+    privatePhotoButtonText: {color: '#001014', fontWeight: '900', fontSize: 11},
   });
