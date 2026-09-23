@@ -10,6 +10,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
+
+// Preserve React Native's typed percentage syntax in dynamically generated scenes.
+const percent = (value: number): `${number}%` => `${value}%`;
 import { chooseScene, normalizedSceneContext } from '../visual/engine';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
 
@@ -106,7 +109,7 @@ function Particles({kind,accent,strength,weather}:{kind:string;accent:string;str
   return <>{Array.from({length:count},(_,i)=><View key={i} style={[
     styles.particle,
     {
-      left:(i*37)%100+'%',top:(i*53)%94+'%',
+      left:percent((i*37)%100),top:percent((i*53)%94),
       width:kind==='rain'?1:2+(i%3),height:kind==='rain'?20+(i%5)*6:2+(i%3),
       backgroundColor:accent,
       opacity:(.055+(i%5)*.022)*strength,
@@ -117,20 +120,20 @@ function Particles({kind,accent,strength,weather}:{kind:string;accent:string;str
 
 function Rain({accent,strength}:{accent:string;strength:number}) {
   return <>{Array.from({length:22},(_,i)=><View key={i} style={[styles.rain,{
-    left:(i*29)%105+'%',top:(i*41)%96+'%',backgroundColor:accent,opacity:(.06+(i%3)*.03)*strength,
+    left:percent((i*29)%105),top:percent((i*41)%96),backgroundColor:accent,opacity:(.06+(i%3)*.03)*strength,
     height:20+(i%5)*9,
   }]}/>)}</>;
 }
 
 function FogBands({accent,strength}:{accent:string;strength:number}) {
   return <>{[0,1,2].map(i=><View key={i} style={[styles.fog,{
-    top:(28+i*19)+'%',left:(-18+i*8)+'%',borderColor:accent,opacity:(.035+i*.018)*strength,
+    top:percent(28+i*19),left:percent(-18+i*8),borderColor:accent,opacity:(.035+i*.018)*strength,
     transform:[{rotate:(i%2?'-6deg':'5deg')}],
   }]}/>)}</>;
 }
 
 function Runes({accent,strength}:{accent:string;strength:number}) {
-  return <>{['◇','⌁','△','⟡','◈','⋄'].map((r,i)=><View key={r+i} style={[styles.runeWrap,{left:(8+i*17)%92+'%',top:(15+i*13)%78+'%',opacity:(.08+(i%3)*.04)*strength}]}>
+  return <>{['◇','⌁','△','⟡','◈','⋄'].map((r,i)=><View key={r+i} style={[styles.runeWrap,{left:percent((8+i*17)%92),top:percent((15+i*13)%78),opacity:(.08+(i%3)*.04)*strength}]}>
     <Animated.Text style={[styles.rune,{color:accent}]}>{r}</Animated.Text>
   </View>)}</>;
 }
@@ -145,27 +148,27 @@ function Silhouette({type,accent,strength,depth}:{type:string;accent:string;stre
     <View style={[styles.bossEye,{backgroundColor:accent,shadowColor:accent}]} />
     <View style={[styles.bossEye2,{backgroundColor:accent,shadowColor:accent}]} />
   </View>;
-  if(type==='trees') return <View style={styles.skyline}>{[0,1,2,3,4,5,6].map(i=><View key={i} style={[styles.tree,{left:i*16+'%',height:(78+(i%4)*38)*depthScale,opacity:.10*strength}]}/>)}</View>;
-  if(type==='factory') return <View style={styles.skyline}>{[0,1,2,3,4].map(i=><View key={i} style={[styles.factory,{left:i*23+'%',height:(54+i*15)*depthScale,borderColor:accent,opacity:.12*strength}]}/>)}</View>;
+  if(type==='trees') return <View style={styles.skyline}>{[0,1,2,3,4,5,6].map(i=><View key={i} style={[styles.tree,{left:percent(i*16),height:(78+(i%4)*38)*depthScale,opacity:.10*strength}]}/>)}</View>;
+  if(type==='factory') return <View style={styles.skyline}>{[0,1,2,3,4].map(i=><View key={i} style={[styles.factory,{left:percent(i*23),height:(54+i*15)*depthScale,borderColor:accent,opacity:.12*strength}]}/>)}</View>;
   if(type==='portal') return <View style={[styles.portalSpire,{borderColor:accent,opacity:.17*strength,transform:[{rotate:'18deg'},{scale:depthScale}]}]} />;
-  if(type==='ruins') return <View style={styles.skyline}>{[0,1,2,3,4,5].map(i=><View key={i} style={[styles.ruin,{left:i*19+'%',height:(38+(i%4)*31)*depthScale,borderColor:accent,opacity:.11*strength,transform:[{rotate:(i%2?'-5deg':'4deg')}]}]}/>)}</View>;
-  return <View style={styles.skyline}>{[0,1,2,3,4,5,6].map(i=><View key={i} style={[styles.building,{left:i*16+'%',height:(42+(i%5)*27)*depthScale,borderColor:accent,opacity:.10*strength}]}/>)}</View>;
+  if(type==='ruins') return <View style={styles.skyline}>{[0,1,2,3,4,5].map(i=><View key={i} style={[styles.ruin,{left:percent(i*19),height:(38+(i%4)*31)*depthScale,borderColor:accent,opacity:.11*strength,transform:[{rotate:(i%2?'-5deg':'4deg')}]}]}/>)}</View>;
+  return <View style={styles.skyline}>{[0,1,2,3,4,5,6].map(i=><View key={i} style={[styles.building,{left:percent(i*16),height:(42+(i%5)*27)*depthScale,borderColor:accent,opacity:.10*strength}]}/>)}</View>;
 }
 
 const styles=StyleSheet.create({
   root:{...StyleSheet.absoluteFill,overflow:'hidden',backgroundColor:'#020609'},
-  farLayer:{...StyleSheet.absoluteFillObject},
-  midLayer:{...StyleSheet.absoluteFillObject},
-  nearLayer:{...StyleSheet.absoluteFillObject},
+  farLayer:{...StyleSheet.absoluteFill},
+  midLayer:{...StyleSheet.absoluteFill},
+  nearLayer:{...StyleSheet.absoluteFill},
   skyGlow:{position:'absolute',width:520,height:520,borderRadius:260,top:-280,right:-190},
   horizon:{position:'absolute',width:'135%',height:300,borderWidth:1,borderRadius:190,bottom:-185,left:'-18%'},
   portal:{position:'absolute',width:250,height:250,borderRadius:125,borderWidth:1.5,top:'18%',right:-110,shadowOpacity:.45,shadowRadius:24},
   portalSpire:{position:'absolute',width:120,height:300,borderWidth:1,borderRadius:60,top:'22%',left:'50%',marginLeft:-60},
   energyArc:{position:'absolute',width:470,height:470,borderRadius:235,borderWidth:1,top:'31%',left:-250},
   scanLine:{position:'absolute',height:1,width:'130%',left:'-15%',top:'20%',opacity:.22},
-  environmentDim:{...StyleSheet.absoluteFillObject},
-  uiScrim:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(1,5,8,.26)'},
-  vignette:{...StyleSheet.absoluteFillObject,borderWidth:28,borderColor:'rgba(0,0,0,.16)'},
+  environmentDim:{...StyleSheet.absoluteFill},
+  uiScrim:{...StyleSheet.absoluteFill,backgroundColor:'rgba(1,5,8,.26)'},
+  vignette:{...StyleSheet.absoluteFill,borderWidth:28,borderColor:'rgba(0,0,0,.16)'},
   particle:{position:'absolute',borderRadius:4},
   rain:{position:'absolute',width:1,transform:[{rotate:'-18deg'}]},
   fog:{position:'absolute',width:'125%',height:94,borderRadius:55,borderWidth:18},
