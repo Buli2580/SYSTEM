@@ -1,10 +1,10 @@
-# SYSTEM Beta Device Test - run on Windows in a fresh worktree.
-# Never paste Expo/Supabase tokens here. EAS uses your existing Expo login.
+# SYSTEM Beta Device Test - Windows, in a clean fresh git worktree.
+# Tokens stay in Expo login or environment; never paste them into this file.
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
 function Invoke-CheckedStep {
   param([string]$Name, [scriptblock]$Action)
-  Write-Host "\n=== $Name ===" -ForegroundColor Cyan
+  Write-Host "`n=== $Name ===" -ForegroundColor Cyan
   & $Action
   if ($LASTEXITCODE -ne 0) {
     throw "$Name failed with exit code $LASTEXITCODE. APK build was not started."
@@ -17,9 +17,11 @@ Invoke-CheckedStep 'Validate TypeScript' { npx.cmd tsc --noEmit --incremental fa
 $tests = @(Get-ChildItem 'src/system2/tests/*.test.cjs' | ForEach-Object { $_.FullName })
 if ($tests.Count -eq 0) { throw 'No SYSTEM gameplay tests found.' }
 Invoke-CheckedStep 'Run all SYSTEM tests' { node.exe --test @tests }
-Invoke-CheckedStep 'Install Supabase tests' { npm.cmd ci --prefix supabase/tests --ignore-scripts --no-audit --no-fund }
+Invoke-CheckedStep 'Install Supabase test dependencies' { npm.cmd ci --prefix supabase/tests --ignore-scripts --no-audit --no-fund }
 Invoke-CheckedStep 'Run Supabase tests' { npm.cmd test --prefix supabase/tests }
 Invoke-CheckedStep 'Bundle Android JavaScript' { npx.cmd expo export --platform android --output-dir .expo-device-test-check }
-Write-Host "\nTests and bundle passed. Starting EAS Android APK build..." -ForegroundColor Green
+# Do not upload the export-check folder as part of the subsequent cloud EAS source archive.
+Remove-Item '.expo-device-test-check' -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "`nValidation passed. Starting EAS Android APK build..." -ForegroundColor Green
 Invoke-CheckedStep 'Build installable Android APK on Expo EAS' { npx.cmd eas-cli@latest build --platform android --profile device-test }
-Write-Host "\nEAS prints the APK download link and QR code above." -ForegroundColor Green
+Write-Host "`nEAS prints the APK download link and QR code above." -ForegroundColor Green
