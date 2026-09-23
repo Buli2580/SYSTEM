@@ -2,12 +2,14 @@ import {useCallback,useState} from 'react';
 import {Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import {useFocusEffect} from 'expo-router';
 import {SYSTEM_COLORS as C} from '../core';
-import {createMoveGroup,getMoveGroupLeaderboard,getMyMoveGroups,type CloudMoveGroup,type CloudMoveLeaderboardRow,type MoveGroupKind} from '../cloud/move';
+import {createMoveGroup,createMoveGroupInvite,joinMoveGroup,getMoveGroupLeaderboard,getMyMoveGroups,type CloudMoveGroup,type CloudMoveLeaderboardRow,type MoveGroupKind} from '../cloud/move';
 
 export default function MoveCloudGroupPanel({kind}:{kind:MoveGroupKind}){
  const[groups,setGroups]=useState<CloudMoveGroup[]>([]);
  const[leaderboard,setLeaderboard]=useState<CloudMoveLeaderboardRow[]>([]);
  const[name,setName]=useState('');
+ const[joinCode,setJoinCode]=useState('');
+ const[inviteCode,setInviteCode]=useState<string|null>(null);
  const[busy,setBusy]=useState(false);
  const[message,setMessage]=useState<string|null>(null);
 
@@ -28,6 +30,22 @@ export default function MoveCloudGroupPanel({kind}:{kind:MoveGroupKind}){
   try{await createMoveGroup(kind,safe);setName('');await refresh();}
   catch(e){setMessage(e instanceof Error?e.message:'Nie udało się utworzyć grupy MOVE.');setBusy(false)}
  }
+ async function invite(){
+  const group=groups[0];if(!group)return;
+  setBusy(true);setMessage(null);
+  try{
+   const role=kind==='FAMILY'?'MEMBER':'STUDENT';
+   const code=await createMoveGroupInvite(group.id,role,kind==='FAMILY'?5:50,24);
+   setInviteCode(code);
+  }catch(e){setMessage(e instanceof Error?e.message:'Nie udało się utworzyć zaproszenia MOVE.');}
+  finally{setBusy(false)}
+ }
+ async function join(){
+  const code=joinCode.trim().toUpperCase();if(!code)return;
+  setBusy(true);setMessage(null);
+  try{await joinMoveGroup(code);setJoinCode('');await refresh();}
+  catch(e){setMessage(e instanceof Error?e.message:'Nie udało się dołączyć do grupy MOVE.');setBusy(false)}
+ }
 
  return <View style={styles.panel}>
   <Text style={styles.label}>{kind} CLOUD // PRIVATE GROUP</Text>
@@ -47,6 +65,10 @@ export default function MoveCloudGroupPanel({kind}:{kind:MoveGroupKind}){
   <Pressable disabled={busy||name.trim().length<2} onPress={()=>void create()} style={[styles.button,(busy||name.trim().length<2)&&styles.disabled]}>
     <Text style={styles.buttonText}>UTWÓRZ {kind} GROUP</Text>
   </Pressable>
+  {!!groups.length&&<Pressable disabled={busy} onPress={()=>void invite()} style={styles.secondaryButton}><Text style={styles.secondaryText}>GENERUJ KOD ZAPROSZENIA</Text></Pressable>}
+  {inviteCode&&<Text selectable style={styles.invite}>INVITE CODE // {inviteCode}</Text>}
+  <TextInput value={joinCode} onChangeText={setJoinCode} autoCapitalize="characters" placeholder="12-ZNAKOWY KOD ZAPROSZENIA" placeholderTextColor={C.textVeryMuted} maxLength={12} style={styles.input}/>
+  <Pressable disabled={busy||joinCode.trim().length!==12} onPress={()=>void join()} style={[styles.secondaryButton,(busy||joinCode.trim().length!==12)&&styles.disabled]}><Text style={styles.secondaryText}>DOŁĄCZ KODEM</Text></Pressable>
   {message&&<Text style={styles.message}>{message}</Text>}
   <Text style={styles.privacy}>Grupa jest prywatna. Ten panel nie publikuje lokalizacji ani danych ciała.</Text>
  </View>;
@@ -57,6 +79,6 @@ const styles=StyleSheet.create({
  group:{marginTop:10,paddingTop:10,borderTopWidth:1,borderTopColor:'rgba(108,238,255,.1)'},groupName:{color:C.white,fontSize:16,fontWeight:'900'},meta:{color:C.textMuted,fontSize:8,lineHeight:13,marginTop:4},
  board:{marginTop:14},row:{flexDirection:'row',alignItems:'center',gap:8,paddingVertical:6},place:{width:28,color:C.cyan,fontWeight:'900'},user:{flex:1,color:C.textMuted,fontSize:9,fontWeight:'800'},score:{color:C.white,fontWeight:'900'},
  input:{marginTop:14,minHeight:48,borderWidth:1,borderColor:C.lineBright,borderRadius:12,paddingHorizontal:12,color:C.white,backgroundColor:'rgba(2,9,12,.8)'},
- button:{marginTop:10,minHeight:48,borderRadius:12,backgroundColor:C.cyan,alignItems:'center',justifyContent:'center'},disabled:{opacity:.35},buttonText:{color:'#001014',fontWeight:'900'},
+ button:{marginTop:10,minHeight:48,borderRadius:12,backgroundColor:C.cyan,alignItems:'center',justifyContent:'center'},secondaryButton:{marginTop:10,minHeight:46,borderRadius:12,borderWidth:1,borderColor:C.cyanDark,alignItems:'center',justifyContent:'center'},secondaryText:{color:C.cyan,fontWeight:'900'},invite:{color:'#ffd36c',fontSize:12,fontWeight:'900',letterSpacing:1.2,marginTop:12,textAlign:'center'},disabled:{opacity:.35},buttonText:{color:'#001014',fontWeight:'900'},
  message:{color:C.warning,fontSize:9,lineHeight:14,marginTop:9},privacy:{color:C.textVeryMuted,fontSize:8,lineHeight:13,marginTop:10}
 });
