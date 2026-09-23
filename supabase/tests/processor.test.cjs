@@ -520,3 +520,17 @@ test('MOVE invited family member can see group totals but not individual ranking
  const board=await asUser(member,'select * from public.get_move_group_leaderboard($1)',[group]);
  assert.equal(board.rows.length,0);
 });
+
+test('concurrent two-install claim replay preserves exactly-once core XP',async()=>{
+ const id=await user();
+ const attempts=[
+  ...Array.from({length:8},()=>submit(id,movement,'verified:install-a-first-move')),
+  ...Array.from({length:8},(_,i)=>submit(id,movement,'verified:install-b-retry-'+i)),
+ ];
+ await Promise.all(attempts);
+ assert.equal(Number((await state(id)).real_total_xp),100);
+ assert.equal(await count('reward_ledger',id),1);
+ assert.equal(await count('verification_summaries',id),1);
+ const completions=await db.query("select count(*)::int as n from public.quest_completions where user_id=$1 and quest_id='first_movement_v1'",[id]);
+ assert.equal(completions.rows[0].n,1);
+});
