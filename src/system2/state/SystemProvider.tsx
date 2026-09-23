@@ -16,7 +16,7 @@ import { reconcileAchievements } from '../achievements/reconcile';
 import { loadAchievementsState, loadTitlesState } from '../achievements/storage';
 import { flushCloudOutbox } from '../cloud/sync';
 import { stopQuestBackgroundTracking } from '../background/locationService';
-import { requestDailyAIGameMaster, requestGoalAIGameMaster, type AIGameMasterResponse } from '../ai';
+import { requestDailyAIGameMaster, requestGoalAIGameMaster, buildAIGameMasterContext, buildFallback, type AIGameMasterResponse } from '../ai';
 import { aiRetryRemainingMs } from '../ai/requestBudget';
 import { getQuest } from '../quests/catalog';
 import { activeWorldEvent, formatWorldEventRemaining } from '../world/events';
@@ -329,11 +329,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   const createFirstGoalAndPrepareAwakening = useCallback(async (input: Parameters<typeof db.createPlayerGoal>[0]) => {
+    // The player's first goal must commit before optional online AI work.
+    // Never block navigation to the first real quest on an AI connection or timeout.
+    const next = await applySnapshot(() => db.createPlayerGoal(input, 'awakening:first-goal:v1'));
     const rawGoal = [input.title, input.description, input.target].filter(Boolean).join(' · ');
-    const direction = await requestAwakeningDirection(snapshot, rawGoal);
-    await applySnapshot(() => db.createPlayerGoal(input, 'awakening:first-goal:v1'));
+    const direction = buildFallback(buildAIGameMasterContext(next), 3);
+    void requestAwakeningDirection(next, rawGoal).catch(() => undefined);
     return direction;
-  }, [applySnapshot, requestAwakeningDirection, snapshot]);
+  }, [applySnapshot, requestAwakeningDirection]);
   const prepareAwakeningDirection = useCallback(async (rawGoal: string) => requestAwakeningDirection(snapshot, rawGoal), [requestAwakeningDirection, snapshot]);
   const resetData = useCallback(async (confirmed: true) => {
     if (!__DEV__ || confirmed !== true) throw new Error('Reset developerski jest niedostępny.');
