@@ -2807,7 +2807,7 @@ test('SYSTEM MOVE director builds age-safe recovery plans without hard quests', 
 test('SYSTEM MOVE 60 minute target advances streak and movement skills once', () => {
   const { createMoveState, completeMoveQuest } = loader({})('move/state');
   let state = createMoveState('2026-09-23','AGE_9_12');
-  const complete=(questId,durationSeconds,extra={})=>{ state=completeMoveQuest(state,{questId,dayKey:'2026-09-23',durationSeconds,...extra}); };
+  const complete=(questId,durationSeconds,extra={})=>{ state=completeMoveQuest(state,{questId,dayKey:'2026-09-23',durationSeconds,source:'GPS',...extra}); };
   complete('move_walk_10',600,{distanceMeters:400});
   complete('move_run_10',600,{distanceMeters:800});
   complete('move_jump_5',300);
@@ -2818,7 +2818,7 @@ test('SYSTEM MOVE 60 minute target advances streak and movement skills once', ()
   assert.equal(state.streak,1);
   assert.equal(state.lastActiveDay,'2026-09-23');
   assert.ok(state.skills.ENDURANCE.xp > 0);
-  const replay=completeMoveQuest(state,{questId:'move_walk_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:400});
+  const replay=completeMoveQuest(state,{questId:'move_walk_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:400,source:'GPS',activity:{activityTypeExpected:'WALK',activityTypeDetected:'WALK',verdict:'VERIFIED',verificationScore:90,reasonCodes:[],features:{distanceMeters:400,durationSeconds:600,averageSpeedMps:.66,medianSpeedMps:.66,maxSpeedMps:1,speedVariance:.01,accelerationChanges:1,stops:1,movingSeconds:570,stationarySeconds:30,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:40,meanAccuracy:8,maxAccuracy:12,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false}});
   assert.equal(replay.activeMinutes,60);
   assert.equal(replay.streak,1);
 });
@@ -2859,9 +2859,9 @@ test('SYSTEM MOVE family boss damage is bounded and based on verified activity',
 test('SYSTEM MOVE canonical completion rejects age-inappropriate quests', () => {
   const { createMoveState, completeMoveQuest } = loader({})('move/state');
   const underSix = createMoveState('2026-09-23','UNDER_6');
-  assert.throws(() => completeMoveQuest(underSix,{questId:'move_jump_5',dayKey:'2026-09-23',durationSeconds:300}),/trybu wieku/);
+  assert.throws(() => completeMoveQuest(underSix,{questId:'move_jump_5',dayKey:'2026-09-23',durationSeconds:300,source:'TIMER'}),/trybu wieku/);
   const young = createMoveState('2026-09-23','AGE_6_8');
-  assert.throws(() => completeMoveQuest(young,{questId:'move_run_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:800}),/trybu wieku/);
+  assert.throws(() => completeMoveQuest(young,{questId:'move_run_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:800,source:'GPS',activity:{activityTypeExpected:'RUN',activityTypeDetected:'RUN',verdict:'VERIFIED',verificationScore:90,reasonCodes:[],features:{distanceMeters:800,durationSeconds:600,averageSpeedMps:1.33,medianSpeedMps:2.5,maxSpeedMps:3,speedVariance:.2,accelerationChanges:3,stops:1,movingSeconds:560,stationarySeconds:40,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:50,meanAccuracy:9,maxAccuracy:15,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false}}),/trybu wieku/);
 });
 
 test('SYSTEM MOVE family weekend quests have unique canonical completion ids', () => {
