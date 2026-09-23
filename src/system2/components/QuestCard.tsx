@@ -59,13 +59,13 @@ export default function QuestCard() {
         </Text>
 
         <View style={styles.statusBadge}>
-          <Text style={styles.status}>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={styles.status}>
             AVAILABLE
           </Text>
         </View>
       </View>
 
-      <Text style={styles.title}>
+      <Text numberOfLines={2} style={styles.title}>
         PIERWSZE PRZEBUDZENIE
       </Text>
 
@@ -115,7 +115,7 @@ export default function QuestCard() {
           pressed && styles.buttonPressed,
         ]}
       >
-        <Text style={styles.buttonText}>
+        <Text numberOfLines={2} adjustsFontSizeToFit style={styles.buttonText}>
           ROZPOCZNIJ MISJĘ
         </Text>
 
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: '900',
     letterSpacing: 1.2,
-  },
+   flexShrink: 1, textAlign: 'center' },
 
   title: {
     color: SYSTEM_COLORS.white,
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 2,
-  },
+   flexShrink: 1, textAlign: 'center', lineHeight: 18 },
 
   buttonArrow: {
     color: '#001014',
