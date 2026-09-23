@@ -534,3 +534,22 @@ test('concurrent two-install claim replay preserves exactly-once core XP',async(
  const completions=await db.query("select count(*)::int as n from public.quest_completions where user_id=$1 and quest_id='first_movement_v1'",[id]);
  assert.equal(completions.rows[0].n,1);
 });
+
+
+test('MOVE privacy: students and children cannot query peers individual contribution rows',async()=>{
+ const parent=await user(),childA=await user(),childB=await user();
+ const group=(await asUser(parent,"select public.create_move_group('FAMILY','Children privacy check') as id")).rows[0].id;
+ const invite=(await asUser(parent,"select public.create_move_group_invite($1,'CHILD',2,24) as code",[group])).rows[0].code;
+ await asUser(childA,'select public.join_move_group($1)',[invite]);
+ await asUser(childB,'select public.join_move_group($1)',[invite]);
+ await db.query(`insert into public.move_contributions
+   (group_id,user_id,event_key,quest_id,verified_minutes,verification_method,verification_score,day_key)
+   values($1,$2,'move:a','move_walk_10',10,'GPS',90,current_date),
+         ($1,$3,'move:b','move_walk_10',10,'GPS',90,current_date)`,[group,childA,childB]);
+ const a=(await asUser(childA,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
+ assert.deepEqual(a.map(row=>row.user_id),[childA]);
+ const guardian=(await asUser(parent,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
+ assert.deepEqual(guardian.map(row=>row.user_id).sort(),[childA,childB].sort());
+ const other=(await asUser(childA,'select * from public.get_move_group_leaderboard($1)',[group])).rows;
+ assert.equal(other.length,0);
+});
