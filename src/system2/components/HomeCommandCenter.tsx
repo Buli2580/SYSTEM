@@ -8,6 +8,9 @@ import { titlePl } from '../i18n/pl';
 import { getQuest } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { useSystem } from '../state/SystemProvider';
+import { activeWorldEvent, formatWorldEventRemaining } from '../world/events';
+import { archetypeForPlayer, playerPerks } from '../progression/perks';
+import { bossPhaseState } from '../story/bossEngine';
 
 type CommandTile = {
   key: string;
@@ -41,6 +44,11 @@ export default function HomeCommandCenter() {
   const weeklyDone = Math.min(DAILY_RULES.weeklyTarget, system.daily?.weeklyCompleted ?? 0);
   const bossActive = !!system.story?.worldLinkComplete && !system.story?.bossComplete;
   const bossHp = Math.max(0, system.story?.bossHp ?? 0);
+  const worldEvent = activeWorldEvent(player, system.worldUnlocked);
+  const archetype = archetypeForPlayer(player);
+  const perks = playerPerks(player, (system.failedQuestIds?.length ?? 0) > 0);
+  const activePerk = perks.find(perk => perk.active);
+  const bossPhase = bossActive ? bossPhaseState(bossHp, 100, Date.now(), system.story?.boss?.started_at) : null;
   const dailyProgress = dailyTotal > 0 ? Math.min(100, Math.round(dailyDone / dailyTotal * 100)) : 0;
   const weeklyProgress = Math.min(100, Math.round(weeklyDone / DAILY_RULES.weeklyTarget * 100));
   const energyState = player.gameEnergy <= 20 ? 'LOW' : player.gameEnergy >= 80 ? 'HIGH' : 'READY';
@@ -116,7 +124,7 @@ export default function HomeCommandCenter() {
   return <Animated.View entering={FadeInUp.duration(420)} style={styles.root}>
     <View style={styles.header}>
       <View style={styles.headerBody}>
-        <Text style={styles.code}>HOME 2.0 // COMMAND CENTER</Text>
+        <Text style={styles.code}>HOME 3.0 // LIVE COMMAND DECK</Text>
         <Text style={styles.title}>DZISIAJ W SYSTEMIE</Text>
       </View>
       <View style={styles.rank}><Text style={styles.rankText}>RANK {player.rank}</Text></View>
@@ -128,6 +136,30 @@ export default function HomeCommandCenter() {
         <Text style={styles.statusMeta}>OFFLINE-FIRST // {aiState}</Text>
       </View>
       {hasSystemAlert && <Pressable accessibilityRole="button" onPress={repairSystem}><Text style={styles.statusAction}>{repairLabel}</Text></Pressable>}
+    </View>
+
+    {worldEvent && <Pressable accessibilityRole="button" onPress={() => router.push('/world')} style={({pressed})=>[styles.worldEvent,pressed&&styles.pressed]}>
+      <View style={styles.worldEventTop}>
+        <Text style={styles.worldEventCode}>WORLD EVENT // {worldEvent.kind.replaceAll('_',' ')}</Text>
+        <Text style={styles.worldEventTimer}>{formatWorldEventRemaining(worldEvent)}</Text>
+      </View>
+      <Text style={styles.worldEventTitle}>{worldEvent.title}</Text>
+      <Text style={styles.worldEventDetail}>{worldEvent.sector} · THREAT {worldEvent.threat} · {worldEvent.subtitle}</Text>
+    </Pressable>}
+
+    <View style={styles.liveRow}>
+      <View style={styles.liveCell}>
+        <Text style={styles.liveLabel}>ARCHETYPE</Text>
+        <Text style={styles.liveValue}>{archetype}</Text>
+      </View>
+      <View style={styles.liveCell}>
+        <Text style={styles.liveLabel}>ACTIVE PERK</Text>
+        <Text numberOfLines={2} style={styles.liveValue}>{activePerk?.title ?? 'NONE'}</Text>
+      </View>
+      <View style={[styles.liveCell,bossActive&&styles.liveCellAlert]}>
+        <Text style={styles.liveLabel}>BOSS PHASE</Text>
+        <Text numberOfLines={2} style={styles.liveValue}>{bossPhase?.label ?? (system.story?.bossComplete?'DEFEATED':'SEALED')}</Text>
+      </View>
     </View>
 
     <Pressable accessibilityRole="button" onPress={() => router.push('/character')} style={({pressed})=>[styles.identity,pressed&&styles.pressed]}>
@@ -197,6 +229,17 @@ const styles = StyleSheet.create({
   statusCode: { color: C.success, fontSize: 8, lineHeight: 12, fontWeight: '900', letterSpacing: 1.1, flexShrink: 1 },
   statusMeta: { color: C.textVeryMuted, fontSize: 7, fontWeight: '800', marginTop: 3, letterSpacing: 0.8 },
   statusAction: { color: C.cyan, fontSize: 8, lineHeight: 12, fontWeight: '900', letterSpacing: 0.7, flexShrink: 1, textAlign: 'right' },
+  worldEvent: { marginTop: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(228,186,255,.52)', borderRadius: 15, backgroundColor: 'rgba(45,16,58,.34)' },
+  worldEventTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  worldEventCode: { flex: 1, minWidth: 0, color: '#e4baff', fontSize: 8, lineHeight: 12, fontWeight: '900', letterSpacing: 1.05 },
+  worldEventTimer: { color: C.warning, fontSize: 8, fontWeight: '900', flexShrink: 0 },
+  worldEventTitle: { color: C.white, fontSize: 17, lineHeight: 22, fontWeight: '900', marginTop: 7 },
+  worldEventDetail: { color: C.textMuted, fontSize: 9, lineHeight: 14, marginTop: 5 },
+  liveRow: { flexDirection: 'row', gap: 7, marginTop: 10 },
+  liveCell: { flex: 1, minWidth: 0, minHeight: 64, padding: 9, borderWidth: 1, borderColor: C.line, borderRadius: 12, backgroundColor: 'rgba(3,12,15,.76)' },
+  liveCellAlert: { borderColor: 'rgba(228,186,255,.45)' },
+  liveLabel: { color: C.textVeryMuted, fontSize: 7, lineHeight: 10, fontWeight: '900', letterSpacing: .8 },
+  liveValue: { color: C.cyan, fontSize: 9, lineHeight: 13, fontWeight: '900', marginTop: 5, flexShrink: 1 },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10, padding: 12, borderWidth: 1, borderColor: C.line, borderRadius: 16, backgroundColor: C.panel },
   identityBody: { flex: 1, minWidth: 0 },
   identityCode: { color: C.cyan, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
