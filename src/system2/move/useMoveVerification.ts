@@ -48,7 +48,7 @@ export function useMoveVerification(quest:MoveQuest){
       setStatus('TRACKING');return;
     }catch{cleanup();setStatus('ERROR');setError('Nie udało się uruchomić GPS MOVE.');return;}
   }
-  if(quest.verification==='STEPS'){
+  if(quest.verification==='STEPS'||quest.verification==='HEALTH'){
     if(!await moveHealthAvailable()){cleanup();setStatus('UNAVAILABLE');setError('Kroki wymagają Health Connect / Apple Health. Provider nie jest jeszcze dostępny na tym urządzeniu.');return;}
   }
   setStatus('TRACKING');
@@ -67,15 +67,19 @@ export function useMoveVerification(quest:MoveQuest){
       return{questId:quest.id,durationSeconds:Math.max(duration,Math.floor(features.durationSeconds)),distanceMeters:features.distanceMeters,parentApproved,activity:classified,source:quest.verification==='MIXED'?'MIXED':'GPS'};
     }
   }
-  if(quest.verification==='STEPS'){
+  if(quest.verification==='STEPS'||quest.verification==='HEALTH'){
     const startIso=new Date(startAt.current).toISOString(),endIso=new Date(end).toISOString();
-    const rows=await readMoveHealth('STEPS',startIso,endIso);
+    const metric=quest.verification==='STEPS'?'STEPS':'ACTIVE_MINUTES';
+    const rows=await readMoveHealth(metric,startIso,endIso);
     cleanup();
-    return{questId:quest.id,durationSeconds:duration,steps:Math.floor(sumHealthSamples(rows)),source:'STEPS'};
+    return quest.verification==='STEPS'
+      ?{questId:quest.id,durationSeconds:duration,steps:Math.floor(sumHealthSamples(rows)),source:'STEPS'}
+      :{questId:quest.id,durationSeconds:duration,activeMinutes:Math.floor(sumHealthSamples(rows)),source:'HEALTH'};
   }
   cleanup();
   return{questId:quest.id,durationSeconds:duration,parentApproved,source:quest.verification==='PARENT_APPROVAL'?'PARENT':'TIMER'};
  },[cleanup,elapsed,quest]);
 
- return{status,elapsed,distance,activity,error,start,buildEvidence,running:status==='TRACKING'||status==='STARTING'};
+ const reset=useCallback(()=>{cleanup();startAt.current=null;windowRef.current=null;setStatus('READY');setError(null);setElapsed(0);setDistance(0);setActivity(null)},[cleanup]);
+ return{status,elapsed,distance,activity,error,start,buildEvidence,reset,running:status==='TRACKING'||status==='STARTING'};
 }
