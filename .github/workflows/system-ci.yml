@@ -51,6 +51,9 @@ jobs:
       - name: MOVE monotonic clock tests
         run: node --test src/system2/tests/move-clock.test.cjs
 
+      - name: MOVE GPS cancellation tests
+        run: node --test src/system2/tests/move-gps-lifecycle.test.cjs
+
       - name: Character Forge tests
         run: node --test src/system2/tests/character-forge.test.cjs
 
