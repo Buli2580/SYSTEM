@@ -234,7 +234,7 @@ as $$
     and public.is_move_group_member(p_group)
     and c.day_key>=current_date-greatest(1,least(coalesce(p_days,7),31))+1
   group by c.user_id
-  order by contribution_score desc,c.user_id
+  order by (sum(c.verified_minutes)+count(distinct c.day_key)*10) desc,c.user_id
 $$;
 
 revoke all on function public.create_move_group(text,text) from public;
