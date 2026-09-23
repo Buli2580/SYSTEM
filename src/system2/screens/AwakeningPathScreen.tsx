@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import SystemPage from '../components/SystemPage';
 import Action from '../components/Action';
+import AudioEnableAction from '../components/AudioEnableAction';
 import { useSystem } from '../state/SystemProvider';
 import { AWAKENING_QUESTS } from '../quests/catalog';
 import { journeyPlan } from '../journeys/model';
@@ -44,6 +45,7 @@ export default function AwakeningPathScreen() {
   const currentStage = journey?.currentStage ?? 0;
 
   return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER // FIRST CAMPAIGN" intensity="hero" showNavigation={false}>
+    <AudioEnableAction cue="AWAKENING" />
     <Animated.View entering={FadeInUp.duration(420)} style={[styles.panel, styles.hero]}>
       <Text style={styles.code}>06 // DIRECTION LOCKED</Text>
       <Text style={styles.goalCategory}>{GOAL_LABELS[goal.category]} · PRIORYTET {goal.priority}</Text>
