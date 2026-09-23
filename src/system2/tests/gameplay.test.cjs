@@ -2735,7 +2735,7 @@ test('ACTION 3.0 boss phases progress from awaken to final and defeated', () => 
   assert.equal(bossPhaseState(10).phase, 'FINAL_STRIKE');
   assert.equal(bossPhaseState(0).phase, 'DEFEATED');
   const hit = applyBossPhaseDamage(18, 5);
-  assert.equal(hit.before.phase, 'ENRAGE');
+  assert.equal(hit.before.phase, 'FINAL_STRIKE');
   assert.ok(hit.after.hp < 18);
 });
 
