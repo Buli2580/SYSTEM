@@ -9,7 +9,8 @@ import {completeMoveActivity} from '../storage/database';
 import {dayKey} from '../daily/calendar';
 import {SYSTEM_COLORS as C} from '../core';
 import {useMoveVerification} from '../move/useMoveVerification';
-import {moveMinimumDistance} from '../move/verification';
+import {moveMinimumDistance,verifyMoveQuest} from '../move/verification';
+import {publishVerifiedMoveToGroups} from '../cloud/move';
 
 export default function MoveQuestScreen(){
  const {questId}=useLocalSearchParams<{questId?:string}>(),router=useRouter(),{player}=useSystem();
@@ -36,7 +37,16 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,onDo
   setBusy(true);
   try{
     const evidence=await run.buildEvidence(parentApproved);
-    await completeMoveActivity({...evidence,dayKey:dayKey()});
+    const verified=verifyMoveQuest(quest,evidence);
+    if(!verified.ok)throw new Error('MOVE_VERIFICATION_FAILED:'+verified.code);
+    const today=dayKey();
+    await completeMoveActivity({...evidence,dayKey:today});
+    const method=evidence.source;
+    const kinds:('FAMILY'|'SCHOOL')[]=quest.familyEligible?['FAMILY','SCHOOL']:['SCHOOL'];
+    void publishVerifiedMoveToGroups({
+      kinds,eventKey:`move:${today}:${quest.id}`,questId:quest.id,verificationMethod:method,
+      verificationScore:verified.score,dayKey:today,
+    }).catch(()=>undefined);
     onDone();
   }catch(e){
     // buildEvidence/DB validation keeps the canonical reason in the runner/state layer.
