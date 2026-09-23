@@ -23,8 +23,10 @@ export default function SystemPage({
   return <SystemScreen style={styles.root}>
     <SystemAmbientBackground intensity={intensity} screen={screen} scene={scene} threat={threat} weather={weather} level={player.realLevel}/>
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content,{paddingTop:20,paddingBottom:(showNavigation?150:44)+insets.bottom}]}>
-      <Text style={styles.code}>{subtitle}</Text>
-      <Text style={styles.title}>{title}</Text>
+      <View style={styles.headerScrim}>
+        <Text style={styles.code}>{subtitle}</Text>
+        <Text style={styles.title}>{title}</Text>
+      </View>
       {ready?children:<View style={styles.panel}>
         {error?<SystemError message={error} retry={()=>{void refreshPlayer();}}/>:<Text style={styles.body}>SYSTEM // URUCHAMIANIE</Text>}
       </View>}
@@ -44,6 +46,7 @@ const styles=StyleSheet.create({
   ...pageStyles,
   root:{flex:1,backgroundColor:C.background},
   content:{paddingHorizontal:22},
-  code:{color:C.cyan,fontSize:10,fontWeight:'900',letterSpacing:2},
-  title:{color:C.white,fontSize:32,fontWeight:'900',marginTop:12,marginBottom:12},
+  headerScrim:{alignSelf:'flex-start',maxWidth:'94%',paddingHorizontal:12,paddingVertical:10,marginLeft:-12,marginBottom:4,borderRadius:14,backgroundColor:'rgba(1,6,9,.46)'},
+  code:{color:C.cyan,fontSize:10,fontWeight:'900',letterSpacing:2,textShadowColor:'rgba(0,0,0,.9)',textShadowRadius:8},
+  title:{color:C.white,fontSize:32,fontWeight:'900',marginTop:10,marginBottom:2,textShadowColor:'rgba(0,0,0,.95)',textShadowRadius:10},
 });
