@@ -2874,3 +2874,36 @@ test('SYSTEM MOVE family weekend quests have unique canonical completion ids', (
     assert.equal(quest.verification,'PARENT_APPROVAL');
   }
 });
+
+
+test('SYSTEM MOVE Verification 2.0 validates GPS activity type and distance', () => {
+  const { MOVE_QUESTS } = loader({})('move/catalog');
+  const { verifyMoveQuest } = loader({})('move/verification');
+  const walk=MOVE_QUESTS.find(q=>q.id==='move_walk_10');
+  const activity={activityTypeExpected:'WALK',activityTypeDetected:'WALK',verdict:'VERIFIED',verificationScore:94,reasonCodes:[],features:{distanceMeters:500,durationSeconds:600,averageSpeedMps:.83,medianSpeedMps:1,maxSpeedMps:1.8,speedVariance:.05,accelerationChanges:1,stops:1,movingSeconds:580,stationarySeconds:20,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:50,meanAccuracy:8,maxAccuracy:12,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false};
+  const ok=verifyMoveQuest(walk,{questId:walk.id,durationSeconds:600,distanceMeters:500,activity,source:'GPS'});
+  assert.equal(ok.ok,true);
+  assert.equal(ok.code,'GPS_VERIFIED');
+  const mismatch=verifyMoveQuest(walk,{questId:walk.id,durationSeconds:600,distanceMeters:500,activity:{...activity,activityTypeDetected:'BIKE'},source:'GPS'});
+  assert.equal(mismatch.ok,false);
+  assert.equal(mismatch.code,'ACTIVITY_TYPE_MISMATCH');
+});
+
+test('SYSTEM MOVE Verification 2.0 requires explicit parent approval', () => {
+  const { MOVE_QUESTS } = loader({})('move/catalog');
+  const { verifyMoveQuest } = loader({})('move/verification');
+  const ball=MOVE_QUESTS.find(q=>q.id==='move_ball_10');
+  assert.equal(verifyMoveQuest(ball,{questId:ball.id,durationSeconds:600,parentApproved:false,source:'PARENT'}).ok,false);
+  const result=verifyMoveQuest(ball,{questId:ball.id,durationSeconds:600,parentApproved:true,source:'PARENT'});
+  assert.equal(result.ok,true);
+  assert.equal(result.code,'PARENT_APPROVED');
+});
+
+test('SYSTEM MOVE Verification 2.0 does not fabricate steps or Health evidence', () => {
+  const { verifyMoveQuest } = loader({})('move/verification');
+  const stepsQuest={id:'steps-test',title:'STEPS',description:'',kind:'WALK',minutes:10,skills:['ENDURANCE'],verification:'STEPS',difficulty:'EASY',ageModes:['AGE_9_12'],outdoor:false,familyEligible:false};
+  assert.equal(verifyMoveQuest(stepsQuest,{questId:'steps-test',durationSeconds:600,steps:0,source:'STEPS'}).ok,false);
+  const healthQuest={...stepsQuest,id:'health-test',verification:'HEALTH'};
+  assert.equal(verifyMoveQuest(healthQuest,{questId:'health-test',durationSeconds:600,activeMinutes:0,source:'HEALTH'}).ok,false);
+  assert.equal(verifyMoveQuest(healthQuest,{questId:'health-test',durationSeconds:600,activeMinutes:10,source:'HEALTH'}).ok,true);
+});
