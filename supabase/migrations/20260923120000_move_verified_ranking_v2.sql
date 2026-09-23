@@ -134,3 +134,50 @@ as $$
   group by c.user_id
   order by (sum(c.verified_minutes)+count(distinct c.day_key)*10) desc,c.user_id
 $$;
+
+-- Only the caller's accepted summary may be suggested as a MOVE ranking
+-- source. This is a convenience query; the claiming RPC independently
+-- rechecks ALL evidence conditions and never trusts its response.
+create or replace function public.get_my_move_verified_source(
+  p_move_quest_id text,p_day_key date
+)
+returns table(event_key text)
+language sql stable security definer set search_path=''
+as $$
+  select se.event_key
+  from public.sync_events se
+  join public.verification_summaries vs
+    on vs.user_id=se.user_id and vs.event_key=se.event_key
+  where se.user_id=(select auth.uid())
+    and se.processing_status='PROCESSED'
+    and se.entity_type='VERIFIED_EVENT'
+    and p_day_key is not null and p_day_key<=current_date+1
+    and se.entity_id=case p_move_quest_id
+      when 'move_walk_10' then 'daily:'||p_day_key::text||':walk_protocol_1'
+      when 'move_run_10' then 'daily:'||p_day_key::text||':run_protocol_1'
+      when 'move_bike_20' then 'daily:'||p_day_key::text||':ride_protocol_1'
+      else null end
+    and vs.verdict='VERIFIED'
+    and vs.confidence_score>=70
+    and vs.activity_type=case p_move_quest_id
+      when 'move_walk_10' then 'WALK'
+      when 'move_run_10' then 'RUN'
+      when 'move_bike_20' then 'BIKE'
+      else null end
+    and vs.duration_seconds>=case p_move_quest_id
+      when 'move_walk_10' then 600
+      when 'move_run_10' then 600
+      when 'move_bike_20' then 1200
+      else null end
+    and vs.distance_meters>=case p_move_quest_id
+      when 'move_walk_10' then 350
+      when 'move_run_10' then 700
+      when 'move_bike_20' then 2400
+      else null end
+  order by se.created_at desc
+  limit 1
+$$;
+revoke all on function public.get_my_move_verified_source(text,date)
+  from public,anon;
+grant execute on function public.get_my_move_verified_source(text,date)
+  to authenticated;
