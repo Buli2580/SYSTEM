@@ -4,6 +4,7 @@ import SystemEventOverlay,{type SystemEvent} from './SystemEventOverlay';
 import {presentationEventsFromReceipt} from '../presentation/events';
 import MilestoneCardOverlay from '../cards/MilestoneCardOverlay';
 import type {CardReason} from '../cards/engine';
+import CombatImpactOverlay from './CombatImpactOverlay';
 
 export default function RewardEventSequence(){
   const {lastReward,ready,dismissCelebration,awakeningPending,player}=useSystem();
@@ -28,7 +29,8 @@ export default function RewardEventSequence(){
     setIndex(0);
   },[lastReward?.id,awakeningPending,events.length,dismissCelebration]);
 
-  const total=events.length+(cardReason?1:0);
+  const combatCount=lastReward?.bossDamage?1:0;
+  const total=combatCount+events.length+(cardReason?1:0);
   const dismiss=useCallback(()=>{
     setIndex(i=>{
       const next=i+1;
@@ -38,8 +40,10 @@ export default function RewardEventSequence(){
   },[total,dismissCelebration]);
 
   if(!ready||awakeningPending||!lastReward||index>=total)return null;
-  if(index>=events.length&&cardReason)return <MilestoneCardOverlay player={player} reason={cardReason} onDismiss={dismiss}/>;
-  const item=events[index];
+  if(lastReward.bossDamage&&index===0)return <CombatImpactOverlay damage={lastReward.bossDamage} onDismiss={dismiss}/>;
+  const eventIndex=index-combatCount;
+  if(eventIndex>=events.length&&cardReason)return <MilestoneCardOverlay player={player} reason={cardReason} onDismiss={dismiss}/>;
+  const item=events[eventIndex];
   if(!item)return null;
   const event:SystemEvent={id:item.id,eyebrow:item.eyebrow,title:item.title,detail:item.detail,accent:item.accent,durationMs:item.kind==='QUEST_COMPLETE'?1800:2800};
   return <SystemEventOverlay event={event} onDismiss={dismiss}/>;
