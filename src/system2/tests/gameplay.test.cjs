@@ -2781,3 +2781,74 @@ test('pending reward presentation preserves canonical boss combat delta', async 
   assert.equal(pending[0].bossDamage.beforeHp,63);
   assert.equal(pending[0].bossDamage.afterHp,58);
 });
+
+
+test('SYSTEM MOVE age modes resolve safely from profile birth date', () => {
+  const { moveAgeMode } = loader({})('move/age');
+  const today = new Date('2026-09-23T12:00:00Z');
+  assert.equal(moveAgeMode('2019-09-23', today), 'AGE_6_8');
+  assert.equal(moveAgeMode('2015-09-23', today), 'AGE_9_12');
+  assert.equal(moveAgeMode('2011-09-23', today), 'AGE_13_17');
+  assert.equal(moveAgeMode(undefined, today), 'ADULT');
+});
+
+test('SYSTEM MOVE director builds age-safe recovery plans without hard quests', () => {
+  const { buildMoveDayPlan } = loader({})('move/director');
+  const normal = buildMoveDayPlan('2026-09-23','AGE_9_12',false,60);
+  assert.ok(normal.quests.length > 0);
+  assert.ok(normal.quests.every(q => q.ageModes.includes('AGE_9_12')));
+  const recovery = buildMoveDayPlan('2026-09-23','AGE_9_12',true,60);
+  assert.equal(recovery.recovery,true);
+  assert.ok(recovery.quests.every(q => q.difficulty === 'EASY'));
+});
+
+test('SYSTEM MOVE 60 minute target advances streak and movement skills once', () => {
+  const { createMoveState, completeMoveQuest } = loader({})('move/state');
+  let state = createMoveState('2026-09-23','AGE_9_12');
+  const complete=(questId,durationSeconds,extra={})=>{ state=completeMoveQuest(state,{questId,dayKey:'2026-09-23',durationSeconds,...extra}); };
+  complete('move_walk_10',600,{distanceMeters:400});
+  complete('move_run_10',600,{distanceMeters:800});
+  complete('move_jump_5',300);
+  complete('move_balance_5',300);
+  complete('move_ball_10',600,{parentApproved:true});
+  complete('move_bike_20',1200,{distanceMeters:2500});
+  assert.equal(state.activeMinutes,60);
+  assert.equal(state.streak,1);
+  assert.equal(state.lastActiveDay,'2026-09-23');
+  assert.ok(state.skills.ENDURANCE.xp > 0);
+  const replay=completeMoveQuest(state,{questId:'move_walk_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:400});
+  assert.equal(replay.activeMinutes,60);
+  assert.equal(replay.streak,1);
+});
+
+test('SYSTEM MOVE safety removes precise child location and body ranking is disabled', () => {
+  const { moveSafetyPolicy, publicMoveProfile } = loader({})('move/safety');
+  const policy = moveSafetyPolicy('AGE_6_8');
+  assert.equal(policy.publicPreciseLocation,false);
+  assert.equal(policy.bodyWeightRanking,false);
+  assert.equal(policy.appearanceRanking,false);
+  assert.equal(policy.minorDirectMessages,false);
+  assert.equal(policy.parentApprovalRequired,true);
+  const profile = publicMoveProfile({name:'PLAYER',latitude:54.5,longitude:17.7,birthDate:'2019-01-01',score:120});
+  assert.equal(profile.latitude,undefined);
+  assert.equal(profile.longitude,undefined);
+  assert.equal(profile.birthDate,undefined);
+  assert.equal(profile.score,120);
+});
+
+test('SYSTEM MOVE school raids reward contribution, not body metrics', () => {
+  const { schoolRaidDamage, schoolContributionScore, SCHOOL_RANKING_RULE } = loader({})('move/school');
+  assert.equal(schoolRaidDamage([
+    {participantId:'a',verifiedMinutes:30,dayKey:'2026-09-23'},
+    {participantId:'b',verifiedMinutes:45,dayKey:'2026-09-23'},
+  ]),15);
+  assert.equal(schoolContributionScore(60,3),90);
+  assert.equal(SCHOOL_RANKING_RULE,'REGULARITY_AND_CONTRIBUTION_ONLY');
+});
+
+test('SYSTEM MOVE family boss damage is bounded and based on verified activity', () => {
+  const { familyBossDamage } = loader({})('move/family');
+  assert.equal(familyBossDamage(0,2),2);
+  assert.equal(familyBossDamage(60,2),8);
+  assert.equal(familyBossDamage(999,10),25);
+});
