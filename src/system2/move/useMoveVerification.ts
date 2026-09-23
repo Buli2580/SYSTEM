@@ -57,11 +57,18 @@ export function useMoveVerification(quest:MoveQuest){
  const start=useCallback(async()=>{
   const run=++generation.current;
   cleanup();
-  sessionRef.current=createMoveSessionClock(Date.now(),performance.now());
+  sessionRef.current=null;
   windowRef.current=null;
   setError(null);setElapsed(0);setDistance(0);setActivity(null);setStatus('STARTING');
   const live=()=>mounted.current&&generation.current===run;
-  tick.current=setInterval(update,1000);
+  const beginTracking=()=>{
+   if(!live())return;
+   // Never credit time spent in the Android permission dialog or waiting
+   // for a native GPS subscription/health provider to initialize.
+   sessionRef.current=createMoveSessionClock(Date.now(),performance.now());
+   tick.current=setInterval(update,1000);
+   setStatus('TRACKING');
+  };
   if(quest.verification==='GPS_DISTANCE'||quest.verification==='MIXED'){
    try{
     const permission=await Location.requestForegroundPermissionsAsync();
@@ -77,14 +84,14 @@ export function useMoveVerification(quest:MoveQuest){
      timeInterval:1000,
      distanceInterval:3,
     },point=>{
-     if(!live())return;
+     if(!live()||sessionRef.current===null)return;
      window.add(point);
      const features=window.features();
      setDistance(Math.round(features.distanceMeters));
     });
     if(!live()){subscription.remove();return;}
     watcher.current=subscription;
-    setStatus('TRACKING');
+    beginTracking();
    }catch{
     if(!live())return;
     cleanup();sessionRef.current=null;setStatus('ERROR');
@@ -107,7 +114,7 @@ export function useMoveVerification(quest:MoveQuest){
     setError('Nie udało się sprawdzić dostawcy danych zdrowotnych.');return;
    }
   }
-  if(live())setStatus('TRACKING');
+  beginTracking();
  },[cleanup,quest.verification,update]);
 
  const buildEvidence=useCallback(async(parentApproved=false):Promise<MoveVerificationEvidence>=>{
