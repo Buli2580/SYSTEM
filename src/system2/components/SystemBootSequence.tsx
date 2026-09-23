@@ -49,8 +49,8 @@ export default function SystemBootSequence({
 }
 
 const styles=StyleSheet.create({
-  root:{...StyleSheet.absoluteFillObject,backgroundColor:'#010305',alignItems:'center',justifyContent:'center',zIndex:1000,overflow:'hidden'},
-  vignette:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(0,0,0,.24)'},
+  root:{...StyleSheet.absoluteFill,backgroundColor:'#010305',alignItems:'center',justifyContent:'center',zIndex:1000,overflow:'hidden'},
+  vignette:{...StyleSheet.absoluteFill,backgroundColor:'rgba(0,0,0,.24)'},
   scanFrame:{position:'absolute',top:72,left:32,right:32,height:2,backgroundColor:'rgba(108,238,255,.12)',overflow:'hidden'},
   scanProgress:{height:'100%',backgroundColor:'#6ceeff'},
   logoOuter:{width:126,height:126,borderWidth:2,borderColor:'#6ceeff',transform:[{rotate:'45deg'}],alignItems:'center',justifyContent:'center',shadowColor:'#00e5ff',shadowOpacity:.8,shadowRadius:32},
