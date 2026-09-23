@@ -97,22 +97,35 @@ revoke all on function public.submit_verified_move_contribution(uuid,text,text,d
 grant execute on function public.submit_verified_move_contribution(uuid,text,text,date)
   to authenticated;
 
--- Previous v1 RLS allowed any group member to query every individual's
--- contribution row, even after the guardian-only leaderboard RPC was added.
--- Only the contributor and group guardians/teachers may read those rows.
--- Aggregated group totals remain available to other enrolled members.
+-- Read-only guardian helper is exposed only to signed-in members; its
+-- privileged body queries membership without triggering recursive member RLS.
+create or replace function public.is_move_group_guardian(p_group uuid)
+returns boolean language sql stable security definer set search_path=''
+as $$
+  select exists(
+    select 1 from public.move_group_members m
+    where m.group_id=p_group and m.user_id=(select auth.uid())
+      and m.role in ('PARENT','TEACHER')
+  )
+$$;
+revoke all on function public.is_move_group_guardian(uuid) from public,anon;
+grant execute on function public.is_move_group_guardian(uuid) to authenticated;
+
+-- In Supabase and local Postgres, explicitly grant only READ access to
+-- these RLS-protected tables. The mobile app writes via controlled RPCs.
+revoke all on public.move_contributions from public,anon;
+grant select on public.move_contributions to authenticated;
+grant select on public.move_group_members to authenticated;
+
+drop policy if exists move_group_members_group_read on public.move_group_members;
+create policy move_group_members_private_read on public.move_group_members
+for select to authenticated
+using (user_id=(select auth.uid()) or public.is_move_group_guardian(group_id));
+
 drop policy if exists move_contributions_group_read on public.move_contributions;
 create policy move_contributions_private_read on public.move_contributions
 for select to authenticated
-using (
-  user_id=(select auth.uid())
-  or exists (
-    select 1 from public.move_group_members member
-    where member.group_id=move_contributions.group_id
-      and member.user_id=(select auth.uid())
-      and member.role in ('PARENT','TEACHER')
-  )
-);
+using (user_id=(select auth.uid()) or public.is_move_group_guardian(group_id));
 
 -- Aggregate only independently linked and approved evidence.
 create or replace function public.get_my_move_groups()
