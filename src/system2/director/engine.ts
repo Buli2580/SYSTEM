@@ -5,8 +5,9 @@ import {primaryJourney,stageRequirement,journeyPlan} from '../journeys/model';
 import {dayKey} from '../daily/calendar';
 import {adaptiveDifficulty} from '../generation/engine';
 import {DEFAULT_ACTIVITIES} from '../daily/templates';
+import {activeWorldEvent,worldEventDirectorLine} from '../world/events';
 export type DirectorState=Pick<SystemSnapshot,'awakeningCompleted'|'completedQuestIds'|'daily'|'goals'|'story'|'journeys'|'journeyQuestIds'|'recentActivity'> & Partial<Pick<SystemSnapshot,'player'>>;
-export type Directive={kind:'AWAKENING'|'ACTIVE_QUEST'|'CREATE_GOAL'|'CONTINUE_JOURNEY'|'COMPLETE_DAILY'|'RECOVER_MOMENTUM'|'DEVELOP_WEAK_STAT'|'ADVANCE_WEEKLY'|'CHALLENGE_BOSS'|'REVIEW_GOAL'|'REST'|'CLOCK';title:string;objective:string;reason:string;route:'/quest'|'/quests'|'/goals'|'/story';questId?:string;journeyId?:string;reward?:QuestReward};
+export type Directive={kind:'AWAKENING'|'ACTIVE_QUEST'|'CREATE_GOAL'|'CONTINUE_JOURNEY'|'COMPLETE_DAILY'|'RECOVER_MOMENTUM'|'DEVELOP_WEAK_STAT'|'ADVANCE_WEEKLY'|'CHALLENGE_BOSS'|'WORLD_EVENT'|'REVIEW_GOAL'|'REST'|'CLOCK';title:string;objective:string;reason:string;route:'/quest'|'/quests'|'/goals'|'/story'|'/world';questId?:string;journeyId?:string;reward?:QuestReward};
 export function directSystem(s:DirectorState,activeQuestId:string|null,now=Date.now()):Directive{
  const goals=s.goals??[],primary=primaryJourney(s.journeys??[],goals),goal=goals.find(g=>g.id===primary?.goalId);
  const pick=(kind:Directive['kind'],title:string,reason:string,route:Directive['route'],questId?:string):Directive=>{
@@ -21,6 +22,8 @@ export function directSystem(s:DirectorState,activeQuestId:string|null,now=Date.
  const available=(s.daily?.questIds??[]).filter(id=>!!getQuest(id)&&!s.completedQuestIds.includes(id));
  const recovery=s.player&&adaptiveDifficulty({player:s.player,goals,history:s.recentActivity??[],day:dayKey(now),prefs:DEFAULT_ACTIVITIES,weeklyCompleted:s.daily?.weeklyCompleted??0,weeklyClear:s.daily?.weeklyClear??false}).recovery;
  if(recovery){const id=available.find(id=>id.includes('focus_return_easy'))??available.find(id=>getQuest(id)?.difficulty==='EASY');if(id)return pick('RECOVER_MOMENTUM','RECOVER MOMENTUM','Mały krok. Nie zwiększamy teraz trudności.','/quest',id);if(available.length)return pick('RECOVER_MOMENTUM','RECOVER MOMENTUM','Brak łatwej misji w zapisanym zestawie. Możesz odpocząć; następny zestaw uwzględni ostatnie próby.','/quests');}
+ const worldEvent=s.player?activeWorldEvent(s.player,s.awakeningCompleted,now):null;
+ if(worldEvent)return pick('WORLD_EVENT',worldEventDirectorLine(worldEvent,now),worldEvent.subtitle,'/world');
  if(primary){const id=available.find(id=>s.journeyQuestIds?.[id]===primary.id);if(id){const stage=journeyPlan(primary.category)[primary.currentStage];return pick('CONTINUE_JOURNEY','CONTINUE JOURNEY',`${stage.name} · ${stageRequirement(primary)}`,'/quest',id);}}
  if(s.daily?.weeklyCompleted===4&&!s.daily.weeklyClear&&available[0])return pick('ADVANCE_WEEKLY','COMPLETE WEEKLY OBJECTIVE','Jeszcze jeden zweryfikowany Daily do Weekly.','/quest',available[0]);
  if(s.story?.worldLinkComplete&&!s.story.bossComplete){const b=s.story.boss;if(!b||!b.focus_at||!b.move_at||available.length>0&&s.daily?.dayKey&&s.daily.dayKey>b.start_day)return pick('CHALLENGE_BOSS',b?'BOSS PROTOCOL':'BOSS AVAILABLE','FOCUS → MOVE → DISCIPLINE. Zobacz dostępny etap.','/story');}
