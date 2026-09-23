@@ -2,9 +2,10 @@ import { DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates
 import type { PlayerProfile, SkillKey } from '../core/types';
 import { SKILL_KEYS } from '../core/progression';
 export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
-export type Settings = { haptics: boolean; audio: boolean; musicVolume?: number; ambientVolume?: number; sfxVolume?: number; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
+export type AvatarStyle = 'DARK' | 'CYBER' | 'WARLORD';
+export type Settings = { haptics: boolean; audio: boolean; avatarStyle?: AvatarStyle; musicVolume?: number; ambientVolume?: number; sfxVolume?: number; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
 export type SettingsPatch = Omit<Partial<Settings>, 'activities'> & { activities?: Partial<ActivityPreferences> };
-export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false, musicVolume: 0.8, ambientVolume: 0.55, sfxVolume: 0.9 };
+export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false, avatarStyle: 'CYBER', musicVolume: 0.8, ambientVolume: 0.55, sfxVolume: 0.9 };
 export function earnedTitles(awakening: boolean, signal: boolean, worldLink = false, boss = false): Title[] {
   return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : []), ...(worldLink ? ['PATHFINDER' as const] : []), ...(boss ? ['WALLBREAKER' as const] : [])];
 }
@@ -28,7 +29,8 @@ export function parseSettings(value?: string): Settings {
   if (settings.reminderTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.reminderTime)) throw new Error('Wpisz godzinę HH:MM.');
   if (settings.dailyReminder !== undefined && typeof settings.dailyReminder !== 'boolean') throw new Error('Nieprawidłowe ustawienie przypomnienia.');
   const clamp = (value: unknown, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
-  return { haptics: settings.haptics, audio: settings.audio,
+  const avatarStyle: AvatarStyle = ['DARK','CYBER','WARLORD'].includes(settings.avatarStyle) ? settings.avatarStyle : 'CYBER';
+  return { haptics: settings.haptics, audio: settings.audio, avatarStyle,
     musicVolume: clamp(settings.musicVolume, DEFAULT_SETTINGS.musicVolume ?? 0.8),
     ambientVolume: clamp(settings.ambientVolume, DEFAULT_SETTINGS.ambientVolume ?? 0.55),
     sfxVolume: clamp(settings.sfxVolume, DEFAULT_SETTINGS.sfxVolume ?? 0.9),
