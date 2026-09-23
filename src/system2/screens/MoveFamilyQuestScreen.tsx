@@ -21,7 +21,7 @@ export default function MoveFamilyQuestScreen(){
   if(!ready||!approved||busy)return;
   setBusy(true);
   try{
-   await completeMoveActivity({questId:canonical.id,dayKey:dayKey(),durationSeconds:elapsed,parentApproved:true});
+   await completeMoveActivity({questId:canonical.id,dayKey:dayKey(),durationSeconds:elapsed,parentApproved:true,source:'PARENT'});
    router.replace('/move-family');
   }finally{setBusy(false)}
  }
