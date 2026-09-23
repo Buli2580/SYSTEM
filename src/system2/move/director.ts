@@ -16,6 +16,6 @@ export function buildMoveDayPlan(dayKey:string,ageMode:MoveAgeMode,failedYesterd
 export function nextMoveQuest(plan:MoveDayPlan,completedIds:string[]){return plan.quests.find(q=>!completedIds.includes(q.id))??null}
 export function moveDirectorLine(plan:MoveDayPlan,completedIds:string[]){
  const next=nextMoveQuest(plan,completedIds);
- if(!next)return'MOVE TARGET COMPLETE // 60 MIN';
+ if(!next)return plan.plannedMinutes<=0?'MOVE LOCKED // SET VALID AGE PROFILE':'MOVE TARGET COMPLETE // 60 MIN';
  return plan.recovery?`RECOVERY MOVE // ${next.title} · ${next.minutes} MIN`:`NEXT MOVE // ${next.title} · ${next.minutes} MIN`;
 }
