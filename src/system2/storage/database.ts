@@ -34,6 +34,8 @@ import { replaceAIQuestPresentations } from '../ai/registry';
 import { clearAIConsequenceDebt, readAIConsequenceState } from './aiState';
 import { parseEvent } from '../identity/history';
 import { bossPhaseState } from '../story/bossEngine';
+import { createMoveState, rolloverMoveState, completeMoveQuest as reduceMoveQuest, type MoveCompletionEvidence, type MoveState } from '../move/state';
+import { moveAgeMode } from '../move/age';
 
 import {
   createNewPlayer,
@@ -1109,3 +1111,47 @@ export function rerollDailyQuest(id:string) { return profileTransaction(async tx
  await storyEvent(txn,'reroll:'+daily.dayKey,'QUEST_REROLLED','DAILY REPLACED',old.title+' → '+next.quest.title);
  return snapshotInTransaction(txn);
 }); }
+
+const MOVE_STATE_KEY='system_move_state_v1';
+function validMoveState(value:unknown):value is MoveState{
+ if(!value||typeof value!=='object')return false;
+ const row=value as Partial<MoveState>;
+ return typeof row.dayKey==='string'&&typeof row.ageMode==='string'
+  &&Array.isArray(row.completedQuestIds)&&row.completedQuestIds.every(x=>typeof x==='string')
+  &&typeof row.activeMinutes==='number'&&Number.isFinite(row.activeMinutes)&&row.activeMinutes>=0
+  &&typeof row.streak==='number'&&Number.isFinite(row.streak)&&row.streak>=0
+  &&typeof row.bestStreak==='number'&&Number.isFinite(row.bestStreak)&&row.bestStreak>=0
+  &&!!row.skills&&typeof row.skills==='object'&&!Array.isArray(row.skills)
+  &&Array.isArray(row.history);
+}
+export function loadMoveState(now=Date.now()):Promise<MoveState>{
+ return serialized(async()=>{
+  await initSystemDatabase();
+  const db=await getDatabase();
+  const player=await readPlayer(db);
+  const currentDay=dayKey(now),age=moveAgeMode(player.birthDate,new Date(now));
+  const row=await db.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?',MOVE_STATE_KEY);
+  let state:MoveState;
+  try{const parsed=row?JSON.parse(row.value):null;state=validMoveState(parsed)?parsed:createMoveState(currentDay,age)}catch{state=createMoveState(currentDay,age)}
+  const next=rolloverMoveState(state,currentDay,age);
+  if(!row||JSON.stringify(next)!==row.value)await db.runAsync('INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',MOVE_STATE_KEY,JSON.stringify(next));
+  return next;
+ });
+}
+export function completeMoveActivity(evidence:MoveCompletionEvidence):Promise<MoveState>{
+ return serialized(async()=>{
+  await initSystemDatabase();
+  const db=await getDatabase();
+  let result!:MoveState;
+  await db.withExclusiveTransactionAsync(async txn=>{
+    const player=await readPlayer(txn);
+    const age=moveAgeMode(player.birthDate,new Date(Date.now()));
+    const row=await txn.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?',MOVE_STATE_KEY);
+    let state:MoveState;
+    try{const parsed=row?JSON.parse(row.value):null;state=validMoveState(parsed)?parsed:createMoveState(evidence.dayKey,age)}catch{state=createMoveState(evidence.dayKey,age)}
+    result=reduceMoveQuest(rolloverMoveState(state,evidence.dayKey,age),evidence);
+    await txn.runAsync('INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',MOVE_STATE_KEY,JSON.stringify(result));
+  });
+  return result;
+ });
+}
