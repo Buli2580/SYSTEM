@@ -58,6 +58,7 @@ test('MOVE cloud scores remain pending without accepted server proof',async()=>{
  const calls=[];
  const load=loader({
    './auth':{getValidSession:async()=>({accessToken:'auth-token'})},
+   '../storage/database':{loadMoveState:async()=>({history:[],dayKey:'2026-09-23',completedQuestIds:[],activeMinutes:0})},
    './http':{cloudRequest:async(endpoint,opts)=>{
      calls.push(endpoint);
      if(endpoint.endsWith('/get_my_move_groups'))return [{
@@ -80,6 +81,7 @@ test('MOVE cloud scoring only sends the accepted server evidence identifier',asy
  const calls=[];
  const load=loader({
    './auth':{getValidSession:async()=>({accessToken:'auth-token'})},
+   '../storage/database':{loadMoveState:async()=>({history:[],dayKey:'2026-09-23',completedQuestIds:[],activeMinutes:0})},
    './http':{cloudRequest:async(endpoint,opts)=>{
      const body=JSON.parse(opts.body);
      calls.push([endpoint,body]);
