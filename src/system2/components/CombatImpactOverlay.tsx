@@ -48,7 +48,7 @@ export default function CombatImpactOverlay({
 }
 const styles=StyleSheet.create({
   root:{flex:1,backgroundColor:'#010305',justifyContent:'center',padding:22,overflow:'hidden'},
-  scrim:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(0,0,0,.5)'},
+  scrim:{...StyleSheet.absoluteFill,backgroundColor:'rgba(0,0,0,.5)'},
   hud:{position:'absolute',top:70,left:22,right:22},
   code:{color:'#e4baff',fontSize:9,fontWeight:'900',letterSpacing:1.6},
   phase:{color:'#fff',fontSize:24,lineHeight:30,fontWeight:'900',marginTop:8},
