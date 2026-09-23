@@ -36,7 +36,7 @@ function minimumDistanceFor(kind:string,minutes:number){
 export function validateMoveEvidence(e:MoveCompletionEvidence){
  const quest=MOVE_QUESTS.find(q=>q.id===e.questId);
  if(!quest)throw new Error('Nie znaleziono misji MOVE.');
- if(e.durationSeconds<Math.max(60,quest.minutes*45))throw new Error('Aktywność trwała zbyt krótko.');
+ if(e.durationSeconds<Math.max(60,quest.minutes*60))throw new Error('Aktywność trwała zbyt krótko.');
  if(quest.verification==='PARENT_APPROVAL'&&!e.parentApproved)throw new Error('Ta misja wymaga akceptacji rodzica lub opiekuna.');
  if(quest.verification==='GPS_DISTANCE'){
    const min=minimumDistanceFor(quest.kind,quest.minutes);
