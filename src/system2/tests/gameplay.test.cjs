@@ -28,7 +28,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       if (name === 'react-native-reanimated') {
         const transition = { duration() { return this; }, delay() { return this; }, springify() { return this; } };
         return { default: { View: 'View', Text: 'Text' }, View: 'View', Text: 'Text',
-          FadeInUp: transition, FadeIn: transition, FadeOut: transition,
+          FadeInUp: transition, FadeIn: transition, FadeOut: transition, ZoomIn: transition, ZoomOut: transition,
           Easing: { inOut: x => x, ease: x => x, linear: x => x },
           useSharedValue: value => ({ value }), useAnimatedStyle: fn => fn(),
           withTiming: value => value, withRepeat: value => value, withSequence: (...v) => v.at(-1),
@@ -2209,7 +2209,7 @@ for(const [label,birth,today,expected] of [
 function integrationUI(context,extra={}) {
  const slots=[];let cursor=0;const navigation=[];
  const react={useState(initial){const i=cursor++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return [slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v;}];},
- useRef(initial){const i=cursor++;return slots[i]??(slots[i]={current:initial});},useCallback:fn=>fn,useEffect:()=>{}};
+ useRef(initial){const i=cursor++;return slots[i]??(slots[i]={current:initial});},useCallback:fn=>fn,useMemo:fn=>fn(),useEffect:()=>{}};
  const jsx=(type,props)=>typeof type==='function'?type(props):({type,props});
  const load=loader({
   react,'react/jsx-runtime':{jsx,jsxs:jsx,Fragment:'Fragment'},
