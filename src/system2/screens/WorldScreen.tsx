@@ -57,10 +57,10 @@ function OnlineWorld() {
     </View>
     {mode==='BOSS'&&<Pressable onPress={()=>router.push('/story')} style={styles.bossSignal}><Text style={styles.bossSignalCode}>THREAT DETECTED // BOSS PROTOCOL</Text><Text style={styles.bossSignalTitle}>THE FIRST WALL</Text><Text style={styles.bossSignalCta}>WEJDŹ DO WALKI →</Text></Pressable>}
     {worldEvent&&<View style={styles.eventCard}>
-      <View style={styles.eventTop}><Text style={styles.eventCode}>WORLD EVENT // {worldEvent.kind.replaceAll('_',' ')}</Text><Text style={styles.eventTimer}>{formatWorldEventRemaining(worldEvent)}</Text></View>
+      <View style={styles.eventTop}><Text style={styles.eventCode}>WORLD SIGNAL PREVIEW // {worldEvent.kind.replaceAll('_',' ')}</Text><Text style={styles.eventTimer}>{formatWorldEventRemaining(worldEvent)}</Text></View>
       <Text style={styles.eventTitle}>{worldEvent.title}</Text>
       <Text style={styles.eventBody}>{worldEvent.subtitle}</Text>
-      <Text style={styles.eventMeta}>{worldEvent.sector} · THREAT {worldEvent.threat} · REWARD {worldEvent.rewardTag}</Text>
+      <Text style={styles.eventMeta}>{worldEvent.sector} · THREAT {worldEvent.threat} · PLANOWANA NAGRODA {worldEvent.rewardTag}</Text><Text style={styles.eventBody}>Sygnał poglądowy. Misja eventowa i odbiór nagrody nie są jeszcze dostępne.</Text>
     </View>}
     <View style={styles.map}>
       {world.fix ? <WorldMap fix={world.fix} sectorIds={world.sectorIds} signal={world.signal} follow={follow} centerRequest={centerRequest} /> :
