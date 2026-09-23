@@ -9,6 +9,10 @@ const ts=require(require.resolve('typescript',{paths:[root,process.cwd()]}));
 function createHookHarness(){
  const states=[],refs=[],effects=[];let si=0,ri=0;
  let watcherReady, removed=0, watchStarted=0;
+ const appStateListeners=new Set();
+ const AppState={currentState:'active',addEventListener:(type,fn)=>{
+   appStateListeners.add(fn);return{remove:()=>appStateListeners.delete(fn)};
+ }};
  const subscription=new Promise(resolve=>{watcherReady=resolve;});
  const react={
    useState(initial){
@@ -22,6 +26,7 @@ function createHookHarness(){
  };
  const dependencies={
   react,
+  'react-native':{AppState},
   'expo-location':{
    Accuracy:{High:4},
    requestForegroundPermissionsAsync:async()=>({status:'granted'}),
@@ -60,6 +65,7 @@ function createHookHarness(){
   get watchStarted(){return watchStarted;},
   get removed(){return removed;},
   settle:()=>watcherReady({remove:()=>{removed++;}}),
+  background:()=>{AppState.currentState='background';appStateListeners.forEach(fn=>fn('background'));},
   unmount:()=>effects.forEach(fn=>fn?.()),
  };
 }
@@ -86,4 +92,17 @@ test('a watcher created after UNMOUNT is immediately removed',async()=>{
  h.settle();
  await starting;
  assert.equal(h.removed,1);
+});
+
+test('foreground-only MOVE refuses to credit activity after app backgrounds',async()=>{
+ const h=createHookHarness();
+ const starting=h.run.start();
+ for(let i=0;i<6;i++)await Promise.resolve();
+ assert.equal(h.watchStarted,1);
+ h.background();
+ h.settle();
+ await starting;
+ assert.equal(h.removed,1);
+ assert.equal(h.status,'ERROR');
+ h.unmount();
 });
