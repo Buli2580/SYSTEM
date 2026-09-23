@@ -2781,3 +2781,129 @@ test('pending reward presentation preserves canonical boss combat delta', async 
   assert.equal(pending[0].bossDamage.beforeHp,63);
   assert.equal(pending[0].bossDamage.afterHp,58);
 });
+
+
+test('SYSTEM MOVE age modes resolve safely from profile birth date', () => {
+  const { moveAgeMode } = loader({})('move/age');
+  const today = new Date('2026-09-23T12:00:00Z');
+  assert.equal(moveAgeMode('2022-09-23', today), 'UNDER_6');
+  assert.equal(moveAgeMode('2019-09-23', today), 'AGE_6_8');
+  assert.equal(moveAgeMode('2015-09-23', today), 'AGE_9_12');
+  assert.equal(moveAgeMode('2011-09-23', today), 'AGE_13_17');
+  assert.equal(moveAgeMode(undefined, today), 'UNKNOWN');
+  assert.equal(moveAgeMode('1990-09-23', today), 'ADULT');
+});
+
+test('SYSTEM MOVE director builds age-safe recovery plans without hard quests', () => {
+  const { buildMoveDayPlan } = loader({})('move/director');
+  const normal = buildMoveDayPlan('2026-09-23','AGE_9_12',false,60);
+  assert.ok(normal.quests.length > 0);
+  assert.ok(normal.quests.every(q => q.ageModes.includes('AGE_9_12')));
+  const recovery = buildMoveDayPlan('2026-09-23','AGE_9_12',true,60);
+  assert.equal(recovery.recovery,true);
+  assert.ok(recovery.quests.every(q => q.difficulty === 'EASY'));
+});
+
+test('SYSTEM MOVE 60 minute target advances streak and movement skills once', () => {
+  const { createMoveState, completeMoveQuest } = loader({})('move/state');
+  let state = createMoveState('2026-09-23','AGE_9_12');
+  const gps=(type,distance,duration)=>({activityTypeExpected:type,activityTypeDetected:type,verdict:'VERIFIED',verificationScore:92,reasonCodes:[],features:{distanceMeters:distance,durationSeconds:duration,averageSpeedMps:distance/duration,medianSpeedMps:type==='RUN'?3:type==='BIKE'?6:1.2,maxSpeedMps:type==='RUN'?4:type==='BIKE'?8:1.8,speedVariance:.08,accelerationChanges:2,stops:1,movingSeconds:duration-20,stationarySeconds:20,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:40,meanAccuracy:8,maxAccuracy:12,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false});
+  const complete=(questId,durationSeconds,extra={})=>{ state=completeMoveQuest(state,{questId,dayKey:'2026-09-23',durationSeconds,...extra}); };
+  complete('move_walk_10',600,{distanceMeters:400,source:'GPS',activity:gps('WALK',400,600)});
+  complete('move_run_10',600,{distanceMeters:800,source:'GPS',activity:gps('RUN',800,600)});
+  complete('move_jump_5',300,{source:'TIMER'});
+  complete('move_balance_5',300,{source:'TIMER'});
+  complete('move_ball_10',600,{parentApproved:true,source:'PARENT'});
+  complete('move_bike_20',1200,{distanceMeters:2500,source:'GPS',activity:gps('BIKE',2500,1200)});
+  assert.equal(state.activeMinutes,60);
+  assert.equal(state.streak,1);
+  assert.equal(state.lastActiveDay,'2026-09-23');
+  assert.ok(state.skills.ENDURANCE.xp > 0);
+  const replay=completeMoveQuest(state,{questId:'move_walk_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:400,source:'GPS',activity:{activityTypeExpected:'WALK',activityTypeDetected:'WALK',verdict:'VERIFIED',verificationScore:90,reasonCodes:[],features:{distanceMeters:400,durationSeconds:600,averageSpeedMps:.66,medianSpeedMps:.66,maxSpeedMps:1,speedVariance:.01,accelerationChanges:1,stops:1,movingSeconds:570,stationarySeconds:30,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:40,meanAccuracy:8,maxAccuracy:12,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false}});
+  assert.equal(replay.activeMinutes,60);
+  assert.equal(replay.streak,1);
+});
+
+test('SYSTEM MOVE safety removes precise child location and body ranking is disabled', () => {
+  const { moveSafetyPolicy, publicMoveProfile } = loader({})('move/safety');
+  const policy = moveSafetyPolicy('AGE_6_8');
+  assert.equal(policy.publicPreciseLocation,false);
+  assert.equal(policy.bodyWeightRanking,false);
+  assert.equal(policy.appearanceRanking,false);
+  assert.equal(policy.minorDirectMessages,false);
+  assert.equal(policy.parentApprovalRequired,true);
+  const profile = publicMoveProfile({name:'PLAYER',latitude:54.5,longitude:17.7,birthDate:'2019-01-01',score:120});
+  assert.equal(profile.latitude,undefined);
+  assert.equal(profile.longitude,undefined);
+  assert.equal(profile.birthDate,undefined);
+  assert.equal(profile.score,120);
+});
+
+test('SYSTEM MOVE school raids reward contribution, not body metrics', () => {
+  const { schoolRaidDamage, schoolContributionScore, SCHOOL_RANKING_RULE } = loader({})('move/school');
+  assert.equal(schoolRaidDamage([
+    {participantId:'a',verifiedMinutes:30,dayKey:'2026-09-23'},
+    {participantId:'b',verifiedMinutes:45,dayKey:'2026-09-23'},
+  ]),15);
+  assert.equal(schoolContributionScore(60,3),90);
+  assert.equal(SCHOOL_RANKING_RULE,'REGULARITY_AND_CONTRIBUTION_ONLY');
+});
+
+test('SYSTEM MOVE family boss damage is bounded and based on verified activity', () => {
+  const { familyBossDamage } = loader({})('move/family');
+  assert.equal(familyBossDamage(0,2),0);
+  assert.equal(familyBossDamage(60,2),8);
+  assert.equal(familyBossDamage(999,10),25);
+});
+
+
+test('SYSTEM MOVE canonical completion rejects age-inappropriate quests', () => {
+  const { createMoveState, completeMoveQuest } = loader({})('move/state');
+  const underSix = createMoveState('2026-09-23','UNDER_6');
+  assert.throws(() => completeMoveQuest(underSix,{questId:'move_jump_5',dayKey:'2026-09-23',durationSeconds:300,source:'TIMER'}),/trybu wieku/);
+  const young = createMoveState('2026-09-23','AGE_6_8');
+  assert.throws(() => completeMoveQuest(young,{questId:'move_run_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:800,source:'GPS',activity:{activityTypeExpected:'RUN',activityTypeDetected:'RUN',verdict:'VERIFIED',verificationScore:90,reasonCodes:[],features:{distanceMeters:800,durationSeconds:600,averageSpeedMps:1.33,medianSpeedMps:2.5,maxSpeedMps:3,speedVariance:.2,accelerationChanges:3,stops:1,movingSeconds:560,stationarySeconds:40,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:50,meanAccuracy:9,maxAccuracy:15,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false}}),/trybu wieku/);
+});
+
+test('SYSTEM MOVE family weekend quests have unique canonical completion ids', () => {
+  const { MOVE_QUESTS } = loader({})('move/catalog');
+  for (const id of ['family_walk_45','family_bike_60','family_outdoor_45']) {
+    const quest = MOVE_QUESTS.find(q => q.id === id);
+    assert.ok(quest, id + ' missing');
+    assert.equal(quest.kind,'FAMILY');
+    assert.equal(quest.verification,'PARENT_APPROVAL');
+  }
+});
+
+
+test('SYSTEM MOVE Verification 2.0 validates GPS activity type and distance', () => {
+  const { MOVE_QUESTS } = loader({})('move/catalog');
+  const { verifyMoveQuest } = loader({})('move/verification');
+  const walk=MOVE_QUESTS.find(q=>q.id==='move_walk_10');
+  const activity={activityTypeExpected:'WALK',activityTypeDetected:'WALK',verdict:'VERIFIED',verificationScore:94,reasonCodes:[],features:{distanceMeters:500,durationSeconds:600,averageSpeedMps:.83,medianSpeedMps:1,maxSpeedMps:1.8,speedVariance:.05,accelerationChanges:1,stops:1,movingSeconds:580,stationarySeconds:20,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:50,meanAccuracy:8,maxAccuracy:12,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false};
+  const ok=verifyMoveQuest(walk,{questId:walk.id,durationSeconds:600,distanceMeters:500,activity,source:'GPS'});
+  assert.equal(ok.ok,true);
+  assert.equal(ok.code,'GPS_VERIFIED');
+  const mismatch=verifyMoveQuest(walk,{questId:walk.id,durationSeconds:600,distanceMeters:500,activity:{...activity,activityTypeDetected:'BIKE'},source:'GPS'});
+  assert.equal(mismatch.ok,false);
+  assert.equal(mismatch.code,'ACTIVITY_TYPE_MISMATCH');
+});
+
+test('SYSTEM MOVE Verification 2.0 requires explicit parent approval', () => {
+  const { MOVE_QUESTS } = loader({})('move/catalog');
+  const { verifyMoveQuest } = loader({})('move/verification');
+  const ball=MOVE_QUESTS.find(q=>q.id==='move_ball_10');
+  assert.equal(verifyMoveQuest(ball,{questId:ball.id,durationSeconds:600,parentApproved:false,source:'PARENT'}).ok,false);
+  const result=verifyMoveQuest(ball,{questId:ball.id,durationSeconds:600,parentApproved:true,source:'PARENT'});
+  assert.equal(result.ok,true);
+  assert.equal(result.code,'PARENT_APPROVED');
+});
+
+test('SYSTEM MOVE Verification 2.0 does not fabricate steps or Health evidence', () => {
+  const { verifyMoveQuest } = loader({})('move/verification');
+  const stepsQuest={id:'steps-test',title:'STEPS',description:'',kind:'WALK',minutes:10,skills:['ENDURANCE'],verification:'STEPS',difficulty:'EASY',ageModes:['AGE_9_12'],outdoor:false,familyEligible:false};
+  assert.equal(verifyMoveQuest(stepsQuest,{questId:'steps-test',durationSeconds:600,steps:0,source:'STEPS'}).ok,false);
+  const healthQuest={...stepsQuest,id:'health-test',verification:'HEALTH'};
+  assert.equal(verifyMoveQuest(healthQuest,{questId:'health-test',durationSeconds:600,activeMinutes:0,source:'HEALTH'}).ok,false);
+  assert.equal(verifyMoveQuest(healthQuest,{questId:'health-test',durationSeconds:600,activeMinutes:10,source:'HEALTH'}).ok,true);
+});
