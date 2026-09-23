@@ -115,7 +115,7 @@ export default function HomeCommandCenter() {
 
   return <Animated.View entering={FadeInUp.duration(420)} style={styles.root}>
     <View style={styles.header}>
-      <View>
+      <View style={styles.headerBody}>
         <Text style={styles.code}>HOME 2.0 // COMMAND CENTER</Text>
         <Text style={styles.title}>DZISIAJ W SYSTEMIE</Text>
       </View>
@@ -186,22 +186,23 @@ export default function HomeCommandCenter() {
 const styles = StyleSheet.create({
   root: { marginTop: 14, padding: 18, borderRadius: 22, borderWidth: 1, borderColor: C.lineBright, backgroundColor: 'rgba(4,16,20,0.95)' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  headerBody: { flex: 1, minWidth: 0 },
   code: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
-  title: { color: C.white, fontSize: 22, fontWeight: '900', marginTop: 5 },
+  title: { color: C.white, fontSize: 22, lineHeight: 28, fontWeight: '900', marginTop: 5, flexShrink: 1 },
   rank: { borderWidth: 1, borderColor: C.cyanDark, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   rankText: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   statusStrip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: C.line, borderRadius: 13, backgroundColor: 'rgba(3,12,15,0.7)' },
   statusStripAlert: { borderColor: C.warning, backgroundColor: 'rgba(255,200,87,0.045)' },
-  statusBody: { flex: 1 },
-  statusCode: { color: C.success, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  statusBody: { flex: 1, minWidth: 0 },
+  statusCode: { color: C.success, fontSize: 8, lineHeight: 12, fontWeight: '900', letterSpacing: 1.1, flexShrink: 1 },
   statusMeta: { color: C.textVeryMuted, fontSize: 7, fontWeight: '800', marginTop: 3, letterSpacing: 0.8 },
-  statusAction: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  statusAction: { color: C.cyan, fontSize: 8, lineHeight: 12, fontWeight: '900', letterSpacing: 0.7, flexShrink: 1, textAlign: 'right' },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10, padding: 12, borderWidth: 1, borderColor: C.line, borderRadius: 16, backgroundColor: C.panel },
-  identityBody: { flex: 1 },
+  identityBody: { flex: 1, minWidth: 0 },
   identityCode: { color: C.cyan, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
-  identityName: { color: C.white, fontSize: 15, fontWeight: '900', marginTop: 3 },
-  identityTitle: { color: C.textMuted, fontSize: 9, fontWeight: '800', marginTop: 2 },
-  identityArrow: { color: C.cyan, fontSize: 8, fontWeight: '900' },
+  identityName: { color: C.white, fontSize: 15, lineHeight: 20, fontWeight: '900', marginTop: 3, flexShrink: 1 },
+  identityTitle: { color: C.textMuted, fontSize: 9, lineHeight: 13, fontWeight: '800', marginTop: 2, flexShrink: 1 },
+  identityArrow: { color: C.cyan, fontSize: 8, fontWeight: '900', flexShrink: 0, marginLeft: 4 },
   playerRow: { flexDirection: 'row', gap: 15, alignItems: 'center', marginTop: 14 },
   levelBlock: { width: 82, minHeight: 88, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 16, backgroundColor: C.panel },
   meta: { color: C.textVeryMuted, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
@@ -217,15 +218,15 @@ const styles = StyleSheet.create({
   quickValue: { color: C.text, fontSize: 10, fontWeight: '900', marginTop: 2 },
   next: { marginTop: 18, padding: 16, borderWidth: 1, borderColor: C.cyanDark, borderRadius: 17, backgroundColor: 'rgba(0,229,255,0.055)' },
   nextTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  nextCode: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  nextCode: { color: C.cyan, fontSize: 8, lineHeight: 12, fontWeight: '900', letterSpacing: 1.1, flex: 1, minWidth: 0 },
   nextArrow: { color: C.cyan, fontSize: 25, fontWeight: '900' },
-  nextTitle: { color: C.white, fontSize: 18, fontWeight: '900', marginTop: 5 },
+  nextTitle: { color: C.white, fontSize: 18, lineHeight: 24, fontWeight: '900', marginTop: 7, flexShrink: 1 },
   nextDetail: { color: C.textMuted, fontSize: 10, lineHeight: 15, marginTop: 6 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 },
   tile: { width: '31%', flexGrow: 1, minHeight: 76, padding: 11, borderWidth: 1, borderColor: C.line, borderRadius: 14, backgroundColor: C.panel },
   tileAlert: { borderColor: C.warning, backgroundColor: 'rgba(255,200,87,0.055)' },
   tileLabel: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  tileValue: { color: C.white, fontSize: 17, fontWeight: '900', marginTop: 7 },
+  tileValue: { color: C.white, fontSize: 17, lineHeight: 21, fontWeight: '900', marginTop: 7, flexShrink: 1 },
   tileDetail: { color: C.textVeryMuted, fontSize: 8, fontWeight: '900', marginTop: 5 },
   tileTrack: { height: 4, borderRadius: 99, overflow: 'hidden', backgroundColor: C.line, marginTop: 9 },
   tileFill: { height: '100%', borderRadius: 99, backgroundColor: C.cyan },
