@@ -10,6 +10,8 @@ import { useSystem } from '../state/SystemProvider';
 import type { SkillKey } from '../core';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 import CharacterProgressPanel from '../components/CharacterProgressPanel';
+import CharacterCard from '../components/CharacterCard';
+import type {AvatarStyle} from '../identity/model';
 import { titlePl } from '../i18n/pl';
 import {CHARACTER_SECTIONS,characterCompletion} from '../beta/character';
 import SystemPlayerCard from '../cards/SystemPlayerCard';
@@ -17,7 +19,7 @@ import SystemAudioScene from '../components/SystemAudioScene';
 import { archetypeForPlayer, playerPerks } from '../progression/perks';
 
 export default function CharacterScreen() {
-  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, progression, achievementState } = useSystem();
+  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, progression, achievementState, settings, saveSettings } = useSystem();
   const router = useRouter();
   const [birthDate, setBirthDate] = useState(player.birthDate ?? '');
   useEffect(() => setBirthDate(player.birthDate ?? ''), [player.id, player.birthDate]);
@@ -49,6 +51,7 @@ export default function CharacterScreen() {
     removeOwnedAvatar(player.avatarUri);
   }
   const profileCompletion=characterCompletion({avatar:!!player.avatarUri,title:!!player.currentTitle&&player.currentTitle!=='UNAWAKENED',skills:Object.values(player.stats).some(skill=>skill.level>1),achievement:Object.values(achievementState.achievements).some(a=>!!a.unlockedAt)});
+  const forgeStyle:AvatarStyle=settings.avatarStyle??'CYBER';
   const archetype=archetypeForPlayer(player);
   const perks=playerPerks(player);
   return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY // CHARACTER 2.0" screen="CHARACTER" scene="PORTAL" intensity="hero">
@@ -62,6 +65,16 @@ export default function CharacterScreen() {
         <Text style={[s.label,{color:perk.unlocked?'#6ceeff':'#657b85'}]}>{perk.unlocked?'UNLOCKED':'LOCKED'} // {perk.title}</Text>
         <Text style={s.body}>{perk.description} · {perk.unlockReason}</Text>
       </View>)}
+    </View>
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER FORGE // EVOLUTION</Text>
+      <Text style={s.body}>Styl zmienia wyłącznie wygląd postaci. Ranga i XP wynikają z rzeczywistego postępu.</Text>
+      <CharacterCard player={player} style={forgeStyle} archetype={archetype} compact />
+      {(['DARK','CYBER','WARLORD'] as const).map(style=>
+        <Action key={style} label={forgeStyle===style?'✓ '+style:style} disabled={busy}
+          onPress={()=>{void run(()=>saveSettings({avatarStyle:style}));}} />
+      )}
+      <Text style={s.body}>Możesz zmienić styl w dowolnym momencie, bez resetowania osiągnięć.</Text>
     </View>
     <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
     <SystemPlayerCard player={player} />
