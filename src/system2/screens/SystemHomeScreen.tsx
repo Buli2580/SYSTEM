@@ -183,7 +183,7 @@ export default function SystemHomeScreen() {
         {/* HEADER */}
 
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerBody}>
             <Text style={styles.systemOnline}>
               SYSTEM // ONLINE
             </Text>
@@ -483,14 +483,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 14,
     marginBottom: 26,
   },
+  headerBody: { flex: 1, minWidth: 0 },
 
   systemOnline: {
     color: SYSTEM_COLORS.cyan,
     fontSize: 11,
+    lineHeight: 16,
     fontWeight: '900',
-    letterSpacing: 4,
+    letterSpacing: 2.4,
+    flexShrink: 1,
   },
 
   awakening: {
@@ -499,6 +503,7 @@ const styles = StyleSheet.create({
     lineHeight: 39,
     fontWeight: '900',
     marginTop: 6,
+    flexShrink: 1,
   },
 
   systemSignal: {
@@ -1026,17 +1031,24 @@ const styles = StyleSheet.create({
   questHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 12,
+    minHeight: 30,
   },
 
   questCategory: {
+    flex: 1,
+    minWidth: 0,
     color: SYSTEM_COLORS.cyan,
     fontSize: 10,
+    lineHeight: 15,
     fontWeight: '900',
-    letterSpacing: 2.5,
+    letterSpacing: 1.5,
   },
 
   availableBadge: {
+    flexShrink: 0,
+    marginLeft: 4,
     borderRadius: 999,
     backgroundColor:
       'rgba(0,229,255,0.07)',
@@ -1047,16 +1059,19 @@ const styles = StyleSheet.create({
   availableText: {
     color: SYSTEM_COLORS.cyan,
     fontSize: 8,
+    lineHeight: 12,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.05,
+    textAlign: 'center',
   },
 
   questTitle: {
     color: SYSTEM_COLORS.white,
     fontSize: 29,
-    lineHeight: 34,
+    lineHeight: 35,
     fontWeight: '900',
     marginTop: 18,
+    flexShrink: 1,
   },
 
   questDescription: {
@@ -1069,6 +1084,7 @@ const styles = StyleSheet.create({
   questStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 8,
     marginTop: 21,
   },
 
@@ -1076,22 +1092,28 @@ const styles = StyleSheet.create({
     color:
       SYSTEM_COLORS.textVeryMuted,
     fontSize: 8,
+    lineHeight: 12,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 1.15,
+    flexShrink: 1,
   },
 
   questStatValue: {
     color: SYSTEM_COLORS.white,
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: '900',
     marginTop: 8,
+    flexShrink: 1,
   },
 
   questReward: {
     color: SYSTEM_COLORS.cyan,
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: '900',
     marginTop: 8,
+    flexShrink: 1,
   },
 
   questProgressTrack: {
@@ -1130,8 +1152,9 @@ const styles = StyleSheet.create({
   startQuestText: {
     color: '#001015',
     fontSize: 15,
+    lineHeight: 20,
     fontWeight: '900',
-    letterSpacing: 2.5,
+    letterSpacing: 1.35,
     flexShrink: 1,
   },
 
@@ -1220,6 +1243,7 @@ const styles = StyleSheet.create({
 
   worldContent: {
     flex: 1,
+    minWidth: 0,
     paddingLeft: 25,
   },
 
@@ -1233,8 +1257,10 @@ const styles = StyleSheet.create({
   gateTitle: {
     color: SYSTEM_COLORS.white,
     fontSize: 21,
+    lineHeight: 27,
     fontWeight: '900',
     marginTop: 8,
+    flexShrink: 1,
   },
 
   gateDescription: {
