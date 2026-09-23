@@ -7,7 +7,7 @@ export default function RewardSummary({ receipt }: { receipt: RewardReceipt }) {
   const levelUp = receipt.afterLevel > receipt.beforeLevel;
   return <Animated.View entering={FadeInUp.duration(360)} style={[styles.panel, levelUp && styles.levelPanel]} accessibilityLabel="Podsumowanie zapisanej nagrody">
     <View style={styles.header}>
-      <View>
+      <View style={styles.headerBody}>
         <Text style={styles.code}>CANONICAL REWARD RECEIPT</Text>
         <Text style={styles.title}>{levelUp ? 'LEVEL UP' : 'XP ZAPISANE'}</Text>
       </View>
@@ -46,8 +46,9 @@ const styles=StyleSheet.create({
   panel:{marginTop:16,padding:20,borderWidth:1,borderColor:C.success,borderRadius:22,backgroundColor:'rgba(5,24,19,0.94)'},
   levelPanel:{borderColor:C.legendary,backgroundColor:'rgba(35,26,10,0.84)'},
   header:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:12},
+  headerBody:{flex:1,minWidth:0},
   code:{color:C.success,fontSize:8,fontWeight:'900',letterSpacing:1.5},
-  title:{color:C.white,fontSize:22,fontWeight:'900',marginTop:5},
+  title:{color:C.white,fontSize:22,lineHeight:28,fontWeight:'900',marginTop:5,flexShrink:1},
   verified:{borderWidth:1,borderColor:C.success,borderRadius:999,paddingHorizontal:10,paddingVertical:6},
   verifiedText:{color:C.success,fontSize:8,fontWeight:'900',letterSpacing:1},
   primaryReward:{flexDirection:'row',alignItems:'flex-end',gap:8,marginTop:18},
@@ -56,11 +57,11 @@ const styles=StyleSheet.create({
   rewardGrid:{flexDirection:'row',gap:8,marginTop:14},
   rewardCell:{flex:1,minWidth:0,padding:11,borderWidth:1,borderColor:C.line,borderRadius:13,backgroundColor:C.panel},
   meta:{color:C.textVeryMuted,fontSize:7,fontWeight:'900',letterSpacing:1.2},
-  value:{color:C.white,fontSize:13,fontWeight:'900',marginTop:5},
+  value:{color:C.white,fontSize:13,lineHeight:18,fontWeight:'900',marginTop:5,flexShrink:1},
   section:{marginTop:15,paddingTop:13,borderTopWidth:1,borderTopColor:C.line},
   chips:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:8},
   chip:{paddingHorizontal:9,paddingVertical:6,borderRadius:999,borderWidth:1,borderColor:C.cyanDark},
   chipText:{color:C.cyan,fontSize:8,fontWeight:'900'},
   detail:{color:C.text,fontSize:10,fontWeight:'900',marginTop:7},
-  unlock:{color:C.legendary,fontSize:10,fontWeight:'900',letterSpacing:0.8,marginTop:14},
+  unlock:{color:C.legendary,fontSize:10,lineHeight:16,fontWeight:'900',letterSpacing:0.65,marginTop:14,flexShrink:1},
 });
