@@ -19,7 +19,7 @@ export function bossPhaseState(hp:number,maxHp=100,now=Date.now(),startedAt?:str
   const enrageByTime=elapsed>=48*60*60*1000;
   if(safeHp<=0)return{phase:'DEFEATED',hp:0,maxHp:safeMax,weakPoint:'ANY',damageMultiplier:1,enrage:false,finisherReady:false,label:'BOSS DEFEATED'};
   if(ratio<=.15)return{phase:'FINAL_STRIKE',hp:safeHp,maxHp:safeMax,weakPoint:'ANY',damageMultiplier:1.15,enrage:true,finisherReady:true,label:'FINAL STRIKE'};
-  if(ratio<=.4)return{phase:'ENRAGE',hp:safeHp,maxHp:safeMax,weakPoint:'DISCIPLINE',damageMultiplier:enrageByTime?.75:.9,enrage:true,finisherReady:false,label:'ENRAGE'};
+  if(ratio<=.4)return{phase:'ENRAGE',hp:safeHp,maxHp:safeMax,weakPoint:'DISCIPLINE',damageMultiplier:enrageByTime ? .75 : .9,enrage:true,finisherReady:false,label:'ENRAGE'};
   if(ratio<=.7)return{phase:'ARMOR_BREAK',hp:safeHp,maxHp:safeMax,weakPoint:'MOVEMENT',damageMultiplier:1.1,enrage:false,finisherReady:false,label:'ARMOR BREAK'};
   return{phase:'AWAKEN',hp:safeHp,maxHp:safeMax,weakPoint:'FOCUS',damageMultiplier:1,enrage:false,finisherReady:false,label:'AWAKEN'};
 }
