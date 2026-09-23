@@ -9,6 +9,7 @@ import { BOSS_FOCUS, BOSS_WALK, BOSS_RUN, ARC, STORY_REWARDS } from '../story/ca
 import type { StoryEvent } from '../story/types';
 import { loadChronicle, startBossProtocol } from '../storage/database';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
+import { bossPhaseState } from '../story/bossEngine';
 export default function StoryScreen() {
  const {story,refreshPlayer}=useSystem(),router=useRouter();
  const [entries,setEntries]=useState<StoryEvent[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -18,6 +19,7 @@ export default function StoryScreen() {
  useFocusEffect(useCallback(()=>{void refreshChronicle();return()=>{epoch.current++;};},[story,refreshChronicle]));
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
  const boss=story?.boss;
+ const bossPhase=boss?bossPhaseState(story?.bossHp??100,100,Date.now(),boss.started_at):null;
  return <SystemPage title="HISTORIA / KRONIKA" subtitle={`AKT 01 // ${ARC.title}`}>
   <Text style={s.label}>POSTĘP AKTU · {story?.chapters.filter(c=>c.status==='COMPLETED').length??0}/2 UKOŃCZONE</Text>
   {story?.chapters.map(c=><View key={c.id} style={s.panel}><Text style={s.label}>ROZDZIAŁ {String(c.number).padStart(2,'0')} // {c.status === 'COMPLETED' ? 'UKOŃCZONY' : c.status === 'ACTIVE' ? 'AKTYWNY' : c.status === 'AVAILABLE' ? 'DOSTĘPNY' : 'ZABLOKOWANY'}</Text><Text style={s.title}>{c.title}</Text><Text style={s.body}>{c.description} · {c.completed}/{c.total}</Text>
@@ -31,7 +33,10 @@ export default function StoryScreen() {
    <Text style={s.body}>SKUPIENIE → RUCH → DYSCYPLINA. Postęp etapów jest zapisywany.</Text>
    {story?.worldLinkComplete&&!boss&&<Action label="ROZPOCZNIJ PROTOKÓŁ BOSSA" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(mounted.current&&request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(mounted.current)setBusy(false);});}}/>}
    {boss&&<>
+    <Text style={s.label}>BOSS ENGINE 3.0 // {bossPhase?.label}</Text>
     <Text style={s.body}>HP {story?.bossHp ?? 100}/100 · wsparcie zweryfikowanych misji: {story?.bossSupportDamage ?? 0}</Text>
+    <Text style={s.body}>WEAK POINT: {bossPhase?.weakPoint} · DAMAGE MODIFIER ×{bossPhase?.damageMultiplier.toFixed(2)}{bossPhase?.enrage?' · ENRAGE ACTIVE':''}</Text>
+    {bossPhase?.finisherReady&&<Text style={[s.label,{color:'#ffd36c'}]}>FINAL STRIKE READY // DOKOŃCZ PROTOKÓŁ</Text>}
     <Text style={s.body}>ETAP 1 // {boss.focus_at?'UKOŃCZONE':'DOSTĘPNY'} · 15 MIN SKUPIENIA</Text>
     {!boss.focus_at&&<Action label="ROZPOCZNIJ SKUPIENIE" onPress={()=>open(BOSS_FOCUS)}/>}
     <Text style={s.body}>ETAP 2 // {boss.move_at?'UKOŃCZONE':boss.focus_at?'DOSTĘPNY':'ZABLOKOWANE'} · 2 KM RUCHU</Text>
