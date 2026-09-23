@@ -1,5 +1,7 @@
 # SYSTEM Beta Device Test - Windows, in a clean fresh git worktree.
 # Tokens stay in Expo login or environment; never paste them into this file.
+# -SkipRootInstall can be used only after a completed successful npm ci in this checkout.
+param([switch]$SkipRootInstall)
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
 function Invoke-CheckedStep {
@@ -11,7 +13,14 @@ function Invoke-CheckedStep {
   }
 }
 Write-Host "SYSTEM APK snapshot: $(git rev-parse --short HEAD)"
-Invoke-CheckedStep 'Install pinned npm dependencies' { npm.cmd ci --no-audit --no-fund }
+if ($SkipRootInstall) {
+  foreach ($required in @('node_modules/.package-lock.json', 'node_modules/expo/package.json', 'node_modules/typescript/package.json')) {
+    if (-not (Test-Path $required)) { throw "Cannot skip npm install: missing $required" }
+  }
+  Write-Host "Skipping root npm ci: use this only after a completed successful installation in this checkout." -ForegroundColor Yellow
+} else {
+  Invoke-CheckedStep 'Install pinned npm dependencies' { npm.cmd ci --no-audit --no-fund }
+}
 Invoke-CheckedStep 'Validate Expo configuration' { npx.cmd expo config --type public | Out-Null }
 Invoke-CheckedStep 'Validate TypeScript' { npx.cmd tsc --noEmit --incremental false }
 $tests = @(Get-ChildItem 'src/system2/tests/*.test.cjs' | ForEach-Object { $_.FullName })
