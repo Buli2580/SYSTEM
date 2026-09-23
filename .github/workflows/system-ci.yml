@@ -48,6 +48,9 @@ jobs:
       - name: Gameplay tests
         run: node --test src/system2/tests/gameplay.test.cjs
 
+      - name: MOVE monotonic clock tests
+        run: node --test src/system2/tests/move-clock.test.cjs
+
       - name: AI Game Master tests
         run: node --test src/system2/tests/ai-game-master.test.cjs
 
