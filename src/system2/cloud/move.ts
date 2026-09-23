@@ -32,10 +32,17 @@ export async function createMoveGroup(kind:MoveGroupKind,name:string){
  const s=await session();
  return cloudRequest<string>('/rest/v1/rpc/create_move_group',{method:'POST',body:JSON.stringify({p_kind:kind,p_name:safe})},s.accessToken);
 }
-export async function joinMoveGroup(groupId:string,role:MoveGroupRole){
+export async function createMoveGroupInvite(groupId:string,role:MoveGroupRole,maxUses=1,expiresHours=24){
  const id=groupId.trim();if(!id)throw new Error('Nieprawidłowa grupa MOVE.');
  const s=await session();
- await cloudRequest('/rest/v1/rpc/join_move_group',{method:'POST',body:JSON.stringify({p_group:id,p_role:role})},s.accessToken);
+ return cloudRequest<string>('/rest/v1/rpc/create_move_group_invite',{method:'POST',body:JSON.stringify({
+   p_group:id,p_role:role,p_max_uses:Math.max(1,Math.min(100,Math.floor(maxUses))),p_expires_hours:Math.max(1,Math.min(168,Math.floor(expiresHours))),
+ })},s.accessToken);
+}
+export async function joinMoveGroup(inviteCode:string){
+ const code=inviteCode.trim().toUpperCase();if(!/^[A-Z0-9]{12}$/.test(code))throw new Error('Nieprawidłowy kod zaproszenia MOVE.');
+ const s=await session();
+ return cloudRequest<string>('/rest/v1/rpc/join_move_group',{method:'POST',body:JSON.stringify({p_code:code})},s.accessToken);
 }
 export async function submitMoveContribution(input:{
  groupId:string;eventKey:string;questId:string;verificationMethod:'TIMER'|'GPS'|'STEPS'|'HEALTH'|'PARENT'|'MIXED';verificationScore:number;dayKey:string;
