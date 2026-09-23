@@ -1,5 +1,5 @@
 import SystemScreen from '../components/SystemScreen';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +39,8 @@ export default function WorldScreen() {
 function OnlineWorld() {
   const router = useRouter();
   const { player, story } = useSystem();
+  const [clock,setClock]=useState(()=>Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(timer)},[]);
   const mode=worldBossMode({worldUnlocked:true,bossActive:!!story?.worldLinkComplete&&!story?.bossComplete,bossDefeated:!!story?.bossComplete});
   const world = useWorldTracking();
   const insets = useSafeAreaInsets();
@@ -46,7 +48,7 @@ function OnlineWorld() {
   const [centerRequest, setCenterRequest] = useState(0);
   const active = world.status === 'ACTIVE';
   const signalState = world.signal?.status ?? 'LOCKED';
-  const worldEvent=activeWorldEvent(player,true);
+  const worldEvent=activeWorldEvent(player,true,clock);
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
     <SystemAmbientBackground intensity="world" screen={mode==="BOSS"?"BOSS":"WORLD"} scene={mode==="BOSS"?"BOSS_ZONE":"WORLD"} threat={mode==="BOSS"?3:1} level={player.realLevel} />
     <SystemAudioScene cue={mode==="BOSS"?"BOSS":"WORLD"} />
@@ -57,7 +59,7 @@ function OnlineWorld() {
     </View>
     {mode==='BOSS'&&<Pressable onPress={()=>router.push('/story')} style={styles.bossSignal}><Text style={styles.bossSignalCode}>THREAT DETECTED // BOSS PROTOCOL</Text><Text style={styles.bossSignalTitle}>THE FIRST WALL</Text><Text style={styles.bossSignalCta}>WEJDŹ DO WALKI →</Text></Pressable>}
     {worldEvent&&<View style={styles.eventCard}>
-      <View style={styles.eventTop}><Text style={styles.eventCode}>WORLD SIGNAL PREVIEW // {worldEvent.kind.replaceAll('_',' ')}</Text><Text style={styles.eventTimer}>{formatWorldEventRemaining(worldEvent)}</Text></View>
+      <View style={styles.eventTop}><Text style={styles.eventCode}>WORLD SIGNAL PREVIEW // {worldEvent.kind.replaceAll('_',' ')}</Text><Text style={styles.eventTimer}>{formatWorldEventRemaining(worldEvent,clock)}</Text></View>
       <Text style={styles.eventTitle}>{worldEvent.title}</Text>
       <Text style={styles.eventBody}>{worldEvent.subtitle}</Text>
       <Text style={styles.eventMeta}>{worldEvent.sector} · THREAT {worldEvent.threat} · PLANOWANA NAGRODA {worldEvent.rewardTag}</Text><Text style={styles.eventBody}>Sygnał poglądowy. Misja eventowa i odbiór nagrody nie są jeszcze dostępne.</Text>
