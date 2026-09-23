@@ -51,6 +51,9 @@ jobs:
       - name: MOVE monotonic clock tests
         run: node --test src/system2/tests/move-clock.test.cjs
 
+      - name: Character Forge tests
+        run: node --test src/system2/tests/character-forge.test.cjs
+
       - name: AI Game Master tests
         run: node --test src/system2/tests/ai-game-master.test.cjs
 
