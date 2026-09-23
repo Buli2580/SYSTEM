@@ -2,6 +2,7 @@ import {dayOrdinal,nextStreak} from '../daily/calendar';
 import {MOVE_QUESTS} from './catalog';
 import {initialMovementSkills,moveQuestSkillXp,applyMovementXp} from './skills';
 import type {MovementSkillKey,MovementSkillProgress,MoveAgeMode} from './types';
+import {isSafeMoveQuest} from './safety';
 
 export type MoveCompletionEvidence={
   questId:string;dayKey:string;durationSeconds:number;distanceMeters?:number;parentApproved?:boolean;
@@ -24,6 +25,7 @@ export function createMoveState(dayKey:string,ageMode:MoveAgeMode):MoveState{
 }
 export function rolloverMoveState(state:MoveState,currentDay:string,ageMode:MoveAgeMode):MoveState{
  if(state.dayKey===currentDay&&state.ageMode===ageMode)return state;
+ if(state.dayKey===currentDay)return{...state,ageMode,completedQuestIds:[],activeMinutes:0};
  const history=[...state.history,{dayKey:state.dayKey,minutes:state.activeMinutes,questIds:[...state.completedQuestIds]}].slice(-31);
  return{...state,dayKey:currentDay,ageMode,completedQuestIds:[],activeMinutes:0,history};
 }
@@ -48,6 +50,7 @@ export function validateMoveEvidence(e:MoveCompletionEvidence){
 export function completeMoveQuest(state:MoveState,e:MoveCompletionEvidence):MoveState{
  const quest=validateMoveEvidence(e);
  let current=rolloverMoveState(state,e.dayKey,state.ageMode);
+ if(!isSafeMoveQuest(quest,current.ageMode))throw new Error('Ta misja MOVE nie jest dostępna dla tego trybu wieku.');
  if(current.completedQuestIds.includes(quest.id))return current;
  const completed=[...current.completedQuestIds,quest.id];
  const activeMinutes=current.activeMinutes+quest.minutes;
