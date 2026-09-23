@@ -31,7 +31,6 @@ create table if not exists public.move_contributions (
   created_at timestamptz not null default now(),
   primary key(group_id,event_key)
 );
-create unique index if not exists move_contribution_user_event_unique on public.move_contributions(user_id,event_key);
 create index if not exists move_contributions_group_day_idx on public.move_contributions(group_id,day_key desc,created_at desc);
 
 alter table public.move_groups enable row level security;
