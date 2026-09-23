@@ -5,7 +5,7 @@ export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' |
 export type AvatarStyle = 'DARK' | 'CYBER' | 'WARLORD';
 export type Settings = { haptics: boolean; audio: boolean; avatarStyle?: AvatarStyle; musicVolume?: number; ambientVolume?: number; sfxVolume?: number; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
 export type SettingsPatch = Omit<Partial<Settings>, 'activities'> & { activities?: Partial<ActivityPreferences> };
-export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false, avatarStyle: 'CYBER', musicVolume: 0.8, ambientVolume: 0.55, sfxVolume: 0.9 };
+export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: true, avatarStyle: 'CYBER', musicVolume: 0.8, ambientVolume: 0.55, sfxVolume: 0.9 };
 export function earnedTitles(awakening: boolean, signal: boolean, worldLink = false, boss = false): Title[] {
   return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : []), ...(worldLink ? ['PATHFINDER' as const] : []), ...(boss ? ['WALLBREAKER' as const] : [])];
 }
