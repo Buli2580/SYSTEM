@@ -5,7 +5,7 @@ export type LaunchBeat={at:number;text?:string;impact?:'LOW'|'MEDIUM'|'HIGH';pha
 
 export function launchVariant(player?:PlayerProfile|null,firstRun=false):LaunchVariant{
   if(firstRun||!player)return'FIRST_AWAKENING';
-  if(player.realLevel>=100||player.rank==='ASCENDED')return'ASCENDED';
+  if(player.rank==='ASCENDED')return'ASCENDED';
   if(player.realLevel>=25)return'VETERAN';
   return'RETURNING';
 }

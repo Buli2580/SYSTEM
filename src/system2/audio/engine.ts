@@ -11,12 +11,12 @@ let musicPlayer:AudioPlayer|null=null;
 let ambientPlayer:AudioPlayer|null=null;
 let fxPlayer:AudioPlayer|null=null;
 let currentMusic:MusicCue|null=null;
-let fadeTimer:ReturnType<typeof setInterval>|null=null;
+const fades=new Map<AudioPlayer,ReturnType<typeof setInterval>>();
 
 const musicSources:Partial<Record<MusicCue,any>>=LEGACY_AUDIO_FALLBACKS.music;
 const sfxSources:Partial<Record<SfxCue,any>>=LEGACY_AUDIO_FALLBACKS.sfx;
 
-function stopPlayer(player:AudioPlayer|null){try{player?.remove()}catch{}}
+function stopPlayer(player:AudioPlayer|null){if(!player)return;clearFade(player);try{player.remove()}catch{}}
 function spawn(source:any,volume:number,loop=false){
   const p=createAudioPlayer(source);
   p.volume=Math.max(0,Math.min(1,volume));
@@ -24,28 +24,35 @@ function spawn(source:any,volume:number,loop=false){
   p.play();
   return p;
 }
-function clearFade(){if(fadeTimer){clearInterval(fadeTimer);fadeTimer=null}}
+function clearFade(player?:AudioPlayer){
+  if(player){const timer=fades.get(player);if(timer)clearInterval(timer);fades.delete(player);return}
+  for(const timer of fades.values())clearInterval(timer);
+  fades.clear();
+}
 function fadeOutAndRemove(player:AudioPlayer|null,duration=450){
   if(!player)return;
+  clearFade(player);
   const start=Number(player.volume||0);
   const steps=9;
   let i=0;
   const timer=setInterval(()=>{
     i+=1;
     try{player.volume=Math.max(0,start*(1-i/steps))}catch{}
-    if(i>=steps){clearInterval(timer);stopPlayer(player)}
+    if(i>=steps)stopPlayer(player);
   },Math.max(20,Math.round(duration/steps)));
+  fades.set(player,timer);
 }
 function fadeIn(player:AudioPlayer,target:number,duration=550){
-  clearFade();
+  clearFade(player);
   const steps=11;
   let i=0;
   try{player.volume=0}catch{}
-  fadeTimer=setInterval(()=>{
+  const timer=setInterval(()=>{
     i+=1;
     try{player.volume=Math.min(target,target*(i/steps))}catch{}
-    if(i>=steps)clearFade();
+    if(i>=steps)clearFade(player);
   },Math.max(20,Math.round(duration/steps)));
+  fades.set(player,timer);
 }
 
 export function configureAudioEngine(next:Partial<Mix>){
@@ -73,7 +80,7 @@ export function playMusic(cue:MusicCue){
   fadeIn(next,mix.music,cue==='VICTORY'||cue==='AWAKENING'?280:600);
   fadeOutAndRemove(previous,cue==='BOSS'?300:520);
 }
-export function stopMusic(){clearFade();fadeOutAndRemove(musicPlayer,280);musicPlayer=null;currentMusic=null}
+export function stopMusic(){fadeOutAndRemove(musicPlayer,280);musicPlayer=null;currentMusic=null}
 export function playAmbient(source:any){
   if(!mix.enabled||mix.ambient<=0)return;
   const previous=ambientPlayer;

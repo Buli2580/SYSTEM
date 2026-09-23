@@ -2696,3 +2696,88 @@ test('failed migration keeps user_version and preexisting profile atomic', async
   assert.equal(recovered.player.id, player.id);
   assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, h.load('storage/migrations').SCHEMA_VERSION);
 });
+
+
+test('ACTION 3.0 world events are deterministic and limited to three-hour windows', () => {
+  const { createNewPlayer } = loader({})('core/progression');
+  const { activeWorldEvent, worldEventRemainingMs } = loader({})('world/events');
+  const player = createNewPlayer('EVENT TESTER', { id:'event-player', createdAt:'2026-09-23T00:00:00.000Z' });
+  player.realLevel = 20; player.discoveredSectors = 8;
+  let found = null, at = 0;
+  for (let h = 0; h < 24 && !found; h += 3) {
+    at = Date.parse(`2026-09-23T${String(h).padStart(2,'0')}:15:00.000Z`);
+    found = activeWorldEvent(player, true, at);
+  }
+  assert.ok(found, 'high-exploration fixture should receive at least one deterministic event that day');
+  assert.deepEqual(activeWorldEvent(player, true, at), found);
+  assert.equal(Date.parse(found.endsAt) - Date.parse(found.startsAt), 3 * 60 * 60 * 1000);
+  assert.ok(worldEventRemainingMs(found, at) > 0);
+  assert.equal(activeWorldEvent(player, false, at), null);
+});
+
+test('ACTION 3.0 archetypes and perks derive from canonical player stats', () => {
+  const { createNewPlayer } = loader({})('core/progression');
+  const { archetypeForPlayer, playerPerks, bossDamageMultiplier } = loader({})('progression/perks');
+  const player = createNewPlayer('BUILD TESTER', { id:'build-player', createdAt:'2026-09-23T00:00:00.000Z' });
+  assert.equal(archetypeForPlayer(player), 'ADAPTIVE');
+  player.stats.STR.level = 6; player.stats.VIT.level = 6;
+  assert.equal(archetypeForPlayer(player), 'VANGUARD');
+  const perks = playerPerks(player);
+  assert.equal(perks.find(p => p.id === 'BOSS_BREAKER').unlocked, true);
+  assert.ok(bossDamageMultiplier(player, 'HARD', false) > 1);
+});
+
+test('ACTION 3.0 boss phases progress from awaken to final and defeated', () => {
+  const { bossPhaseState, applyBossPhaseDamage } = loader({})('story/bossEngine');
+  assert.equal(bossPhaseState(100).phase, 'AWAKEN');
+  assert.equal(bossPhaseState(65).phase, 'ARMOR_BREAK');
+  assert.equal(bossPhaseState(35).phase, 'ENRAGE');
+  assert.equal(bossPhaseState(10).phase, 'FINAL_STRIKE');
+  assert.equal(bossPhaseState(0).phase, 'DEFEATED');
+  const hit = applyBossPhaseDamage(18, 5);
+  assert.equal(hit.before.phase, 'FINAL_STRIKE');
+  assert.ok(hit.after.hp < 18);
+});
+
+test('ACTION 3.0 smart reminders prioritize expiring events and critical boss state', () => {
+  const { smartReminderCopy } = loader({})('notifications/smart');
+  const event = smartReminderCopy({streak:6,nextStreakMilestone:7,weeklyCompleted:4,weeklyTarget:5,bossHp:10,worldEventTitle:'SECTOR ANOMALY',worldEventRemaining:'42MIN',worldEventEndsAt:new Date(Date.now()+42*60000).toISOString()});
+  assert.match(event.title,/WORLD EVENT/);
+  assert.match(event.body,/4[12] min/);
+  const expired = smartReminderCopy({streak:2,worldEventTitle:'EXPIRED PORTAL',worldEventEndsAt:new Date(Date.now()-1000).toISOString()});
+  assert.doesNotMatch(expired.title,/WORLD EVENT/);
+  const stale = smartReminderCopy({streak:2,bossHp:10},Date.now()+3600000);
+  assert.doesNotMatch(stale.title,/BOSS CRITICAL/);
+  const boss = smartReminderCopy({streak:2,bossHp:10});
+  assert.match(boss.title,/BOSS CRITICAL/);
+  const weekly = smartReminderCopy({streak:2,weeklyCompleted:4,weeklyTarget:5});
+  assert.match(weekly.title,/WEEKLY/);
+});
+
+test('ACTION 3.0 combat sequence includes damage, HP transition and phase change', () => {
+  const { bossPhaseState } = loader({})('story/bossEngine');
+  const { combatSequence } = loader({})('presentation/combat');
+  const before = bossPhaseState(45), after = bossPhaseState(35);
+  const beats = combatSequence(before, after, 10);
+  assert.ok(beats.some(b => b.kind === 'DAMAGE_NUMBER'));
+  assert.ok(beats.some(b => b.kind === 'HP_TRANSITION'));
+  assert.ok(beats.some(b => b.kind === 'PHASE_CHANGE'));
+  assert.equal(beats.at(-1).kind, 'RETURN_HOME');
+});
+
+test('pending reward presentation preserves canonical boss combat delta', async t => {
+  const { db, sql } = databaseHarness(t);
+  await db.loadOrCreatePlayer();
+  const receipt = {
+    id:'boss-delta-reward',realXp:50,skillXp:{WIL:5},energy:2,distanceMeters:0,
+    beforeLevel:3,afterLevel:3,beforeRank:'E',afterRank:'E',
+    skillLevels:[],newTitles:[],worldUnlocked:true,
+    bossDamage:{beforeHp:63,afterHp:58,dealt:5,phaseBefore:'ARMOR_BREAK',phaseAfter:'ARMOR_BREAK'},
+  };
+  sql.prepare("INSERT OR REPLACE INTO app_state(key,value) VALUES('pending_reward_presentations',?)").run(JSON.stringify([receipt]));
+  const pending = await db.loadPendingRewardPresentations();
+  assert.equal(pending.length,1);
+  assert.equal(pending[0].bossDamage.dealt,5);
+  assert.equal(pending[0].bossDamage.beforeHp,63);
+  assert.equal(pending[0].bossDamage.afterHp,58);
+});

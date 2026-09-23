@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { reminderPlan } from './planner';
 import type { Settings } from '../identity/model';
+import { smartReminderCopy, type SmartReminderContext } from './smart';
 
 const PREFIX = 'system2-daily-';
 const CHANNEL_ID = 'system2-daily';
@@ -21,7 +22,7 @@ export async function requestReminderPermission() {
   return (await awaitWithTimeout(Notifications.requestPermissionsAsync())).granted;
 }
 
-export function syncReminders(settings: Settings, complete: boolean, unlocked: boolean) {
+export function syncReminders(settings: Settings, complete: boolean, unlocked: boolean, context: SmartReminderContext = { streak: 0 }) {
   const task = async () => {
     const scheduled = await awaitWithTimeout(Notifications.getAllScheduledNotificationsAsync());
     for (const n of scheduled) {
@@ -33,9 +34,10 @@ export function syncReminders(settings: Settings, complete: boolean, unlocked: b
     await ensureReminderChannel();
     const permission = await awaitWithTimeout(Notifications.getPermissionsAsync());
     for (const date of reminderPlan(true, settings.reminderTime ?? '19:00', permission.granted, complete)) {
+      const copy=smartReminderCopy(context,new Date(date).getTime());
       await awaitWithTimeout(Notifications.scheduleNotificationAsync({
         identifier: PREFIX + date,
-        content: { title: 'SYSTEM // PROTOKÓŁ DZIENNY', body: 'Twoje dzisiejsze misje nadal czekają.' },
+        content: copy,
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: new Date(date),

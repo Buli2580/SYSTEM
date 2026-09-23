@@ -19,6 +19,8 @@ import { stopQuestBackgroundTracking } from '../background/locationService';
 import { requestDailyAIGameMaster, requestGoalAIGameMaster, type AIGameMasterResponse } from '../ai';
 import { aiRetryRemainingMs } from '../ai/requestBudget';
 import { getQuest } from '../quests/catalog';
+import { activeWorldEvent, formatWorldEventRemaining } from '../world/events';
+import { STREAK_MILESTONES } from '../daily/streak';
 
 type SystemContextValue = db.SystemSnapshot & {
   createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0], operationKey?: string) => Promise<void>;
@@ -79,10 +81,24 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const refreshNotifications = useCallback(async (): Promise<void> => {
     const requestId = ++notificationRequestRef.current;
     try {
+      const event = activeWorldEvent(snapshot.player, snapshot.worldUnlocked);
+      const nextStreakMilestone = STREAK_MILESTONES.find(m => m > snapshot.player.streak) ?? null;
+      const activeQuestTitle = activeQuestId ? getQuest(activeQuestId)?.title ?? null : null;
       await awaitWithTimeout(syncReminders(
         snapshot.settings,
         snapshot.daily?.clear ?? false,
         snapshot.awakeningCompleted && !snapshot.daily?.clockAnomaly,
+        {
+          streak: snapshot.player.streak,
+          nextStreakMilestone,
+          weeklyCompleted: snapshot.daily?.weeklyCompleted ?? 0,
+          weeklyTarget: 5,
+          bossHp: snapshot.story?.worldLinkComplete && !snapshot.story?.bossComplete ? snapshot.story?.bossHp ?? 100 : null,
+          activeQuestTitle,
+          worldEventTitle: event?.title ?? null,
+          worldEventRemaining: event ? formatWorldEventRemaining(event) : null,
+          worldEventEndsAt: event?.endsAt ?? null,
+        },
       ));
       if (requestId === notificationRequestRef.current) setNotificationError(null);
     } catch {
@@ -90,7 +106,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         setNotificationError('Nie udało się odświeżyć przypomnień. Spróbuj ponownie.');
       }
     }
-  }, [snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.awakeningCompleted]);
+  }, [snapshot.settings.dailyReminder, snapshot.settings.reminderTime, snapshot.daily?.clear, snapshot.daily?.clockAnomaly, snapshot.daily?.weeklyCompleted, snapshot.awakeningCompleted, snapshot.worldUnlocked, snapshot.player.streak, snapshot.player.id, snapshot.player.discoveredSectors, snapshot.player.realLevel, snapshot.story?.worldLinkComplete, snapshot.story?.bossComplete, snapshot.story?.bossHp, activeQuestId]);
   useEffect(() => {
     if (!ready) return;
     void refreshNotifications();

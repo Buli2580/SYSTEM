@@ -33,6 +33,7 @@ import { candidatesFromAI } from '../ai/bridge';
 import { replaceAIQuestPresentations } from '../ai/registry';
 import { clearAIConsequenceDebt, readAIConsequenceState } from './aiState';
 import { parseEvent } from '../identity/history';
+import { bossPhaseState } from '../story/bossEngine';
 
 import {
   createNewPlayer,
@@ -126,7 +127,16 @@ function validRewardReceipt(value: unknown): value is RewardReceipt {
         && typeof candidate.after === 'number' && Number.isSafeInteger(candidate.after) && candidate.after > candidate.before;
     })
     && Array.isArray(newTitles) && newTitles.every(title => typeof title === 'string' && titles.includes(title))
-    && typeof row.worldUnlocked === 'boolean';
+    && typeof row.worldUnlocked === 'boolean'
+    && (row.bossDamage === undefined || (
+      !!row.bossDamage && typeof row.bossDamage === 'object'
+      && ['beforeHp','afterHp','dealt'].every(key => {
+        const value = (row.bossDamage as Record<string, unknown>)[key];
+        return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+      })
+      && typeof (row.bossDamage as Record<string, unknown>).phaseBefore === 'string'
+      && typeof (row.bossDamage as Record<string, unknown>).phaseAfter === 'string'
+    ));
 }
 
 function parsePendingRewardPresentations(raw?: string): RewardReceipt[] {
@@ -416,12 +426,23 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
         async result(awarded, before, event) {
           if (awarded && event) await enqueueCloudOutboxEvent(txn, event);
           const snapshot = await snapshotInTransaction(txn);
+          const beforeHp = presentationBefore.story?.bossHp;
+          const afterHp = snapshot.story?.bossHp;
+          const hasBossDelta = typeof beforeHp === 'number' && typeof afterHp === 'number' && afterHp < beforeHp;
+          const bossDamage = hasBossDelta ? {
+            beforeHp,
+            afterHp,
+            dealt: Math.max(0, beforeHp - afterHp),
+            phaseBefore: bossPhaseState(beforeHp, 100, Date.now(), presentationBefore.story?.boss?.started_at).phase,
+            phaseAfter: bossPhaseState(afterHp, 100, Date.now(), snapshot.story?.boss?.started_at).phase,
+          } : undefined;
           const receipt = event ? rewardReceipt(
             event.id,
             before,
             snapshot.player,
             snapshot.titles.filter(title => !presentationBefore.titles.includes(title)),
             !presentationBefore.worldUnlocked && snapshot.worldUnlocked,
+            bossDamage,
           ) : undefined;
           if (awarded && receipt) await enqueuePendingRewardPresentation(txn, receipt);
           return { awarded, ...snapshot, ...(receipt ? { receipt } : {}) };
