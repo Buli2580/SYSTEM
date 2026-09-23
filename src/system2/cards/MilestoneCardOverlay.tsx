@@ -20,8 +20,8 @@ export default function MilestoneCardOverlay({player,reason,onDismiss}:{player:P
   </Animated.View>;
 }
 const styles=StyleSheet.create({
-  root:{...StyleSheet.absoluteFillObject,zIndex:980,backgroundColor:'#010406'},
-  scrim:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(0,0,0,.36)'},
+  root:{...StyleSheet.absoluteFill,zIndex:980,backgroundColor:'#010406'},
+  scrim:{...StyleSheet.absoluteFill,backgroundColor:'rgba(0,0,0,.36)'},
   content:{flex:1,justifyContent:'center',padding:22},
   kicker:{color:'#6ceeff',fontSize:9,fontWeight:'900',letterSpacing:2,textAlign:'center'},
   heading:{color:'#fff',fontSize:26,fontWeight:'900',letterSpacing:1.5,textAlign:'center',marginTop:8},
