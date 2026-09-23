@@ -19,6 +19,13 @@ export function removePrivateQuestPhoto(uri?:string){
   if(owned.exists)owned.delete();
 }
 
+// Remove any app-owned orphaned previews left by an interrupted session
+// when the user next opens a quest. Never touch the gallery or avatar files.
+export function purgeStalePrivateQuestPhotos(){
+  const dir=directory();
+  if(dir.exists)dir.delete();
+}
+
 export async function capturePrivateQuestPhoto():Promise<string|null>{
   const permission=await ImagePicker.requestCameraPermissionsAsync();
   if(!permission.granted)throw new Error('Aparat wymaga zgody w ustawieniach telefonu.');
