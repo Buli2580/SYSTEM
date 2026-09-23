@@ -15,14 +15,14 @@ import {publishVerifiedMoveToGroups} from '../cloud/move';
 export default function MoveQuestScreen(){
  const {questId}=useLocalSearchParams<{questId?:string}>(),router=useRouter(),{player}=useSystem();
  const quest=useMemo(()=>MOVE_QUESTS.find(q=>q.id===questId),[questId]),age=moveAgeMode(player.birthDate);
- const [busy,setBusy]=useState(false),[parentApproved,setParentApproved]=useState(false);
+ const [busy,setBusy]=useState(false),[parentApproved,setParentApproved]=useState(false),[completionError,setCompletionError]=useState<string|null>(null);
  if(!quest)return <Fallback title="MOVE QUEST NOT FOUND" onBack={()=>router.replace('/move')}/>;
- return <QuestBody quest={quest} age={age} busy={busy} setBusy={setBusy} parentApproved={parentApproved} setParentApproved={setParentApproved} onDone={()=>router.replace('/move')} onBack={()=>router.replace('/move')}/>;
+ return <QuestBody quest={quest} age={age} busy={busy} setBusy={setBusy} parentApproved={parentApproved} setParentApproved={setParentApproved} completionError={completionError} setCompletionError={setCompletionError} onDone={()=>router.replace('/move')} onBack={()=>router.replace('/move')}/>;
 }
 
-function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,onDone,onBack}:{
+function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,completionError,setCompletionError,onDone,onBack}:{
  quest:(typeof MOVE_QUESTS)[number];age:ReturnType<typeof moveAgeMode>;busy:boolean;setBusy:(v:boolean)=>void;
- parentApproved:boolean;setParentApproved:(v:boolean)=>void;onDone:()=>void;onBack:()=>void;
+ parentApproved:boolean;setParentApproved:(v:boolean)=>void;completionError:string|null;setCompletionError:(v:string|null)=>void;onDone:()=>void;onBack:()=>void;
 }){
  const run=useMoveVerification(quest);
  const safe=isSafeMoveQuest(quest,age);
@@ -34,7 +34,7 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,onDo
 
  async function finish(){
   if(!canFinish||busy)return;
-  setBusy(true);
+  setBusy(true);setCompletionError(null);
   try{
     const evidence=await run.buildEvidence(parentApproved);
     const verified=verifyMoveQuest(quest,evidence);
@@ -49,7 +49,8 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,onDo
     }).catch(()=>undefined);
     onDone();
   }catch(e){
-    // buildEvidence/DB validation keeps the canonical reason in the runner/state layer.
+    setCompletionError(e instanceof Error?e.message:'MOVE verification failed.');
+    run.reset();
   }finally{setBusy(false)}
  }
 
@@ -68,6 +69,7 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,onDo
 
   {!safe&&<Text style={styles.warning}>Ta misja nie jest dostępna dla tego trybu wieku.</Text>}
   {run.error&&<Text style={styles.warning}>{run.error}</Text>}
+  {completionError&&<Text style={styles.warning}>{completionError}</Text>}
   {run.status==='UNAVAILABLE'&&<Text style={styles.warning}>Ta metoda wymaga prawdziwego providera kroków/Health. SYSTEM nie wygeneruje sztucznych danych.</Text>}
 
   {safe&&!run.running&&run.status!=='VERIFYING'&&<Pressable style={styles.button} onPress={()=>void run.start()}><Text style={styles.buttonText}>START MOVE QUEST</Text></Pressable>}
