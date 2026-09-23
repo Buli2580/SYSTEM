@@ -189,7 +189,7 @@ export function useQuestRun(quest: RunnableQuest) {
       if (!focusedRef.current || session !== sessionRef.current) return;
       const ownsBackgroundSession = backgroundSession?.questId === quest.id;
       backgroundSessionActiveRef.current = ownsBackgroundSession;
-      if (ownsBackgroundSession) { attemptRef.current = backgroundSession.attemptId; setActiveQuestId(quest.id); }
+      if (ownsBackgroundSession && backgroundSession) { attemptRef.current = backgroundSession.attemptId; setActiveQuestId(quest.id); }
       checkpointRef.current = checkpoint;
       activityBaseRef.current = checkpoint?.activityFeatures ?? null;
       distanceRef.current = checkpoint?.distanceMeters ?? 0;
