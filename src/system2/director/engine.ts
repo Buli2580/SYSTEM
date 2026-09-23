@@ -22,13 +22,13 @@ export function directSystem(s:DirectorState,activeQuestId:string|null,now=Date.
  const available=(s.daily?.questIds??[]).filter(id=>!!getQuest(id)&&!s.completedQuestIds.includes(id));
  const recovery=s.player&&adaptiveDifficulty({player:s.player,goals,history:s.recentActivity??[],day:dayKey(now),prefs:DEFAULT_ACTIVITIES,weeklyCompleted:s.daily?.weeklyCompleted??0,weeklyClear:s.daily?.weeklyClear??false}).recovery;
  if(recovery){const id=available.find(id=>id.includes('focus_return_easy'))??available.find(id=>getQuest(id)?.difficulty==='EASY');if(id)return pick('RECOVER_MOMENTUM','RECOVER MOMENTUM','Mały krok. Nie zwiększamy teraz trudności.','/quest',id);if(available.length)return pick('RECOVER_MOMENTUM','RECOVER MOMENTUM','Brak łatwej misji w zapisanym zestawie. Możesz odpocząć; następny zestaw uwzględni ostatnie próby.','/quests');}
- const worldEvent=s.player?activeWorldEvent(s.player,s.awakeningCompleted,now):null;
- if(worldEvent)return pick('WORLD_EVENT',worldEventDirectorLine(worldEvent,now),worldEvent.subtitle,'/world');
  if(primary){const id=available.find(id=>s.journeyQuestIds?.[id]===primary.id);if(id){const stage=journeyPlan(primary.category)[primary.currentStage];return pick('CONTINUE_JOURNEY','CONTINUE JOURNEY',`${stage.name} · ${stageRequirement(primary)}`,'/quest',id);}}
  if(s.daily?.weeklyCompleted===4&&!s.daily.weeklyClear&&available[0])return pick('ADVANCE_WEEKLY','COMPLETE WEEKLY OBJECTIVE','Jeszcze jeden zweryfikowany Daily do Weekly.','/quest',available[0]);
  if(s.story?.worldLinkComplete&&!s.story.bossComplete){const b=s.story.boss;if(!b||!b.focus_at||!b.move_at||available.length>0&&s.daily?.dayKey&&s.daily.dayKey>b.start_day)return pick('CHALLENGE_BOSS',b?'BOSS PROTOCOL':'BOSS AVAILABLE','FOCUS → MOVE → DISCIPLINE. Zobacz dostępny etap.','/story');}
  if(s.player&&available.length&&goals.length){const skills=Object.values(s.player.stats).map(v=>v.level),min=Math.min(...skills),max=Math.max(...skills);const id=available.find(id=>{const q=getQuest(id);return q&&s.player!.stats[q.primarySkill].level===min;});if(id&&max-min>=2&&Number(dayKey(now).slice(-2))%3===0)return pick('DEVELOP_WEAK_STAT','DEVELOP WEAK STAT',`Spokojny rozwój ${getQuest(id)!.primarySkill}.`,'/quest',id);}
  if(available[0])return pick('COMPLETE_DAILY','START DAILY QUEST',s.daily?.reasons?.[available[0]]??'Kolejny zweryfikowany krok.','/quest',available[0]);
+ const worldEvent=s.player?activeWorldEvent(s.player,s.awakeningCompleted,now):null;
+ if(worldEvent)return pick('WORLD_EVENT',worldEventDirectorLine(worldEvent,now),'Podgląd sygnału w WORLD; misja i nagroda eventowa nie są jeszcze aktywne.','/world');
  if((s.journeys??[]).some(j=>j.status==='COMPLETED'&&goals.some(g=>g.id===j.goalId&&g.status==='ACTIVE')))return pick('REVIEW_GOAL','OCEŃ SWÓJ CEL','Journey ukończone. Osiągnięcie osobistego rezultatu potwierdzasz samodzielnie.','/goals');
  return pick('REST','DAILY COMPLETE',primary?'Dzisiejsze sesje zakończone. Journey kontynuujesz z kolejnym zestawem.':'Następny zestaw jutro.','/quests');
 }
