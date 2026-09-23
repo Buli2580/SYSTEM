@@ -16,7 +16,7 @@ import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../component
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
 import {calculateAge} from '../identity/age';
-import {capturePrivateQuestPhoto,removePrivateQuestPhoto} from '../quests/privatePhoto';
+import {capturePrivateQuestPhoto,removePrivateQuestPhoto,purgeStalePrivateQuestPhotos} from '../quests/privatePhoto';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -43,6 +43,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
 
   useFocusEffect(useCallback(() => {
     photoActiveRef.current = true;
+    purgeStalePrivateQuestPhotos();
     setLocalPhotoUri(null);
     setLocalPhotoError(null);
     return () => {
