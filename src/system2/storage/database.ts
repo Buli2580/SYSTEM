@@ -36,6 +36,7 @@ import { parseEvent } from '../identity/history';
 import { bossPhaseState } from '../story/bossEngine';
 import { createMoveState, rolloverMoveState, completeMoveQuest as reduceMoveQuest, type MoveCompletionEvidence, type MoveState } from '../move/state';
 import { moveAgeMode } from '../move/age';
+import { MOVEMENT_SKILLS } from '../move/skills';
 
 import {
   createNewPlayer,
@@ -1116,13 +1117,19 @@ const MOVE_STATE_KEY='system_move_state_v1';
 function validMoveState(value:unknown):value is MoveState{
  if(!value||typeof value!=='object')return false;
  const row=value as Partial<MoveState>;
- return typeof row.dayKey==='string'&&typeof row.ageMode==='string'
-  &&Array.isArray(row.completedQuestIds)&&row.completedQuestIds.every(x=>typeof x==='string')
-  &&typeof row.activeMinutes==='number'&&Number.isFinite(row.activeMinutes)&&row.activeMinutes>=0
-  &&typeof row.streak==='number'&&Number.isFinite(row.streak)&&row.streak>=0
-  &&typeof row.bestStreak==='number'&&Number.isFinite(row.bestStreak)&&row.bestStreak>=0
-  &&!!row.skills&&typeof row.skills==='object'&&!Array.isArray(row.skills)
-  &&Array.isArray(row.history);
+ const modes=['UNDER_6','AGE_6_8','AGE_9_12','AGE_13_17','ADULT','UNKNOWN'];
+ const safeInt=(n:unknown)=>typeof n==='number'&&Number.isSafeInteger(n)&&n>=0;
+ const skills=row.skills as Record<string,{key?:unknown;level?:unknown;xp?:unknown;xpToNext?:unknown}>|undefined;
+ return typeof row.dayKey==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(row.dayKey)&&typeof row.ageMode==='string'&&modes.includes(row.ageMode)
+  &&Array.isArray(row.completedQuestIds)&&row.completedQuestIds.every(x=>typeof x==='string'&&x.length>0)
+  &&safeInt(row.activeMinutes)&&safeInt(row.streak)&&safeInt(row.bestStreak)&&Number(row.bestStreak)>=Number(row.streak)
+  &&(row.lastActiveDay===null||typeof row.lastActiveDay==='string')
+  &&!!skills&&!Array.isArray(skills)&&MOVEMENT_SKILLS.every(key=>{
+    const item=skills[key];return !!item&&item.key===key&&safeInt(item.xp)&&safeInt(item.xpToNext)&&typeof item.level==='number'&&Number.isSafeInteger(item.level)&&item.level>=1;
+  })
+  &&Array.isArray(row.history)&&row.history.every(day=>!!day&&typeof day==='object'
+    &&typeof day.dayKey==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day.dayKey)
+    &&safeInt(day.minutes)&&Array.isArray(day.questIds)&&day.questIds.every(id=>typeof id==='string'));
 }
 export function loadMoveState(now=Date.now()):Promise<MoveState>{
  return serialized(async()=>{
