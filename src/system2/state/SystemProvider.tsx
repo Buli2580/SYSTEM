@@ -97,6 +97,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           activeQuestTitle,
           worldEventTitle: event?.title ?? null,
           worldEventRemaining: event ? formatWorldEventRemaining(event) : null,
+          worldEventEndsAt: event?.endsAt ?? null,
         },
       ));
       if (requestId === notificationRequestRef.current) setNotificationError(null);
