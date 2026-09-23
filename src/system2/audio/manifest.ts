@@ -22,6 +22,14 @@ export const LEGACY_AUDIO_FALLBACKS={
     AWAKENING:{id:'music.awakening.fallback',kind:'music',source:require('../../../assets/audio/boss_theme.mp3'),loop:false,placeholder:true,recommendedReplacement:'awakening cinematic launch theme'},
   },
   sfx:{
+    // Every cue in Audio Engine has a packaged offline fallback. These are
+    // temporary sounds, not the planned original orchestral audio identity.
+    UI_TAP:{id:'sfx.ui.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'subtle holographic UI click'},
+    SCAN:{id:'sfx.scan.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'rising SYSTEM scan tone'},
+    VERIFY:{id:'sfx.verify.fallback',kind:'sfx',source:require('../../../assets/audio/quest_complete.mp3'),loop:false,placeholder:true,recommendedReplacement:'verification lock confirmation'},
+    RANK_UP:{id:'sfx.rank.fallback',kind:'sfx',source:require('../../../assets/audio/level_up.mp3'),loop:false,placeholder:true,recommendedReplacement:'orchestral rank ascension sting'},
+    PORTAL:{id:'sfx.portal.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'cinematic portal impact'},
+    BOSS_HIT:{id:'sfx.boss_hit.fallback',kind:'sfx',source:require('../../../assets/audio/quest_error.wav'),loop:false,placeholder:true,recommendedReplacement:'heavy cinematic combat impact'},
     QUEST_START:{id:'sfx.quest_start.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'quest accept impact'},
     REWARD:{id:'sfx.reward.fallback',kind:'sfx',source:require('../../../assets/audio/quest_complete.mp3'),loop:false,placeholder:true,recommendedReplacement:'reward reveal sting'},
     LEVEL_UP:{id:'sfx.level_up.fallback',kind:'sfx',source:require('../../../assets/audio/level_up.mp3'),loop:false,placeholder:true,recommendedReplacement:'level up rise'},
