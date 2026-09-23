@@ -22,7 +22,7 @@ export default function MoveQuestScreen(){
   finally{setBusy(false)}
  }
  if(!quest)return <Fallback title="MOVE QUEST NOT FOUND" onBack={()=>router.replace('/move')}/>;
- const required=Math.max(60,quest.minutes*45),ready=elapsed>=required;
+ const required=Math.max(60,quest.minutes*60),ready=elapsed>=required;
  return <View style={styles.root}>
   <Text style={styles.code}>SYSTEM MOVE // {quest.kind}</Text><Text style={styles.title}>{quest.title}</Text><Text style={styles.body}>{quest.description}</Text>
   <View style={styles.timer}><Text style={styles.timerLabel}>ACTIVE TIME</Text><Text style={styles.timerValue}>{Math.floor(elapsed/60)}:{String(elapsed%60).padStart(2,'0')}</Text><Text style={styles.body}>WYMAGANE MINIMUM {Math.ceil(required/60)} MIN</Text></View>
