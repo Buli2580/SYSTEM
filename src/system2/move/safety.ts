@@ -1,7 +1,7 @@
 import type {MoveAgeMode,MoveQuest} from './types';
 export type MoveSafetyPolicy={publicPreciseLocation:false;bodyWeightRanking:false;appearanceRanking:false;minorDirectMessages:false;parentApprovalRequired:boolean;maxSingleQuestMinutes:number};
 export function moveSafetyPolicy(ageMode:MoveAgeMode):MoveSafetyPolicy{
- return{publicPreciseLocation:false,bodyWeightRanking:false,appearanceRanking:false,minorDirectMessages:false,parentApprovalRequired:ageMode!=='ADULT',maxSingleQuestMinutes:ageMode==='AGE_6_8'?20:ageMode==='AGE_9_12'?30:60};
+ return{publicPreciseLocation:false,bodyWeightRanking:false,appearanceRanking:false,minorDirectMessages:false,parentApprovalRequired:ageMode!=='ADULT',maxSingleQuestMinutes:ageMode==='UNDER_6'||ageMode==='UNKNOWN'?0:ageMode==='AGE_6_8'?20:ageMode==='AGE_9_12'?30:60};
 }
 export function isSafeMoveQuest(quest:MoveQuest,ageMode:MoveAgeMode){
  const policy=moveSafetyPolicy(ageMode);
