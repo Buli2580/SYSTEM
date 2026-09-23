@@ -3,10 +3,9 @@ import {MOVE_QUESTS} from './catalog';
 import {initialMovementSkills,moveQuestSkillXp,applyMovementXp} from './skills';
 import type {MovementSkillKey,MovementSkillProgress,MoveAgeMode} from './types';
 import {isSafeMoveQuest} from './safety';
+import {verifyMoveQuest,type MoveVerificationEvidence} from './verification';
 
-export type MoveCompletionEvidence={
-  questId:string;dayKey:string;durationSeconds:number;distanceMeters?:number;parentApproved?:boolean;
-};
+export type MoveCompletionEvidence=MoveVerificationEvidence&{dayKey:string};
 export type MoveHistoryDay={dayKey:string;minutes:number;questIds:string[]};
 export type MoveState={
   dayKey:string;
@@ -29,28 +28,17 @@ export function rolloverMoveState(state:MoveState,currentDay:string,ageMode:Move
  const history=[...state.history,{dayKey:state.dayKey,minutes:state.activeMinutes,questIds:[...state.completedQuestIds]}].slice(-31);
  return{...state,dayKey:currentDay,ageMode,completedQuestIds:[],activeMinutes:0,history};
 }
-function minimumDistanceFor(kind:string,minutes:number){
- if(kind==='BIKE')return minutes*120;
- if(kind==='RUN')return minutes*70;
- if(kind==='WALK'||kind==='OUTDOOR'||kind==='FAMILY')return minutes*35;
- return 0;
-}
-export function validateMoveEvidence(e:MoveCompletionEvidence){
+export function validateMoveEvidence(e:MoveCompletionEvidence,ageMode?:MoveAgeMode){
  const quest=MOVE_QUESTS.find(q=>q.id===e.questId);
  if(!quest)throw new Error('Nie znaleziono misji MOVE.');
- if(e.durationSeconds<Math.max(60,quest.minutes*60))throw new Error('Aktywność trwała zbyt krótko.');
- if(quest.verification==='PARENT_APPROVAL'&&!e.parentApproved)throw new Error('Ta misja wymaga akceptacji rodzica lub opiekuna.');
- if(quest.verification==='GPS_DISTANCE'){
-   const min=minimumDistanceFor(quest.kind,quest.minutes);
-   if(!Number.isFinite(e.distanceMeters)||Number(e.distanceMeters)<min)throw new Error('GPS nie potwierdził wymaganego ruchu.');
- }
- if(quest.verification==='MIXED'&&!e.parentApproved&&(!Number.isFinite(e.distanceMeters)||Number(e.distanceMeters)<=0))throw new Error('Potrzebna jest akceptacja opiekuna albo potwierdzenie GPS.');
- return quest;
+ if(ageMode&&!isSafeMoveQuest(quest,ageMode))throw new Error('Ta misja MOVE nie jest dostępna dla tego trybu wieku.');
+ const result=verifyMoveQuest(quest,e);
+ if(!result.ok)throw new Error('MOVE_VERIFICATION_FAILED:'+result.code);
+ return{quest,result};
 }
 export function completeMoveQuest(state:MoveState,e:MoveCompletionEvidence):MoveState{
- const quest=validateMoveEvidence(e);
  let current=rolloverMoveState(state,e.dayKey,state.ageMode);
- if(!isSafeMoveQuest(quest,current.ageMode))throw new Error('Ta misja MOVE nie jest dostępna dla tego trybu wieku.');
+ const {quest}=validateMoveEvidence(e,current.ageMode);
  if(current.completedQuestIds.includes(quest.id))return current;
  const completed=[...current.completedQuestIds,quest.id];
  const activeMinutes=current.activeMinutes+quest.minutes;
