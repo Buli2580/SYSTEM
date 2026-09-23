@@ -150,14 +150,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 10,
   },
 
   category: {
+    flex: 1,
+    minWidth: 0,
     color: SYSTEM_COLORS.cyan,
     fontSize: 9,
+    lineHeight: 14,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 1.4,
   },
 
   statusBadge: {
@@ -170,15 +174,20 @@ const styles = StyleSheet.create({
   status: {
     color: SYSTEM_COLORS.cyanSoft,
     fontSize: 7,
+    lineHeight: 11,
     fontWeight: '900',
-    letterSpacing: 1.2,
-   flexShrink: 1, textAlign: 'center' },
+    letterSpacing: 1,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
 
   title: {
     color: SYSTEM_COLORS.white,
     fontSize: 22,
+    lineHeight: 28,
     fontWeight: '900',
-    marginTop: 13,
+    marginTop: 16,
+    flexShrink: 1,
   },
 
   description: {
@@ -250,9 +259,12 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#001014',
     fontSize: 11,
+    lineHeight: 18,
     fontWeight: '900',
-    letterSpacing: 2,
-   flexShrink: 1, textAlign: 'center', lineHeight: 18 },
+    letterSpacing: 1.4,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
 
   buttonArrow: {
     color: '#001014',
