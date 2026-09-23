@@ -19,7 +19,7 @@ export default function MoveFamilyQuestScreen(){
  const required=family.minutes*60,ready=elapsed>=required;
  function start(){setElapsed(0);setApproved(false);setRunning(true);timer.current=setInterval(()=>setElapsed(v=>v+1),1000)}
  async function finish(){
-  if(!ready||!approved||busy)return;
+  if(!canonical||!ready||!approved||busy)return;
   setBusy(true);
   try{
    const today=dayKey();
