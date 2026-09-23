@@ -97,6 +97,23 @@ revoke all on function public.submit_verified_move_contribution(uuid,text,text,d
 grant execute on function public.submit_verified_move_contribution(uuid,text,text,date)
   to authenticated;
 
+-- Previous v1 RLS allowed any group member to query every individual's
+-- contribution row, even after the guardian-only leaderboard RPC was added.
+-- Only the contributor and group guardians/teachers may read those rows.
+-- Aggregated group totals remain available to other enrolled members.
+drop policy if exists move_contributions_group_read on public.move_contributions;
+create policy move_contributions_private_read on public.move_contributions
+for select to authenticated
+using (
+  user_id=(select auth.uid())
+  or exists (
+    select 1 from public.move_group_members member
+    where member.group_id=move_contributions.group_id
+      and member.user_id=(select auth.uid())
+      and member.role in ('PARENT','TEACHER')
+  )
+);
+
 -- Aggregate only independently linked and approved evidence.
 create or replace function public.get_my_move_groups()
 returns table(id uuid,kind text,name text,role text,member_count bigint,total_minutes bigint,active_days bigint)
