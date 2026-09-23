@@ -13,24 +13,25 @@ export default function RewardEventSequence(){
   const cardReason:CardReason|null=lastReward?.newTitles.includes('WALLBREAKER')?'BOSS':lastReward?.newTitles.includes('AWAKENED')?'AWAKENING':lastReward&&lastReward.afterRank!==lastReward.beforeRank?'RANK_UP':lastReward&&lastReward.afterLevel>lastReward.beforeLevel?'LEVEL_UP':null;
   const awakeningOwnedReward=useRef<string|null>(null);
 
+  const combatCount=lastReward?.bossDamage?1:0;
+  const total=combatCount+events.length+(cardReason?1:0);
+
   useEffect(()=>{
     if(awakeningPending&&lastReward?.id){
       // Awakening owns this receipt's full-screen presentation. Remember the
       // receipt so it is not replayed when awakeningPending is acknowledged.
       awakeningOwnedReward.current=lastReward.id;
-      setIndex(events.length);
+      setIndex(total);
       dismissCelebration();
       return;
     }
     if(lastReward?.id&&awakeningOwnedReward.current===lastReward.id){
-      setIndex(events.length);
+      setIndex(total);
       return;
     }
     setIndex(0);
-  },[lastReward?.id,awakeningPending,events.length,dismissCelebration]);
+  },[lastReward?.id,awakeningPending,total,dismissCelebration]);
 
-  const combatCount=lastReward?.bossDamage?1:0;
-  const total=combatCount+events.length+(cardReason?1:0);
   const dismiss=useCallback(()=>{
     setIndex(i=>{
       const next=i+1;
