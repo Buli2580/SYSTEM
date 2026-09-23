@@ -14,6 +14,7 @@ import { signalDistance } from '../world/signals';
 import { SYSTEM_COLORS as C } from '../core';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import {worldBossMode} from '../beta/worldBoss';
+import SystemAudioScene from '../components/SystemAudioScene';
 
 export default function WorldScreen() {
   const router = useRouter();
@@ -45,7 +46,8 @@ function OnlineWorld() {
   const active = world.status === 'ACTIVE';
   const signalState = world.signal?.status ?? 'LOCKED';
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
-    <SystemAmbientBackground intensity="world" />
+    <SystemAmbientBackground intensity="world" screen={mode==="BOSS"?"BOSS":"WORLD"} scene={mode==="BOSS"?"BOSS_ZONE":"WORLD"} threat={mode==="BOSS"?3:1} level={player.realLevel} />
+    <SystemAudioScene cue={mode==="BOSS"?"BOSS":"WORLD"} />
     <View style={styles.heading}>
       <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD/BOSS 2.0 // {mode}</Text><Text style={styles.label}>STATUS ŚWIATA: ONLINE</Text>
       <Text style={styles.body}>EKSPLORACJA ŚWIATA · ODKRYTE SEKTORY {world.sectorIds.length}</Text>
@@ -81,14 +83,15 @@ function OnlineWorld() {
   </SystemScreen>;
 }
 function Button({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={({ pressed }) => [styles.button, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}><Text style={styles.label}>{label}</Text></Pressable>;
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={({ pressed }) => [styles.button, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}><Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78} style={styles.buttonLabel}>{label}</Text></Pressable>;
 }
 const styles = StyleSheet.create({
-  bossSignal:{marginHorizontal:16,marginBottom:10,padding:16,borderWidth:1,borderColor:'rgba(228,186,255,0.48)',borderRadius:16,backgroundColor:'rgba(35,13,45,0.72)'},bossSignalCode:{color:'#e4baff',fontSize:9,fontWeight:'900',letterSpacing:1.5},bossSignalTitle:{color:'#fff',fontSize:22,fontWeight:'900',marginTop:6},bossSignalCta:{color:'#6ceeff',fontSize:10,fontWeight:'900',marginTop:10},
+  bossSignal:{marginHorizontal:16,marginBottom:10,padding:16,borderWidth:1,borderColor:'rgba(228,186,255,0.48)',borderRadius:16,backgroundColor:'rgba(35,13,45,0.72)'},bossSignalCode:{color:'#e4baff',fontSize:9,lineHeight:14,fontWeight:'900',letterSpacing:1.2,flexShrink:1},bossSignalTitle:{color:'#fff',fontSize:22,lineHeight:28,fontWeight:'900',marginTop:6,flexShrink:1},bossSignalCta:{color:'#6ceeff',fontSize:10,lineHeight:15,fontWeight:'900',marginTop:10,flexShrink:1},
   root: { flex: 1, backgroundColor: C.background }, heading: { paddingHorizontal: 16, paddingBottom: 10 },
-  title: { color: C.white, fontSize: 23, fontWeight: '900' },
-  label: { color: C.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
-  body: { color: C.text, fontSize: 11, marginTop: 5 }, small: { color: C.textMuted, fontSize: 9, marginTop: 5 },
+  title: { color: C.white, fontSize: 23, lineHeight: 29, fontWeight: '900', flexShrink: 1 },
+  label: { color: C.cyan, fontSize: 10, lineHeight: 15, fontWeight: '900', letterSpacing: 0.6, flexShrink: 1 },
+  buttonLabel: { color: C.cyan, fontSize: 10, lineHeight: 14, fontWeight: '900', letterSpacing: 0.45, textAlign: 'center', flexShrink: 1 },
+  body: { color: C.text, fontSize: 11, lineHeight: 17, marginTop: 5, flexShrink: 1 }, small: { color: C.textMuted, fontSize: 9, lineHeight: 14, marginTop: 5, flexShrink: 1 },
   error: { color: C.warning, fontSize: 11, marginTop: 5 }, map: { flex: 1, minHeight: 160, overflow: 'hidden' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.panel },
   mapControls: { position: 'absolute', right: 8, top: 52, gap: 5 }, hud: { padding: 12 },

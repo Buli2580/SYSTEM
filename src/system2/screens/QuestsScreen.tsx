@@ -11,6 +11,7 @@ import { AWAKENING_QUESTS, getQuest, getAwakeningProgress } from '../quests/cata
 import { useSystem } from '../state/SystemProvider';
 import { QuestMissionCard } from '../components/QuestExperience';
 import { getNextAction } from '../quests/nextAction';
+import SystemAudioScene from '../components/SystemAudioScene';
 
 export default function QuestsScreen() {
   const router = useRouter();
@@ -23,7 +24,8 @@ export default function QuestsScreen() {
   const openNextAction = () => nextAction.route === '/quest' && nextAction.questId
     ? router.push({ pathname: '/quest', params: { questId: nextAction.questId } })
     : router.push(nextAction.route);
-  return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
+  return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS" screen="QUESTS" scene={story?.worldLinkComplete&&!story?.bossComplete?"BOSS_ZONE":"RUINS"} threat={story?.worldLinkComplete&&!story?.bossComplete?3:1} intensity="hero">
+    <SystemAudioScene cue={story?.worldLinkComplete&&!story?.bossComplete?"BOSS":"QUEST"} />
     <View style={styles.panel}>
       <Text style={styles.label}>SYSTEM // NEXT ACTION</Text>
       <Text style={styles.title}>{nextAction.title}</Text>

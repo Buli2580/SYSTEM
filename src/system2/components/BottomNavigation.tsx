@@ -104,6 +104,9 @@ function NavItem({
       )}
 
       <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.78}
         style={[
           styles.label,
           active && styles.activeLabel,
@@ -131,6 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     minHeight: 54,
+    minWidth: 0,
   },
 
   diamond: {
@@ -176,6 +180,8 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0.8,
+    textAlign: 'center',
+    maxWidth: '94%',
   },
 
   activeLabel: {
