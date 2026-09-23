@@ -2807,13 +2807,14 @@ test('SYSTEM MOVE director builds age-safe recovery plans without hard quests', 
 test('SYSTEM MOVE 60 minute target advances streak and movement skills once', () => {
   const { createMoveState, completeMoveQuest } = loader({})('move/state');
   let state = createMoveState('2026-09-23','AGE_9_12');
-  const complete=(questId,durationSeconds,extra={})=>{ state=completeMoveQuest(state,{questId,dayKey:'2026-09-23',durationSeconds,source:'GPS',...extra}); };
-  complete('move_walk_10',600,{distanceMeters:400});
-  complete('move_run_10',600,{distanceMeters:800});
-  complete('move_jump_5',300);
-  complete('move_balance_5',300);
-  complete('move_ball_10',600,{parentApproved:true});
-  complete('move_bike_20',1200,{distanceMeters:2500});
+  const gps=(type,distance,duration)=>({activityTypeExpected:type,activityTypeDetected:type,verdict:'VERIFIED',verificationScore:92,reasonCodes:[],features:{distanceMeters:distance,durationSeconds:duration,averageSpeedMps:distance/duration,medianSpeedMps:type==='RUN'?3:type==='BIKE'?6:1.2,maxSpeedMps:type==='RUN'?4:type==='BIKE'?8:1.8,speedVariance:.08,accelerationChanges:2,stops:1,movingSeconds:duration-20,stationarySeconds:20,gpsGaps:0,rejectedSamples:0,teleportCount:0,sampleCount:40,meanAccuracy:8,maxAccuracy:12,mocked:false},sensors:{},sensorSources:['GPS'],additionalProofRequired:false});
+  const complete=(questId,durationSeconds,extra={})=>{ state=completeMoveQuest(state,{questId,dayKey:'2026-09-23',durationSeconds,...extra}); };
+  complete('move_walk_10',600,{distanceMeters:400,source:'GPS',activity:gps('WALK',400,600)});
+  complete('move_run_10',600,{distanceMeters:800,source:'GPS',activity:gps('RUN',800,600)});
+  complete('move_jump_5',300,{source:'TIMER'});
+  complete('move_balance_5',300,{source:'TIMER'});
+  complete('move_ball_10',600,{parentApproved:true,source:'PARENT'});
+  complete('move_bike_20',1200,{distanceMeters:2500,source:'GPS',activity:gps('BIKE',2500,1200)});
   assert.equal(state.activeMinutes,60);
   assert.equal(state.streak,1);
   assert.equal(state.lastActiveDay,'2026-09-23');
