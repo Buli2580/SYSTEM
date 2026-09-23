@@ -2786,10 +2786,12 @@ test('pending reward presentation preserves canonical boss combat delta', async 
 test('SYSTEM MOVE age modes resolve safely from profile birth date', () => {
   const { moveAgeMode } = loader({})('move/age');
   const today = new Date('2026-09-23T12:00:00Z');
+  assert.equal(moveAgeMode('2022-09-23', today), 'UNDER_6');
   assert.equal(moveAgeMode('2019-09-23', today), 'AGE_6_8');
   assert.equal(moveAgeMode('2015-09-23', today), 'AGE_9_12');
   assert.equal(moveAgeMode('2011-09-23', today), 'AGE_13_17');
-  assert.equal(moveAgeMode(undefined, today), 'ADULT');
+  assert.equal(moveAgeMode(undefined, today), 'UNKNOWN');
+  assert.equal(moveAgeMode('1990-09-23', today), 'ADULT');
 });
 
 test('SYSTEM MOVE director builds age-safe recovery plans without hard quests', () => {
@@ -2848,7 +2850,26 @@ test('SYSTEM MOVE school raids reward contribution, not body metrics', () => {
 
 test('SYSTEM MOVE family boss damage is bounded and based on verified activity', () => {
   const { familyBossDamage } = loader({})('move/family');
-  assert.equal(familyBossDamage(0,2),2);
+  assert.equal(familyBossDamage(0,2),0);
   assert.equal(familyBossDamage(60,2),8);
   assert.equal(familyBossDamage(999,10),25);
+});
+
+
+test('SYSTEM MOVE canonical completion rejects age-inappropriate quests', () => {
+  const { createMoveState, completeMoveQuest } = loader({})('move/state');
+  const underSix = createMoveState('2026-09-23','UNDER_6');
+  assert.throws(() => completeMoveQuest(underSix,{questId:'move_jump_5',dayKey:'2026-09-23',durationSeconds:300}),/trybu wieku/);
+  const young = createMoveState('2026-09-23','AGE_6_8');
+  assert.throws(() => completeMoveQuest(young,{questId:'move_run_10',dayKey:'2026-09-23',durationSeconds:600,distanceMeters:800}),/trybu wieku/);
+});
+
+test('SYSTEM MOVE family weekend quests have unique canonical completion ids', () => {
+  const { MOVE_QUESTS } = loader({})('move/catalog');
+  for (const id of ['family_walk_45','family_bike_60','family_outdoor_45']) {
+    const quest = MOVE_QUESTS.find(q => q.id === id);
+    assert.ok(quest, id + ' missing');
+    assert.equal(quest.kind,'FAMILY');
+    assert.equal(quest.verification,'PARENT_APPROVAL');
+  }
 });
