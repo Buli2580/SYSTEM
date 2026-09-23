@@ -1,5 +1,6 @@
 import {getValidSession} from './auth';
 import {cloudRequest} from './http';
+import {loadMoveState} from '../storage/database';
 
 export type MoveGroupKind='FAMILY'|'SCHOOL';
 export type MoveGroupRole='PARENT'|'CHILD'|'MEMBER'|'TEACHER'|'STUDENT';
@@ -87,4 +88,33 @@ export async function publishVerifiedMoveToGroups(input:{
  })));
  return{groups:targets.length,submitted:results.filter(r=>r.status==='fulfilled').length,
    pending:0,failed:results.filter(r=>r.status==='rejected').length};
+}
+
+// On reconnect, recover eligible group credits from already-persisted local
+// MOVE history without uploading sensitive raw locations or trusting local XP.
+// Only separately accepted core GPS quests can satisfy this protocol.
+export async function reconcileRecentMoveContributions(){
+ const state=await loadMoveState();
+ const supported=new Set(['move_walk_10','move_run_10','move_bike_20']);
+ const recent=[...state.history.slice(-6),{
+   dayKey:state.dayKey,minutes:state.activeMinutes,questIds:state.completedQuestIds,
+ }];
+ const candidates=[...new Set(recent.flatMap(day=>
+   day.questIds.filter(id=>supported.has(id)).map(id=>day.dayKey+'|'+id)
+ ))];
+ if(!candidates.length)return{reviewed:0,accepted:0,failed:0};
+ const groups=await getMyMoveGroups();
+ if(!groups.length)return{reviewed:candidates.length,accepted:0,failed:0};
+ let accepted=0,failed=0;
+ for(const value of candidates){
+   const [dayKey,questId]=value.split('|');
+   const evidence=await getMyVerifiedMoveSource(questId,dayKey);
+   if(!evidence)continue;
+   const results=await Promise.allSettled(groups.map(group=>
+     submitVerifiedMoveContribution({groupId:group.id,eventKey:evidence,questId,dayKey})
+   ));
+   accepted+=results.filter(r=>r.status==='fulfilled'&&r.value>0).length;
+   failed+=results.filter(r=>r.status==='rejected').length;
+ }
+ return{reviewed:candidates.length,accepted,failed};
 }
