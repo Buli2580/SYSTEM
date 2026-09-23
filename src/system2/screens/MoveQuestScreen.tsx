@@ -41,11 +41,9 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,comp
     if(!verified.ok)throw new Error('MOVE_VERIFICATION_FAILED:'+verified.code);
     const today=dayKey();
     await completeMoveActivity({...evidence,dayKey:today});
-    const method=evidence.source;
     const kinds:('FAMILY'|'SCHOOL')[]=quest.familyEligible?['FAMILY','SCHOOL']:['SCHOOL'];
     void publishVerifiedMoveToGroups({
-      kinds,eventKey:`move:${today}:${quest.id}`,questId:quest.id,verificationMethod:method,
-      verificationScore:verified.score,dayKey:today,
+      kinds,questId:quest.id,dayKey:today,
     }).catch(()=>undefined);
     onDone();
   }catch(e){
@@ -82,7 +80,7 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,comp
    <Text style={styles.buttonText}>{canFinish?'VERIFY & COMPLETE':'QUEST ACTIVE'}</Text>
   </Pressable>}
 
-  <Text style={styles.notice}>GPS działa tylko podczas otwartego ekranu tej misji MOVE. Dokładna trasa nie trafia do publicznego profilu.</Text>
+  <Text style={styles.notice}>GPS działa tylko podczas otwartego ekranu tej misji. Wynik zapisuje się lokalnie. Ranking grupowy uznaje jedynie osobno zweryfikowane zdarzenia serwerowe; sama deklaracja z telefonu nie wystarcza.</Text>
   <Pressable onPress={onBack}><Text style={styles.back}>← SYSTEM MOVE</Text></Pressable>
  </View>;
 }
