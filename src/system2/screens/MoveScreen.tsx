@@ -58,6 +58,9 @@ export default function MoveScreen(){
     <Text style={styles.questSkills}>{q.skills.join(' · ')} // {q.verification}</Text>
    </Pressable>})}
 
+   <Text style={styles.section}>MOVEMENT HISTORY</Text>
+   <View style={styles.panel}><Text style={styles.label}>LAST 7 DAYS</Text>{(state?.history??[]).slice(-6).concat(state?[{dayKey:state.dayKey,minutes:state.activeMinutes,questIds:state.completedQuestIds}]:[]).slice(-7).map(day=><View key={day.dayKey} style={styles.historyRow}><Text style={styles.historyDay}>{day.dayKey}</Text><Text style={styles.historyMinutes}>{day.minutes} MIN</Text></View>)}{!state?.history.length&&<Text style={styles.body}>Historia zacznie się budować po pierwszych dniach MOVE.</Text>}</View>
+
    <Text style={styles.section}>MOVEMENT SKILLS</Text>
    <View style={styles.skillGrid}>{MOVEMENT_SKILLS.map(key=>{const skill=state?.skills[key];return <View key={key} style={styles.skill}><Text style={styles.skillName}>{key}</Text><Text style={styles.skillLevel}>LV.{skill?.level??1}</Text><Text style={styles.skillXp}>{skill?.xp??0}/{skill?.xpToNext??0} XP</Text></View>})}</View>
 
@@ -83,5 +86,6 @@ const styles=StyleSheet.create({
  quest:{marginTop:10,padding:15,borderWidth:1,borderColor:C.lineBright,borderRadius:16,backgroundColor:'rgba(5,17,20,.92)'},done:{opacity:.55},locked:{opacity:.62},
  questCode:{flex:1,minWidth:0,color:C.cyan,fontSize:8,fontWeight:'900',letterSpacing:.9},questStatus:{color:C.warning,fontSize:8,fontWeight:'900'},questTitle:{color:C.white,fontSize:18,lineHeight:23,fontWeight:'900',marginTop:7},questSkills:{color:C.cyanSoft,fontSize:8,fontWeight:'900',marginTop:9},
  skillGrid:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:9},skill:{width:'31%',minWidth:94,padding:11,borderWidth:1,borderColor:C.line,borderRadius:13,backgroundColor:'rgba(4,16,20,.88)'},skillName:{color:C.cyan,fontSize:8,fontWeight:'900'},skillLevel:{color:C.white,fontSize:17,fontWeight:'900',marginTop:5},skillXp:{color:C.textVeryMuted,fontSize:8,marginTop:3},
+ historyRow:{flexDirection:'row',justifyContent:'space-between',paddingVertical:7,borderBottomWidth:1,borderBottomColor:'rgba(108,238,255,.08)'},historyDay:{color:C.textMuted,fontSize:9,fontWeight:'800'},historyMinutes:{color:C.white,fontSize:10,fontWeight:'900'},
  safety:{marginTop:12,padding:16,borderWidth:1,borderColor:'rgba(108,238,255,.38)',borderRadius:18,backgroundColor:'rgba(4,16,20,.94)'}
 });
