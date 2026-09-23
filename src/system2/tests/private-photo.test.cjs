@@ -11,8 +11,10 @@ function cameraHarness({granted=true,cancelled=false}={}){
  let permissionCount=0;
  const cache={uri:'file:///app/cache'};
  class Directory {
-   constructor(parent,name){this.uri=parent.uri+'/'+name;this.exists=true;}
+   constructor(parent,name){this.uri=parent.uri+'/'+name;}
+   get exists(){return [...saved].some(uri=>uri.startsWith(this.uri+'/'));}
    create(){}
+   delete(){for(const uri of [...saved])if(uri.startsWith(this.uri+'/'))saved.delete(uri);}
  }
  class File {
    constructor(base,name){this.uri=name===undefined?base:base.uri+'/'+name;}
@@ -62,5 +64,9 @@ test('camera preview stays under app cache and only own copies can be deleted',a
  x.api.removePrivateQuestPhoto('file:///original/photo.jpg');
  assert.equal(x.saved.size,1);
  x.api.removePrivateQuestPhoto(uri);
+ assert.equal(x.saved.size,0);
+ const orphan=await x.api.capturePrivateQuestPhoto();
+ assert.equal(x.saved.has(orphan),true);
+ x.api.purgeStalePrivateQuestPhotos();
  assert.equal(x.saved.size,0);
 });
