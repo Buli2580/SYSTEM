@@ -31,6 +31,14 @@ export default function GuildsScreen(){
   <View style={s.panel}><Text style={s.label}>GUILD NETWORK</Text><Text style={s.body}>Znajdź ekipę, buduj wspólne XP i przygotuj się do raidów.</Text><Action label={busy?'ŁADOWANIE…':'ODŚWIEŻ'} disabled={busy} onPress={()=>void refresh()}/></View>
   {error&&<SystemError message={error} retry={()=>void refresh()}/>}
   {!error&&loaded&&!busy&&rows.length===0&&<View style={s.panel}><Text style={s.title}>BRAK PUBLICZNYCH GILDII</Text></View>}
-  {rows.map(g=><View key={g.id} style={s.panel}><Text style={s.label}>{g.tag} · LV {g.level}</Text><Text style={s.title}>{g.name}</Text><Text style={s.body}>{g.memberCount} graczy · {g.xp.toLocaleString()} GUILD XP</Text><Action label="DOŁĄCZ" disabled={busy} onPress={()=>void join(g.id)}/></View>)}
+  {rows.map(g=>{const nextXp=g.level*g.level*1000;const previousXp=Math.max(0,(g.level-1)*(g.level-1)*1000);const span=Math.max(1,nextXp-previousXp);const pct=Math.max(0,Math.min(100,Math.round((g.xp-previousXp)/span*100)));return <View key={g.id} style={s.panel}>
+    <Text style={s.label}>{g.tag} · GUILD LV {g.level}</Text>
+    <Text style={s.title}>{g.name}</Text>
+    <Text style={s.body}>{g.memberCount} graczy · {g.xp.toLocaleString()} GUILD XP</Text>
+    <Text style={s.label}>NEXT LEVEL // {pct}%</Text>
+    <View style={{height:6,borderRadius:6,overflow:'hidden',backgroundColor:'#17333e',marginTop:9}}><View style={{height:'100%',width:`${Math.max(2,pct)}%`,backgroundColor:'#6ceeff'}}/></View>
+    <Text style={s.body}>Do LV {g.level+1}: {Math.max(0,nextXp-g.xp).toLocaleString()} XP · contribution i weekly target będą liczone per gracz po rozszerzeniu endpointu gildii.</Text>
+    <Action label="DOŁĄCZ" disabled={busy} onPress={()=>void join(g.id)}/>
+  </View>;})}
  </SystemPage>;
 }
