@@ -4,6 +4,7 @@ import {KeyboardAvoidingView,Platform,Text,TextInput,View} from 'react-native';
 import {useRouter} from 'expo-router';
 import SystemPage,{pageStyles as s} from '../components/SystemPage';
 import Action from '../components/Action';
+import AudioEnableAction from '../components/AudioEnableAction';
 import {useSystem} from '../state/SystemProvider';
 import {GOAL_CATEGORIES,GOAL_LABELS,type GoalCategory} from '../goals/model';
 const FIRST_GOALS:{category:GoalCategory;title:string;target:string}[]=[
@@ -21,6 +22,7 @@ export default function GoalsScreen(){
  const [opened,setOpened]=useState<string|null>(null);
  const field={color:'#fff',minHeight:48,borderBottomWidth:1,borderBottomColor:'#417480',marginTop:8};
  return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':'height'}><SystemPage title={firstGoal?'PIERWSZY CEL':'CELE'} subtitle={firstGoal?'AWAKENING // AI DIRECTION':'SYSTEM DIRECTION'} intensity={firstGoal?'hero':'quiet'} showNavigation={!firstGoal}>
+ <AudioEnableAction />
  {firstGoal&&<View style={s.panel}><Text style={s.label}>05 // PRIMARY OBJECTIVE</Text><Text style={s.title}>CO CHCESZ ZMIENIĆ?</Text><Text style={s.body}>Cel ustawia kierunek, ale nie daje XP. AI Game Master przeanalizuje go, przygotuje briefing ścieżki i otworzy pierwszą linię questów.</Text></View>}
  {firstGoal&&<View style={s.panel}><Text style={s.label}>SZYBKI WYBÓR</Text>{FIRST_GOALS.map(p=><Action key={p.title} disabled={busy} label={(category===p.category&&title===p.title?'● ':'○ ')+p.title} onPress={()=>{setCategory(p.category);setTitle(p.title);setTarget(p.target);setPriority(3);}}/>)}</View>}
  <Text style={s.body}>Cele kierują doborem kolejnych Daily. Dzisiejszy zestaw pozostaje zapisany. Ukończenie celu jest Twoją deklaracją i nie przyznaje XP.</Text>
