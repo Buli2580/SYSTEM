@@ -34,6 +34,9 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
           withTiming: value => value, withRepeat: value => value, withSequence: (...v) => v.at(-1),
           cancelAnimation() {}, interpolate: (v, input, output) => output[0] };
       }
+      // Metro loads audio as assets, never executable JavaScript in Node VM tests.
+      if (/\.(?:mp3|wav)$/i.test(name)) return name;
+      if (name === 'expo-audio') return {createAudioPlayer:()=>({volume:0,loop:false,play(){},remove(){}})};
       if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
       throw new Error('Unexpected dependency: ' + name);
     };
@@ -1208,7 +1211,7 @@ test('world schema and reward events do not retain raw player GPS samples or hom
   const event = JSON.parse(h.sql.prepare('SELECT payload FROM verified_events WHERE id = ?').get(signal.id).payload);
   assert.equal(event.latitude, undefined); assert.equal(event.longitude, undefined);
   const tables = h.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(t => t.name);
-  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress', 'cloud_outbox', 'boss_contributions', 'daily_generation', 'daily_rerolls', 'journey_activity', 'journey_milestones', 'journey_quests', 'journeys', 'legacy_goal_imports', 'player_goals', 'progression_claims', 'progression_contributions', 'sqlite_sequence'].sort());
+  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress', 'cloud_outbox', 'boss_contributions', 'daily_generation', 'daily_rerolls', 'journey_activity', 'journey_milestones', 'journey_quests', 'journeys', 'legacy_goal_imports', 'player_goals', 'goal_operations', 'progression_claims', 'progression_contributions', 'sqlite_sequence'].sort());
 });
 function worldTrackingHarness(t, options = {}) {
   const load = loader({}); const { WorldTracking } = load('world/tracking');
@@ -1667,7 +1670,7 @@ test('audio rewards prioritize one level-up, OFF prevents native player creation
  const a=load('identity/audio');a.configureAudio(false);a.playFeedback('QUEST_COMPLETE');assert.equal(created,0);
  assert.equal(a.rewardSound({beforeLevel:1,afterLevel:2,skillLevels:[]}), 'LEVEL_UP');
  assert.equal(a.rewardSound({beforeLevel:1,afterLevel:1,skillLevels:[]}), 'QUEST_COMPLETE');
- a.configureAudio(true);a.playFeedback('QUEST_START');assert.equal(created,0);a.stopAudio();
+ a.configureAudio(true);a.playFeedback('QUEST_START');assert.equal(created,1);a.stopAudio();
 });
 
 
@@ -2248,8 +2251,10 @@ test('birth date edits reject invalid/future input without changing rewards; leg
  const replay=await h.db.finishOnboarding('CHANGED','1990-01-01');assert.equal(replay.player.displayName,'OLD PLAYER');assert.equal(replay.player.birthDate,'2000-01-01');
 });
 test('gameplay gate mounts children only for ready onboarded player',()=>{
- const ctx={ready:false,onboardingComplete:false};const ui=integrationUI(ctx);const Gate=ui.load('components/GameplayGate').default;
- assert.equal(Gate({children:'GAMEPLAY'}),null);ctx.ready=true;assert.equal(Gate({children:'GAMEPLAY'}),null);ctx.onboardingComplete=true;assert.equal(treeText(Gate({children:'GAMEPLAY'})),'GAMEPLAY');ctx.ready=false;assert.equal(Gate({children:'GAMEPLAY'}),null);
+ const ctx={ready:false,onboardingComplete:false,awakeningCompleted:false,goals:[]};const ui=integrationUI(ctx);const Gate=ui.load('components/GameplayGate').default;
+ assert.equal(Gate({children:'GAMEPLAY'}),null);ctx.ready=true;assert.equal(Gate({children:'GAMEPLAY'}),null);ctx.onboardingComplete=true;
+ assert.equal(Gate({children:'GAMEPLAY'}),null,'first goal is mandatory after onboarding');
+ ctx.goals=[{id:'first-goal'}];assert.equal(treeText(Gate({children:'GAMEPLAY'})),'GAMEPLAY');ctx.ready=false;assert.equal(Gate({children:'GAMEPLAY'}),null);
 });
 test('Character renders canonical name, birth date age and earned stats',()=>{
  const core=loader({})('core/progression'),player=core.addSkillXp(core.createNewPlayer('REAL TESTER'),'WIL',70);player.birthDate='2000-01-01';
@@ -2304,6 +2309,8 @@ function providerUI(db,dev=false,achievementMocks={}) {
   loadPendingRewardPresentations:async()=>[],
   acknowledgeRewardPresentation:async()=>{},
   ...db,
+  // Preserve late DB replacements in concurrency tests rather than snapshotting the mock.
+  get loadSystemState(){return db.loadSystemState;},
  };
  const load=loader({react,'react/jsx-runtime':{jsx,jsxs:jsx},__DEV__:dev,
   'react-native':{AppState:{addEventListener:()=>({remove(){}}),currentState:'active'}},
@@ -2324,7 +2331,7 @@ function providerUI(db,dev=false,achievementMocks={}) {
  const Provider=load('state/SystemProvider').SystemProvider;
  return {render(){cursor=0;Provider({children:null});for(const fn of pending.splice(0)){const cleanup=fn();if(cleanup)cleanups.push(cleanup);}return value;},close(){for(const fn of cleanups)fn();}};
 }
-function startupFixture(){const player=loader({})('core').createNewPlayer('RETURNING');return {player,completedQuestIds:[],daily:null,story:null,onboardingComplete:true,awakeningCompleted:false,awakeningPending:false,worldUnlocked:false,settings:{haptics:true,audio:false},titles:['UNAWAKENED']};}
+function startupFixture(){const player=loader({})('core').createNewPlayer('RETURNING');return {player,goals:[],completedQuestIds:[],daily:null,story:null,onboardingComplete:true,awakeningCompleted:false,awakeningPending:false,worldUnlocked:false,settings:{haptics:true,audio:false},titles:['UNAWAKENED']};}
 test('SystemProvider gates startup on health and blocks production reset',async()=>{
  const state=startupFixture();let healthy=false,resetCalls=0;
  const db={hasAvatarCleanupPending:async()=>false,loadSystemState:async()=>state,testerHealthCheck:async()=>({ok:healthy,issues:healthy?[]:[{code:'PLAYER_INVALID'}]}),resetSystemData:async()=>{resetCalls++;}};
@@ -2734,9 +2741,9 @@ test('ACTION 3.0 boss phases progress from awaken to final and defeated', () => 
   assert.equal(bossPhaseState(35).phase, 'ENRAGE');
   assert.equal(bossPhaseState(10).phase, 'FINAL_STRIKE');
   assert.equal(bossPhaseState(0).phase, 'DEFEATED');
-  const hit = applyBossPhaseDamage(18, 5);
+  const hit = applyBossPhaseDamage(12, 5);
   assert.equal(hit.before.phase, 'FINAL_STRIKE');
-  assert.ok(hit.after.hp < 18);
+  assert.ok(hit.after.hp < 12);
 });
 
 test('ACTION 3.0 smart reminders prioritize expiring events and critical boss state', () => {
