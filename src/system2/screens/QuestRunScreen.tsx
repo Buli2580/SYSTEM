@@ -144,7 +144,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </Text>
           </Pressable>
 
-          <View>
+          <View style={styles.topTitle}>
             <Text
               style={styles.systemLabel}
             >
@@ -508,20 +508,26 @@ const styles =
       lineHeight: 38,
     },
 
+    topTitle: { flex: 1, minWidth: 0 },
+
     systemLabel: {
       color:
         SYSTEM_COLORS.cyan,
       fontSize: 10,
       fontWeight: '900',
-      letterSpacing: 3,
+      letterSpacing: 2.2,
+      lineHeight: 15,
+      flexShrink: 1,
     },
 
     screenTitle: {
       color:
         SYSTEM_COLORS.white,
       fontSize: 26,
+      lineHeight: 32,
       fontWeight: '900',
       marginTop: 4,
+      flexShrink: 1,
     },
 
     questCard: {
@@ -539,7 +545,9 @@ const styles =
         SYSTEM_COLORS.cyan,
       fontWeight: '900',
       fontSize: 11,
-      letterSpacing: 2,
+      letterSpacing: 1.4,
+      lineHeight: 16,
+      flexShrink: 1,
     },
 
     difficulty: {
@@ -547,7 +555,9 @@ const styles =
         SYSTEM_COLORS.textMuted,
       fontWeight: '900',
       fontSize: 9,
-      letterSpacing: 2,
+      letterSpacing: 1.25,
+      lineHeight: 16,
+      flexShrink: 1,
     },
 
     description: {
@@ -696,6 +706,9 @@ const styles =
     },
 
     trackingText: {
+      flex: 1,
+      minWidth: 0,
+      textAlign: 'center',
       color:
         SYSTEM_COLORS.cyan,
       fontSize: 10,
