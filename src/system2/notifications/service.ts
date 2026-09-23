@@ -33,8 +33,8 @@ export function syncReminders(settings: Settings, complete: boolean, unlocked: b
     if (!settings.dailyReminder || !unlocked) return;
     await ensureReminderChannel();
     const permission = await awaitWithTimeout(Notifications.getPermissionsAsync());
-    const copy = smartReminderCopy(context);
     for (const date of reminderPlan(true, settings.reminderTime ?? '19:00', permission.granted, complete)) {
+      const copy=smartReminderCopy(context,new Date(date).getTime());
       await awaitWithTimeout(Notifications.scheduleNotificationAsync({
         identifier: PREFIX + date,
         content: copy,
