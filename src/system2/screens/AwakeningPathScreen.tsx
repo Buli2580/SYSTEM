@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -10,12 +10,13 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 import { journeyPlan } from '../journeys/model';
 import { GOAL_LABELS } from '../goals/model';
 import { SYSTEM_COLORS as C } from '../core';
-import {applyCinematicPreset,stopCinematicAudio,triggerAwakeningCinematicState} from '../audio/engine';
+import {applyCinematicPreset,stopCinematicAudio,triggerAwakeningCinematicState,type AwakeningCinematicState} from '../audio/engine';
 
 export default function AwakeningPathScreen() {
   const router = useRouter();
   const system = useSystem();
   const requested = useRef(false);
+  const [awakeningState,setAwakeningState]=useState<AwakeningCinematicState>('CALM');
 
   const goal = useMemo(() => system.goals
     .filter(item => item.status === 'ACTIVE')
@@ -31,7 +32,7 @@ export default function AwakeningPathScreen() {
     const sequence:Array<[number,Parameters<typeof triggerAwakeningCinematicState>[0]]>=[
       [350,'PORTAL'],[1300,'RUNES'],[2200,'ENERGY'],[3100,'WIND'],[4000,'PUSH'],[4800,'FLASH'],[5100,'DROP'],[5900,'AWAKENED'],
     ];
-    const timers=sequence.map(([delay,state])=>setTimeout(()=>triggerAwakeningCinematicState(state),delay));
+    const timers=sequence.map(([delay,state])=>setTimeout(()=>{setAwakeningState(state);triggerAwakeningCinematicState(state)},delay));
     return()=>{timers.forEach(clearTimeout);stopCinematicAudio()};
   },[]);
 
@@ -54,7 +55,7 @@ export default function AwakeningPathScreen() {
   const aiState = system.aiLoading ? 'ANALYZING' : system.aiGameMaster?.source === 'ai' ? 'AI ONLINE' : 'SAFE FALLBACK';
   const currentStage = journey?.currentStage ?? 0;
 
-  return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER // FIRST CAMPAIGN" intensity="hero" screen="LAUNCH" scene="PORTAL" threat={2} weather="STORM" showNavigation={false}>
+  return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER // FIRST CAMPAIGN" intensity="hero" screen="LAUNCH" scene="PORTAL" threat={2} weather="STORM" awakeningState={awakeningState} showNavigation={false}>
     <AudioEnableAction cue="AWAKENING" />
     <Animated.View entering={FadeInUp.duration(420)} style={[styles.panel, styles.hero]}>
       <Text style={styles.code}>06 // DIRECTION LOCKED</Text>
