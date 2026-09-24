@@ -10,7 +10,7 @@ import {dayKey} from '../daily/calendar';
 import {SYSTEM_COLORS as C} from '../core';
 import {useMoveVerification} from '../move/useMoveVerification';
 import {moveMinimumDistance,verifyMoveQuest} from '../move/verification';
-import {publishVerifiedMoveToGroups} from '../cloud/move';
+import {flushPendingMoveServerVerifications,publishVerifiedMoveToGroups,queueMoveServerVerification,supportsMoveServerVerification} from '../cloud/move';
 
 export default function MoveQuestScreen(){
  const {questId}=useLocalSearchParams<{questId?:string}>(),router=useRouter(),{player}=useSystem();
@@ -41,10 +41,21 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,comp
     if(!verified.ok)throw new Error('MOVE_VERIFICATION_FAILED:'+verified.code);
     const today=dayKey();
     await completeMoveActivity({...evidence,dayKey:today});
-    const kinds:('FAMILY'|'SCHOOL')[]=quest.familyEligible?['FAMILY','SCHOOL']:['SCHOOL'];
-    void publishVerifiedMoveToGroups({
-      kinds,questId:quest.id,dayKey:today,
-    }).catch(()=>undefined);
+    if(supportsMoveServerVerification(quest.id)){
+      const activityType=quest.id==='move_walk_10'?'WALK':quest.id==='move_run_10'?'RUN':'BIKE';
+      await queueMoveServerVerification({
+        questId:quest.id,
+        dayKey:today,
+        durationSeconds:evidence.durationSeconds,
+        distanceMeters:Number(evidence.distanceMeters??0),
+        verificationScore:verified.score,
+        activityType,
+      });
+      const kinds:('FAMILY'|'SCHOOL')[]=quest.familyEligible?['FAMILY','SCHOOL']:['SCHOOL'];
+      void flushPendingMoveServerVerifications()
+        .then(()=>publishVerifiedMoveToGroups({kinds,questId:quest.id,dayKey:today}))
+        .catch(()=>undefined);
+    }
     onDone();
   }catch(e){
     setCompletionError(e instanceof Error?e.message:'MOVE verification failed.');
@@ -80,7 +91,7 @@ function QuestBody({quest,age,busy,setBusy,parentApproved,setParentApproved,comp
    <Text style={styles.buttonText}>{canFinish?'VERIFY & COMPLETE':'QUEST ACTIVE'}</Text>
   </Pressable>}
 
-  <Text style={styles.notice}>GPS działa tylko podczas otwartego ekranu tej misji. Wynik zapisuje się lokalnie. Ranking grupowy uznaje jedynie osobno zweryfikowane zdarzenia serwerowe; sama deklaracja z telefonu nie wystarcza.</Text>
+  <Text style={styles.notice}>GPS działa tylko podczas otwartego ekranu tej misji. Wynik zapisuje się lokalnie. WALK/RUN/BIKE zapisują bezpieczne podsumowanie do kolejki synchronizacji. Ranking grupowy uznaje dopiero zdarzenie zaakceptowane przez serwer; trasa GPS nie jest wysyłana.</Text>
   <Pressable onPress={onBack}><Text style={styles.back}>← SYSTEM MOVE</Text></Pressable>
  </View>;
 }
