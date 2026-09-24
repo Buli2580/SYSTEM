@@ -118,3 +118,45 @@ test('Anti-Cheat 2.0 hard-rejects mocked GPS and teleport',()=>{
  assert.equal(risk.action,'REJECT');
  assert.ok(risk.signals.some(x=>x.kind==='TELEPORT'||x.kind==='IMPOSSIBLE_SPEED'));
 });
+
+
+test('Planner recurrence respects DAILY, WEEKDAYS and selected WEEKLY weekday',()=>{
+ const {planBlockDue}=loader()('planning/storage');
+ const daily={id:'d',title:'Daily',time:'18:00',minutes:30,kind:'FOCUS',frequency:'DAILY'};
+ const weekdays={...daily,id:'wd',frequency:'WEEKDAYS'};
+ const weekly={...daily,id:'w',frequency:'WEEKLY',weekday:1};
+ const monday=new Date('2026-09-28T12:00:00');
+ const sunday=new Date('2026-09-27T12:00:00');
+ assert.equal(planBlockDue(daily,sunday),true);
+ assert.equal(planBlockDue(weekdays,monday),true);
+ assert.equal(planBlockDue(weekdays,sunday),false);
+ assert.equal(planBlockDue(weekly,monday),true);
+ assert.equal(planBlockDue(weekly,sunday),false);
+});
+
+test('MOVE Verified Event v3 is server validated and grants no REAL XP',()=>{
+ const migration=fs.readFileSync(path.join(root,'supabase/migrations/20260924113000_move_verified_event_v3.sql'),'utf8');
+ assert.match(migration,/submit_move_verified_event_v3/);
+ assert.match(migration,/MOVE_VERIFIED_EVENT/);
+ assert.match(migration,/IMPOSSIBLE_SPEED/);
+ assert.match(migration,/move_walk_10/);
+ assert.match(migration,/move_run_10/);
+ assert.match(migration,/move_bike_20/);
+ assert.doesNotMatch(migration,/insert into public\.reward_ledger/i);
+});
+
+test('MOVE completion persists server evidence before asynchronous group publish',()=>{
+ const source=fs.readFileSync(path.join(root,'src/system2/screens/MoveQuestScreen.tsx'),'utf8');
+ assert.match(source,/queueMoveServerVerification/);
+ assert.match(source,/flushPendingMoveServerVerifications/);
+ assert.match(source,/publishVerifiedMoveToGroups/);
+ const queueIndex=source.indexOf('await queueMoveServerVerification');
+ const publishIndex=source.indexOf('publishVerifiedMoveToGroups');
+ assert.ok(queueIndex>=0&&publishIndex>queueIndex);
+});
+
+test('School UI no longer claims its online backend is disconnected',()=>{
+ const source=fs.readFileSync(path.join(root,'src/system2/screens/MoveSchoolScreen.tsx'),'utf8');
+ assert.doesNotMatch(source,/NOT LINKED/);
+ assert.match(source,/ONLINE BACKEND READY/);
+});
