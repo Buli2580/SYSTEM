@@ -63,8 +63,8 @@ export default function SystemAmbientBackground({
 
   useFocusEffect(useCallback(()=>{
     if(motion.reduced){
-      far.value=.5;mid.value=.5;near.value=.5;scan.value=.5;pulse.value=.5;fire.value=.5;smoke.value=.5;embers.value=.5;energy.value=.5;lightning.value=0;shake.value=.5;
-      return()=>[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake].forEach(cancelAnimation);
+      far.value=.5;mid.value=.5;near.value=.5;scan.value=.5;pulse.value=.5;fire.value=.5;smoke.value=.5;embers.value=.5;energy.value=.5;lightning.value=0;shake.value=.5;bossPhase.value=.5;awakening.value=.5;
+      return()=>[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake,bossPhase,awakening].forEach(cancelAnimation);
     }
     far.value=withRepeat(withTiming(1,{duration:22000,easing:Easing.inOut(Easing.ease)}),-1,true);
     mid.value=withRepeat(withTiming(1,{duration:13500,easing:Easing.inOut(Easing.ease)}),-1,true);
@@ -79,8 +79,8 @@ export default function SystemAmbientBackground({
     shake.value=withRepeat(withTiming(1,{duration:1900,easing:Easing.inOut(Easing.ease)}),-1,true);
     bossPhase.value=withRepeat(withTiming(1,{duration:6400,easing:Easing.inOut(Easing.ease)}),-1,true);
     awakening.value=withRepeat(withTiming(1,{duration:4200,easing:Easing.inOut(Easing.ease)}),-1,true);
-    return()=>[far,mid,near,scan,pulse,fire,lightning,shake].forEach(cancelAnimation);
-  },[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake,motion.reduced]));
+    return()=>[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake,bossPhase,awakening].forEach(cancelAnimation);
+  },[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake,bossPhase,awakening,motion.reduced]));
 
   const farStyle=useAnimatedStyle(()=>({transform:[
     {translateX:interpolate(far.value,[0,1],[-7,10])},
@@ -187,12 +187,12 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
   const debris=useSharedValue(0);
   const collapse=useSharedValue(0);
   useFocusEffect(useCallback(()=>{
-    if(reduced){attack.value=.55;debris.value=.45;return()=>{cancelAnimation(attack);cancelAnimation(debris)}}
+    if(reduced){attack.value=.55;debris.value=.45;collapse.value=.35;return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse)}}
     attack.value=withRepeat(withTiming(1,{duration:1850,easing:Easing.inOut(Easing.ease)}),-1,true);
     debris.value=withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
     collapse.value=withRepeat(withTiming(1,{duration:5700,easing:Easing.inOut(Easing.ease)}),-1,true);
     return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse)};
-  },[attack,debris,reduced]));
+  },[attack,debris,collapse,reduced]));
   useFocusEffect(useCallback(()=>{
     if(reduced)return;
     let phase=0;
