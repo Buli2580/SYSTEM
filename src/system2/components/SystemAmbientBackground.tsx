@@ -185,11 +185,13 @@ function CinematicBackdrop({source,accent,strength,reduced}:{source:CinematicSou
 function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:number;reduced:boolean;threat:ThreatLevel}) {
   const attack=useSharedValue(0);
   const debris=useSharedValue(0);
+  const collapse=useSharedValue(0);
   useFocusEffect(useCallback(()=>{
     if(reduced){attack.value=.55;debris.value=.45;return()=>{cancelAnimation(attack);cancelAnimation(debris)}}
     attack.value=withRepeat(withTiming(1,{duration:1850,easing:Easing.inOut(Easing.ease)}),-1,true);
     debris.value=withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
-    return()=>{cancelAnimation(attack);cancelAnimation(debris)};
+    collapse.value=withRepeat(withTiming(1,{duration:5700,easing:Easing.inOut(Easing.ease)}),-1,true);
+    return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse)};
   },[attack,debris,reduced]));
   useFocusEffect(useCallback(()=>{
     if(reduced)return;
@@ -217,14 +219,15 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
     {translateY:interpolate(debris.value,[0,.35,1],[0,-28,72])},
     {rotate:interpolate(debris.value,[0,1],[0,160])+'deg'},
   ]}));
+  const collapseStyle=useAnimatedStyle(()=>({transform:[{translateY:interpolate(collapse.value,[0,.6,1],[0,0,28])},{rotate:interpolate(collapse.value,[0,1],[0,8])+'deg'}],opacity:interpolate(collapse.value,[0,.72,1],[1,.92,.48])}));
   const hitGlow=useAnimatedStyle(()=>({opacity:interpolate(attack.value,[0,.42,.58,1],[0,0,.52,0]),transform:[{scale:interpolate(attack.value,[0,.5,1],[.65,1.2,.8])}]}));
   const opacity=(threat>=2?.42:.29)*strength;
   return <View style={[styles.siege,{opacity}]}>
-    <View style={styles.damagedCity}>
+    <Animated.View style={[styles.damagedCity,collapseStyle]}>
       {[0,1,2,3,4].map(i=><View key={i} style={[styles.siegeBuilding,{left:percent(i*19),height:58+(i%3)*34,borderColor:accent,transform:[{rotate:(i===2?'-7deg':i===3?'5deg':'0deg')}]}]}>
         {i===2&&<View style={styles.buildingBite}/>}
       </View>)}
-    </View>
+    </Animated.View>
     <Animated.View style={[styles.ogre,ogre]}>
       <View style={[styles.ogreBack,{borderColor:accent}]}/>
       <View style={[styles.ogreHead,{borderColor:accent}]}>
