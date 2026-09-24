@@ -1,0 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+const KEY='system.telemetry.queue.v1';
+export type TelemetryEvent={event_type:string;user_id?:string;device_id?:string;event_properties?:Record<string,string|number|boolean>;time:number};
+export async function queueTelemetry(event:Omit<TelemetryEvent,'time'>){const raw=await AsyncStorage.getItem(KEY);let rows:TelemetryEvent[]=[];try{rows=raw?JSON.parse(raw):[]}catch{}rows.push({...event,time:Date.now()});await AsyncStorage.setItem(KEY,JSON.stringify(rows.slice(-200)));}
+export async function flushAmplitude(){const apiKey=process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY;if(!apiKey)return{sent:0,pending:true};const raw=await AsyncStorage.getItem(KEY);let events:TelemetryEvent[]=[];try{events=raw?JSON.parse(raw):[]}catch{}if(!events.length)return{sent:0,pending:false};const response=await fetch('https://api2.amplitude.com/2/httpapi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:apiKey,events})});if(!response.ok)return{sent:0,pending:true};await AsyncStorage.removeItem(KEY);return{sent:events.length,pending:false};}
