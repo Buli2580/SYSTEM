@@ -191,34 +191,43 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
   const collapse=useSharedValue(0);
   const lunge=useSharedValue(0);
   const stomp=useSharedValue(0);
+  const pattern=useSharedValue(0);
   useFocusEffect(useCallback(()=>{
-    if(reduced){attack.value=.55;debris.value=.45;collapse.value=.35;return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse)}}
+    if(reduced){attack.value=.55;debris.value=.45;collapse.value=.35;lunge.value=.2;stomp.value=.2;pattern.value=0;return()=>{[attack,debris,collapse,lunge,stomp,pattern].forEach(cancelAnimation)}}
     attack.value=withRepeat(withTiming(1,{duration:1850,easing:Easing.inOut(Easing.ease)}),-1,true);
     debris.value=withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
     collapse.value=withRepeat(withTiming(1,{duration:5700,easing:Easing.inOut(Easing.ease)}),-1,true);
     lunge.value=withRepeat(withTiming(1,{duration:4300,easing:Easing.inOut(Easing.ease)}),-1,true);
     stomp.value=withRepeat(withTiming(1,{duration:3200,easing:Easing.inOut(Easing.ease)}),-1,true);
-    return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse);cancelAnimation(lunge);cancelAnimation(stomp)};
+    return()=>{[attack,debris,collapse,lunge,stomp,pattern].forEach(cancelAnimation)};
   },[attack,debris,collapse,lunge,stomp,reduced]));
   useFocusEffect(useCallback(()=>{
     if(reduced)return;
     let phase=0;
-    const timer=setInterval(()=>{
-      phase=(phase+1)%4;
-      if(phase===0)triggerCinematicEvent('OGRE_STEP');
-      else if(phase===1){triggerCinematicEvent('BUILDING_HIT');triggerCinematicEvent('BASS_IMPACT')}
-      else if(phase===2)triggerCinematicEvent('DEBRIS');
-      else if(threat>=2)triggerCinematicEvent('OGRE_ROAR');
-      if(threat>=2&&phase===0&&Math.floor(Date.now()/1900)%3===0)triggerCinematicEvent('THUNDER');
-    },1900);
-    return()=>clearInterval(timer);
+    const delays=[1700,2350,1450,3100,2050,2700];
+    let timer:ReturnType<typeof setTimeout>;
+    const run=()=>{
+      phase=(phase+1)%8;
+      pattern.value=withTiming(phase%4,{duration:260});
+      if(phase===0){triggerCinematicEvent('OGRE_STEP');stomp.value=withSequence(withTiming(1,{duration:260}),withTiming(0,{duration:720}))}
+      else if(phase===1){triggerCinematicEvent('BUILDING_HIT');triggerCinematicEvent('BASS_IMPACT');attack.value=withSequence(withTiming(1,{duration:320}),withTiming(0,{duration:760}))}
+      else if(phase===2){triggerCinematicEvent('DEBRIS');collapse.value=withSequence(withTiming(1,{duration:650}),withTiming(.25,{duration:1800}))}
+      else if(phase===3&&threat>=2){triggerCinematicEvent('OGRE_ROAR');lunge.value=withSequence(withTiming(1,{duration:520}),withTiming(0,{duration:900}))}
+      else if(phase===4){triggerCinematicEvent('OGRE_STEP');triggerCinematicEvent('DEBRIS');stomp.value=withSequence(withTiming(1,{duration:180}),withTiming(0,{duration:520}))}
+      else if(phase===5){triggerCinematicEvent('BUILDING_HIT');attack.value=withSequence(withTiming(.7,{duration:240}),withTiming(0,{duration:420}),withTiming(1,{duration:210}),withTiming(0,{duration:620}))}
+      else if(phase===6&&threat>=2){triggerCinematicEvent('THUNDER');triggerCinematicEvent('OGRE_ROAR')}
+      else {triggerCinematicEvent('DEBRIS');triggerCinematicEvent('BASS_IMPACT')}
+      timer=setTimeout(run,delays[phase%delays.length]);
+    };
+    timer=setTimeout(run,900);
+    return()=>clearTimeout(timer);
   },[reduced,threat]));
   const ogre=useAnimatedStyle(()=>({transform:[
     {scale:interpolate(stomp.value,[0,.45,.55,1],[1,1.025,.97,1])},
     {translateX:interpolate(lunge.value,[0,.5,1],[0,12,0])},
     {translateX:interpolate(attack.value,[0,1],[-8,5])},
     {translateY:interpolate(attack.value,[0,.5,1],[3,-5,3])},
-    {rotate:interpolate(attack.value,[0,1],[-2,3])+'deg'},
+    {rotate:(interpolate(attack.value,[0,1],[-2,3])+interpolate(pattern.value,[0,1,2,3],[0,-2,2,0]))+'deg'},
   ]}));
   const arm=useAnimatedStyle(()=>({transform:[
     {rotate:interpolate(attack.value,[0,.55,1],[-34,28,-34])+'deg'},
