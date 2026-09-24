@@ -19,6 +19,7 @@ const fades=new Map<AudioPlayer,ReturnType<typeof setInterval>>();
 
 const musicSources:Partial<Record<MusicCue,any>>=LEGACY_AUDIO_FALLBACKS.music;
 const sfxSources:Partial<Record<SfxCue,any>>=LEGACY_AUDIO_FALLBACKS.sfx;
+const cinematicSources=LEGACY_AUDIO_FALLBACKS.cinematic;
 
 function stopPlayer(player:AudioPlayer|null){if(!player)return;clearFade(player);try{player.remove()}catch{}}
 function spawn(source:any,volume:number,loop=false){
@@ -130,4 +131,15 @@ export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
   const player=spawn(source,Math.min(1,volume*mix.sfx),false);
   cinematicEventPlayers.add(player);
   setTimeout(()=>{cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
+}
+
+export function applyCinematicPreset(preset:'CITY'|'RUINS'|'WORLD'|'BOSS'|'AWAKENING'){
+  stopCinematicAudio();
+  const layers:CinematicLayer[]=preset==='BOSS'?['CITY_RUINS','FIRE','WIND','STORM']:preset==='AWAKENING'?['WIND','PORTAL_ENERGY']:preset==='WORLD'?['WIND','RAIN']:preset==='RUINS'?['CITY_RUINS','FIRE','WIND']:['CITY_RUINS','WIND'];
+  for(const layer of layers){const asset=cinematicSources.layers[layer];if(asset)setCinematicLayer(layer,asset.source,asset.volume)}
+  const event=preset==='BOSS'?'BOSS_ENTER':preset==='AWAKENING'?'AWAKENING_ENTER':null;
+  if(event){const asset=cinematicSources.events[event];playCinematicEvent(event,asset.source,asset.volume)}
+}
+export function triggerCinematicEvent(event:CinematicEvent){
+  const asset=cinematicSources.events[event];if(asset)playCinematicEvent(event,asset.source,asset.volume);
 }
