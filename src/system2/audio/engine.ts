@@ -3,7 +3,7 @@ import { LEGACY_AUDIO_FALLBACKS } from './manifest';
 
 export type AudioBus='music'|'ambient'|'sfx';
 export type MusicCue='HOME'|'WORLD'|'QUEST'|'ACTIVE_QUEST'|'BOSS'|'VICTORY'|'AWAKENING';
-export type SfxCue='UI_TAP'|'SCAN'|'QUEST_START'|'VERIFY'|'REWARD'|'LEVEL_UP'|'RANK_UP'|'PORTAL'|'BOSS_HIT'|'ERROR';
+export type SfxCue='UI_TAP'|'SCAN'|'QUEST_START'|'VERIFY'|'REWARD'|'XP'|'LEVEL_UP'|'RANK_UP'|'PORTAL'|'BOSS_HIT'|'ERROR';
 
 type Mix={enabled:boolean;music:number;ambient:number;sfx:number};
 let mix:Mix={enabled:false,music:.8,ambient:.55,sfx:.9};
