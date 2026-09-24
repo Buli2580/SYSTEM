@@ -18,6 +18,7 @@ import AudioEnableAction from '../components/AudioEnableAction';
 import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
 import {calculateAge} from '../identity/age';
 import {capturePrivateQuestPhoto,removePrivateQuestPhoto,purgeStalePrivateQuestPhotos} from '../quests/privatePhoto';
+import {queueTelemetry} from '../telemetry/amplitude';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const photoActiveRef = useRef(false);
   const photoBusyRef = useRef(false);
   const questStatusRef = useRef(status);
+  const telemetryStatusRef = useRef<string | null>(null);
   questStatusRef.current = status;
 
   useFocusEffect(useCallback(() => {
@@ -123,6 +125,19 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     }
     router.replace(nextAction.route);
   };
+
+  useEffect(()=>{
+    if(telemetryStatusRef.current===status)return;
+    telemetryStatusRef.current=status;
+    const props={questId:quest.id,category:quest.category,difficulty:quest.difficulty};
+    if(status==='READY')void queueTelemetry({event_type:'QUEST_BRIEFING_VIEW',event_properties:props});
+    else if(status==='TRACKING')void queueTelemetry({event_type:'QUEST_START',event_properties:props});
+    else if(status==='COMPLETING')void queueTelemetry({event_type:'VERIFY_START',event_properties:props});
+    else if(status==='COMPLETED'){
+      void queueTelemetry({event_type:'VERIFY_SUCCESS',event_properties:props});
+      void queueTelemetry({event_type:'QUEST_COMPLETE',event_properties:props});
+    }else if(status==='ERROR'||status==='DENIED')void queueTelemetry({event_type:'VERIFY_FAIL',event_properties:{...props,status}});
+  },[status,quest.id,quest.category,quest.difficulty]);
 
   useEffect(() => {
     if (!questAccepted) return;
