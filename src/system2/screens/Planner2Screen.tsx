@@ -11,6 +11,7 @@ import {addCustomPlanBlock,loadCustomPlanBlocks,removeCustomPlanBlock,type Custo
 import {getQuest} from '../quests/catalog';
 import {smartNotificationDecision} from '../notifications/smart2';
 import {dayKey} from '../daily/calendar';
+import {clearPlannerBlockReminders,requestPlannerReminderPermission,syncPlannerBlockReminders} from '../notifications/planner2';
 
 export default function Planner2Screen(){
  const x=useSystem();
@@ -31,6 +32,7 @@ export default function Planner2Screen(){
   return [...auto,...custom].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
  },[day,x.daily?.dayKey,habits,blocks]);
  const decision=smartNotificationDecision({streak:x.player.streak,weeklyCompleted:x.daily?.weeklyCompleted,weeklyTarget:5,bossHp:x.story?.bossHp});
+ const[plannerNotice,setPlannerNotice]=useState<string>('NOT SCHEDULED');
 
  async function mutate(task:()=>Promise<void>){if(busy)return;setBusy(true);setError(null);try{await task()}catch(e){setError(e instanceof Error?e.message:'Planner: operacja nie powiodła się.')}finally{setBusy(false)}}
  async function done(h:Habit){const next=habits.map(row=>row.id===h.id?completeHabit(row,day):row);setHabits(await saveHabits(next));}
@@ -40,6 +42,10 @@ export default function Planner2Screen(){
  return <SystemPage title="PLANNER 2.0" subtitle="CALENDAR // HABITS // SMART NUDGES">
   {error&&<SystemError message={error} retry={()=>setError(null)} actionLabel="ZAMKNIJ"/>}
   <View style={s.panel}><Text style={s.label}>SMART NOTIFICATIONS // {decision.kind}</Text><Text style={s.title}>PRIORITY {decision.score}</Text><Text style={s.body}>{decision.reason}</Text></View>
+  <View style={s.panel}><Text style={s.label}>PLANNER REMINDERS // {plannerNotice}</Text><Text style={s.body}>Custom blocks mogą przypominać 10 minut przed startem przez najbliższe 7 dni.</Text>
+   <Action label="ZAPLANUJ PRZYPOMNIENIA 7 DNI" disabled={busy||blocks.length===0} onPress={()=>void mutate(async()=>{const granted=await requestPlannerReminderPermission();if(!granted)throw new Error('Brak zgody na powiadomienia.');const count=await syncPlannerBlockReminders(blocks,7,10);setPlannerNotice(count+' SCHEDULED');})}/>
+   <Action label="WYCZYŚĆ PRZYPOMNIENIA PLANNERA" disabled={busy} onPress={()=>void mutate(async()=>{const count=await clearPlannerBlockReminders();setPlannerNotice('CLEARED '+count);})}/>
+  </View>
 
   <View style={s.panel}><Text style={s.label}>TODAY PLAN // {day}</Text>
    {plan.length===0?<Text style={s.body}>Brak bloków na dziś.</Text>:plan.map(b=><View key={b.id} style={{marginTop:8}}><Text style={s.body}>{b.startsAt.slice(11,16)} · {b.kind} · {b.title} · {b.minutes} MIN</Text>{b.id.startsWith('plan-')&&<Action label="USUŃ BLOK" disabled={busy} onPress={()=>void mutate(async()=>setBlocks(await removeCustomPlanBlock(blocks,b.id)))}/>}</View>)}
