@@ -12,11 +12,12 @@ import SystemBoundary from '../system2/components/SystemBoundary';
 import AwakeningCelebration from '../system2/components/AwakeningCelebration';
 import RewardEventSequence from '../system2/components/RewardEventSequence';
 import LaunchGate from '../system2/components/LaunchGate';
+import {AnimationEngine4Provider} from '../system2/components/AnimationEngine4Provider';
 
 export default function RootLayout() {
   useEffect(()=>{void queueTelemetry({event_type:'APP_OPEN'}).then(()=>flushAmplitude()).catch(()=>undefined)},[]);
   return (
-    <SystemBoundary><SystemProvider>
+    <SystemBoundary><AnimationEngine4Provider><SystemProvider>
       <StatusBar style="light" />
 
       <Stack
@@ -34,6 +35,6 @@ export default function RootLayout() {
       <StoryNotice />
       <SessionGate />
       <LaunchGate />
-    </SystemProvider></SystemBoundary>
+    </SystemProvider></AnimationEngine4Provider></SystemBoundary>
   );
 }
