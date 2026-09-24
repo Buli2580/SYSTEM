@@ -13,6 +13,7 @@ import AwakeningCelebration from '../system2/components/AwakeningCelebration';
 import RewardEventSequence from '../system2/components/RewardEventSequence';
 import LaunchGate from '../system2/components/LaunchGate';
 import {AnimationEngine4Provider} from '../system2/components/AnimationEngine4Provider';
+import SystemRouteMotion from '../system2/components/SystemRouteMotion';
 
 export default function RootLayout() {
   useEffect(()=>{void queueTelemetry({event_type:'APP_OPEN'}).then(()=>flushAmplitude()).catch(()=>undefined)},[]);
@@ -21,13 +22,13 @@ export default function RootLayout() {
       <StatusBar style="light" />
 
       <Stack
-        screenLayout={({ children }) => <GameplayGate>{children}</GameplayGate>}
+        screenLayout={({ children }) => <SystemRouteMotion><GameplayGate>{children}</GameplayGate></SystemRouteMotion>}
         screenOptions={{
           headerShown: false,
           contentStyle: {
             backgroundColor: '#030709',
           },
-          animation: 'fade',
+          animation: 'none',
         }}
       />
       <AwakeningCelebration />
