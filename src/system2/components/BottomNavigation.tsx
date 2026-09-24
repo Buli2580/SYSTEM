@@ -1,191 +1,60 @@
-import {
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+import {useEffect} from 'react';
+import {Pressable,StyleSheet,Text,View} from 'react-native';
+import Animated,{Easing,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {usePathname,useRouter} from 'expo-router';
+import {SYSTEM_COLORS} from '../core';
+import {useAnimation4} from '../presentation/useAnimation4';
 
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePathname, useRouter } from 'expo-router';
-
-import { SYSTEM_COLORS } from '../core';
-
-export default function BottomNavigation() {
-  const insets = useSafeAreaInsets();
-  const pathname = usePathname();
-  const router = useRouter();
-
-  return (
-    <View
-      style={[
-        styles.root,
-        {
-          paddingBottom: Math.max(
-            insets.bottom,
-            8
-          ),
-        },
-      ]}
-    >
-      <NavItem
-        label="SYSTEM"
-        active={pathname === '/'}
-        onPress={() => router.replace('/')}
-        shape="diamond"
-      />
-
-      <NavItem
-        label="QUESTY"
-        active={pathname === '/quests'}
-        onPress={() => router.replace('/quests')}
-        shape="diamond"
-      />
-
-      <NavItem
-        label="POSTAĆ"
-        active={pathname === '/character' || pathname === '/system-log' || pathname === '/achievements'}
-        onPress={() => router.replace('/character')}
-        shape="diamond"
-      />
-
-      <NavItem
-        label="ŚWIAT"
-        active={pathname === '/world'}
-        onPress={() => router.replace('/world')}
-        shape="circle"
-      />
-
-      <NavItem
-        label="WIĘCEJ"
-        active={pathname === '/more'}
-        onPress={() => router.replace('/more')}
-        shape="dots"
-      />
-    </View>
-  );
+export default function BottomNavigation(){
+ const insets=useSafeAreaInsets();
+ const pathname=usePathname();
+ const router=useRouter();
+ return <View style={[styles.root,{paddingBottom:Math.max(insets.bottom,8)}]}>
+  <NavItem label="SYSTEM" active={pathname==='/'} onPress={()=>router.replace('/')} shape="diamond"/>
+  <NavItem label="QUESTY" active={pathname==='/quests'} onPress={()=>router.replace('/quests')} shape="diamond"/>
+  <NavItem label="POSTAĆ" active={pathname==='/character'||pathname==='/system-log'||pathname==='/achievements'} onPress={()=>router.replace('/character')} shape="diamond"/>
+  <NavItem label="ŚWIAT" active={pathname==='/world'} onPress={()=>router.replace('/world')} shape="circle"/>
+  <NavItem label="WIĘCEJ" active={pathname==='/more'} onPress={()=>router.replace('/more')} shape="dots"/>
+ </View>;
 }
 
-function NavItem({
-  label,
-  active = false,
-  shape,
-  onPress,
-  unavailable = false,
-}: {
-  label: string;
-  active?: boolean;
-  shape: 'diamond' | 'circle' | 'dots';
-  onPress?: () => void;
-  unavailable?: boolean;
-}) {
-  return (
-    <Pressable style={styles.item} onPress={onPress} disabled={unavailable}
-      accessibilityRole="button" accessibilityState={{ disabled: unavailable, selected: active }}
-      accessibilityLabel={label + (unavailable ? ' — wkrótce' : '')}>
-      {shape === 'diamond' && (
-        <View
-          style={[
-            styles.diamond,
-            active && styles.activeDiamond,
-          ]}
-        />
-      )}
-
-      {shape === 'circle' && (
-        <View style={[styles.circle, active && styles.activeDiamond]} />
-      )}
-
-      {shape === 'dots' && (
-        <View style={styles.dots}>
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
-      )}
-
-      <Text
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.78}
-        style={[
-          styles.label,
-          active && styles.activeLabel,
-        ]}
-      >
-        {label}
-      </Text>
-      {unavailable && <Text style={styles.soon}>WKRÓTCE</Text>}
-    </Pressable>
-  );
+function NavItem({label,active=false,shape,onPress,unavailable=false}:{
+ label:string;active?:boolean;shape:'diamond'|'circle'|'dots';onPress?:()=>void;unavailable?:boolean;
+}){
+ const motion=useAnimation4();
+ const scale=useSharedValue(active?motion.navActiveScale:1);
+ const opacity=useSharedValue(active?1:.78);
+ useEffect(()=>{
+  const nextScale=active?motion.navActiveScale:1;
+  const nextOpacity=active?1:.78;
+  scale.value=motion.reduced?nextScale:withTiming(nextScale,{duration:motion.duration('NAV'),easing:Easing.out(Easing.quad)});
+  opacity.value=motion.reduced?nextOpacity:withTiming(nextOpacity,{duration:motion.duration('NAV')});
+ },[active,motion.reduced,motion.navActiveScale,scale,opacity]);
+ const animated=useAnimatedStyle(()=>({transform:[{scale:scale.value}],opacity:opacity.value}));
+ return <Animated.View style={[styles.motionItem,animated]}>
+  <Pressable style={styles.item} onPress={onPress} disabled={unavailable}
+   accessibilityRole="button" accessibilityState={{disabled:unavailable,selected:active}}
+   accessibilityLabel={label+(unavailable?' — wkrótce':'')}>
+   {shape==='diamond'&&<View style={[styles.diamond,active&&styles.activeDiamond]}/>}
+   {shape==='circle'&&<View style={[styles.circle,active&&styles.activeDiamond]}/>}
+   {shape==='dots'&&<View style={styles.dots}><View style={[styles.dot,active&&styles.activeDot]}/><View style={[styles.dot,active&&styles.activeDot]}/><View style={[styles.dot,active&&styles.activeDot]}/></View>}
+   <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.78} style={[styles.label,active&&styles.activeLabel]}>{label}</Text>
+   {unavailable&&<Text style={styles.soon}>WKRÓTCE</Text>}
+  </Pressable>
+ </Animated.View>;
 }
-
-const styles = StyleSheet.create({
-  root: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    minHeight: 108,
-    borderTopWidth: 1,
-    borderTopColor: SYSTEM_COLORS.line,
-    backgroundColor: 'rgba(1,6,8,0.98)',
-    flexDirection: 'row',
-    paddingTop: 17,
-  },
-
-  item: {
-    flex: 1,
-    alignItems: 'center',
-    minHeight: 54,
-    minWidth: 0,
-  },
-
-  diamond: {
-    width: 22,
-    height: 22,
-    borderWidth: 1,
-    borderColor: SYSTEM_COLORS.textVeryMuted,
-    transform: [{ rotate: '45deg' }],
-    marginBottom: 14,
-  },
-
-  activeDiamond: {
-    backgroundColor: SYSTEM_COLORS.cyan,
-    borderColor: SYSTEM_COLORS.cyan,
-  },
-
-  circle: {
-    width: 23,
-    height: 23,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: SYSTEM_COLORS.textVeryMuted,
-    marginBottom: 13,
-  },
-
-  dots: {
-    flexDirection: 'row',
-    gap: 7,
-    height: 23,
-    alignItems: 'center',
-    marginBottom: 13,
-  },
-
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: SYSTEM_COLORS.textVeryMuted,
-  },
-
-  label: {
-    color: SYSTEM_COLORS.textVeryMuted,
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    textAlign: 'center',
-    maxWidth: '94%',
-  },
-
-  activeLabel: {
-    color: SYSTEM_COLORS.cyan,
-  },
-  soon: { color: SYSTEM_COLORS.textMuted, fontSize: 6, marginTop: 5, letterSpacing: 1 },
+const styles=StyleSheet.create({
+ root:{position:'absolute',left:0,right:0,bottom:0,minHeight:108,borderTopWidth:1,borderTopColor:SYSTEM_COLORS.line,backgroundColor:'rgba(1,6,8,0.98)',flexDirection:'row',paddingTop:17},
+ motionItem:{flex:1},
+ item:{alignItems:'center',minHeight:54,minWidth:0},
+ diamond:{width:22,height:22,borderWidth:1,borderColor:SYSTEM_COLORS.textVeryMuted,transform:[{rotate:'45deg'}],marginBottom:14},
+ activeDiamond:{backgroundColor:SYSTEM_COLORS.cyan,borderColor:SYSTEM_COLORS.cyan},
+ circle:{width:23,height:23,borderRadius:12,borderWidth:1,borderColor:SYSTEM_COLORS.textVeryMuted,marginBottom:13},
+ dots:{flexDirection:'row',gap:7,height:23,alignItems:'center',marginBottom:13},
+ dot:{width:6,height:6,borderRadius:3,backgroundColor:SYSTEM_COLORS.textVeryMuted},
+ activeDot:{backgroundColor:SYSTEM_COLORS.cyan},
+ label:{color:SYSTEM_COLORS.textVeryMuted,fontSize:8,fontWeight:'900',letterSpacing:.8,textAlign:'center',maxWidth:'94%'},
+ activeLabel:{color:SYSTEM_COLORS.cyan},
+ soon:{color:SYSTEM_COLORS.textMuted,fontSize:6,marginTop:5,letterSpacing:1},
 });
