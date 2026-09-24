@@ -7,7 +7,7 @@ import {SYSTEM_COLORS as C} from '../core';
 import {useSystem} from '../state/SystemProvider';
 import {loadMoveState} from '../storage/database';
 import type {MoveState} from '../move/state';
-import {WEEKEND_FAMILY_QUESTS,familyBossDamage} from '../move/family';
+import {familyBossDamage} from '../move/family';
 import {MOVE_QUESTS} from '../move/catalog';
 import {moveAgeMode,moveAgeLabel} from '../move/age';
 import {moveSafetyPolicy} from '../move/safety';
@@ -36,20 +36,13 @@ export default function MoveFamilyScreen(){
    <View style={styles.panel}>
     <Text style={styles.label}>FAMILY STATUS</Text>
     <Text style={styles.big}>{familyMinutes} MIN</Text>
-    <Text style={styles.body}>ZWERYFIKOWANE MINUTY FAMILY // OSTATNIE 7 DNI</Text>
-    <Text style={styles.reward}>BOSS DAMAGE PREVIEW // {previewDamage}</Text>
+    <Text style={styles.body}>LOCAL FAMILY MINUTES // OSTATNIE 7 DNI</Text>
+    <Text style={styles.reward}>LOCAL BOSS DAMAGE PREVIEW // {previewDamage}</Text>
     <Text style={styles.body}>Tryb wieku gracza: {moveAgeLabel(ageMode)} · Parent approval: {policy.parentApprovalRequired?'REQUIRED':'OPTIONAL'}</Text>
    </View>
 
    <Text style={styles.section}>FAMILY 2.0 // CO-OP MISSIONS</Text>
    {FAMILY_MISSIONS_2.map(m=><Pressable key={m.id} onPress={()=>router.push({pathname:'/move-quest',params:{questId:m.questId}})} style={styles.quest}><Text style={styles.label}>{m.mode} // {m.verification}</Text><Text style={styles.questTitle}>{m.title}</Text><Text style={styles.body}>{m.minutes} MIN · {m.participants} PARTICIPANTS · wynik rodzinny bez publicznej lokalizacji.</Text><Text style={styles.reward}>START CANONICAL MOVE QUEST →</Text></Pressable>)}
-   <Text style={styles.section}>FAMILY WEEKEND QUESTS</Text>
-   {WEEKEND_FAMILY_QUESTS.map(q=><Pressable key={q.id} onPress={()=>router.push({pathname:'/move-family-quest',params:{questId:q.id}})} style={styles.quest}>
-    <Text style={styles.label}>{q.title}</Text>
-    <Text style={styles.questTitle}>{q.minutes} MIN // MIN. {q.memberGoal} OSOBY</Text>
-    <Text style={styles.body}>Wymagana bezpieczna przestrzeń i potwierdzenie opiekuna po zakończeniu.</Text>
-   </Pressable>)}
-
    <MoveCloudGroupPanel kind="FAMILY"/>
    <View style={styles.safe}><Text style={styles.label}>FAMILY SAFETY</Text><Text style={styles.body}>PRECISE LOCATION PUBLIC: OFF · BODY RANKING: OFF · MINOR DM: OFF · FAMILY RESULT: CONTRIBUTION ONLY</Text></View>
    <Pressable onPress={()=>router.replace('/move')}><Text style={styles.back}>← SYSTEM MOVE</Text></Pressable>
