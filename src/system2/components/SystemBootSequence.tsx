@@ -5,12 +5,14 @@ import SystemAmbientBackground from './SystemAmbientBackground';
 import {launchBeats,launchDuration,launchVariant,type LaunchVariant} from '../launch/engine';
 import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
 import type {PlayerProfile} from '../core/types';
+import {useAnimationEngine4} from './AnimationEngine4Provider';
 
 export default function SystemBootSequence({
   visible,onComplete,player,firstRun=false,variant,
 }:{
   visible:boolean;onComplete?:()=>void;player?:PlayerProfile|null;firstRun?:boolean;variant?:LaunchVariant;
 }){
+  const motion=useAnimationEngine4();
   const resolved=variant??launchVariant(player,firstRun);
   const beats=useMemo(()=>launchBeats(resolved),[resolved]);
   const [beat,setBeat]=useState(0);
@@ -27,19 +29,21 @@ export default function SystemBootSequence({
   useEffect(()=>{
     if(!visible)return;
     finished.current=false;
-    setBeat(0);
-    setCanSkip(false);
-    pulse.value=withRepeat(withTiming(1,{duration:1700,easing:Easing.inOut(Easing.ease)}),-1,true);
-    sweep.value=withRepeat(withTiming(1,{duration:2800,easing:Easing.linear}),-1,false);
+    setBeat(motion.reducedMotion?Math.max(0,beats.length-1):0);
+    setCanSkip(motion.reducedMotion);
+    if(!motion.reducedMotion){
+      pulse.value=withRepeat(withTiming(1,{duration:motion.profile('hero').ambientPulseMs,easing:Easing.inOut(Easing.ease)}),-1,true);
+      sweep.value=withRepeat(withTiming(1,{duration:motion.profile('hero').scanDuration,easing:Easing.linear}),-1,false);
+    }
     playAudioTheme(resolved==='FIRST_AWAKENING'?'AWAKENING':'HOME');
     playFeedback('SCAN');
-    const timers=beats.slice(1).map((item,index)=>setTimeout(()=>{
+    const timers=motion.reducedMotion?[]:beats.slice(1).map((item,index)=>setTimeout(()=>{
       setBeat(index+1);
       if(item.impact==='HIGH')playFeedback('PORTAL');
       else if(item.impact==='MEDIUM')playFeedback('SCAN');
     },item.at));
-    const skip=setTimeout(()=>setCanSkip(true),1300);
-    const end=setTimeout(finish,launchDuration(resolved));
+    const skip=setTimeout(()=>setCanSkip(true),motion.reducedMotion?0:1300);
+    const end=setTimeout(finish,motion.reducedMotion?650:launchDuration(resolved));
     return()=>{
       timers.forEach(clearTimeout);
       clearTimeout(skip);
@@ -48,7 +52,7 @@ export default function SystemBootSequence({
       cancelAnimation(sweep);
       stopAudioTheme();
     };
-  },[visible,resolved,beats,finish,pulse,sweep]);
+  },[visible,resolved,beats,finish,pulse,sweep,motion]);
 
   const haloStyle=useAnimatedStyle(()=>({
     opacity:interpolate(pulse.value,[0,1],[.22,.72]),
@@ -65,7 +69,7 @@ export default function SystemBootSequence({
   const threat=resolved==='ASCENDED'?3:resolved==='VETERAN'?2:1;
   const progress=(beat+1)/Math.max(1,beats.length);
   const cinematic=resolved==='FIRST_AWAKENING';
-  return <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(380)} style={styles.root}>
+  return <Animated.View entering={FadeIn.duration(motion.duration('fast'))} exiting={FadeOut.duration(motion.duration('normal'))} style={styles.root}>
     <SystemAmbientBackground intensity="hero" screen="LAUNCH" level={player?.realLevel??1} threat={threat} scene={current?.phase==='AWAKENING'?'PORTAL':undefined}/>
     <View style={styles.vignette}/>
     <Text style={styles.topline}>SYSTEM // {cinematic?'AWAKENING PROTOCOL':'CONNECTION RESTORED'}</Text>
@@ -74,11 +78,11 @@ export default function SystemBootSequence({
       <Animated.View style={[styles.haloOuter,haloStyle]}/>
       <Animated.View style={[styles.haloInner,haloStyle]}/>
       <Animated.View style={[styles.scanBeam,beamStyle]}/>
-      <Animated.View entering={ZoomIn.duration(750)} exiting={ZoomOut.duration(280)} style={[styles.logoOuter,resolved==='ASCENDED'&&styles.logoAscended]}>
+      <Animated.View entering={ZoomIn.duration(motion.duration('hero'))} exiting={ZoomOut.duration(motion.duration('fast'))} style={[styles.logoOuter,resolved==='ASCENDED'&&styles.logoAscended]}>
         <View style={styles.logoInner}><View style={styles.logoCore}/></View>
       </Animated.View>
     </View>
-    <Animated.Text key={text} entering={FadeIn.duration(420)} exiting={FadeOut.duration(140)} style={styles.signal}>{text}</Animated.Text>
+    <Animated.Text key={text} entering={FadeIn.duration(motion.duration('normal'))} exiting={FadeOut.duration(motion.duration('micro'))} style={styles.signal}>{text}</Animated.Text>
     <Text style={styles.system}>SYSTEM</Text>
     <Text style={styles.meta}>{resolved.replaceAll('_',' ')} // {player?'LV.'+player.realLevel+' · RANK '+player.rank:'ORIGIN SIGNAL'}</Text>
     {cinematic&&<Text style={styles.directive}>TWOJE ŻYCIE. TWOJE ZADANIA. TWÓJ POSTĘP.</Text>}
