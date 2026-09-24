@@ -9,23 +9,25 @@ import { useSystem } from '../state/SystemProvider';
 import BottomNavigation from './BottomNavigation';
 import SystemAmbientBackground from './SystemAmbientBackground';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
+import type { AwakeningCinematicState, BossCinematicState } from '../audio/engine';
 import {useAnimationEngine4} from './AnimationEngine4Provider';
 import SystemMotionLayer from './SystemMotionLayer';
 
 export default function SystemPage({
   title,subtitle,children,intensity='quiet',showNavigation=true,
-  screen='HOME',scene,threat=0,weather='CLEAR',
+  screen='HOME',scene,threat=0,weather='CLEAR',bossState,awakeningState,
 }:{
   title:string;subtitle:string;children:ReactNode;
   intensity?:'quiet'|'default'|'hero'|'world';
   showNavigation?:boolean;
   screen?:ScreenMood;scene?:WorldSceneId;threat?:ThreatLevel;weather?:WorldWeather;
+  bossState?:BossCinematicState;awakeningState?:AwakeningCinematicState;
 }) {
   const insets=useSafeAreaInsets();
   const {ready,error,refreshPlayer,player}=useSystem();
   const motion=useAnimationEngine4();
   return <SystemScreen style={styles.root}>
-    <SystemAmbientBackground intensity={intensity} screen={screen} scene={scene} threat={threat} weather={weather} level={player.realLevel}/>
+    <SystemAmbientBackground intensity={intensity} screen={screen} scene={scene} threat={threat} weather={weather} level={player.realLevel} bossState={bossState} awakeningState={awakeningState}/>
     <SystemMotionLayer intensity={intensity}/>
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content,{paddingTop:20,paddingBottom:(showNavigation?150:44)+insets.bottom}]}>
       <Animated.View entering={motion.reducedMotion?undefined:FadeInDown.duration(motion.duration('normal'))} style={styles.headerScrim}>
