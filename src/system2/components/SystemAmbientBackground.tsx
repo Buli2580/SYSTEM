@@ -16,6 +16,7 @@ const percent = (value: number): `${number}%` => `${value}%`;
 import { chooseScene, normalizedSceneContext } from '../visual/engine';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
 import {useAnimation4} from '../presentation/useAnimation4';
+import {triggerCinematicEvent} from '../audio/engine';
 
 type Intensity = 'quiet' | 'default' | 'hero' | 'world';
 export type CinematicSource = number | {uri:string};
@@ -182,6 +183,18 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
     debris.value=withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
     return()=>{cancelAnimation(attack);cancelAnimation(debris)};
   },[attack,debris,reduced]));
+  useFocusEffect(useCallback(()=>{
+    if(reduced)return;
+    let phase=0;
+    const timer=setInterval(()=>{
+      phase=(phase+1)%4;
+      if(phase===0)triggerCinematicEvent('OGRE_STEP');
+      else if(phase===1){triggerCinematicEvent('BUILDING_HIT');triggerCinematicEvent('BASS_IMPACT')}
+      else if(phase===2)triggerCinematicEvent('DEBRIS');
+      else if(threat>=2)triggerCinematicEvent('OGRE_ROAR');
+    },1900);
+    return()=>clearInterval(timer);
+  },[reduced,threat]));
   const ogre=useAnimatedStyle(()=>({transform:[
     {translateX:interpolate(attack.value,[0,1],[-8,5])},
     {translateY:interpolate(attack.value,[0,.5,1],[3,-5,3])},
