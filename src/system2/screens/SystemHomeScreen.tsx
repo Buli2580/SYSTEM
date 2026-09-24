@@ -171,7 +171,7 @@ export default function SystemHomeScreen() {
 
   return (
     <SystemScreen style={styles.root}>
-      <SystemAmbientBackground intensity="hero" screen="HOME" scene={worldUnlocked?"CITY":"RUINS"} threat={worldUnlocked?1:0} level={player.realLevel} />
+      <SystemAmbientBackground intensity="hero" screen="HOME" scene={worldUnlocked?"CITY":"RUINS"} threat={worldUnlocked?1:0} weather={worldUnlocked?"STORM":"FOG"} level={player.realLevel} />
       <SystemAudioScene cue="HOME" />
 
       <ScrollView
