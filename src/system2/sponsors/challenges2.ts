@@ -1,0 +1,3 @@
+export type SponsorChallenge2={id:string;sponsor:string;title:string;description:string;metric:'QUESTS'|'MOVE_MINUTES'|'STREAK';target:number;startsAt:string;endsAt:string;rewardLabel:string;requiresPremium:boolean};
+export function sponsorChallengeActive(c:SponsorChallenge2,now=Date.now()){return now>=Date.parse(c.startsAt)&&now<Date.parse(c.endsAt);}
+export function sponsorProgress(c:SponsorChallenge2,value:number){return Math.max(0,Math.min(100,Math.round(value/c.target*100)));}
