@@ -30,11 +30,11 @@ export default function GuildsScreen(){
   finally{lock.current=false;if(mounted.current&&request===epoch.current)setBusy(false);}
  }
  async function war(opponentId:string){
-  if(lock.current)return;lock.current=true;
+  if(lock.current)return;lock.current=true;const request=++epoch.current;
   if(mounted.current){setBusy(true);setError(null);}
-  try{await createGuildWar(opponentId,72);const id=++epoch.current;await fetchRows(id);}
-  catch(e){if(mounted.current)setError(e instanceof Error?e.message:'GUILD_WAR_FAILED');}
-  finally{lock.current=false;if(mounted.current)setBusy(false);}
+  try{await createGuildWar(opponentId,72);await fetchRows(request);}
+  catch(e){if(mounted.current&&request===epoch.current)setError(e instanceof Error?e.message:'GUILD_WAR_FAILED');}
+  finally{lock.current=false;if(mounted.current&&request===epoch.current)setBusy(false);}
  }
 
  return <SystemPage title="GILDIE" subtitle="SYSTEM ONLINE // TEAMS" screen="WORLD" scene="CITY" threat={2} weather="RAIN" intensity="world">
