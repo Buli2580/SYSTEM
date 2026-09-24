@@ -23,7 +23,7 @@ export default function CombatImpactOverlay({
     playFeedback('BOSS_HIT');
     const timers=motion.reducedMotion?[]:beats.slice(1).map((beat,i)=>setTimeout(()=>setIndex(i+1),beat.at));
     if(motion.reducedMotion)setIndex(Math.max(0,beats.length-1));
-    const total=motion.reducedMotion?850:Math.max(...beats.map(b=>b.at+b.duration),2600);
+    const total=motion.reducedMotion?1600:Math.max(...beats.map(b=>b.at+b.duration),2600);
     const end=setTimeout(onDismiss,total);
     return()=>{timers.forEach(clearTimeout);clearTimeout(end)};
   },[beats,onDismiss,motion.reducedMotion]);
