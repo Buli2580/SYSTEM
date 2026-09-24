@@ -203,6 +203,7 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
   const lunge=useSharedValue(0);
   const stomp=useSharedValue(0);
   const pattern=useSharedValue(0);
+  const stompWaveStyle=useAnimatedStyle(()=>({opacity:interpolate(stomp.value,[0,.48,.58,1],[0,0,.45,0]),transform:[{scale:interpolate(stomp.value,[0,.5,1],[.4,.65,1.8])}]}));
   useFocusEffect(useCallback(()=>{
     if(reduced){attack.value=.55;debris.value=.45;collapse.value=.35;lunge.value=.2;stomp.value=.2;pattern.value=0;return()=>{[attack,debris,collapse,lunge,stomp,pattern].forEach(cancelAnimation)}}
     attack.value=0;debris.value=0;collapse.value=0;lunge.value=0;stomp.value=0;pattern.value=0;
@@ -263,7 +264,7 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
       <View style={[styles.ogreHornL,{borderColor:accent}]}/><View style={[styles.ogreHornR,{borderColor:accent}]}/>
       <Animated.View style={[styles.ogreArm,{borderColor:accent},arm]}/><View style={[styles.ogreArmRear,{borderColor:accent}]}/>
     </Animated.View>
-    <Animated.View style={[styles.stompWave,{borderColor:accent},useAnimatedStyle(()=>({opacity:interpolate(stomp.value,[0,.48,.58,1],[0,0,.45,0]),transform:[{scale:interpolate(stomp.value,[0,.5,1],[.4,.65,1.8])}]}))]} />
+    <Animated.View style={[styles.stompWave,{borderColor:accent},stompWaveStyle]} />
     <Animated.View style={[styles.hitGlow,{backgroundColor:accent,shadowColor:accent},hitGlow]}/>
     {[0,1,2,3,4,5].map(i=><Animated.View key={i} style={[styles.debris,{left:percent(54+(i%3)*6),top:percent(50+(i%2)*5),borderColor:accent},debrisStyle]}/>)}
   </View>;
