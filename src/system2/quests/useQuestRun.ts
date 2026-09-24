@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import type { RunnableQuest, QuestEvidence } from './types';
 import { createFocusTimer } from '../verification/timer';
 import { distanceBetween, isUsableLocation, verifiedSegment, verificationScoreForAccuracy } from '../verification/gps';
+import {EMPTY_GPS_RISK,inspectGpsRisk,mergeRiskSnapshots,type GpsRiskSnapshot} from '../verification/sessionRisk';
 import { getQuestAccess, recordActivityAttempt, beginQuestAttempt, endQuestAttempt, loadQuestCheckpoint, saveQuestCheckpoint, clearQuestCheckpoint, loadBackgroundQuestSession, type QuestCheckpoint } from '../storage/database';
 import { buildEvidence } from '../verification/evidence';
 import { useSystem } from '../state/SystemProvider';
@@ -55,6 +56,8 @@ export function useQuestRun(quest: RunnableQuest) {
   const startupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backgroundHandoffRef = useRef(false);
   const backgroundSessionActiveRef = useRef(false);
+  const riskRef = useRef<GpsRiskSnapshot>(EMPTY_GPS_RISK);
+  const [antiCheatRisk,setAntiCheatRisk]=useState<GpsRiskSnapshot>(EMPTY_GPS_RISK);
 
   const activityWindow = useRef<ReturnType<typeof createActivityWindow> | null>(null);
   const activityBaseRef = useRef<ActivityFeatures | null>(null);
@@ -368,6 +371,16 @@ export function useQuestRun(quest: RunnableQuest) {
   function processLocation(location: Location.LocationObject, session: number) {
     if (!focusedRef.current || session !== sessionRef.current || !trackingActiveRef.current ||
         !['STARTING', 'TRACKING'].includes(statusRef.current)) return;
+    const risk = inspectGpsRisk(lastPointRef.current, location);
+    riskRef.current = mergeRiskSnapshots(riskRef.current, risk);
+    setAntiCheatRisk(riskRef.current);
+    if (riskRef.current.action === 'REJECT') {
+      lastPointRef.current = null;
+      fail('ANTI-CHEAT 2.0 zatrzymał pomiar: wykryto niewiarygodny sygnał GPS lub anomalię czasu.', false, 'SUSPICIOUS', 'VERIFICATION_REJECTED');
+      return;
+    }
+    if (riskRef.current.action === 'REVIEW') scoreRef.current = Math.min(scoreRef.current, 60);
+    else if (riskRef.current.action === 'DOWNGRADE') scoreRef.current = Math.min(scoreRef.current, 75);
     setAccuracy(location.coords.accuracy);
     if (quest.activityType && activityWindow.current) {
       const window = activityWindow.current;
@@ -453,6 +466,8 @@ export function useQuestRun(quest: RunnableQuest) {
     const checkpoint = quest.verification.type === 'TIMER' ? null : checkpointRef.current;
     distanceRef.current = checkpoint?.distanceMeters ?? 0;
     scoreRef.current = checkpoint?.verificationScore ?? 100;
+    riskRef.current = EMPTY_GPS_RISK;
+    setAntiCheatRisk(EMPTY_GPS_RISK);
     startTimeRef.current = null; trackingSince.current = null;
     activityBaseRef.current = checkpoint?.activityFeatures ?? null;
     activityWindow.current = quest.activityType ? createActivityWindow() : null;
@@ -599,7 +614,7 @@ export function useQuestRun(quest: RunnableQuest) {
   }
 
   return {
-    status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
+    status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal, antiCheatRisk,
     ready, databaseError, refreshPlayer, startQuest, retryQuest,
   };
 }
