@@ -12,11 +12,14 @@ import Action from '../components/Action';
 import {createShareCard} from '../social/shareCard';
 import {shareText} from '../presentation/share';
 import {SOCIAL_HUB_MODULES} from '../beta/social';
+import SystemPlayerCard from '../cards/SystemPlayerCard';
+import {buildSystemCard} from '../cards/engine';
 
 export default function SocialProfileScreen(){
  const router=useRouter();
  const{player}=useSystem();
  const p=toPublicPlayerProfile(player);
+ const heroCard=buildSystemCard(player);
  const[counts,setCounts]=useState<SocialCounts>({followers:0,following:0,friends:0});
  const[online,setOnline]=useState<boolean|null>(null);
  const[networkError,setNetworkError]=useState<string|null>(null);
@@ -57,7 +60,13 @@ export default function SocialProfileScreen(){
    <Action label="KONTO I CHMURA →" onPress={()=>router.push('/account')}/>
   </View>}
 
-  <View style={s.panel}><Text style={s.label}>SOCIAL 2.0 // NETWORK MODULES</Text><Text style={s.body}>{SOCIAL_HUB_MODULES.join(' · ')}</Text><Action label="UDOSTĘPNIJ PROFIL / RANGĘ →" onPress={()=>{const card=createShareCard({event:'RANK',value:`RANK ${p.rank}`,level:p.level,rank:p.rank,streak:p.streak});void Share.share({message:shareText(card)});}}/></View>
+  <View style={s.panel}>
+   <Text style={s.label}>PUBLIC HERO CARD // {heroCard.heroName}</Text>
+   <Text style={s.body}>To jest karta, którą możesz pokazywać w Social. Pokazuje tylko publiczny progres SYSTEMU — bez e-maila, tokenów i dokładnej lokalizacji.</Text>
+   <SystemPlayerCard player={player}/>
+  </View>
+
+  <View style={s.panel}><Text style={s.label}>SOCIAL 2.1 // NETWORK MODULES</Text><Text style={s.body}>{SOCIAL_HUB_MODULES.join(' · ')}</Text><Action label="UDOSTĘPNIJ PROFIL / RANGĘ →" onPress={()=>{const card=createShareCard({event:'RANK',value:`${heroCard.heroName} · RANK ${p.rank} · POWER ${heroCard.power.toLocaleString()}`,level:p.level,rank:p.rank,streak:p.streak});void Share.share({message:shareText(card)});}}/></View>
   <View style={s.panel}><Text style={s.label}>SOCIAL HUB</Text><Text style={s.body}>Znajomi, rankingi i rywalizacja korzystają z publicznej tożsamości SYSTEMU.</Text><Action label="ZNAJOMI I ZAPROSZENIA →" onPress={()=>router.push('/friends')}/><Action label="RANKINGI →" onPress={()=>router.push('/leaderboard')}/><Action label="GILDIE →" onPress={()=>router.push('/guilds')}/><Action label="WORLD RAIDS →" onPress={()=>router.push('/raids')}/></View>
   <View style={s.panel}><Text style={s.label}>PRIVACY SHIELD</Text><Text style={s.body}>E-mail, tokeny i dokładne GPS nie należą do profilu publicznego.</Text></View>
  </SystemPage>;
