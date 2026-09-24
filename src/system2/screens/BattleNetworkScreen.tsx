@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {Share,Text,TextInput,View} from 'react-native';
 import {useRouter} from 'expo-router';
 import SystemPage,{pageStyles as s} from '../components/SystemPage';
@@ -10,23 +10,25 @@ import {getValidSession} from '../cloud/auth';
 
 export default function BattleNetworkScreen(){
  const {player}=useSystem(),router=useRouter();
+ const mounted=useRef(true),epoch=useRef(0);
  const[pvp,setPvp]=useState<CloudPvpChallenge[]>([]),[wars,setWars]=useState<CloudGuildWar[]>([]),[referral,setReferral]=useState<CloudReferralState|null>(null),[cloudUserId,setCloudUserId]=useState<string|null>(null),[referralInput,setReferralInput]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
  async function load(){
-  setBusy(true);setError(null);
+  const id=++epoch.current;
+  if(mounted.current){setBusy(true);setError(null);}
   try{
    await ensureReferralCode();
    const [p,w,r,session]=await Promise.all([getMyPvpChallenges(),getActiveGuildWars(),getReferralState(),getValidSession()]);
-   setPvp(p);setWars(w);setReferral(r);setCloudUserId(session?.user.id??null);
-  }catch(e){setError(e instanceof Error?e.message:'BATTLE_NETWORK_FAILED');}
-  finally{setBusy(false);}
+   if(mounted.current&&id===epoch.current){setPvp(p);setWars(w);setReferral(r);setCloudUserId(session?.user.id??null);}
+  }catch(e){if(mounted.current&&id===epoch.current)setError(e instanceof Error?e.message:'BATTLE_NETWORK_FAILED');}
+  finally{if(mounted.current&&id===epoch.current)setBusy(false);}
  }
- useEffect(()=>{void load()},[]);
+ useEffect(()=>{void load();return()=>{mounted.current=false;epoch.current++;};},[]);
  async function accept(id:string){setBusy(true);setError(null);try{await acceptPvpChallenge(id);await load()}catch(e){setError(e instanceof Error?e.message:'PVP_ACCEPT_FAILED');setBusy(false)}}
  return <SystemPage title="BATTLE NETWORK" subtitle="PVP // GUILD WARS // RAIDS // SEASONS" screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM" intensity="world">
   <View style={s.panel}><Text style={s.label}>PLAYER NODE</Text><Text style={s.title}>{player.displayName}</Text><Text style={s.body}>Serwer przyjmuje wynik tylko z kanonicznych verified events. Telefon nie może sam dopisać punktów.</Text><Action label={busy?'SYNCING…':'ODŚWIEŻ NETWORK'} disabled={busy} onPress={()=>void load()}/></View>
   {error&&<SystemError message={error} retry={()=>void load()}/>}
   <View style={s.panel}><Text style={s.label}>PVP CHALLENGES // LIVE</Text><Text style={s.title}>{pvp.filter(x=>x.status==='ACTIVE'||x.status==='OPEN').length} ACTIVE / OPEN</Text>
-   {pvp.length===0?<Text style={s.body}>Brak wyzwań PvP na tym koncie.</Text>:pvp.slice(0,8).map(row=>{const rival=row.my_side==='CREATOR'?row.opponent_name:row.creator_name;const live=row.my_score===row.rival_score?'TIE':row.my_score>row.rival_score?'LEADING':'TRAILING';const result=row.status==='COMPLETE'?(row.my_score===row.rival_score?'TIE':row.my_score>row.rival_score?'WIN':'LOSS'):row.status==='EXPIRED'?'EXPIRED':live;return <View key={row.id} style={{marginTop:12}}><Text style={s.label}>{row.metric} // {row.status} // {result}</Text><Text style={s.title}>VS {rival}</Text><Text style={s.body}>YOU {row.my_score} : {row.rival_score} RIVAL · TARGET {row.target} · {row.progress_percent}%</Text><View style={{height:5,borderRadius:5,overflow:'hidden',backgroundColor:'#17333e',marginTop:7}}><View style={{height:'100%',width:`${Math.max(2,row.progress_percent)}%`,backgroundColor:'#6ceeff'}}/></View>{row.status==='OPEN'&&row.opponent_id===cloudUserId&&<Action label="AKCEPTUJ PVP →" disabled={busy} onPress={()=>void accept(row.id)}/>} {row.status==='OPEN'&&row.creator_id===cloudUserId&&<Text style={s.body}>WAITING FOR OPPONENT</Text>}</View>})}
+   {pvp.length===0?<Text style={s.body}>Brak wyzwań PvP na tym koncie.</Text>:pvp.slice(0,8).map(row=>{const rival=row.my_side==='CREATOR'?row.opponent_name:row.creator_name;const live=row.my_score===row.rival_score?'TIE':row.my_score>row.rival_score?'LEADING':'TRAILING';const result=row.status==='COMPLETE'?(row.my_score===row.rival_score?'TIE':row.my_score>row.rival_score?'WIN':'LOSS'):row.status==='EXPIRED'?'EXPIRED':live;return <View key={row.id} style={{marginTop:12}}><Text style={s.label}>{row.metric} // {row.status} // {result}</Text><Text style={s.title}>VS {rival}</Text><Text style={s.body}>YOU {row.my_score} : {row.rival_score} RIVAL · TARGET {row.target} · {row.progress_percent}%</Text><View style={{height:5,borderRadius:5,overflow:'hidden',backgroundColor:'#17333e',marginTop:7}}><View style={{height:'100%',width:`${Math.min(100,Math.max(2,row.progress_percent))}%`,backgroundColor:'#6ceeff'}}/></View>{row.status==='OPEN'&&row.opponent_id===cloudUserId&&<Action label="AKCEPTUJ PVP →" disabled={busy} onPress={()=>void accept(row.id)}/>} {row.status==='OPEN'&&row.creator_id===cloudUserId&&<Text style={s.body}>WAITING FOR OPPONENT</Text>}</View>})}
    <Text style={s.body}>PvP 3.0 używa wyłącznie QUESTS / REAL_XP pochodzących z serwerowego verified reward ledger.</Text>
   </View>
   <View style={s.panel}><Text style={s.label}>GUILD WARS // LIVE</Text><Text style={s.title}>{wars.filter(x=>x.status==='ACTIVE').length} ACTIVE</Text>
