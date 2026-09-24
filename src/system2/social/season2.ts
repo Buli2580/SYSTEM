@@ -4,6 +4,6 @@ export type SeasonTrackReward={level:number;kind:'COSMETIC'|'TITLE'|'CARD_FRAME'
 export const SEASON_TRACK:readonly SeasonTrackReward[]=[
  {level:5,kind:'COSMETIC',name:'SEASON SIGNAL'},
  {level:15,kind:'CARD_FRAME',name:'VANGUARD FRAME'},
- {level:30,kind:'TITLE',name:'SEASON VETERAN'},
+ {level:30,kind:'COSMETIC',name:'SEASON VETERAN SIGIL'},
  {level:50,kind:'COSMETIC',name:'ASCENDED SEASON AURA'},
 ];
