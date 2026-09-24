@@ -5,10 +5,12 @@ import * as Haptics from '../identity/feedback';
 import { useRouter } from 'expo-router';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
+import {useAnimationEngine4} from './AnimationEngine4Provider';
 
 // Presentation acknowledgement is independent of the already committed reward.
 // If the app closes here, the celebration can be shown again without awarding XP.
 export default function AwakeningCelebration() {
+  const motion = useAnimationEngine4();
   const { ready, awakeningPending, acknowledgeAwakening, celebration, onboardingComplete } = useSystem();
   const router = useRouter();
   const busyRef = useRef(false);
@@ -29,16 +31,16 @@ export default function AwakeningCelebration() {
     if (!visible) return;
     setError(null);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    const timer = setTimeout(() => { void finish(); }, 5500);
+    const timer = setTimeout(() => { void finish(); }, motion.reducedMotion ? 2200 : 5500);
     return () => clearTimeout(timer);
-  }, [visible, finish]);
+  }, [visible, finish, motion.reducedMotion]);
   return <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={() => { void finish(); }}>
     {visible && <View style={styles.root}>
-      <Animated.View entering={FadeIn.duration(700)} style={styles.core} />
-      <Animated.Text entering={FadeIn.delay(200).duration(700)} style={styles.title}>PRZEBUDZENIE UKOŃCZONE</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(1500).duration(700)} style={styles.line}>DOSTĘP DO SYSTEMU ROZSZERZONY</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(2900).duration(700)} style={styles.line}>PROTOKÓŁ ŚWIATA ODBLOKOWANY</Animated.Text>
-      <Animated.Text entering={FadeIn.delay(3600).duration(600)} style={styles.reward}>ROZDZIAŁ 01 POTWIERDZONY // NAGRODA ZAPISANA</Animated.Text>
+      <Animated.View entering={motion.reducedMotion?undefined:FadeIn.duration(motion.duration('hero'))} style={styles.core} />
+      <Animated.Text entering={motion.reducedMotion?undefined:FadeIn.delay(motion.stagger(1,'hero')).duration(motion.duration('hero'))} style={styles.title}>PRZEBUDZENIE UKOŃCZONE</Animated.Text>
+      <Animated.Text entering={motion.reducedMotion?undefined:FadeIn.delay(motion.stagger(4,'hero')).duration(motion.duration('hero'))} style={styles.line}>DOSTĘP DO SYSTEMU ROZSZERZONY</Animated.Text>
+      <Animated.Text entering={motion.reducedMotion?undefined:FadeIn.delay(motion.stagger(8,'hero')).duration(motion.duration('hero'))} style={styles.line}>PROTOKÓŁ ŚWIATA ODBLOKOWANY</Animated.Text>
+      <Animated.Text entering={motion.reducedMotion?undefined:FadeIn.delay(motion.stagger(10,'hero')).duration(motion.duration('normal'))} style={styles.reward}>ROZDZIAŁ 01 POTWIERDZONY // NAGRODA ZAPISANA</Animated.Text>
       {error && <><Text style={styles.error}>{error}</Text>
         <Pressable onPress={() => { void finish(); }}><Text style={styles.line}>SPRÓBUJ PONOWNIE</Text></Pressable></>}
     </View>}
