@@ -5,6 +5,7 @@ import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import {listGuilds,joinGuild} from '../cloud/guilds';
 import type {Guild} from '../social/guilds';
+import GuildCard from '../components/GuildCard';
 
 export default function GuildsScreen(){
  const[rows,setRows]=useState<Guild[]>([]);
@@ -31,12 +32,6 @@ export default function GuildsScreen(){
   <View style={s.panel}><Text style={s.label}>GUILD NETWORK</Text><Text style={s.body}>Znajdź ekipę, buduj wspólne XP i przygotuj się do raidów.</Text><Action label={busy?'ŁADOWANIE…':'ODŚWIEŻ'} disabled={busy} onPress={()=>void refresh()}/></View>
   {error&&<SystemError message={error} retry={()=>void refresh()}/>}
   {!error&&loaded&&!busy&&rows.length===0&&<View style={s.panel}><Text style={s.title}>BRAK PUBLICZNYCH GILDII</Text></View>}
-  {rows.map(g=>{return <View key={g.id} style={s.panel}>
-    <Text style={s.label}>{g.tag} · GUILD LV {g.level}</Text>
-    <Text style={s.title}>{g.name}</Text>
-    <Text style={s.body}>{g.memberCount} graczy · {g.xp.toLocaleString()} GUILD XP</Text>
-    <Text style={s.body}>Postęp do kolejnego poziomu i wkład graczy będą widoczne po pobraniu progów oraz contribution z backendu.</Text>
-    <Action label="DOŁĄCZ" disabled={busy} onPress={()=>void join(g.id)}/>
-  </View>;})}
+  {rows.map(g=><GuildCard key={g.id} guild={g} busy={busy} onJoin={()=>{void join(g.id);}}/> )}
  </SystemPage>;
 }
