@@ -15,6 +15,7 @@ import { StyleSheet, View } from 'react-native';
 const percent = (value: number): `${number}%` => `${value}%`;
 import { chooseScene, normalizedSceneContext } from '../visual/engine';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
+import {useAnimation4} from '../presentation/useAnimation4';
 
 type Intensity = 'quiet' | 'default' | 'hero' | 'world';
 
@@ -33,17 +34,22 @@ export default function SystemAmbientBackground({
   const near=useSharedValue(0);
   const scan=useSharedValue(0);
   const pulse=useSharedValue(0);
+  const motion=useAnimation4();
   const ctx=normalizedSceneContext({screen,level,threat,scene,weather});
   const worldScene=chooseScene(ctx);
 
   useFocusEffect(useCallback(()=>{
+    if(motion.reduced){
+      far.value=.5;mid.value=.5;near.value=.5;scan.value=.5;pulse.value=.5;
+      return()=>[far,mid,near,scan,pulse].forEach(cancelAnimation);
+    }
     far.value=withRepeat(withTiming(1,{duration:22000,easing:Easing.inOut(Easing.ease)}),-1,true);
     mid.value=withRepeat(withTiming(1,{duration:13500,easing:Easing.inOut(Easing.ease)}),-1,true);
     near.value=withRepeat(withTiming(1,{duration:7600,easing:Easing.inOut(Easing.ease)}),-1,true);
     scan.value=withRepeat(withTiming(1,{duration:8400,easing:Easing.linear}),-1,false);
     pulse.value=withRepeat(withTiming(1,{duration:2800,easing:Easing.inOut(Easing.ease)}),-1,true);
     return()=>[far,mid,near,scan,pulse].forEach(cancelAnimation);
-  },[far,mid,near,scan,pulse]));
+  },[far,mid,near,scan,pulse,motion.reduced]));
 
   const farStyle=useAnimatedStyle(()=>({transform:[
     {translateX:interpolate(far.value,[0,1],[-7,10])},
