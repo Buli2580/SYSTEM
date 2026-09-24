@@ -75,8 +75,7 @@ test('Skill Tree 2.0 unlock state follows canonical skill levels',()=>{
 test('PvP targets are bounded and cannot request absurd goals',()=>{
  const {safePvpTarget}=loader()('social/pvp');
  assert.equal(safePvpTarget('QUESTS',999999),100);
- assert.equal(safePvpTarget('MOVE_MINUTES',999999),600);
- assert.equal(safePvpTarget('STREAK',999999),30);
+ assert.equal(safePvpTarget('REAL_XP',999999),100000);
  assert.equal(safePvpTarget('QUESTS',0),1);
 });
 
@@ -160,4 +159,23 @@ test('School UI no longer claims its online backend is disconnected',()=>{
  const source=fs.readFileSync(path.join(root,'src/system2/screens/MoveSchoolScreen.tsx'),'utf8');
  assert.doesNotMatch(source,/NOT LINKED/);
  assert.match(source,/ONLINE BACKEND READY/);
+});
+
+
+test('Social Competition v3 exposes rich PvP, Guild War, Raid and Season loops',()=>{
+ const migration=fs.readFileSync(path.join(root,'supabase/migrations/20260924121000_social_competition_v3.sql'),'utf8');
+ assert.match(migration,/get_my_pvp_challenges_v3/);
+ assert.match(migration,/get_my_guild_wars_v3/);
+ assert.match(migration,/get_active_raids_v3/);
+ assert.match(migration,/get_raid_leaderboard_v3/);
+ assert.match(migration,/get_current_season_v3/);
+ assert.match(migration,/claim_season_reward_v3/);
+ assert.match(migration,/season_claims_v3/);
+});
+
+test('Season rewards remain cosmetic-only',()=>{
+ const source=fs.readFileSync(path.join(root,'src/system2/social/seasonRewards.ts'),'utf8');
+ assert.doesNotMatch(source,/\bxp\s*:/i);
+ assert.match(source,/COSMETIC/);
+ assert.match(source,/CARD_FRAME/);
 });
