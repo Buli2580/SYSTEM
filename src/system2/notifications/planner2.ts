@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import {Platform} from 'react-native';
 import {awaitWithTimeout} from '../storage/awaitWithTimeout';
-import type {CustomPlanBlock} from '../planning/storage';
+import {planBlockDue,type CustomPlanBlock} from '../planning/storage';
 
 const PREFIX='system2-plan-';
 const CHANNEL='system2-planner';
@@ -37,6 +37,7 @@ export async function syncPlannerBlockReminders(blocks:CustomPlanBlock[],days=7,
  for(let offset=0;offset<safeDays;offset++){
   for(const block of blocks.slice(0,30)){
    const start=localDate(offset,block.time);
+   if(!planBlockDue(block,start))continue;
    const fire=new Date(start.getTime()-lead*60000);
    if(fire.getTime()<=now)continue;
    const key=start.toISOString().slice(0,10);
