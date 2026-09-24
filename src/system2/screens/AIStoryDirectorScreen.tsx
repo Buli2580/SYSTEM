@@ -15,7 +15,7 @@ export default function AIStoryDirectorScreen(){
  async function refresh(){setBusy(true);try{setD(await requestAIStoryDirector(x.player,input));}finally{setBusy(false)}}
  useEffect(()=>{void refresh()},[x.player.id,x.player.realLevel,x.player.streak,x.story?.bossHp,x.worldUnlocked,x.failedQuestIds?.length]);
  const route=d.next==='BOSS'?'/story':d.next==='WORLD'?'/world':'/quests';
- return <SystemPage title="AI STORY DIRECTOR" subtitle="NARRATIVE ENGINE 2.0">
+ return <SystemPage title="AI STORY DIRECTOR" subtitle="NARRATIVE ENGINE 2.0" screen="LAUNCH" scene="PORTAL" threat={2} weather="FOG" intensity="hero">
   <View style={s.panel}><Text style={s.label}>{d.source==='ai'?'AI ONLINE':'SAFE FALLBACK'} // {d.chapter} // THREAT {d.threat}</Text><Text style={s.title}>{d.headline}</Text><Text style={s.body}>{d.message}</Text>{d.model&&<Text style={s.body}>MODEL // {d.model}</Text>}<Action label={busy?'DIRECTOR THINKING…':'ODŚWIEŻ STORY DIRECTOR'} disabled={busy} onPress={()=>void refresh()}/><Action label={'NEXT // '+d.next+' →'} onPress={()=>router.push(route as never)}/></View>
   <View style={s.panel}><Text style={s.label}>CANONICAL RULE</Text><Text style={s.body}>AI może prowadzić narrację i wybierać kierunek następnego rozdziału, ale nie może przyznać XP, ominąć weryfikacji ani tworzyć kary za niepowodzenie.</Text></View>
  </SystemPage>;
