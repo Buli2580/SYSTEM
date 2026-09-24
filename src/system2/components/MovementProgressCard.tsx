@@ -1,4 +1,4 @@
-import {Share,StyleSheet,Text,View} from 'react-native';
+import {Share,StyleSheet,Text,View,type DimensionValue} from 'react-native';
 import Animated,{FadeInUp} from 'react-native-reanimated';
 import Action from '../components/Action';
 import type {MovementProgressCard as CardModel} from '../move/card';
@@ -20,7 +20,7 @@ export default function MovementProgressCard({card}:{card:CardModel}){
       <Text style={styles.minutes}>{card.activeMinutes}</Text>
       <Text style={styles.minutesLabel}>ACTIVE MIN</Text>
     </View>
-    <View style={styles.track}><View style={[styles.fill,{width:`${Math.max(2,pct)}%`}]} /></View>
+    <View style={styles.track}><View style={[styles.fill,{width:`${Math.max(2,pct)}%` as DimensionValue}]} /></View>
     <View style={styles.stats}>
       <Info label="STREAK" value={card.streak+' DAYS'}/>
       <Info label="BEST SKILL" value={card.bestSkill}/>
