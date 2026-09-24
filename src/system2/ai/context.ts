@@ -1,5 +1,6 @@
 import { dayKey, dayOrdinal } from '../daily/calendar';
 import { QUEST_TEMPLATES } from '../generation/templates';
+import { DEFAULT_ACTIVITIES } from '../daily/templates';
 import type { SystemSnapshot } from '../storage/database';
 import type { AIGameMasterContext, RecentQuestSummary } from './types';
 
@@ -64,6 +65,7 @@ export function buildAIGameMasterContext(snapshot: SystemSnapshot): AIGameMaster
       streak: snapshot.player.streak,
       completionRate7d: completionRate(snapshot),
       systemDebt: systemDebt(snapshot),
+      activities: snapshot.settings.activities ?? DEFAULT_ACTIVITIES,
       locale: resolved.locale || 'pl-PL',
       timezone: resolved.timeZone || 'Europe/Warsaw',
     },
