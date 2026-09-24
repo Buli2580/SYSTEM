@@ -117,10 +117,10 @@ export default function SystemAmbientBackground({
   const bossPhaseStyle=useAnimatedStyle(()=>({opacity:interpolate(bossPhase.value,[0,.45,1],[.10,.48,.18]),transform:[{scale:interpolate(bossPhase.value,[0,1],[.78,1.22])}]}));
   const awakeningStyle=useAnimatedStyle(()=>({opacity:interpolate(awakening.value,[0,.55,1],[.12,.72,.18]),transform:[{scale:interpolate(awakening.value,[0,1],[.72,1.32])},{rotate:interpolate(awakening.value,[0,1],[0,18])+'deg'}]}));
 
-  const strength=intensity==='hero'?1:intensity==='world'?.94:intensity==='quiet'?.48:.74;
+  const strength = intensity === 'hero' ? 1 : intensity === 'world' ? 0.94 : intensity === 'quiet' ? 0.48 : 0.74;
   const fireCount=intensity==='quiet'?5:intensity==='default'?8:12;
-  const timeDim=ctx.time==='NIGHT'?.18:ctx.time==='DUSK'?.11:.05;
-  const weatherDim=weather==='STORM'?.20:weather==='RAIN'?.13:weather==='FOG'?.09:.04;
+  const timeDim = ctx.time === 'NIGHT' ? 0.18 : ctx.time === 'DUSK' ? 0.11 : 0.05;
+  const weatherDim = weather === 'STORM' ? 0.20 : weather === 'RAIN' ? 0.13 : weather === 'FOG' ? 0.09 : 0.04;
   const threatGlow=.12+threat*.08;
   const bossStateStrength=bossState==='VICTORY'?0.35:bossState==='DEATH'?0.2:bossState==='ENRAGE'?1:bossState==='PHASE_2'?0.82:bossState==='ATTACK'||bossState==='HIT'?0.68:0.5;
   const awakeningStateStrength=awakeningState==='AWAKENED'?1:awakeningState==='FLASH'||awakeningState==='DROP'?0.92:awakeningState==='PUSH'||awakeningState==='WIND'?0.72:awakeningState==='ENERGY'||awakeningState==='RUNES'?0.58:awakeningState==='PORTAL'?0.42:0.2;
@@ -251,7 +251,7 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
   ]}));
   const collapseStyle=useAnimatedStyle(()=>({transform:[{translateY:interpolate(collapse.value,[0,.6,1],[0,0,28])},{rotate:interpolate(collapse.value,[0,1],[0,8])+'deg'}],opacity:interpolate(collapse.value,[0,.72,1],[1,.92,.48])}));
   const hitGlow=useAnimatedStyle(()=>({opacity:interpolate(attack.value,[0,.42,.58,1],[0,0,.52,0]),transform:[{scale:interpolate(attack.value,[0,.5,1],[.65,1.2,.8])}]}));
-  const opacity=(threat>=2?.42:.29)*strength;
+  const opacity = (threat >= 2 ? 0.42 : 0.29) * strength;
   return <View style={[styles.siege,{opacity}]}>
     <Animated.View style={[styles.damagedCity,collapseStyle]}>
       {[0,1,2,3,4].map(i=><View key={i} style={[styles.siegeBuilding,{left:percent(i*19),height:58+(i%3)*34,borderColor:accent,transform:[{rotate:(i===2?'-7deg':i===3?'5deg':'0deg')}]}]}>
