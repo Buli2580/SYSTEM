@@ -5,8 +5,11 @@ import {presentationEventsFromReceipt} from '../presentation/events';
 import MilestoneCardOverlay from '../cards/MilestoneCardOverlay';
 import type {CardReason} from '../cards/engine';
 import CombatImpactOverlay from './CombatImpactOverlay';
+import {motion4EventDuration} from '../presentation/animation4';
+import {useAnimation4} from '../presentation/useAnimation4';
 
 export default function RewardEventSequence(){
+  const motion=useAnimation4();
   const {lastReward,ready,dismissCelebration,awakeningPending,player}=useSystem();
   const events=useMemo(()=>lastReward?presentationEventsFromReceipt(lastReward):[],[lastReward]);
   const [index,setIndex]=useState(0);
@@ -46,6 +49,6 @@ export default function RewardEventSequence(){
   if(eventIndex>=events.length&&cardReason)return <MilestoneCardOverlay player={player} reason={cardReason} onDismiss={dismiss}/>;
   const item=events[eventIndex];
   if(!item)return null;
-  const event:SystemEvent={id:item.id,eyebrow:item.eyebrow,title:item.title,detail:item.detail,accent:item.accent,durationMs:item.kind==='QUEST_COMPLETE'?1800:2800};
+  const event:SystemEvent={id:item.id,eyebrow:item.eyebrow,title:item.title,detail:item.detail,accent:item.accent,durationMs:motion4EventDuration(item.kind,motion.reduced)};
   return <SystemEventOverlay event={event} onDismiss={dismiss}/>;
 }
