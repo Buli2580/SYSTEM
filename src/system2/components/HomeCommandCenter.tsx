@@ -9,7 +9,8 @@ import { titlePl } from '../i18n/pl';
 import { getQuest } from '../quests/catalog';
 import { getNextAction } from '../quests/nextAction';
 import { useSystem } from '../state/SystemProvider';
-import { activeWorldEvent, formatWorldEventRemaining } from '../world/events';
+import { activeWorldEvent } from '../world/events';
+import WorldEventHUD from './WorldEventHUD';
 import { archetypeForPlayer, playerPerks } from '../progression/perks';
 import { bossPhaseState } from '../story/bossEngine';
 
@@ -107,6 +108,7 @@ export default function HomeCommandCenter() {
       detail: bossActive ? 'THREAT' : system.story?.bossComplete ? 'DEFEATED' : 'LOCKED',
       route: '/story',
       alert: bossActive,
+      progress: bossActive ? Math.max(2, 100 - bossHp) : undefined,
     },
     {
       key: 'world',
@@ -141,14 +143,7 @@ export default function HomeCommandCenter() {
       {hasSystemAlert && <Pressable accessibilityRole="button" onPress={repairSystem}><Text style={styles.statusAction}>{repairLabel}</Text></Pressable>}
     </View>
 
-    {worldEvent && <Pressable accessibilityRole="button" onPress={() => router.push('/world')} style={({pressed})=>[styles.worldEvent,pressed&&styles.pressed]}>
-      <View style={styles.worldEventTop}>
-        <Text style={styles.worldEventCode}>WORLD SIGNAL // {worldEvent.kind.replaceAll('_',' ')}</Text>
-        <Text style={styles.worldEventTimer}>{formatWorldEventRemaining(worldEvent,clock)}</Text>
-      </View>
-      <Text style={styles.worldEventTitle}>{worldEvent.title}</Text>
-      <Text style={styles.worldEventDetail}>{worldEvent.sector} · THREAT {worldEvent.threat} · {worldEvent.subtitle}</Text>
-    </Pressable>}
+    {worldEvent && <WorldEventHUD compact event={worldEvent} now={clock} onAction={() => router.push('/world')} />}
 
     <View style={styles.liveRow}>
       <View style={styles.liveCell}>
