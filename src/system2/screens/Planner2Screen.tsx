@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useState} from 'react';
 import {Text,TextInput,View} from 'react-native';
 import SystemPage,{pageStyles as s} from '../components/SystemPage';
 import Action from '../components/Action';
@@ -27,12 +27,10 @@ export default function Planner2Screen(){
    minutes:Math.max(5,Math.round((q!.verification.type==='TIMER'?q!.verification.minimumDurationSeconds:1200)/60)),
  }));
  const due=dueHabits(habits,day,weekday);
- const plan=useMemo(()=>{
-  const auto=buildDayPlan(day,quests,due);
-  const today=new Date();
-  const custom:PlanBlock[]=blocks.filter(b=>planBlockDue(b,today)).map(b=>({id:b.id,title:b.title,startsAt:day+'T'+b.time+':00',minutes:b.minutes,kind:b.kind}));
-  return [...auto,...custom].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
- },[day,x.daily?.dayKey,habits,blocks]);
+ const autoPlan=buildDayPlan(day,quests,due);
+ const today=new Date();
+ const customPlan:PlanBlock[]=blocks.filter(b=>planBlockDue(b,today)).map(b=>({id:b.id,title:b.title,startsAt:day+'T'+b.time+':00',minutes:b.minutes,kind:b.kind}));
+ const plan=[...autoPlan,...customPlan].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
  const decision=smartNotificationDecision({streak:x.player.streak,weeklyCompleted:x.daily?.weeklyCompleted,weeklyTarget:5,bossHp:x.story?.bossHp});
  const[plannerNotice,setPlannerNotice]=useState<string>('NOT SCHEDULED');
 
