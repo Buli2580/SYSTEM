@@ -18,6 +18,7 @@ import SystemAudioScene from '../components/SystemAudioScene';
 import {activeWorldEvent} from '../world/events';
 import WorldEventHUD from '../components/WorldEventHUD';
 import {DEFAULT_WORLD_MAP_2,toggleWorldLayer,type WorldLayer} from '../world/map2';
+import {loadWorldMap2State,saveWorldMap2State} from '../world/map2Storage';
 
 export default function WorldScreen() {
   const router = useRouter();
@@ -49,6 +50,7 @@ function OnlineWorld() {
   const [follow, setFollow] = useState(true);
   const [centerRequest, setCenterRequest] = useState(0);
   const [map2,setMap2]=useState(DEFAULT_WORLD_MAP_2);
+  useEffect(()=>{void loadWorldMap2State().then(setMap2)},[]);
   const active = world.status === 'ACTIVE';
   const signalState = world.signal?.status ?? 'LOCKED';
   const worldEvent=activeWorldEvent(player,true,clock);
@@ -71,9 +73,9 @@ function OnlineWorld() {
       <Text style={styles.eventDisclaimer}>EVENT HUD // wizualizacja aktywnego okna. Nagroda pojawi się dopiero po kanonicznie zweryfikowanej aktywności.</Text>
     </View>}
     <View style={styles.layerPanel}>
-      <View style={styles.layerTop}><Text style={styles.layerTitle}>WORLD MAP 2.0 // {map2.zoomMode}</Text><Pressable onPress={()=>setMap2(s=>({...s,zoomMode:s.zoomMode==='LOCAL'?'REGION':s.zoomMode==='REGION'?'WORLD':'LOCAL'}))}><Text style={styles.layerCycle}>ZOOM MODE →</Text></Pressable></View>
+      <View style={styles.layerTop}><Text style={styles.layerTitle}>WORLD MAP 2.0 // {map2.zoomMode}</Text><Pressable onPress={()=>setMap2(s=>{const next={...s,zoomMode:(s.zoomMode==='LOCAL'?'REGION':s.zoomMode==='REGION'?'WORLD':'LOCAL') as typeof s.zoomMode};void saveWorldMap2State(next);return next})}><Text style={styles.layerCycle}>ZOOM MODE →</Text></Pressable></View>
       <View style={styles.layerRow}>
-        {(Object.keys(map2.layers) as WorldLayer[]).map(layer=><Pressable key={layer} onPress={()=>setMap2(s=>toggleWorldLayer(s,layer))} style={[styles.layerChip,map2.layers[layer]&&styles.layerChipActive]}><Text style={[styles.layerText,map2.layers[layer]&&styles.layerTextActive]}>{layer}</Text></Pressable>)}
+        {(Object.keys(map2.layers) as WorldLayer[]).map(layer=><Pressable key={layer} onPress={()=>setMap2(s=>{const next=toggleWorldLayer(s,layer);void saveWorldMap2State(next);return next})} style={[styles.layerChip,map2.layers[layer]&&styles.layerChipActive]}><Text style={[styles.layerText,map2.layers[layer]&&styles.layerTextActive]}>{layer}</Text></Pressable>)}
       </View>
     </View>
     <View style={styles.map}>
