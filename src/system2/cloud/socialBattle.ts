@@ -22,9 +22,13 @@ export async function getMyPvpChallenges(){
  return cloudRequest<CloudPvpChallenge[]>('/rest/v1/rpc/get_my_pvp_challenges_v3',{method:'POST',body:'{}'},s.accessToken);
 }
 export async function createPvpChallenge(opponentId:string,metric:'QUESTS'|'REAL_XP',target:number,hours=24){
+ const opponent=opponentId.trim();
+ if(!opponent)throw new Error('Nieprawidłowy przeciwnik PvP.');
+ if(!Number.isFinite(target)||!Number.isFinite(hours))throw new Error('Nieprawidłowe parametry wyzwania PvP.');
  const safeTarget=Math.max(1,Math.min(metric==='QUESTS'?100:100000,Math.floor(target)));
  const s=await session();
- return cloudRequest<string>('/rest/v1/rpc/create_pvp_challenge',{method:'POST',body:JSON.stringify({p_opponent:opponentId,p_metric:metric,p_target:safeTarget,p_hours:Math.max(1,Math.min(168,Math.floor(hours)))})},s.accessToken);
+ if(opponent===s.user.id)throw new Error('Nie możesz wyzwać własnego profilu.');
+ return cloudRequest<string>('/rest/v1/rpc/create_pvp_challenge',{method:'POST',body:JSON.stringify({p_opponent:opponent,p_metric:metric,p_target:safeTarget,p_hours:Math.max(1,Math.min(168,Math.floor(hours)))})},s.accessToken);
 }
 export async function acceptPvpChallenge(challengeId:string){
  const s=await session();
@@ -44,8 +48,11 @@ export async function getMyGuildSummary(){
  return rows[0]??null;
 }
 export async function createGuildWar(opponentGuildId:string,hours=72){
+ const opponent=opponentGuildId.trim();
+ if(!opponent)throw new Error('Nieprawidłowa gildia przeciwnika.');
+ if(!Number.isFinite(hours))throw new Error('Nieprawidłowy czas Guild War.');
  const s=await session();
- return cloudRequest<string>('/rest/v1/rpc/create_guild_war',{method:'POST',body:JSON.stringify({p_opponent_guild:opponentGuildId,p_hours:Math.max(6,Math.min(168,Math.floor(hours)))})},s.accessToken);
+ return cloudRequest<string>('/rest/v1/rpc/create_guild_war',{method:'POST',body:JSON.stringify({p_opponent_guild:opponent,p_hours:Math.max(6,Math.min(168,Math.floor(hours)))})},s.accessToken);
 }
 export async function submitGuildWarEvent(warId:string,eventKey:string){
  const s=await session();
@@ -61,8 +68,10 @@ export async function getReferralState(){
  return rows[0]??{code:'',invited:0,activated:0};
 }
 export async function attachReferralCode(code:string){
+ const normalized=code.trim().toUpperCase();
+ if(!/^[A-Z0-9_-]{3,32}$/.test(normalized))throw new Error('Nieprawidłowy kod polecający.');
  const s=await session();
- await cloudRequest('/rest/v1/rpc/attach_referral_code',{method:'POST',body:JSON.stringify({p_code:code.trim().toUpperCase()})},s.accessToken);
+ await cloudRequest('/rest/v1/rpc/attach_referral_code',{method:'POST',body:JSON.stringify({p_code:normalized})},s.accessToken);
 }
 export async function activateReferral(eventKey:string){
  const s=await session();
