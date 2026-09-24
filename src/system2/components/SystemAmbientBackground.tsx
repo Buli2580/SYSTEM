@@ -189,13 +189,17 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
   const attack=useSharedValue(0);
   const debris=useSharedValue(0);
   const collapse=useSharedValue(0);
+  const lunge=useSharedValue(0);
+  const stomp=useSharedValue(0);
   useFocusEffect(useCallback(()=>{
     if(reduced){attack.value=.55;debris.value=.45;collapse.value=.35;return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse)}}
     attack.value=withRepeat(withTiming(1,{duration:1850,easing:Easing.inOut(Easing.ease)}),-1,true);
     debris.value=withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
     collapse.value=withRepeat(withTiming(1,{duration:5700,easing:Easing.inOut(Easing.ease)}),-1,true);
-    return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse)};
-  },[attack,debris,collapse,reduced]));
+    lunge.value=withRepeat(withTiming(1,{duration:4300,easing:Easing.inOut(Easing.ease)}),-1,true);
+    stomp.value=withRepeat(withTiming(1,{duration:3200,easing:Easing.inOut(Easing.ease)}),-1,true);
+    return()=>{cancelAnimation(attack);cancelAnimation(debris);cancelAnimation(collapse);cancelAnimation(lunge);cancelAnimation(stomp)};
+  },[attack,debris,collapse,lunge,stomp,reduced]));
   useFocusEffect(useCallback(()=>{
     if(reduced)return;
     let phase=0;
@@ -210,6 +214,8 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
     return()=>clearInterval(timer);
   },[reduced,threat]));
   const ogre=useAnimatedStyle(()=>({transform:[
+    {scale:interpolate(stomp.value,[0,.45,.55,1],[1,1.025,.97,1])},
+    {translateX:interpolate(lunge.value,[0,.5,1],[0,12,0])},
     {translateX:interpolate(attack.value,[0,1],[-8,5])},
     {translateY:interpolate(attack.value,[0,.5,1],[3,-5,3])},
     {rotate:interpolate(attack.value,[0,1],[-2,3])+'deg'},
@@ -241,6 +247,7 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
       <View style={[styles.ogreHornL,{borderColor:accent}]}/><View style={[styles.ogreHornR,{borderColor:accent}]}/>
       <Animated.View style={[styles.ogreArm,{borderColor:accent},arm]}/><View style={[styles.ogreArmRear,{borderColor:accent}]}/>
     </Animated.View>
+    <Animated.View style={[styles.stompWave,{borderColor:accent},useAnimatedStyle(()=>({opacity:interpolate(stomp.value,[0,.48,.58,1],[0,0,.45,0]),transform:[{scale:interpolate(stomp.value,[0,.5,1],[.4,.65,1.8])}]}))]} />
     <Animated.View style={[styles.hitGlow,{backgroundColor:accent,shadowColor:accent},hitGlow]}/>
     {[0,1,2,3,4,5].map(i=><Animated.View key={i} style={[styles.debris,{left:percent(54+(i%3)*6),top:percent(50+(i%2)*5),borderColor:accent},debrisStyle]}/>)}
   </View>;
@@ -358,4 +365,5 @@ const styles=StyleSheet.create({
   bossDomain:{position:'absolute',width:330,height:330,borderRadius:165,borderWidth:3,top:'18%',left:'8%',shadowOpacity:.85,shadowRadius:36},
   awakeningBurst:{position:'absolute',width:260,height:260,borderRadius:130,borderWidth:2,top:'24%',left:'17%',shadowOpacity:.95,shadowRadius:42},
   awakeningCore:{position:'absolute',width:72,height:72,borderRadius:36,top:'35%',left:'41%',shadowOpacity:1,shadowRadius:34,opacity:.28},
+  stompWave:{position:'absolute',width:180,height:54,borderRadius:90,borderWidth:2,bottom:'12%',left:'34%'},
 });
