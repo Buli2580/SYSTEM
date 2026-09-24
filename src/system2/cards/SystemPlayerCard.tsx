@@ -13,6 +13,7 @@ export default function SystemPlayerCard({player,reason='PROFILE'}:{player:Playe
     <View style={styles.top}>
       <View style={styles.titleWrap}>
         <Text style={[styles.kicker,{color:accent}]}>SYSTEM CARD // {card.frame}</Text>
+        <Text style={[styles.heroName,{color:accent}]}>{card.heroName}</Text>
         <Text style={styles.title}>{card.title}</Text>
         <Text style={styles.evolution}>{card.evolutionName} // STAGE {card.evolution}</Text>
       </View>
@@ -52,7 +53,8 @@ const styles=StyleSheet.create({
   frameLine:{position:'absolute',inset:7,borderWidth:1,borderRadius:20},
   top:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-start',gap:12},
   titleWrap:{flex:1,minWidth:0},kicker:{fontSize:9,fontWeight:'900',letterSpacing:1.4},
-  title:{color:'#fff',fontSize:21,lineHeight:26,fontWeight:'900',marginTop:7},
+  heroName:{fontSize:11,lineHeight:15,fontWeight:'900',letterSpacing:2.1,marginTop:8},
+  title:{color:'#fff',fontSize:21,lineHeight:26,fontWeight:'900',marginTop:5},
   evolution:{color:'#718791',fontSize:8,fontWeight:'900',letterSpacing:1.5,marginTop:5},
   rarity:{borderWidth:1,borderRadius:10,paddingHorizontal:10,paddingVertical:7,shadowOpacity:.65,shadowRadius:12},
   rarityText:{fontSize:10,fontWeight:'900'},
