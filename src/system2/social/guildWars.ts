@@ -1,0 +1,3 @@
+export type GuildWar={id:string;guildA:string;guildB:string;startsAt:string;endsAt:string;scoreA:number;scoreB:number;verifiedEvents:number;status:'UPCOMING'|'ACTIVE'|'COMPLETE'};
+export function guildWarLeader(w:GuildWar){if(w.scoreA===w.scoreB)return'TIE';return w.scoreA>w.scoreB?'A':'B';}
+export function guildWarScore(verifiedQuestXp:number,moveMinutes:number){return Math.max(0,Math.floor(verifiedQuestXp/10))+Math.min(120,Math.max(0,Math.floor(moveMinutes)));}
