@@ -32,7 +32,7 @@ export default function MoveSchoolScreen(){
    </View>
 
    <View style={styles.panel}><Text style={styles.label}>SCHOOL 2.0 // CLASS MISSIONS</Text>{SCHOOL_MISSIONS_2.map(m=><Pressable key={m.id} onPress={()=>router.push({pathname:'/move-quest',params:{questId:m.questId}})} style={{marginTop:10}}><Text style={styles.big}>{m.title}</Text><Text style={styles.body}>{m.minutes} MIN · {m.verification.replaceAll('_',' ')} · PRIVACY {m.privacy.replaceAll('_',' ')}</Text><Text style={styles.back}>START VERIFIED MOVE QUEST →</Text></Pressable>)}</View>
-   <View style={styles.panel}><Text style={styles.label}>SCHOOL CONNECTION</Text><Text style={styles.big}>NOT LINKED</Text><Text style={styles.body}>Na tym etapie ekran pokazuje wyłącznie lokalny wkład gracza. Dane klasy, szkoły, członków i globalnego HP pojawią się dopiero po podłączeniu backendu szkolnego.</Text></View>
+   <View style={styles.panel}><Text style={styles.label}>SCHOOL CONNECTION</Text><Text style={styles.big}>ONLINE BACKEND READY</Text><Text style={styles.body}>Prywatne grupy School są podłączone do SYSTEM CLOUD. Oficjalny wkład przyjmuje wyłącznie serwerowo zaakceptowane WALK/RUN/BIKE; lokalne minuty nadal pozostają widoczne tylko na urządzeniu.</Text></View>
 
    <View style={styles.panel}><Text style={styles.label}>SCHOOL RAID RULE</Text><Text style={styles.body}>{SCHOOL_RANKING_RULE.replaceAll('_',' ')}</Text><Text style={styles.body}>Zweryfikowane minuty → wkład do raidu. Regularność zwiększa contribution score. Dane lokalizacyjne nie są częścią publicznego wyniku.</Text></View>
 
