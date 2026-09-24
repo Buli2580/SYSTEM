@@ -4,12 +4,14 @@ import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import SystemPlayerCard from './SystemPlayerCard';
 import type {PlayerProfile} from '../core/types';
 import type {CardReason} from './engine';
+import {useAnimationEngine4} from '../components/AnimationEngine4Provider';
 
 export default function MilestoneCardOverlay({player,reason,onDismiss}:{player:PlayerProfile;reason:CardReason;onDismiss:()=>void}){
-  return <Animated.View entering={FadeIn.duration(220)} style={styles.root}>
+  const motion=useAnimationEngine4();
+  return <Animated.View entering={FadeIn.duration(motion.duration('fast'))} style={styles.root}>
     <SystemAmbientBackground intensity="hero" screen={reason==='BOSS'?'BOSS':'CHARACTER'} scene={reason==='BOSS'?'BOSS_ZONE':'PORTAL'} threat={reason==='BOSS'?3:2} level={player.realLevel}/>
     <View style={styles.scrim}/>
-    <Animated.View entering={FadeInUp.duration(420)} style={styles.content}>
+    <Animated.View entering={FadeInUp.duration(motion.duration('hero'))} style={styles.content}>
       <Text style={styles.kicker}>SYSTEM // SPECIAL CARD UNLOCKED</Text>
       <Text style={styles.heading}>{reason.replaceAll('_',' ')}</Text>
       <SystemPlayerCard player={player} reason={reason}/>
