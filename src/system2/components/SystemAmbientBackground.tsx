@@ -17,7 +17,7 @@ const percent = (value: number): `${number}%` => `${value}%`;
 import { chooseScene, normalizedSceneContext } from '../visual/engine';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
 import {useAnimation4} from '../presentation/useAnimation4';
-import {triggerCinematicEvent} from '../audio/engine';
+import {triggerCinematicEvent,type AwakeningCinematicState,type BossCinematicState} from '../audio/engine';
 
 type Intensity = 'quiet' | 'default' | 'hero' | 'world';
 export type CinematicSource = number | {uri:string};
@@ -34,7 +34,7 @@ export const CINEMATIC_ASSET_SLOTS={
 } as const;
 
 export default function SystemAmbientBackground({
-  intensity='default', screen='HOME', level=1, threat=0, scene, weather='CLEAR', cinematicSource,
+  intensity='default', screen='HOME', level=1, threat=0, scene, weather='CLEAR', cinematicSource, bossState, awakeningState,
 }:{
   intensity?:Intensity;
   screen?:ScreenMood;
@@ -43,6 +43,8 @@ export default function SystemAmbientBackground({
   scene?:WorldSceneId;
   weather?:WorldWeather;
   cinematicSource?:CinematicSource;
+  bossState?:BossCinematicState;
+  awakeningState?:AwakeningCinematicState;
 }) {
   const far=useSharedValue(0);
   const fire=useSharedValue(0);
@@ -119,6 +121,8 @@ export default function SystemAmbientBackground({
   const timeDim=ctx.time==='NIGHT'?.18:ctx.time==='DUSK'?.11:.05;
   const weatherDim=weather==='STORM'?.20:weather==='RAIN'?.13:weather==='FOG'?.09:.04;
   const threatGlow=.12+threat*.08;
+  const bossStateStrength=bossState==='VICTORY'?0.35:bossState==='DEATH'?0.2:bossState==='ENRAGE'?1:bossState==='PHASE_2'?0.82:bossState==='ATTACK'||bossState==='HIT'?0.68:0.5;
+  const awakeningStateStrength=awakeningState==='AWAKENED'?1:awakeningState==='FLASH'||awakeningState==='DROP'?0.92:awakeningState==='PUSH'||awakeningState==='WIND'?0.72:awakeningState==='ENERGY'||awakeningState==='RUNES'?0.58:awakeningState==='PORTAL'?0.42:0.2;
 
   return <View pointerEvents="none" style={styles.root}>
     {art?<CinematicBackdrop source={art} accent={worldScene.accent} strength={strength} reduced={motion.reduced}/>:null}
@@ -153,10 +157,10 @@ export default function SystemAmbientBackground({
       {worldScene.particle==='runes'||screen==='LAUNCH'||screen==='CHARACTER'?<Runes accent={worldScene.accent} strength={strength}/>:null}
     </Animated.View>
 
-    {worldScene.id==='BOSS_ZONE'&&<Animated.View style={[styles.bossDomain,{borderColor:worldScene.accent,shadowColor:worldScene.accent},bossPhaseStyle]} />}
+    {worldScene.id==='BOSS_ZONE'&&<Animated.View style={[styles.bossDomain,{borderColor:worldScene.accent,shadowColor:worldScene.accent,opacity:bossStateStrength},bossPhaseStyle]} />}
     {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<>
-      <Animated.View style={[styles.awakeningBurst,{borderColor:worldScene.accent,shadowColor:worldScene.accent},awakeningStyle]} />
-      <Animated.View style={[styles.awakeningCore,{backgroundColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]} />
+      <Animated.View style={[styles.awakeningBurst,{borderColor:worldScene.accent,shadowColor:worldScene.accent,opacity:awakeningStateStrength},awakeningStyle]} />
+      <Animated.View style={[styles.awakeningCore,{backgroundColor:worldScene.accent,shadowColor:worldScene.accent,opacity:awakeningStateStrength},energyStyle]} />
     </>}
     <Animated.View style={[styles.portal,{borderColor:worldScene.accent,shadowColor:worldScene.accent},pulseStyle]} />
     <Animated.View style={[styles.scanLine,{backgroundColor:worldScene.accent},scanStyle]} />
