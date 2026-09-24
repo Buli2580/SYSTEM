@@ -213,8 +213,10 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
     if(reduced)return;
     let phase=0;
     const delays=[1700,2350,1450,3100,2050,2700];
-    let timer:ReturnType<typeof setTimeout>;
+    let timer:ReturnType<typeof setTimeout>|null=null;
+    let active=true;
     const run=()=>{
+      if(!active)return;
       phase=(phase+1)%8;
       pattern.value=withTiming(phase%4,{duration:260});
       if(phase===0){triggerCinematicEvent('OGRE_STEP');stomp.value=withSequence(withTiming(1,{duration:260}),withTiming(0,{duration:720}))}
@@ -225,10 +227,10 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
       else if(phase===5){triggerCinematicEvent('BUILDING_HIT');attack.value=withSequence(withTiming(.7,{duration:240}),withTiming(0,{duration:420}),withTiming(1,{duration:210}),withTiming(0,{duration:620}))}
       else if(phase===6&&threat>=2){triggerCinematicEvent('THUNDER');triggerCinematicEvent('OGRE_ROAR')}
       else {triggerCinematicEvent('DEBRIS');triggerCinematicEvent('BASS_IMPACT')}
-      timer=setTimeout(run,delays[phase%delays.length]);
+      if(active)timer=setTimeout(run,delays[phase%delays.length]);
     };
     timer=setTimeout(run,900);
-    return()=>clearTimeout(timer);
+    return()=>{active=false;if(timer)clearTimeout(timer)};
   },[attack,collapse,debris,lunge,pattern,reduced,stomp,threat]));
   const ogre=useAnimatedStyle(()=>({transform:[
     {scale:interpolate(stomp.value,[0,.45,.55,1],[1,1.025,.97,1])},
