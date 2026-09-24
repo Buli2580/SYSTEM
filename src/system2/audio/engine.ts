@@ -14,6 +14,8 @@ let ambientPlayer:AudioPlayer|null=null;
 let fxPlayer:AudioPlayer|null=null;
 const cinematicPlayers=new Map<CinematicLayer,AudioPlayer>();
 const cinematicEventPlayers=new Set<AudioPlayer>();
+const cinematicLayerBaseVolume=new Map<CinematicLayer,number>();
+let musicDuckTimer:ReturnType<typeof setTimeout>|null=null;
 let currentMusic:MusicCue|null=null;
 const fades=new Map<AudioPlayer,ReturnType<typeof setInterval>>();
 
@@ -67,12 +69,14 @@ export function configureAudioEngine(next:Partial<Mix>){
     if(musicPlayer) musicPlayer.volume=mix.music;
     if(ambientPlayer) ambientPlayer.volume=mix.ambient;
     if(fxPlayer) fxPlayer.volume=mix.sfx;
+    for(const [layer,player] of cinematicPlayers){const base=cinematicLayerBaseVolume.get(layer)??.35;try{player.volume=Math.min(1,base*mix.ambient)}catch{} }
   }
 }
 export function getAudioMix(){return{...mix}}
 export function stopCinematicAudio(){
   for(const player of cinematicPlayers.values())stopPlayer(player);
   cinematicPlayers.clear();
+  cinematicLayerBaseVolume.clear();
   for(const player of cinematicEventPlayers)stopPlayer(player);
   cinematicEventPlayers.clear();
 }
@@ -117,17 +121,25 @@ export function audioAssetStatus(){
 export function setCinematicLayer(layer:CinematicLayer,source:any,volume=.35){
   if(!mix.enabled||mix.ambient<=0||!source)return;
   const previous=cinematicPlayers.get(layer);
-  if(previous)fadeOutAndRemove(previous,350);
+  if(previous)return;
+  cinematicLayerBaseVolume.set(layer,volume);
   const player=spawn(source,0,true);
   cinematicPlayers.set(layer,player);
   fadeIn(player,Math.min(1,volume*mix.ambient),650);
 }
 export function clearCinematicLayer(layer:CinematicLayer){
   const player=cinematicPlayers.get(layer);if(!player)return;
-  cinematicPlayers.delete(layer);fadeOutAndRemove(player,350);
+  cinematicPlayers.delete(layer);cinematicLayerBaseVolume.delete(layer);fadeOutAndRemove(player,350);
+}
+function duckMusic(duration=650,depth=.46){
+  if(!musicPlayer)return;
+  if(musicDuckTimer)clearTimeout(musicDuckTimer);
+  try{musicPlayer.volume=Math.max(.08,mix.music*depth)}catch{}
+  musicDuckTimer=setTimeout(()=>{if(musicPlayer)fadeIn(musicPlayer,mix.music,260);musicDuckTimer=null},duration);
 }
 export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
   if(!mix.enabled||mix.sfx<=0||!source)return;
+  if(_event==='OGRE_ROAR'||_event==='BUILDING_HIT'||_event==='BASS_IMPACT'||_event==='BOSS_ENTER'||_event==='AWAKENING_ENTER')duckMusic(_event==='OGRE_ROAR'?1100:700,_event==='BASS_IMPACT'?.34:.48);
   const player=spawn(source,Math.min(1,volume*mix.sfx),false);
   cinematicEventPlayers.add(player);
   setTimeout(()=>{cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
