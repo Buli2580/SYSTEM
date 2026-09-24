@@ -15,6 +15,7 @@ import type {AvatarStyle} from '../identity/model';
 import { titlePl } from '../i18n/pl';
 import {CHARACTER_SECTIONS,characterCompletion} from '../beta/character';
 import SystemPlayerCard from '../cards/SystemPlayerCard';
+import HeroCardCollection from '../cards/HeroCardCollection';
 import SystemAudioScene from '../components/SystemAudioScene';
 import { archetypeForPlayer, playerPerks } from '../progression/perks';
 
@@ -77,6 +78,7 @@ export default function CharacterScreen() {
       <Text style={s.body}>Możesz zmienić styl w dowolnym momencie, bez resetowania osiągnięć.</Text>
     </View>
     <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
+    <HeroCardCollection player={player} />
     <SystemPlayerCard player={player} />
     {progression && <StreakMilestoneCard days={progression.streak.currentStreak} />}
     <View style={s.panel}>
