@@ -2,6 +2,7 @@ import {useEffect} from 'react';
 import {Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import Animated,{FadeIn,FadeInUp} from 'react-native-reanimated';
 import {playFeedback} from '../identity/audio';
+import {useAnimation4} from '../presentation/useAnimation4';
 import {overlayAutoDismiss} from '../presentation/animationEngine4';
 import {useAnimationEngine4} from './AnimationEngine4Provider';
 
@@ -17,6 +18,7 @@ function soundFor(event:SystemEvent){
 }
 
 export default function SystemEventOverlay({event,onDismiss}:{event:SystemEvent|null;onDismiss:()=>void}){
+  const motion=useAnimation4();
   const motion=useAnimationEngine4();
   useEffect(()=>{
     if(!event)return;
