@@ -80,6 +80,8 @@ export type AIDailyCache = {
   model?: string;
   briefing: string;
   director: AIGameMasterResponse['director'];
+  research?: AIGameMasterResponse['research'];
+  memory?: AIGameMasterResponse['memory'];
   generatedAt: string;
 };
 
@@ -207,6 +209,8 @@ async function readAIDailyCache(db: SQLite.SQLiteDatabase, day: string): Promise
       ...(typeof parsed.model === 'string' && parsed.model.length <= 120 ? { model: parsed.model } : {}),
       briefing: typeof parsed.briefing === 'string' ? parsed.briefing.slice(0, 180) : '',
       director,
+      ...(parsed.research && typeof parsed.research === 'object' ? { research: parsed.research as AIGameMasterResponse['research'] } : {}),
+      ...(parsed.memory && typeof parsed.memory === 'object' ? { memory: parsed.memory as AIGameMasterResponse['memory'] } : {}),
       generatedAt: typeof parsed.generatedAt === 'string' ? parsed.generatedAt : '',
     };
   } catch {
@@ -1081,6 +1085,8 @@ export function applyAIDailyPlan(plan: AIGameMasterResponse) {
        model: plan.model ?? null,
        briefing: plan.briefing,
        director: plan.director,
+       research: plan.research ?? null,
+       memory: plan.memory ?? null,
        generatedAt: new Date().toISOString(),
      }),
    );
