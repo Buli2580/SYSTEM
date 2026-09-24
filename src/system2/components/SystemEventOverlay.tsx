@@ -2,7 +2,6 @@ import {useEffect} from 'react';
 import {Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import Animated,{FadeIn,FadeInUp} from 'react-native-reanimated';
 import {playFeedback} from '../identity/audio';
-import {useAnimation4} from '../presentation/useAnimation4';
 import {overlayAutoDismiss} from '../presentation/animationEngine4';
 import {useAnimationEngine4} from './AnimationEngine4Provider';
 
@@ -18,7 +17,6 @@ function soundFor(event:SystemEvent){
 }
 
 export default function SystemEventOverlay({event,onDismiss}:{event:SystemEvent|null;onDismiss:()=>void}){
-  const motion=useAnimation4();
   const motion=useAnimationEngine4();
   useEffect(()=>{
     if(!event)return;
@@ -33,8 +31,8 @@ export default function SystemEventOverlay({event,onDismiss}:{event:SystemEvent|
     <Pressable accessibilityRole="button" accessibilityLabel="Zamknij komunikat SYSTEMU" onPress={onDismiss} style={styles.root}>
       <View style={[styles.haloOuter,{borderColor:accent+'33'}]}/>
       <View style={[styles.haloInner,{borderColor:accent+'66'}]}/>
-      <Animated.View entering={FadeIn.duration(motion.duration('fast'))} style={[styles.scan,{backgroundColor:accent+'66'}]}/>
-      <Animated.View entering={FadeInUp.duration(motion.duration('normal'))} style={[styles.card,{borderColor:accent+'88',shadowColor:accent}]}>
+      <Animated.View entering={motion.reducedMotion?undefined:FadeIn.duration(motion.duration('fast'))} style={[styles.scan,{backgroundColor:accent+'66'}]}/>
+      <Animated.View entering={motion.reducedMotion?undefined:FadeInUp.duration(motion.duration('normal'))} style={[styles.card,{borderColor:accent+'88',shadowColor:accent}]}>
         <Text style={[styles.eyebrow,{color:accent}]}>{event.eyebrow}</Text>
         <Text style={styles.title}>{event.title}</Text>
         {event.detail?<Text style={styles.detail}>{event.detail}</Text>:null}
