@@ -1,9 +1,8 @@
 import {useCallback} from 'react';
 import {useFocusEffect} from 'expo-router';
 import {playAudioTheme,stopAudioTheme} from '../identity/audio';
-import {applyCinematicPreset,stopCinematicAudio,type MusicCue} from '../audio/engine';
+import {applyCinematicPreset,stopCinematicAudio,type CinematicPreset,type MusicCue} from '../audio/engine';
 
-type CinematicPreset='CITY'|'RUINS'|'WORLD'|'BOSS'|'AWAKENING';
 
 export default function SystemAudioScene({cue,preset}:{cue:MusicCue;preset?:CinematicPreset}){
   useFocusEffect(useCallback(()=>{
