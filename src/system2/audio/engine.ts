@@ -5,7 +5,7 @@ export type AudioBus='music'|'ambient'|'sfx';
 export type MusicCue='HOME'|'WORLD'|'QUEST'|'ACTIVE_QUEST'|'BOSS'|'VICTORY'|'AWAKENING';
 export type SfxCue='UI_TAP'|'SCAN'|'QUEST_START'|'VERIFY'|'REWARD'|'XP'|'LEVEL_UP'|'RANK_UP'|'PORTAL'|'BOSS_HIT'|'ERROR';
 export type CinematicLayer='CITY_RUINS'|'FIRE'|'WIND'|'RAIN'|'STORM'|'PORTAL_ENERGY';
-export type CinematicEvent='OGRE_STEP'|'OGRE_ROAR'|'BUILDING_HIT'|'DEBRIS'|'THUNDER'|'PORTAL_ENERGY'|'BASS_IMPACT'|'BOSS_ENTER'|'AWAKENING_ENTER';
+export type CinematicEvent='OGRE_STEP'|'OGRE_ROAR'|'BUILDING_HIT'|'DEBRIS'|'THUNDER'|'PORTAL_ENERGY'|'BASS_IMPACT'|'BOSS_ENTER'|'BOSS_ATTACK'|'BOSS_HIT'|'BOSS_PHASE_2'|'BOSS_ENRAGE'|'BOSS_DEATH'|'VICTORY'|'AWAKENING_ENTER'|'AWAKENING_RISE'|'AWAKENING_FLASH'|'AWAKENING_COMPLETE';
 
 type Mix={enabled:boolean;music:number;ambient:number;sfx:number};
 let mix:Mix={enabled:false,music:.8,ambient:.55,sfx:.9};
@@ -83,6 +83,7 @@ export function stopCinematicAudio(){
   cinematicEventPlayers.clear();
 }
 export function stopAllAudio(){
+  if(musicDuckTimer){clearTimeout(musicDuckTimer);musicDuckTimer=null}
   clearFade();
   stopPlayer(musicPlayer);stopPlayer(ambientPlayer);stopPlayer(fxPlayer);stopCinematicAudio();
   musicPlayer=ambientPlayer=fxPlayer=null;currentMusic=null;
@@ -97,7 +98,7 @@ export function playMusic(cue:MusicCue){
   fadeIn(next,mix.music,cue==='VICTORY'||cue==='AWAKENING'?280:600);
   fadeOutAndRemove(previous,cue==='BOSS'?300:520);
 }
-export function stopMusic(){fadeOutAndRemove(musicPlayer,280);musicPlayer=null;currentMusic=null}
+export function stopMusic(){if(musicDuckTimer){clearTimeout(musicDuckTimer);musicDuckTimer=null}fadeOutAndRemove(musicPlayer,280);musicPlayer=null;currentMusic=null}
 export function playAmbient(source:any){
   if(!mix.enabled||mix.ambient<=0)return;
   const previous=ambientPlayer;
@@ -141,7 +142,7 @@ function duckMusic(duration=650,depth=.46){
 }
 export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
   if(!mix.enabled||mix.sfx<=0||!source)return;
-  if(_event==='OGRE_ROAR'||_event==='BUILDING_HIT'||_event==='THUNDER'||_event==='PORTAL_ENERGY'||_event==='BASS_IMPACT'||_event==='BOSS_ENTER'||_event==='AWAKENING_ENTER')duckMusic(_event==='OGRE_ROAR'?1100:_event==='AWAKENING_ENTER'?1250:700,_event==='BASS_IMPACT'?.34:_event==='THUNDER'?.40:.48);
+  if(['OGRE_ROAR','BUILDING_HIT','THUNDER','PORTAL_ENERGY','BASS_IMPACT','BOSS_ENTER','BOSS_ATTACK','BOSS_PHASE_2','BOSS_ENRAGE','BOSS_DEATH','VICTORY','AWAKENING_ENTER','AWAKENING_RISE','AWAKENING_FLASH','AWAKENING_COMPLETE'].includes(_event))duckMusic(_event==='OGRE_ROAR'?1100:_event==='AWAKENING_ENTER'?1250:700,_event==='BASS_IMPACT'?.34:_event==='THUNDER'?.40:.48);
   const player=spawn(source,Math.min(1,volume*mix.sfx),false);
   cinematicEventPlayers.add(player);
   setTimeout(()=>{cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
@@ -159,4 +160,21 @@ export function applyCinematicPreset(preset:CinematicPreset){
 }
 export function triggerCinematicEvent(event:CinematicEvent){
   const asset=cinematicSources.events[event];if(asset)playCinematicEvent(event,asset.source,asset.volume);
+}
+
+export type BossCinematicState='ENTER'|'ROAR'|'ATTACK'|'HIT'|'PHASE_2'|'ENRAGE'|'DEATH'|'VICTORY';
+export function triggerBossCinematicState(state:BossCinematicState){
+  const map:Record<BossCinematicState,CinematicEvent>={
+    ENTER:'BOSS_ENTER',ROAR:'OGRE_ROAR',ATTACK:'BOSS_ATTACK',HIT:'BOSS_HIT',
+    PHASE_2:'BOSS_PHASE_2',ENRAGE:'BOSS_ENRAGE',DEATH:'BOSS_DEATH',VICTORY:'VICTORY',
+  };
+  triggerCinematicEvent(map[state]);
+}
+export type AwakeningCinematicState='CALM'|'PORTAL'|'RUNES'|'ENERGY'|'WIND'|'PUSH'|'FLASH'|'DROP'|'AWAKENED';
+export function triggerAwakeningCinematicState(state:AwakeningCinematicState){
+  const map:Partial<Record<AwakeningCinematicState,CinematicEvent>>={
+    PORTAL:'PORTAL_ENERGY',ENERGY:'AWAKENING_RISE',WIND:'AWAKENING_RISE',
+    FLASH:'AWAKENING_FLASH',DROP:'BASS_IMPACT',AWAKENED:'AWAKENING_COMPLETE',
+  };
+  const event=map[state];if(event)triggerCinematicEvent(event);
 }
