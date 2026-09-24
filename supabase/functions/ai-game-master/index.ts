@@ -441,6 +441,56 @@ async function callProvider(context:any,memory:Memory,recentResearch:any[]){
   };
 }
 
+
+async function callStoryProvider(context:any,memory:Memory){
+  const key=Deno.env.get('OPENROUTER_API_KEY')||Deno.env.get('AI_API_KEY');
+  const story=context?.story??{};
+  const fallback={
+    chapter:story.failed>=2?'RECOVERY':typeof story.bossHp==='number'&&story.bossHp>0?'BOSS':story.worldUnlocked?'WORLD':'AWAKENING',
+    headline:story.failed>=2?'THE SYSTEM BENDS':typeof story.bossHp==='number'&&story.bossHp<=15?'FINAL STRIKE':story.worldUnlocked?'THE WORLD RESPONDS':'FIRST SIGNAL',
+    message:story.failed>=2?'Odbuduj tempo bez kary za wcześniejsze niepowodzenie.':'SYSTEM wyznacza kolejny bezpieczny kierunek historii.',
+    threat:typeof story.bossHp==='number'&&story.bossHp>0?3:story.worldUnlocked?2:1,
+    next:story.failed>=2?'RECOVERY':typeof story.bossHp==='number'&&story.bossHp>0?'BOSS':story.worldUnlocked?'WORLD':'QUEST',
+    source:'fallback'
+  };
+  if(!key)return fallback;
+  const base=(Deno.env.get('AI_BASE_URL')||'https://openrouter.ai/api/v1').replace(/\/$/,'');
+  const model=Deno.env.get('AI_MODEL')||(base.includes('openrouter.ai')?'openai/gpt-5.6-luna':'gpt-5.6-luna');
+  const response=await fetch(base+'/chat/completions',{
+    method:'POST',
+    headers:{'content-type':'application/json','authorization':'Bearer '+key},
+    body:JSON.stringify({
+      model,temperature:.7,max_tokens:700,response_format:{type:'json_object'},
+      messages:[
+        {role:'system',content:'You are SYSTEM Story Director. Return only JSON. Do not assign XP, rewards, health advice, illegal actions or punishments. Keep story grounded in current game state.'},
+        {role:'user',content:[
+          'Player state: '+JSON.stringify(context?.player??{}),
+          'Story state: '+JSON.stringify(story),
+          'Non-sensitive gameplay memory: '+JSON.stringify(memory),
+          'Return {"chapter":"...","headline":"...","message":"...","threat":1|2|3,"next":"QUEST|WORLD|BOSS|RECOVERY","source":"ai"}.',
+          'Write user-facing text in Polish.'
+        ].join('\n')}
+      ]
+    })
+  });
+  if(!response.ok)return fallback;
+  const data=await response.json();
+  const text=data?.choices?.[0]?.message?.content;
+  if(typeof text!=='string')return fallback;
+  let parsed:any;
+  try{parsed=parseModelJson(text)}catch{return fallback;}
+  if(!['QUEST','WORLD','BOSS','RECOVERY'].includes(parsed?.next))return fallback;
+  return{
+    chapter:cleanText(parsed.chapter,40)||fallback.chapter,
+    headline:cleanText(parsed.headline,80)||fallback.headline,
+    message:cleanText(parsed.message,240)||fallback.message,
+    threat:[1,2,3].includes(Number(parsed.threat))?Number(parsed.threat):fallback.threat,
+    next:parsed.next,
+    source:'ai',
+    model:data?.model||model,
+  };
+}
+
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return json({ok:true});
   if(req.method!=='POST')return json({error:'Method not allowed'},405);
@@ -448,8 +498,13 @@ Deno.serve(async(req:Request)=>{
   try{
     const userId=await requireAuthenticatedUser(req);
     const body=await req.json();
-    if(body?.action!=='generate_daily')return json({error:'Unknown action'},400);
     if(!body?.context?.player)return json({error:'Missing player context'},400);
+
+    if(body?.action==='story_director'){
+      const memory=await loadMemory(userId);
+      return json(await callStoryProvider(body.context,memory));
+    }
+    if(body?.action!=='generate_daily')return json({error:'Unknown action'},400);
 
     const pair=await Promise.all([loadMemory(userId),loadRecentResearch(userId)]);
     const memory=pair[0],recentResearch=pair[1];
