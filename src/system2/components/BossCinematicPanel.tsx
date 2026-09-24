@@ -42,7 +42,7 @@ export default function BossCinematicPanel({
 
 const styles=StyleSheet.create({
   root:{height:310,marginTop:16,borderRadius:24,overflow:'hidden',borderWidth:1,borderColor:'rgba(228,186,255,.46)',backgroundColor:'#050208'},
-  scrim:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(3,1,7,.58)'},
+  scrim:{...StyleSheet.absoluteFill,backgroundColor:'rgba(3,1,7,.58)'},
   top:{position:'absolute',top:16,left:16,right:16,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:10},
   code:{flex:1,color:'#e4baff',fontSize:8,fontWeight:'900',letterSpacing:1.35},
   threat:{borderWidth:1,borderColor:'#ff6f91',borderRadius:999,paddingHorizontal:10,paddingVertical:6,backgroundColor:'rgba(255,70,110,.08)'},
