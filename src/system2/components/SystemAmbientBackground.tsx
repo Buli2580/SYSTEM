@@ -50,6 +50,8 @@ export default function SystemAmbientBackground({
   const energy=useSharedValue(0);
   const lightning=useSharedValue(0);
   const shake=useSharedValue(0);
+  const bossPhase=useSharedValue(0);
+  const awakening=useSharedValue(0);
   const mid=useSharedValue(0);
   const near=useSharedValue(0);
   const scan=useSharedValue(0);
@@ -75,6 +77,8 @@ export default function SystemAmbientBackground({
     energy.value=withRepeat(withTiming(1,{duration:1450,easing:Easing.inOut(Easing.ease)}),-1,true);
     lightning.value=withRepeat(withTiming(1,{duration:5100,easing:Easing.linear}),-1,false);
     shake.value=withRepeat(withTiming(1,{duration:1900,easing:Easing.inOut(Easing.ease)}),-1,true);
+    bossPhase.value=withRepeat(withTiming(1,{duration:6400,easing:Easing.inOut(Easing.ease)}),-1,true);
+    awakening.value=withRepeat(withTiming(1,{duration:4200,easing:Easing.inOut(Easing.ease)}),-1,true);
     return()=>[far,mid,near,scan,pulse,fire,lightning,shake].forEach(cancelAnimation);
   },[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake,motion.reduced]));
 
@@ -107,6 +111,8 @@ export default function SystemAmbientBackground({
   const energyStyle=useAnimatedStyle(()=>({opacity:interpolate(energy.value,[0,1],[.16,.62]),transform:[{scale:interpolate(energy.value,[0,1],[.92,1.12])}]}));
   const lightningStyle=useAnimatedStyle(()=>({opacity:interpolate(lightning.value,[0,.72,.76,.79,.82,1],[0,0,.62,.05,.38,0])}));
   const shakeStyle=useAnimatedStyle(()=>({transform:[{translateX:interpolate(shake.value,[0,1],[-1.5,1.5])},{translateY:interpolate(shake.value,[0,1],[1,-1])}]}));
+  const bossPhaseStyle=useAnimatedStyle(()=>({opacity:interpolate(bossPhase.value,[0,.45,1],[.10,.48,.18]),transform:[{scale:interpolate(bossPhase.value,[0,1],[.78,1.22])}]}));
+  const awakeningStyle=useAnimatedStyle(()=>({opacity:interpolate(awakening.value,[0,.55,1],[.12,.72,.18]),transform:[{scale:interpolate(awakening.value,[0,1],[.72,1.32])},{rotate:interpolate(awakening.value,[0,1],[0,18])+'deg'}]}));
 
   const strength=intensity==='hero'?1:intensity==='world'?.94:intensity==='quiet'?.48:.74;
   const timeDim=ctx.time==='NIGHT'?.18:ctx.time==='DUSK'?.11:.05;
@@ -142,6 +148,8 @@ export default function SystemAmbientBackground({
       {worldScene.particle==='runes'||screen==='LAUNCH'||screen==='CHARACTER'?<Runes accent={worldScene.accent} strength={strength}/>:null}
     </Animated.View>
 
+    {worldScene.id==='BOSS_ZONE'&&<Animated.View style={[styles.bossDomain,{borderColor:worldScene.accent,shadowColor:worldScene.accent},bossPhaseStyle]} />}
+    {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<Animated.View style={[styles.awakeningBurst,{borderColor:worldScene.accent,shadowColor:worldScene.accent},awakeningStyle]} />}
     <Animated.View style={[styles.portal,{borderColor:worldScene.accent,shadowColor:worldScene.accent},pulseStyle]} />
     <Animated.View style={[styles.scanLine,{backgroundColor:worldScene.accent},scanStyle]} />
     {threat>=2&&<Animated.View style={[styles.threatCore,{borderColor:worldScene.accent,shadowColor:worldScene.accent},pulseStyle]} />}
@@ -340,4 +348,6 @@ const styles=StyleSheet.create({
   ogreArmRear:{position:'absolute',right:4,top:98,width:31,height:112,borderWidth:2,borderRadius:20,backgroundColor:'rgba(2,5,7,.72)',transform:[{rotate:'-18deg'}]},
   hitGlow:{position:'absolute',right:'37%',bottom:'29%',width:62,height:62,borderRadius:31,shadowOpacity:.9,shadowRadius:20},
   debris:{position:'absolute',width:9,height:9,borderWidth:1,backgroundColor:'rgba(2,5,7,.8)'},
+  bossDomain:{position:'absolute',width:330,height:330,borderRadius:165,borderWidth:3,top:'18%',left:'8%',shadowOpacity:.85,shadowRadius:36},
+  awakeningBurst:{position:'absolute',width:260,height:260,borderRadius:130,borderWidth:2,top:'24%',left:'17%',shadowOpacity:.95,shadowRadius:42},
 });
