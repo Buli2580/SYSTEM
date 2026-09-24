@@ -77,7 +77,7 @@ function OnlineWorld() {
       </View>
     </View>
     <View style={styles.map}>
-      {world.fix ? <WorldMap fix={world.fix} sectorIds={map2.layers.SECTORS?world.sectorIds:[]} signal={map2.layers.SIGNALS?world.signal:undefined} follow={follow} centerRequest={centerRequest} /> :
+      {world.fix ? <WorldMap fix={world.fix} sectorIds={map2.layers.SECTORS?world.sectorIds:[]} signal={map2.layers.SIGNALS?world.signal:null} follow={follow} centerRequest={centerRequest} /> :
         <View style={styles.empty}><Text style={styles.label}>{world.status === 'STARTING' ? 'URUCHAMIANIE // GPS' : 'URUCHOM ŚWIAT'}</Text>
           <Text style={styles.body}>Mapa świata działa podczas otwartego ekranu WORLD. Aktywne misje ruchowe mogą mierzyć dystans w tle.</Text></View>}
       <View style={styles.mapControls}>
