@@ -16,6 +16,7 @@ import { MissionBriefing, QuestFlowRail, QuestRecoveryPanel } from '../component
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import AudioEnableAction from '../components/AudioEnableAction';
 import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
+import {applyCinematicPreset,stopCinematicAudio,triggerCinematicEvent} from '../audio/engine';
 import {calculateAge} from '../identity/age';
 import {capturePrivateQuestPhoto,removePrivateQuestPhoto,purgeStalePrivateQuestPhotos} from '../quests/privatePhoto';
 import {queueTelemetry} from '../telemetry/amplitude';
@@ -154,13 +155,21 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   useEffect(() => {
     if (quest.category === 'BOSS') {
       playAudioTheme('BOSS');
+      applyCinematicPreset('BOSS');
+      triggerCinematicEvent('OGRE_ROAR');
     } else if (status === 'TRACKING') {
+      applyCinematicPreset('CITY');
+      triggerCinematicEvent('BASS_IMPACT');
       playAudioTheme('ACTIVE_QUEST');
     } else if (status === 'COMPLETED') {
+      stopCinematicAudio();
+      triggerCinematicEvent('AWAKENING_ENTER');
       stopAudioTheme();
       playAudioTheme('VICTORY');
       playFeedback('QUEST_COMPLETE');
     } else if (status === 'COMPLETING') {
+      applyCinematicPreset('RUINS');
+      triggerCinematicEvent('DEBRIS');
       playAudioTheme('QUEST');
       playFeedback('VERIFY');
     } else if (status === 'ERROR' || status === 'DENIED') {
@@ -169,7 +178,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     } else {
       playAudioTheme('QUEST');
     }
-    return () => stopAudioTheme();
+    return () => {stopCinematicAudio();stopAudioTheme()};
   }, [status, quest.category]);
 
   const handleStartQuest = () => {
