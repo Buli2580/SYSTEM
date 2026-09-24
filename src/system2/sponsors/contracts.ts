@@ -9,7 +9,7 @@ export interface SponsorBrand {
 }
 
 export interface SponsorReward {
-  kind: 'xp' | 'badge' | 'coupon' | 'physical' | 'cash';
+  kind: 'badge' | 'coupon' | 'physical' | 'cash' | 'cosmetic';
   label: string;
   value?: number;
   currency?: string;
