@@ -135,11 +135,11 @@ export async function joinMoveGroup(inviteCode:string){
  const s=await session();
  return cloudRequest<string>('/rest/v1/rpc/join_move_group',{method:'POST',body:JSON.stringify({p_code:code})},s.accessToken);
 }
-// A client-side MOVE pass does not count as verified cloud ranking evidence.
-// The server must first have processed a matching core quest event.
+// A client-side MOVE pass alone never counts as cloud ranking evidence.
+// The server must accept a dedicated MOVE_VERIFIED_EVENT or a compatible legacy core VERIFIED_EVENT.
 type VerifiedSourceRow={event_key:string};
 export async function getMyVerifiedMoveSource(moveQuestId:string,dayKey:string):Promise<string|null>{
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(dayKey))throw new Error('Nieprawidłowy dzień MOVE.');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(dayKey))throw new Error('Nieprawidłowy dzień MOVE.');
  const s=await session();
  const rows=await cloudRequest<VerifiedSourceRow[]>('/rest/v1/rpc/get_my_move_verified_source',{
    method:'POST',body:JSON.stringify({p_move_quest_id:moveQuestId,p_day_key:dayKey}),
@@ -148,7 +148,7 @@ export async function getMyVerifiedMoveSource(moveQuestId:string,dayKey:string):
 }
 export async function submitVerifiedMoveContribution(input:{groupId:string;eventKey:string;questId:string;dayKey:string}){
  if(!/^verified:[A-Za-z0-9._:-]{1,180}$/.test(input.eventKey))throw new Error('Nieprawidłowy klucz potwierdzenia MOVE.');
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dayKey))throw new Error('Nieprawidłowy dzień MOVE.');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(input.dayKey))throw new Error('Nieprawidłowy dzień MOVE.');
  const s=await session();
  return cloudRequest<number>('/rest/v1/rpc/submit_verified_move_contribution',{
    method:'POST',body:JSON.stringify({
@@ -164,7 +164,7 @@ export async function getMoveGroupLeaderboard(groupId:string,days=7):Promise<Clo
  return rows.map(row=>({userId:row.user_id,verifiedMinutes:int(row.verified_minutes,'verified_minutes'),activeDays:int(row.active_days,'active_days'),contributionScore:int(row.contribution_score,'contribution_score')}));
 }
 // The local session remains complete offline. Family/School cloud credit
-// requires independently processed core evidence (currently WALK/RUN/BIKE).
+// requires a server-accepted MOVE or compatible legacy core evidence.
 export async function publishVerifiedMoveToGroups(input:{
  kinds:MoveGroupKind[];questId:string;dayKey:string;
 }){
@@ -182,7 +182,7 @@ export async function publishVerifiedMoveToGroups(input:{
 
 // On reconnect, recover eligible group credits from already-persisted local
 // MOVE history without uploading sensitive raw locations or trusting local XP.
-// Only separately accepted core GPS quests can satisfy this protocol.
+// Only separately accepted server MOVE/core GPS evidence can satisfy this protocol.
 export async function reconcileRecentMoveContributions(){
  await flushPendingMoveServerVerifications().catch(()=>({sent:0,pending:0}));
  const state=await loadMoveState();
