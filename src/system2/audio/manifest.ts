@@ -22,17 +22,16 @@ export const LEGACY_AUDIO_FALLBACKS={
     AWAKENING:{id:'music.awakening.fallback',kind:'music',source:require('../../../assets/audio/boss_theme.mp3'),loop:false,placeholder:true,recommendedReplacement:'awakening cinematic launch theme'},
   },
   sfx:{
-    // Every cue in Audio Engine has a packaged offline fallback. These are
-    // temporary sounds, not the planned original orchestral audio identity.
-    UI_TAP:{id:'sfx.ui.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'subtle holographic UI click'},
-    SCAN:{id:'sfx.scan.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'rising SYSTEM scan tone'},
-    VERIFY:{id:'sfx.verify.fallback',kind:'sfx',source:require('../../../assets/audio/quest_complete.mp3'),loop:false,placeholder:true,recommendedReplacement:'verification lock confirmation'},
-    RANK_UP:{id:'sfx.rank.fallback',kind:'sfx',source:require('../../../assets/audio/level_up.mp3'),loop:false,placeholder:true,recommendedReplacement:'orchestral rank ascension sting'},
-    PORTAL:{id:'sfx.portal.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'cinematic portal impact'},
-    BOSS_HIT:{id:'sfx.boss_hit.fallback',kind:'sfx',source:require('../../../assets/audio/quest_error.wav'),loop:false,placeholder:true,recommendedReplacement:'heavy cinematic combat impact'},
-    QUEST_START:{id:'sfx.quest_start.fallback',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:true,recommendedReplacement:'quest accept impact'},
-    REWARD:{id:'sfx.reward.fallback',kind:'sfx',source:require('../../../assets/audio/quest_complete.mp3'),loop:false,placeholder:true,recommendedReplacement:'reward reveal sting'},
-    LEVEL_UP:{id:'sfx.level_up.fallback',kind:'sfx',source:require('../../../assets/audio/level_up.mp3'),loop:false,placeholder:true,recommendedReplacement:'level up rise'},
-    ERROR:{id:'sfx.error.fallback',kind:'sfx',source:require('../../../assets/audio/quest_error.wav'),loop:false,placeholder:true,recommendedReplacement:'system error hit'},
+    UI_TAP:{id:'sfx.ui',kind:'sfx',source:require('../../../assets/audio/ui_tap.wav'),loop:false,placeholder:false,recommendedReplacement:'SYSTEM UI tap'},
+    SCAN:{id:'sfx.scan',kind:'sfx',source:require('../../../assets/audio/system_wake.wav'),loop:false,placeholder:false,recommendedReplacement:'SYSTEM wake / scan'},
+    QUEST_START:{id:'sfx.quest_start',kind:'sfx',source:require('../../../assets/audio/quest_start.wav'),loop:false,placeholder:false,recommendedReplacement:'quest accept impact'},
+    VERIFY:{id:'sfx.verify',kind:'sfx',source:require('../../../assets/audio/verify.wav'),loop:false,placeholder:false,recommendedReplacement:'verification lock'},
+    REWARD:{id:'sfx.reward',kind:'sfx',source:require('../../../assets/audio/quest_complete.mp3'),loop:false,placeholder:false,recommendedReplacement:'reward reveal sting'},
+    XP:{id:'sfx.xp',kind:'sfx',source:require('../../../assets/audio/xp_gain.wav'),loop:false,placeholder:false,recommendedReplacement:'XP gain pulse'},
+    LEVEL_UP:{id:'sfx.level_up',kind:'sfx',source:require('../../../assets/audio/level_up.mp3'),loop:false,placeholder:false,recommendedReplacement:'level up rise'},
+    RANK_UP:{id:'sfx.rank_up',kind:'sfx',source:require('../../../assets/audio/level_up.mp3'),loop:false,placeholder:false,recommendedReplacement:'rank ascension sting'},
+    PORTAL:{id:'sfx.portal',kind:'sfx',source:require('../../../assets/audio/system_wake.wav'),loop:false,placeholder:false,recommendedReplacement:'portal / awakening impact'},
+    BOSS_HIT:{id:'sfx.boss_hit',kind:'sfx',source:require('../../../assets/audio/error.wav'),loop:false,placeholder:false,recommendedReplacement:'heavy boss impact'},
+    ERROR:{id:'sfx.error',kind:'sfx',source:require('../../../assets/audio/error.wav'),loop:false,placeholder:false,recommendedReplacement:'system error hit'},
   },
 } as const;
