@@ -9,6 +9,7 @@ export type CloudPvpChallenge={
 };
 export type CloudGuildWar={id:string;guild_a:string;guild_b:string;starts_at:string;ends_at:string;score_a:number;score_b:number;status:'ACTIVE'|'COMPLETE'|'EXPIRED'};
 export type CloudReferralState={code:string;invited:number;activated:number};
+export type MyGuildSummary={guild_id:string;name:string;tag:string;role:'OWNER'|'OFFICER'|'MEMBER';level:number;xp:number};
 
 export async function getMyPvpChallenges(){
  const s=await session();
@@ -29,6 +30,11 @@ export async function submitPvpEvent(challengeId:string,eventKey:string){
 export async function getActiveGuildWars(){
  const s=await session();
  return cloudRequest<CloudGuildWar[]>('/rest/v1/rpc/get_active_guild_wars',{method:'POST',body:'{}'},s.accessToken);
+}
+export async function getMyGuildSummary(){
+ const s=await session();
+ const rows=await cloudRequest<MyGuildSummary[]>('/rest/v1/rpc/get_my_guild_summary',{method:'POST',body:'{}'},s.accessToken);
+ return rows[0]??null;
 }
 export async function createGuildWar(opponentGuildId:string,hours=72){
  const s=await session();
