@@ -14,6 +14,7 @@ import {shareText} from '../presentation/share';
 import {SOCIAL_HUB_MODULES} from '../beta/social';
 import SystemPlayerCard from '../cards/SystemPlayerCard';
 import {buildSystemCard} from '../cards/engine';
+import SocialCommandDeck from '../components/SocialCommandDeck';
 
 export default function SocialProfileScreen(){
  const router=useRouter();
@@ -67,7 +68,7 @@ export default function SocialProfileScreen(){
   </View>
 
   <View style={s.panel}><Text style={s.label}>SOCIAL 2.1 // NETWORK MODULES</Text><Text style={s.body}>{SOCIAL_HUB_MODULES.join(' · ')}</Text><Action label="UDOSTĘPNIJ PROFIL / RANGĘ →" onPress={()=>{const card=createShareCard({event:'RANK',value:`${heroCard.heroName} · RANK ${p.rank} · POWER ${heroCard.power.toLocaleString()}`,level:p.level,rank:p.rank,streak:p.streak});void Share.share({message:shareText(card)});}}/></View>
-  <View style={s.panel}><Text style={s.label}>SOCIAL HUB</Text><Text style={s.body}>Znajomi, rankingi i rywalizacja korzystają z publicznej tożsamości SYSTEMU.</Text><Action label="ZNAJOMI I ZAPROSZENIA →" onPress={()=>router.push('/friends')}/><Action label="RANKINGI →" onPress={()=>router.push('/leaderboard')}/><Action label="GILDIE →" onPress={()=>router.push('/guilds')}/><Action label="WORLD RAIDS →" onPress={()=>router.push('/raids')}/></View>
+  <SocialCommandDeck online={online} counts={counts}/>
   <View style={s.panel}><Text style={s.label}>PRIVACY SHIELD</Text><Text style={s.body}>E-mail, tokeny i dokładne GPS nie należą do profilu publicznego.</Text></View>
  </SystemPage>;
 }
