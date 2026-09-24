@@ -39,13 +39,13 @@ export function motion4Stagger(index:number,reduced=false){
  return Math.min(ANIMATION4.maxStagger,Math.max(0,Math.floor(index))*ANIMATION4.staggerStep);
 }
 export function motion4EventDuration(kind:string,reduced=false){
- if(reduced)return 0;
- if(kind==='QUEST_COMPLETE')return 1550;
- if(kind==='LEVEL_UP')return 2200;
- if(kind==='RANK_UP')return 2600;
- if(kind==='TITLE_UNLOCK')return 2400;
- if(kind==='WORLD_UNLOCK')return 2500;
- return 2100;
+ const base=kind==='QUEST_COMPLETE'?1550:
+  kind==='LEVEL_UP'?2200:
+  kind==='RANK_UP'?2600:
+  kind==='TITLE_UNLOCK'?2400:
+  kind==='WORLD_UNLOCK'?2500:2100;
+ // Reduced Motion removes animation, not reading time.
+ return reduced?Math.max(1500,Math.min(base,2000)):base;
 }
 export function motion4CombatBeat(kind:string,reduced=false){
  if(reduced)return 0;
