@@ -42,7 +42,7 @@ export default function MoveFamilyScreen(){
    </View>
 
    <Text style={styles.section}>FAMILY 2.0 // CO-OP MISSIONS</Text>
-   {FAMILY_MISSIONS_2.map(m=><View key={m.id} style={styles.quest}><Text style={styles.label}>{m.mode} // {m.verification}</Text><Text style={styles.questTitle}>{m.title}</Text><Text style={styles.body}>{m.minutes} MIN · {m.participants} PARTICIPANTS · wynik rodzinny bez publicznej lokalizacji.</Text></View>)}
+   {FAMILY_MISSIONS_2.map(m=><Pressable key={m.id} onPress={()=>router.push({pathname:'/move-quest',params:{questId:m.questId}})} style={styles.quest}><Text style={styles.label}>{m.mode} // {m.verification}</Text><Text style={styles.questTitle}>{m.title}</Text><Text style={styles.body}>{m.minutes} MIN · {m.participants} PARTICIPANTS · wynik rodzinny bez publicznej lokalizacji.</Text><Text style={styles.reward}>START CANONICAL MOVE QUEST →</Text></Pressable>)}
    <Text style={styles.section}>FAMILY WEEKEND QUESTS</Text>
    {WEEKEND_FAMILY_QUESTS.map(q=><Pressable key={q.id} onPress={()=>router.push({pathname:'/move-family-quest',params:{questId:q.id}})} style={styles.quest}>
     <Text style={styles.label}>{q.title}</Text>
