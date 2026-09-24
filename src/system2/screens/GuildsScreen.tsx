@@ -38,9 +38,9 @@ export default function GuildsScreen(){
  }
 
  return <SystemPage title="GILDIE" subtitle="SYSTEM ONLINE // TEAMS">
-  <View style={s.panel}><Text style={s.label}>GUILD NETWORK // GUILD WARS 2.0</Text><Text style={s.body}>Znajdź ekipę, buduj wspólny wynik zweryfikowanymi questami i przygotuj się do raidów.</Text>{myGuild&&<Text style={s.body}>MY GUILD // [{myGuild.tag}] {myGuild.name} · {myGuild.role} · LV.{myGuild.level}</Text>}<Action label={busy?'ŁADOWANIE…':'ODŚWIEŻ'} disabled={busy} onPress={()=>void refresh()}/></View>
+  <View style={s.panel}><Text style={s.label}>GUILD NETWORK // GUILD WARS 3.0</Text><Text style={s.body}>Znajdź ekipę, buduj wspólny wynik zweryfikowanymi questami i przygotuj się do raidów.</Text>{myGuild&&<Text style={s.body}>MY GUILD // [{myGuild.tag}] {myGuild.name} · {myGuild.role} · LV.{myGuild.level}</Text>}<Action label={busy?'ŁADOWANIE…':'ODŚWIEŻ'} disabled={busy} onPress={()=>void refresh()}/></View>
   {error&&<SystemError message={error} retry={()=>void refresh()}/>}
   {!error&&loaded&&!busy&&rows.length===0&&<View style={s.panel}><Text style={s.title}>BRAK PUBLICZNYCH GILDII</Text></View>}
-  {rows.map(g=><View key={g.id}><GuildCard guild={g} busy={busy} onJoin={()=>{void join(g.id);}}/>{myGuild&&myGuild.guild_id!==g.id&&['OWNER','OFFICER'].includes(myGuild.role)&&<View style={s.panel}><Text style={s.label}>GUILD WAR TARGET // [{g.tag}]</Text><Action label="WYZWIIJ GILDIĘ // 72H →" disabled={busy} onPress={()=>void war(g.id)}/></View>}</View>)}
+  {rows.map(g=><View key={g.id}><GuildCard guild={g} busy={busy} onJoin={()=>{void join(g.id);}}/>{myGuild&&myGuild.guild_id!==g.id&&['OWNER','OFFICER'].includes(myGuild.role)&&<View style={s.panel}><Text style={s.label}>GUILD WAR TARGET // [{g.tag}]</Text><Action label="WYZWÓL GILDIĘ // 72H →" disabled={busy} onPress={()=>void war(g.id)}/></View>}</View>)}
  </SystemPage>;
 }
