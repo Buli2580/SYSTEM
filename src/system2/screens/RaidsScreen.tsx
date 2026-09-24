@@ -4,8 +4,8 @@ import SystemPage,{pageStyles as s} from '../components/SystemPage';
 import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import BossStatusCard from '../components/BossStatusCard';
-import {getActiveRaids} from '../cloud/raids';
-import {raidHp,type SocialRaid} from '../social/raids';
+import {getActiveRaids,getRaidLeaderboardV3,type CloudRaidLeaderboardRow,type CloudRaidV3} from '../cloud/raids';
+import {raidHp} from '../social/raids';
 import {raidProgress,raidThreat} from '../social/raidThreat';
 import SystemAudioScene from '../components/SystemAudioScene';
 import {raid2Phase} from '../social/raid2';
@@ -16,9 +16,9 @@ function remaining(end:string){
  return d>0?`${d}D ${h}H`:h>0?`${h}H ${m}MIN`:`${m}MIN`;
 }
 export default function RaidsScreen(){
- const[rows,setRows]=useState<SocialRaid[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);const epoch=useRef(0),mounted=useRef(true);
+ const[rows,setRows]=useState<CloudRaidV3[]>([]),[leaderboards,setLeaderboards]=useState<Record<string,CloudRaidLeaderboardRow[]>>({}),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);const epoch=useRef(0),mounted=useRef(true);
  useEffect(()=>()=>{mounted.current=false;epoch.current++;},[]);
- async function load(){const id=++epoch.current;if(mounted.current){setBusy(true);setError(null);setRows([]);}try{const next=await getActiveRaids();if(mounted.current&&id===epoch.current)setRows(next);}catch(e){if(mounted.current&&id===epoch.current)setError(e instanceof Error?e.message:'RAIDS_FAILED');}finally{if(mounted.current&&id===epoch.current)setBusy(false);}}
+ async function load(){const id=++epoch.current;if(mounted.current){setBusy(true);setError(null);setRows([]);}try{const next=await getActiveRaids();const boards=Object.fromEntries(await Promise.all(next.slice(0,5).map(async raid=>[raid.id,await getRaidLeaderboardV3(raid.id,5)] as const)));if(mounted.current&&id===epoch.current){setRows(next);setLeaderboards(boards)}}catch(e){if(mounted.current&&id===epoch.current)setError(e instanceof Error?e.message:'RAIDS_FAILED');}finally{if(mounted.current&&id===epoch.current)setBusy(false);}}
  useEffect(()=>{void load();},[]);
  return <SystemPage title="WORLD RAIDS" subtitle="SYSTEM ONLINE // CO-OP BOSS" intensity="world">
  {rows.length>0&&<SystemAudioScene cue="BOSS" />}
@@ -30,7 +30,8 @@ export default function RaidsScreen(){
    <BossStatusCard title={r.title} status={r.status} hp={hp} maxHp={r.bossHp}/>
    <Text style={s.body}>GLOBAL DAMAGE: {r.damage.toLocaleString()} · PROGRESS {progress}% · TIME LEFT {remaining(r.endsAt)}</Text><Text style={s.body}>PHASE // {phase} · contribution rank będzie liczony wyłącznie ze zweryfikowanych zdarzeń online.</Text>
    <View style={{height:6,borderRadius:6,overflow:'hidden',backgroundColor:'#17333e',marginTop:9}}><View style={{height:'100%',width:`${Math.max(2,progress)}%`,backgroundColor:'#e4baff'}}/></View>
-   <Text style={s.body}>Participants, contribution leaderboard, raid phases i reward screen wymagają rozszerzenia danych zwracanych przez backend. Ten ekran nie tworzy fikcyjnych uczestników.</Text>
+   <Text style={s.body}>PARTICIPANTS {r.participantCount} · YOUR DAMAGE {r.myDamage} · YOUR EVENTS {r.myEventCount} · YOUR RANK {r.myRank||'—'}</Text>
+   {(leaderboards[r.id]??[]).length>0&&<View style={{marginTop:10}}><Text style={s.label}>RAID LEADERBOARD // TOP 5</Text>{(leaderboards[r.id]??[]).map(row=><Text key={row.userId} style={s.body}>#{row.rank} {row.displayName} · DMG {row.damage} · {row.verifiedEvents} EVENTS</Text>)}</View>}
  </View>;})}
  </SystemPage>;
 }
