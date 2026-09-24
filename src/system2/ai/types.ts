@@ -52,6 +52,11 @@ export interface AIGameMasterContext {
     streak: number;
     completionRate7d: number;
     systemDebt: 0 | 1 | 2 | 3;
+    activities?: {
+      walking: boolean;
+      running: boolean;
+      cycling: boolean;
+    };
     locale?: string;
     timezone?: string;
   };
