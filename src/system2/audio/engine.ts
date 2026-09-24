@@ -5,7 +5,7 @@ export type AudioBus='music'|'ambient'|'sfx';
 export type MusicCue='HOME'|'WORLD'|'QUEST'|'ACTIVE_QUEST'|'BOSS'|'VICTORY'|'AWAKENING';
 export type SfxCue='UI_TAP'|'SCAN'|'QUEST_START'|'VERIFY'|'REWARD'|'XP'|'LEVEL_UP'|'RANK_UP'|'PORTAL'|'BOSS_HIT'|'ERROR';
 export type CinematicLayer='CITY_RUINS'|'FIRE'|'WIND'|'RAIN'|'STORM'|'PORTAL_ENERGY';
-export type CinematicEvent='OGRE_STEP'|'OGRE_ROAR'|'BUILDING_HIT'|'DEBRIS'|'BASS_IMPACT'|'BOSS_ENTER'|'AWAKENING_ENTER';
+export type CinematicEvent='OGRE_STEP'|'OGRE_ROAR'|'BUILDING_HIT'|'DEBRIS'|'THUNDER'|'PORTAL_ENERGY'|'BASS_IMPACT'|'BOSS_ENTER'|'AWAKENING_ENTER';
 
 type Mix={enabled:boolean;music:number;ambient:number;sfx:number};
 let mix:Mix={enabled:false,music:.8,ambient:.55,sfx:.9};
@@ -145,9 +145,10 @@ export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
   setTimeout(()=>{cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
 }
 
-export function applyCinematicPreset(preset:'CITY'|'RUINS'|'WORLD'|'BOSS'|'AWAKENING'){
+export type CinematicPreset='CITY'|'FOREST'|'INDUSTRIAL'|'RUINS'|'WORLD'|'PORTAL'|'BOSS'|'AWAKENING';
+export function applyCinematicPreset(preset:CinematicPreset){
   stopCinematicAudio();
-  const layers:CinematicLayer[]=preset==='BOSS'?['CITY_RUINS','FIRE','WIND','STORM']:preset==='AWAKENING'?['WIND','PORTAL_ENERGY']:preset==='WORLD'?['WIND','RAIN']:preset==='RUINS'?['CITY_RUINS','FIRE','WIND']:['CITY_RUINS','WIND'];
+  const layers:CinematicLayer[]=preset==='BOSS'?['CITY_RUINS','FIRE','WIND','STORM']:preset==='AWAKENING'||preset==='PORTAL'?['WIND','PORTAL_ENERGY']:preset==='WORLD'?['WIND','RAIN']:preset==='FOREST'?['WIND','RAIN']:preset==='INDUSTRIAL'?['CITY_RUINS','WIND']:preset==='RUINS'?['CITY_RUINS','FIRE','WIND']:['CITY_RUINS','WIND'];
   for(const layer of layers){const asset=cinematicSources.layers[layer];if(asset)setCinematicLayer(layer,asset.source,asset.volume)}
   const event=preset==='BOSS'?'BOSS_ENTER':preset==='AWAKENING'?'AWAKENING_ENTER':null;
   if(event){const asset=cinematicSources.events[event];playCinematicEvent(event,asset.source,asset.volume)}
