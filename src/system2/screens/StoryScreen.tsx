@@ -10,6 +10,8 @@ import type { StoryEvent } from '../story/types';
 import { loadChronicle, startBossProtocol } from '../storage/database';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { bossPhaseState } from '../story/bossEngine';
+import BossCinematicPanel from '../components/BossCinematicPanel';
+import SystemAudioScene from '../components/SystemAudioScene';
 export default function StoryScreen() {
  const {story,refreshPlayer}=useSystem(),router=useRouter();
  const [entries,setEntries]=useState<StoryEvent[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -21,6 +23,7 @@ export default function StoryScreen() {
  const boss=story?.boss;
  const bossPhase=boss?bossPhaseState(story?.bossHp??100,100,Date.now(),boss.started_at):null;
  return <SystemPage title="HISTORIA / KRONIKA" subtitle={`AKT 01 // ${ARC.title}`}>
+  {boss&&<SystemAudioScene cue="BOSS" />}
   <Text style={s.label}>POSTĘP AKTU · {story?.chapters.filter(c=>c.status==='COMPLETED').length??0}/2 UKOŃCZONE</Text>
   {story?.chapters.map(c=><View key={c.id} style={s.panel}><Text style={s.label}>ROZDZIAŁ {String(c.number).padStart(2,'0')} // {c.status === 'COMPLETED' ? 'UKOŃCZONY' : c.status === 'ACTIVE' ? 'AKTYWNY' : c.status === 'AVAILABLE' ? 'DOSTĘPNY' : 'ZABLOKOWANY'}</Text><Text style={s.title}>{c.title}</Text><Text style={s.body}>{c.description} · {c.completed}/{c.total}</Text>
    {c.number===1?<Action label="MISJE PRZEBUDZENIA →" onPress={()=>router.push('/quests')}/>:<>
@@ -33,7 +36,8 @@ export default function StoryScreen() {
    <Text style={s.body}>SKUPIENIE → RUCH → DYSCYPLINA. Postęp etapów jest zapisywany.</Text>
    {story?.worldLinkComplete&&!boss&&<Action label="ROZPOCZNIJ PROTOKÓŁ BOSSA" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(mounted.current&&request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(mounted.current)setBusy(false);});}}/>}
    {boss&&<>
-    <Text style={s.label}>BOSS ENGINE 3.0 // {bossPhase?.label}</Text>
+    <BossCinematicPanel hp={story?.bossHp ?? 100} startedAt={boss.started_at}/>
+    <Text style={s.label}>BOSS ENGINE 3.1 // {bossPhase?.label}</Text>
     <Text style={s.body}>HP {story?.bossHp ?? 100}/100 · wsparcie zweryfikowanych misji: {story?.bossSupportDamage ?? 0}</Text>
     <Text style={s.body}>FAZA WIZUALNA // WEAK POINT: {bossPhase?.weakPoint}{bossPhase?.enrage?' · ENRAGE':''}</Text>
     {bossPhase?.finisherReady&&<Text style={[s.label,{color:'#ffd36c'}]}>FINAL STRIKE READY // DOKOŃCZ PROTOKÓŁ</Text>}
