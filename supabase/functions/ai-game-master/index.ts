@@ -462,10 +462,11 @@ async function callStoryProvider(context:any,memory:Memory){
     body:JSON.stringify({
       model,temperature:.7,max_tokens:700,response_format:{type:'json_object'},
       messages:[
-        {role:'system',content:'You are SYSTEM Story Director. Return only JSON. Do not assign XP, rewards, health advice, illegal actions or punishments. Keep story grounded in current game state.'},
+        {role:'system',content:'You are SYSTEM Story Director. Return only JSON. Do not assign XP, rewards, health advice, illegal actions or punishments. Keep story grounded in current game state. An active companion may change narrative voice or framing only; it must never alter progression or verification.'},
         {role:'user',content:[
           'Player state: '+JSON.stringify(context?.player??{}),
           'Story state: '+JSON.stringify(story),
+          'Active companion id (fictional presentation role only): '+cleanText(context?.companion,40),
           'Non-sensitive gameplay memory: '+JSON.stringify(memory),
           'Return {"chapter":"...","headline":"...","message":"...","threat":1|2|3,"next":"QUEST|WORLD|BOSS|RECOVERY","source":"ai"}.',
           'Write user-facing text in Polish.'
