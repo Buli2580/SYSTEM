@@ -18,6 +18,17 @@ export default function AIDirectorPanel({
     </View>
     <Text style={styles.title}>{loading?'ANALIZA GRACZA…':response?.director.headline??'DAILY DIRECTOR'}</Text>
     <Text style={styles.body}>{response?.director.message??'SYSTEM analizuje cele, serię i ostatnie wyniki bez zmiany zasad nagród.'}</Text>
+    {!!response&&<View style={styles.capabilities}>
+      <View style={[styles.capability,response.research?.usedWeb&&styles.capabilityActive]}>
+        <Text style={[styles.capabilityCode,response.research?.usedWeb&&styles.capabilityCodeActive]}>WEB RESEARCH</Text>
+        <Text style={styles.capabilityValue}>{response.research?.usedWeb?`${response.research.sources.length} SOURCES`:'OFF / NOT NEEDED'}</Text>
+      </View>
+      <View style={[styles.capability,!!response.memory&&styles.capabilityActive]}>
+        <Text style={[styles.capabilityCode,!!response.memory&&styles.capabilityCodeActive]}>PLAYER MEMORY</Text>
+        <Text style={styles.capabilityValue}>{response.memory?'ACTIVE':'LOCAL ONLY'}</Text>
+      </View>
+    </View>}
+    {!!response?.research?.topics?.length&&<Text style={styles.researchTopics}>RESEARCH // {response.research.topics.slice(0,3).join(' · ')}</Text>}
     {!!response?.briefing&&<View style={styles.briefing}><Text style={styles.briefingCode}>DIRECTOR BRIEFING</Text><Text style={styles.briefingText}>{response.briefing}</Text></View>}
     {systemDebt>0&&<Text style={styles.debt}>SYSTEM DEBT {systemDebt} // RECOVERY PROTOCOL MA PRIORYTET</Text>}
     {!!error&&<Text style={styles.error}>{error}</Text>}
@@ -46,6 +57,13 @@ const styles=StyleSheet.create({
   nodeCore:{width:12,height:12,borderRadius:6},
   title:{color:'#fff',fontSize:23,lineHeight:29,fontWeight:'900',marginTop:14},
   body:{color:'#9bb0b9',fontSize:11,lineHeight:18,marginTop:8},
+  capabilities:{flexDirection:'row',gap:8,marginTop:13},
+  capability:{flex:1,minWidth:0,padding:10,borderWidth:1,borderColor:'rgba(96,117,126,.18)',borderRadius:12,backgroundColor:'rgba(255,255,255,.018)'},
+  capabilityActive:{borderColor:'rgba(108,238,255,.35)',backgroundColor:'rgba(0,229,255,.035)'},
+  capabilityCode:{color:'#60757e',fontSize:7,fontWeight:'900',letterSpacing:.8},
+  capabilityCodeActive:{color:'#6ceeff'},
+  capabilityValue:{color:'#fff',fontSize:8,fontWeight:'900',marginTop:4},
+  researchTopics:{color:'#7f97a1',fontSize:8,lineHeight:13,fontWeight:'800',marginTop:9},
   briefing:{marginTop:13,padding:12,borderRadius:13,borderWidth:1,borderColor:'rgba(108,238,255,.12)',backgroundColor:'rgba(255,255,255,.02)'},
   briefingCode:{color:'#60757e',fontSize:7,fontWeight:'900',letterSpacing:1},
   briefingText:{color:'#d9edf3',fontSize:10,lineHeight:16,marginTop:5},
