@@ -135,6 +135,10 @@ export default function SystemAmbientBackground({
       {(weather==='FOG'||weather==='RAIN'||weather==='STORM')&&<FogBands accent={worldScene.accent} strength={strength}/>}
     </Animated.View>
 
+    {worldScene.id==='FOREST'&&<Animated.View style={[styles.forestMist,smokeStyle]}>{Array.from({length:10},(_,i)=><View key={i} style={[styles.firefly,{left:percent((i*41)%96),top:percent(18+(i*23)%68),backgroundColor:worldScene.accent,shadowColor:worldScene.accent}]}/>)}</Animated.View>}
+    {worldScene.id==='INDUSTRIAL'&&<Animated.View style={[styles.industrialSteam,smokeStyle]}>{Array.from({length:8},(_,i)=><View key={i} style={[styles.spark,{left:percent(8+(i*17)%88),top:percent(25+(i*19)%62),backgroundColor:worldScene.accent}]}/>)}</Animated.View>}
+    {worldScene.id==='WORLD'&&<Animated.View style={[styles.worldCloud,smokeStyle]} />}
+    {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<Animated.View style={[styles.portalVeil,{borderColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]} />}
     {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&<>
       <Animated.View style={[styles.smokeBand,smokeStyle]}/>
       <Animated.View style={[styles.fireField,fireStyle]}>{Array.from({length:12},(_,i)=><View key={i} style={[styles.flame,{left:percent((i*31)%104),height:24+(i%5)*15,opacity:.28+(i%3)*.12}]}/>)}</Animated.View>
@@ -375,4 +379,10 @@ const styles=StyleSheet.create({
   awakeningBurst:{position:'absolute',width:260,height:260,borderRadius:130,borderWidth:2,top:'24%',left:'17%',shadowOpacity:.95,shadowRadius:42},
   awakeningCore:{position:'absolute',width:72,height:72,borderRadius:36,top:'35%',left:'41%',shadowOpacity:1,shadowRadius:34,opacity:.28},
   stompWave:{position:'absolute',width:180,height:54,borderRadius:90,borderWidth:2,bottom:'12%',left:'34%'},
+  forestMist:{position:'absolute',left:'-12%',right:'-12%',bottom:'8%',height:'55%',borderRadius:160,backgroundColor:'rgba(120,180,160,.045)'},
+  firefly:{position:'absolute',width:4,height:4,borderRadius:2,opacity:.65,shadowOpacity:.9,shadowRadius:8},
+  industrialSteam:{position:'absolute',left:'-8%',right:'-8%',bottom:'6%',height:'62%',borderRadius:120,backgroundColor:'rgba(120,140,150,.055)'},
+  spark:{position:'absolute',width:2,height:12,borderRadius:2,opacity:.58,transform:[{rotate:'28deg'}]},
+  worldCloud:{position:'absolute',left:'-25%',top:'12%',width:'150%',height:190,borderRadius:95,backgroundColor:'rgba(150,185,210,.035)'},
+  portalVeil:{position:'absolute',width:310,height:310,borderRadius:155,borderWidth:2,top:'18%',left:'9%',shadowOpacity:.75,shadowRadius:32},
 });
