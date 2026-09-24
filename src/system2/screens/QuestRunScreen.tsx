@@ -26,7 +26,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const { story } = system;
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
-  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
+  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal, antiCheatRisk,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
   const [questAccepted, setQuestAccepted] = useState(false);
   const [startInProgress, setStartInProgress] = useState(false);
@@ -258,6 +258,10 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           </View>
         )}
 
+        {antiCheatRisk.score>0&&<View style={[styles.questCard,{borderColor:antiCheatRisk.action==='REJECT'?'#ff6b6b':'#ffcf6a'}]}>
+          <Text style={styles.category}>ANTI-CHEAT 2.0 // {antiCheatRisk.action} // RISK {antiCheatRisk.score}</Text>
+          <Text style={styles.description}>{antiCheatRisk.signals.map(x=>x.kind).join(' · ')}</Text>
+        </View>}
         {!!quest.activityType && <View style={styles.questCard}>
           <Text style={styles.category}>ZGODNOŚĆ AKTYWNOŚCI // {!activity || activity.features.durationSeconds < 30 ? 'SPRAWDZANIE' : activity.verdict === 'VERIFIED' ? 'DOBRA' : 'NISKA WIARYGODNOŚĆ'}</Text>
           <Text style={styles.description}>TERAZ {((currentSpeed ?? 0) * 3.6).toFixed(1)} KM/H · ŚREDNIO {((activity?.features.averageSpeedMps ?? 0) * 3.6).toFixed(1)} KM/H</Text>
