@@ -6,6 +6,7 @@ import {bossPhaseState} from '../story/bossEngine';
 import {combatSequence} from '../presentation/combat';
 import SystemAmbientBackground from './SystemAmbientBackground';
 import {playFeedback} from '../identity/audio';
+import {useAnimationEngine4} from './AnimationEngine4Provider';
 
 export default function CombatImpactOverlay({
   damage,onDismiss,
@@ -13,17 +14,19 @@ export default function CombatImpactOverlay({
   damage:NonNullable<RewardReceipt['bossDamage']>;
   onDismiss:()=>void;
 }){
+  const motion=useAnimationEngine4();
   const before=useMemo(()=>bossPhaseState(damage.beforeHp),[damage.beforeHp]);
   const after=useMemo(()=>bossPhaseState(damage.afterHp),[damage.afterHp]);
   const beats=useMemo(()=>combatSequence(before,after,damage.dealt),[before,after,damage.dealt]);
   const [index,setIndex]=useState(0);
   useEffect(()=>{
     playFeedback('BOSS_HIT');
-    const timers=beats.slice(1).map((beat,i)=>setTimeout(()=>setIndex(i+1),beat.at));
-    const total=Math.max(...beats.map(b=>b.at+b.duration),2600);
+    const timers=motion.reducedMotion?[]:beats.slice(1).map((beat,i)=>setTimeout(()=>setIndex(i+1),beat.at));
+    if(motion.reducedMotion)setIndex(Math.max(0,beats.length-1));
+    const total=motion.reducedMotion?850:Math.max(...beats.map(b=>b.at+b.duration),2600);
     const end=setTimeout(onDismiss,total);
     return()=>{timers.forEach(clearTimeout);clearTimeout(end)};
-  },[beats,onDismiss]);
+  },[beats,onDismiss,motion.reducedMotion]);
   const beat=beats[Math.min(index,beats.length-1)];
   const progress=Math.max(0,Math.min(1,damage.afterHp/Math.max(1,before.maxHp)));
   const phaseChanged=damage.phaseBefore!==damage.phaseAfter;
@@ -31,13 +34,13 @@ export default function CombatImpactOverlay({
     <Pressable accessibilityRole="button" accessibilityLabel="Zamknij sekwencję walki" onPress={onDismiss} style={styles.root}>
       <SystemAmbientBackground intensity="hero" screen="BOSS" scene="BOSS_ZONE" threat={3}/>
       <View style={styles.scrim}/>
-      <Animated.View entering={FadeIn.duration(180)} style={styles.hud}>
+      <Animated.View entering={FadeIn.duration(motion.duration('fast'))} style={styles.hud}>
         <Text style={styles.code}>COMBAT VISUALIZER // BOSS 3.0</Text>
         <Text style={styles.phase}>{damage.phaseAfter.replaceAll('_',' ')}</Text>
-        <View style={styles.track}><Animated.View entering={FadeIn.duration(700)} style={[styles.fill,{width:`${Math.round(progress*100)}%`}]}/></View>
+        <View style={styles.track}><Animated.View entering={FadeIn.duration(motion.duration('hero'))} style={[styles.fill,{width:`${Math.round(progress*100)}%`}]}/></View>
         <View style={styles.hpRow}><Text style={styles.hp}>{damage.afterHp} HP</Text><Text style={styles.hpBefore}>{damage.beforeHp} → {damage.afterHp}</Text></View>
       </Animated.View>
-      <Animated.View key={index} entering={beat.kind==='IMPACT'?ZoomIn.duration(120):FadeInUp.duration(220)} style={styles.impact}>
+      <Animated.View key={index} entering={beat.kind==='IMPACT'?ZoomIn.duration(motion.duration('micro')):FadeInUp.duration(motion.duration('fast'))} style={styles.impact}>
         <Text style={styles.eyebrow}>{beat.kind.replaceAll('_',' ')}</Text>
         <Text style={styles.damage}>{beat.kind==='DAMAGE_NUMBER'||beat.kind==='IMPACT'?`-${damage.dealt} HP`:beat.label??damage.phaseAfter}</Text>
         {phaseChanged&&<Text style={styles.phaseChange}>PHASE CHANGE // {damage.phaseBefore} → {damage.phaseAfter}</Text>}
