@@ -17,6 +17,7 @@ import {worldBossMode} from '../beta/worldBoss';
 import SystemAudioScene from '../components/SystemAudioScene';
 import {activeWorldEvent} from '../world/events';
 import WorldEventHUD from '../components/WorldEventHUD';
+import {DEFAULT_WORLD_MAP_2,toggleWorldLayer,type WorldLayer} from '../world/map2';
 
 export default function WorldScreen() {
   const router = useRouter();
@@ -47,6 +48,7 @@ function OnlineWorld() {
   const insets = useSafeAreaInsets();
   const [follow, setFollow] = useState(true);
   const [centerRequest, setCenterRequest] = useState(0);
+  const [map2,setMap2]=useState(DEFAULT_WORLD_MAP_2);
   const active = world.status === 'ACTIVE';
   const signalState = world.signal?.status ?? 'LOCKED';
   const worldEvent=activeWorldEvent(player,true,clock);
@@ -58,8 +60,8 @@ function OnlineWorld() {
       <Text style={styles.body}>EKSPLORACJA ŚWIATA · ODKRYTE SEKTORY {world.sectorIds.length}</Text>
       <Text style={styles.body}>ŁĄCZNY DYSTANS {(player.totalDistanceMeters / 1000).toFixed(2)} KM · ZWERYFIKOWANE MISJE</Text>
     </View>
-    {mode==='BOSS'&&<Pressable onPress={()=>router.push('/story')} style={styles.bossSignal}><Text style={styles.bossSignalCode}>THREAT DETECTED // BOSS PROTOCOL</Text><Text style={styles.bossSignalTitle}>THE FIRST WALL</Text><Text style={styles.bossSignalCta}>WEJDŹ DO WALKI →</Text></Pressable>}
-    {worldEvent&&<View style={{paddingHorizontal:16,marginBottom:10}}>
+    {mode==='BOSS'&&map2.layers.BOSSES&&<Pressable onPress={()=>router.push('/story')} style={styles.bossSignal}><Text style={styles.bossSignalCode}>THREAT DETECTED // BOSS PROTOCOL</Text><Text style={styles.bossSignalTitle}>THE FIRST WALL</Text><Text style={styles.bossSignalCta}>WEJDŹ DO WALKI →</Text></Pressable>}
+    {worldEvent&&map2.layers.EVENTS&&<View style={{paddingHorizontal:16,marginBottom:10}}>
       <WorldEventHUD event={worldEvent} now={clock} onAction={()=>{
         if(worldEvent.recommendedAction==='BOSS'){router.push('/story');return;}
         if(worldEvent.recommendedAction==='MOVE'){router.push('/move');return;}
@@ -68,8 +70,14 @@ function OnlineWorld() {
       }}/>
       <Text style={styles.eventDisclaimer}>EVENT HUD // wizualizacja aktywnego okna. Nagroda pojawi się dopiero po kanonicznie zweryfikowanej aktywności.</Text>
     </View>}
+    <View style={styles.layerPanel}>
+      <View style={styles.layerTop}><Text style={styles.layerTitle}>WORLD MAP 2.0 // {map2.zoomMode}</Text><Pressable onPress={()=>setMap2(s=>({...s,zoomMode:s.zoomMode==='LOCAL'?'REGION':s.zoomMode==='REGION'?'WORLD':'LOCAL'}))}><Text style={styles.layerCycle}>ZOOM MODE →</Text></Pressable></View>
+      <View style={styles.layerRow}>
+        {(Object.keys(map2.layers) as WorldLayer[]).map(layer=><Pressable key={layer} onPress={()=>setMap2(s=>toggleWorldLayer(s,layer))} style={[styles.layerChip,map2.layers[layer]&&styles.layerChipActive]}><Text style={[styles.layerText,map2.layers[layer]&&styles.layerTextActive]}>{layer}</Text></Pressable>)}
+      </View>
+    </View>
     <View style={styles.map}>
-      {world.fix ? <WorldMap fix={world.fix} sectorIds={world.sectorIds} signal={world.signal} follow={follow} centerRequest={centerRequest} /> :
+      {world.fix ? <WorldMap fix={world.fix} sectorIds={map2.layers.SECTORS?world.sectorIds:[]} signal={map2.layers.SIGNALS?world.signal:undefined} follow={follow} centerRequest={centerRequest} /> :
         <View style={styles.empty}><Text style={styles.label}>{world.status === 'STARTING' ? 'URUCHAMIANIE // GPS' : 'URUCHOM ŚWIAT'}</Text>
           <Text style={styles.body}>Mapa świata działa podczas otwartego ekranu WORLD. Aktywne misje ruchowe mogą mierzyć dystans w tle.</Text></View>}
       <View style={styles.mapControls}>
@@ -100,6 +108,15 @@ function Button({ label, onPress, disabled = false }: { label: string; onPress: 
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={({ pressed }) => [styles.button, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}><Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78} style={styles.buttonLabel}>{label}</Text></Pressable>;
 }
 const styles = StyleSheet.create({
+  layerPanel:{marginHorizontal:16,marginBottom:10,padding:12,borderWidth:1,borderColor:'rgba(108,238,255,.18)',borderRadius:14,backgroundColor:'rgba(3,13,17,.88)'},
+  layerTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:10},
+  layerTitle:{color:'#6ceeff',fontSize:8,fontWeight:'900',letterSpacing:1},
+  layerCycle:{color:'#9fb4bd',fontSize:8,fontWeight:'900'},
+  layerRow:{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:9},
+  layerChip:{paddingHorizontal:8,paddingVertical:6,borderRadius:999,borderWidth:1,borderColor:'rgba(108,238,255,.12)'},
+  layerChipActive:{borderColor:'#6ceeff',backgroundColor:'rgba(0,229,255,.05)'},
+  layerText:{color:'#60757e',fontSize:7,fontWeight:'900'},
+  layerTextActive:{color:'#6ceeff'},
   eventDisclaimer:{color:'#6f8791',fontSize:8,lineHeight:12,marginTop:6},
   bossSignal:{marginHorizontal:16,marginBottom:10,padding:16,borderWidth:1,borderColor:'rgba(228,186,255,0.48)',borderRadius:16,backgroundColor:'rgba(35,13,45,0.72)'},bossSignalCode:{color:'#e4baff',fontSize:9,lineHeight:14,fontWeight:'900',letterSpacing:1.2,flexShrink:1},bossSignalTitle:{color:'#fff',fontSize:22,lineHeight:28,fontWeight:'900',marginTop:6,flexShrink:1},bossSignalCta:{color:'#6ceeff',fontSize:10,lineHeight:15,fontWeight:'900',marginTop:10,flexShrink:1},
   eventCard:{marginHorizontal:16,marginBottom:10,padding:14,borderWidth:1,borderColor:'rgba(108,238,255,.34)',borderRadius:16,backgroundColor:'rgba(6,20,27,.9)'},
