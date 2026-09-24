@@ -1,6 +1,6 @@
 import { validateBirthDate } from '../identity/age';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
@@ -15,7 +15,8 @@ const pages = [
   { code: '01 // ORIGIN', title: 'RÓWNY START', kicker: 'REAL LEVEL 1 · RANGA E', body: 'Każdy startuje z tego samego punktu. Twoja przeszłość może zmieniać trudność, ale nie daje darmowego poziomu.' },
   { code: '02 // RULE', title: 'PRAWDZIWE DZIAŁANIA', kicker: 'ZERO FAŁSZYWEGO XP', body: 'Misja → prawdziwa aktywność → weryfikacja → XP → rozwój postaci. Nagroda pojawia się dopiero po potwierdzeniu działania.' },
   { code: '03 // DIRECTOR', title: 'AI GAME MASTER', kicker: 'CEL ZAMIENIA SIĘ W ŚCIEŻKĘ', body: 'Po utworzeniu postaci wybierzesz pierwszy cel. AI przygotuje kierunek, a SYSTEM od razu otworzy pierwszą linię questów.' },
-  { code: '04 // IDENTITY', title: 'STWÓRZ POSTAĆ', kicker: 'PLAYER CORE // INITIALIZATION', body: 'Nadaj sobie nazwę SYSTEMU. Zaczynasz jako REAL LEVEL 1, RANGA E i siedem równych atrybutów.' },
+  { code: '04 // PREFERENCES', title: 'DOPASUJ SYSTEM', kicker: 'MOVE // DAILY // AI', body: 'Wybierz aktywności, które naprawdę chcesz wykonywać. Generator misji nie powinien wciskać Ci biegu albo roweru, jeśli tego nie wybierzesz.' },
+  { code: '05 // IDENTITY', title: 'STWÓRZ POSTAĆ', kicker: 'PLAYER CORE // INITIALIZATION', body: 'Nadaj sobie nazwę SYSTEMU. Zaczynasz jako REAL LEVEL 1, RANGA E i siedem równych atrybutów.' },
 ] as const;
 
 export default function OnboardingScreen() {
@@ -25,11 +26,13 @@ export default function OnboardingScreen() {
   const [birthDate, setBirthDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activities,setActivities]=useState({walking:true,running:false,cycling:false});
   const busyRef = useRef(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { finishOnboarding } = useSystem();
+  const { finishOnboarding,saveSettings } = useSystem();
   const identityStep = step === pages.length - 1;
+  const preferencesStep = step === pages.length - 2;
 
   async function enter() {
     if (busyRef.current) return;
@@ -38,6 +41,7 @@ export default function OnboardingScreen() {
     setError(null);
     try {
       await finishOnboarding(name, validateBirthDate(birthDate));
+      await saveSettings({activities});
       router.replace('/goals');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać SYSTEM IDENTITY.');
@@ -70,6 +74,17 @@ export default function OnboardingScreen() {
           <Text style={styles.kicker}>{pages[step].kicker}</Text>
           <Text style={styles.body}>{pages[step].body}</Text>
 
+          {preferencesStep&&<View style={styles.identity}>
+            <Text style={styles.inputLabel}>AKTYWNOŚCI DAILY / MOVE</Text>
+            {([
+              ['walking','SPACER / WALK'],
+              ['running','BIEGANIE / RUN'],
+              ['cycling','ROWER / BIKE'],
+            ] as const).map(([key,label])=><Pressable key={key} accessibilityRole="button" onPress={()=>setActivities(x=>({...x,[key]:!x[key]}))} style={[styles.preference,activities[key]&&styles.preferenceActive]}>
+              <Text style={[styles.preferenceText,activities[key]&&styles.preferenceTextActive]}>{activities[key]?'◆':'◇'} {label}</Text>
+            </Pressable>)}
+            <Text style={styles.privacy}>Preferencje trafiają do generatora Daily i AI Game Mastera. Możesz je później zmienić.</Text>
+          </View>}
           {identityStep && <View style={styles.identity}>
             <View style={styles.playerHeader}>
               <View><Text style={styles.mini}>PLAYER CORE</Text><Text style={styles.playerLevel}>LV. 1</Text></View>
@@ -131,5 +146,9 @@ const styles = StyleSheet.create({
   inputLabel: { color: C.cyan, fontSize: 9, lineHeight: 14, fontWeight: '900', letterSpacing: 1.1, marginTop: 18, flexShrink: 1 },
   input: { color: C.white, borderWidth: 1, borderColor: C.lineBright, borderRadius: 12, padding: 14, marginTop: 8, minHeight: 50 },
   privacy: { color: C.textVeryMuted, fontSize: 9, lineHeight: 14, marginTop: 8 },
+  preference:{minHeight:50,justifyContent:'center',paddingHorizontal:14,borderRadius:12,borderWidth:1,borderColor:C.line,marginTop:8,backgroundColor:'rgba(255,255,255,.018)'},
+  preferenceActive:{borderColor:C.cyan,backgroundColor:'rgba(0,229,255,.05)'},
+  preferenceText:{color:C.textMuted,fontSize:11,fontWeight:'900'},
+  preferenceTextActive:{color:C.cyan},
   actions: { marginTop: 14 },
 });
