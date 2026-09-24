@@ -12,6 +12,7 @@ import {MOVE_QUESTS} from '../move/catalog';
 import {moveAgeMode,moveAgeLabel} from '../move/age';
 import {moveSafetyPolicy} from '../move/safety';
 import MoveCloudGroupPanel from '../components/MoveCloudGroupPanel';
+import {FAMILY_MISSIONS_2} from '../move/family2';
 
 export default function MoveFamilyScreen(){
  const router=useRouter(),{player}=useSystem();
@@ -40,6 +41,8 @@ export default function MoveFamilyScreen(){
     <Text style={styles.body}>Tryb wieku gracza: {moveAgeLabel(ageMode)} · Parent approval: {policy.parentApprovalRequired?'REQUIRED':'OPTIONAL'}</Text>
    </View>
 
+   <Text style={styles.section}>FAMILY 2.0 // CO-OP MISSIONS</Text>
+   {FAMILY_MISSIONS_2.map(m=><View key={m.id} style={styles.quest}><Text style={styles.label}>{m.mode} // {m.verification}</Text><Text style={styles.questTitle}>{m.title}</Text><Text style={styles.body}>{m.minutes} MIN · {m.participants} PARTICIPANTS · wynik rodzinny bez publicznej lokalizacji.</Text></View>)}
    <Text style={styles.section}>FAMILY WEEKEND QUESTS</Text>
    {WEEKEND_FAMILY_QUESTS.map(q=><Pressable key={q.id} onPress={()=>router.push({pathname:'/move-family-quest',params:{questId:q.id}})} style={styles.quest}>
     <Text style={styles.label}>{q.title}</Text>
