@@ -18,6 +18,7 @@ function loader(){
   }).outputText;
   const requireMock=name=>{
    if(name.startsWith('.'))return load(path.resolve(path.dirname(resolved),name));
+   if(name==='@react-native-async-storage/async-storage')return{default:{getItem:async()=>null,setItem:async()=>{},removeItem:async()=>{}}};
    throw new Error('Unexpected dependency: '+name);
   };
   vm.runInNewContext(source,{module,exports:module.exports,require:requireMock,console,Date,Set,Math,JSON,Intl},{filename:resolved});
@@ -151,7 +152,7 @@ test('MOVE completion persists server evidence before asynchronous group publish
  assert.match(source,/flushPendingMoveServerVerifications/);
  assert.match(source,/publishVerifiedMoveToGroups/);
  const queueIndex=source.indexOf('await queueMoveServerVerification');
- const publishIndex=source.indexOf('publishVerifiedMoveToGroups');
+ const publishIndex=source.indexOf('publishVerifiedMoveToGroups({',queueIndex);
  assert.ok(queueIndex>=0&&publishIndex>queueIndex);
 });
 
