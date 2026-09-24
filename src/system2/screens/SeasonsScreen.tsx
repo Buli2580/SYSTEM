@@ -7,6 +7,7 @@ import {claimSeasonRewardV3,getCurrentSeasonV2,type SeasonV2Snapshot} from '../c
 import {seasonProgress,seasonCountdown} from '../social/seasonPresentation';
 import SeasonCycleCard from '../components/SeasonCycleCard';
 import {SEASON_TRACK,seasonProgress2} from '../social/season2';
+import {grantInventoryItem} from '../inventory/storage';
 
 function remaining(ms:number){
  const d=Math.floor(ms/86400000),h=Math.floor((ms%86400000)/3600000);
@@ -17,7 +18,7 @@ export default function SeasonsScreen(){
  useEffect(()=>()=>{mounted.current=false;epoch.current++;},[]);
  async function load(){const id=++epoch.current;if(mounted.current){setBusy(true);setError(null);setSeason(null);}try{const next=await getCurrentSeasonV2();if(mounted.current&&id===epoch.current)setSeason(next);}catch(e){if(mounted.current&&id===epoch.current)setError(e instanceof Error?e.message:'SEASON_FAILED');}finally{if(mounted.current&&id===epoch.current)setBusy(false);}}
  useEffect(()=>{void load();},[]);
- async function claim(level:number){setBusy(true);setError(null);try{await claimSeasonRewardV3(level);await load()}catch(e){setError(e instanceof Error?e.message:'SEASON_CLAIM_FAILED');setBusy(false)}}
+ async function claim(level:number){setBusy(true);setError(null);try{await claimSeasonRewardV3(level);const item={5:'season-signal',15:'vanguard-frame',30:'season-veteran-sigil',50:'ascended-season-aura'}[level as 5|15|30|50];if(item)await grantInventoryItem(item);await load()}catch(e){setError(e instanceof Error?e.message:'SEASON_CLAIM_FAILED');setBusy(false)}}
  const now=Date.now(),progress=season?seasonProgress(now,Date.parse(season.startsAt),Date.parse(season.endsAt)):0,countdown=season?seasonCountdown(now,Date.parse(season.endsAt)):0;
  const season2=season?seasonProgress2(season,now):null;
  return <SystemPage title="SEZON" subtitle="SYSTEM ONLINE // CYCLE">
