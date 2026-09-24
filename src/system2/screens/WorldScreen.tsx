@@ -55,8 +55,8 @@ function OnlineWorld() {
   const signalState = world.signal?.status ?? 'LOCKED';
   const worldEvent=activeWorldEvent(player,true,clock);
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
-    <SystemAmbientBackground intensity="world" screen={mode==="BOSS"?"BOSS":"WORLD"} scene={mode==="BOSS"?"BOSS_ZONE":"WORLD"} threat={mode==="BOSS"?3:1} level={player.realLevel} />
-    <SystemAudioScene cue={mode==="BOSS"?"BOSS":"WORLD"} />
+    <SystemAmbientBackground intensity="world" screen={mode==="BOSS"?"BOSS":"WORLD"} scene={mode==="BOSS"?"BOSS_ZONE":"WORLD"} threat={mode==="BOSS"?3:1} weather={mode==="BOSS"?"STORM":"FOG"} level={player.realLevel} />
+    <SystemAudioScene cue={mode==="BOSS"?"BOSS":"WORLD"} preset={mode==="BOSS"?"BOSS":"WORLD"} />
     <View style={styles.heading}>
       <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD/BOSS 2.0 // {mode}</Text><Text style={styles.label}>STATUS ŚWIATA: ONLINE</Text>
       <Text style={styles.body}>EKSPLORACJA ŚWIATA · ODKRYTE SEKTORY {world.sectorIds.length}</Text>
