@@ -70,6 +70,9 @@ jobs:
       - name: App integrity tests
         run: node --test src/system2/tests/app-integrity.test.cjs
 
+      - name: Expansion Pack tests
+        run: node --test src/system2/tests/expansion-pack.test.cjs
+
       - name: Cloud processor SQL and mobile tests
         run: |
           node supabase/tests/normalize-calendar-fixtures.cjs
