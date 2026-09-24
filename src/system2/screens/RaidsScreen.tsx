@@ -12,7 +12,9 @@ import {raid2Phase} from '../social/raid2';
 import {triggerBossCinematicState,type BossCinematicState} from '../audio/engine';
 
 function remaining(end:string){
- const ms=Math.max(0,Date.parse(end)-Date.now());
+ const parsed=Date.parse(end);
+ if(!Number.isFinite(parsed))return '—';
+ const ms=Math.max(0,parsed-Date.now());
  const d=Math.floor(ms/86400000),h=Math.floor((ms%86400000)/3600000),m=Math.floor((ms%3600000)/60000);
  return d>0?`${d}D ${h}H`:h>0?`${h}H ${m}MIN`:`${m}MIN`;
 }
@@ -46,7 +48,7 @@ export default function RaidsScreen(){
    <Text style={[s.label,{color:threat==='CRITICAL'?'#ffcf6a':'#e4baff'}]}>RAID 2.0 // {phase} // THREAT {threat}</Text>
    <BossStatusCard title={r.title} status={r.status} hp={hp} maxHp={r.bossHp}/>
    <Text style={s.body}>GLOBAL DAMAGE: {r.damage.toLocaleString()} · PROGRESS {progress}% · TIME LEFT {remaining(r.endsAt)}</Text><Text style={s.body}>PHASE // {phase} · contribution rank będzie liczony wyłącznie ze zweryfikowanych zdarzeń online.</Text>
-   <View style={{height:6,borderRadius:6,overflow:'hidden',backgroundColor:'#17333e',marginTop:9}}><View style={{height:'100%',width:`${Math.max(2,progress)}%`,backgroundColor:'#e4baff'}}/></View>
+   <View style={{height:6,borderRadius:6,overflow:'hidden',backgroundColor:'#17333e',marginTop:9}}><View style={{height:'100%',width:`${Math.min(100,Math.max(2,progress))}%`,backgroundColor:'#e4baff'}}/></View>
    <Text style={s.body}>PARTICIPANTS {r.participantCount} · YOUR DAMAGE {r.myDamage} · YOUR EVENTS {r.myEventCount} · YOUR RANK {r.myRank||'—'}</Text>
    {(leaderboards[r.id]??[]).length>0&&<View style={{marginTop:10}}><Text style={s.label}>RAID LEADERBOARD // TOP 5</Text>{(leaderboards[r.id]??[]).map(row=><Text key={row.userId} style={s.body}>#{row.rank} {row.displayName} · DMG {row.damage} · {row.verifiedEvents} EVENTS</Text>)}</View>}
  </View>;})}
