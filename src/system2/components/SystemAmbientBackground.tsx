@@ -118,6 +118,7 @@ export default function SystemAmbientBackground({
   const awakeningStyle=useAnimatedStyle(()=>({opacity:interpolate(awakening.value,[0,.55,1],[.12,.72,.18]),transform:[{scale:interpolate(awakening.value,[0,1],[.72,1.32])},{rotate:interpolate(awakening.value,[0,1],[0,18])+'deg'}]}));
 
   const strength=intensity==='hero'?1:intensity==='world'?.94:intensity==='quiet'?.48:.74;
+  const fireCount=intensity==='quiet'?5:intensity==='default'?8:12;
   const timeDim=ctx.time==='NIGHT'?.18:ctx.time==='DUSK'?.11:.05;
   const weatherDim=weather==='STORM'?.20:weather==='RAIN'?.13:weather==='FOG'?.09:.04;
   const threatGlow=.12+threat*.08;
@@ -144,11 +145,11 @@ export default function SystemAmbientBackground({
     {worldScene.id==='INDUSTRIAL'&&<Animated.View style={[styles.industrialSteam,smokeStyle]}>{Array.from({length:intensity==='quiet'?4:8},(_,i)=><View key={i} style={[styles.spark,{left:percent(8+(i*17)%88),top:percent(25+(i*19)%62),backgroundColor:worldScene.accent}]}/>)}</Animated.View>}
     {worldScene.id==='WORLD'&&<><Animated.View style={[styles.worldCloud,smokeStyle]} /><Animated.View style={[styles.energyPulse,{borderColor:worldScene.accent,shadowColor:worldScene.accent},pulseStyle]}/></>}
     {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<><Animated.View style={[styles.portalVeil,{borderColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]} /><Animated.View style={[styles.energyArc,{borderColor:worldScene.accent,opacity:.34*strength},awakeningStyle]}/></>}
-    {worldScene.id==='BOSS_ZONE'&&<Animated.View style={[styles.lightningFlash,lightningStyle]}/>}
+    
     {worldScene.id==='RUINS'&&<Animated.View style={[styles.smokeBand,{opacity:.28*strength},smokeStyle]}/>} 
     {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&<>
       <Animated.View style={[styles.smokeBand,smokeStyle]}/>
-      <Animated.View style={[styles.fireField,fireStyle]}>{Array.from({length:12},(_,i)=><View key={i} style={[styles.flame,{left:percent((i*31)%104),height:24+(i%5)*15,opacity:.28+(i%3)*.12}]}/>)}</Animated.View>
+      <Animated.View style={[styles.fireField,fireStyle]}>{Array.from({length:fireCount},(_,i)=><View key={i} style={[styles.flame,{left:percent((i*31)%104),height:24+(i%5)*15,opacity:.28+(i%3)*.12}]}/>)}</Animated.View>
       <Animated.View style={[styles.emberField,emberStyle]}>{Array.from({length:intensity==='quiet'?8:intensity==='default'?12:intensity==='hero'?16:20},(_,i)=><View key={i} style={[styles.hotEmber,{left:percent((i*47)%100),top:percent((i*29)%92)}]}/>)}</Animated.View>
       <Animated.View style={[styles.energyPulse,{borderColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]}/>
       <Animated.View style={[styles.lightningFlash,lightningStyle]}/>
