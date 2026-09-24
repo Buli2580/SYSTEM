@@ -14,6 +14,7 @@ let ambientPlayer:AudioPlayer|null=null;
 let fxPlayer:AudioPlayer|null=null;
 const cinematicPlayers=new Map<CinematicLayer,AudioPlayer>();
 const cinematicEventPlayers=new Set<AudioPlayer>();
+const cinematicEventCleanup=new Map<AudioPlayer,ReturnType<typeof setTimeout>>();
 const cinematicLayerBaseVolume=new Map<CinematicLayer,number>();
 let musicDuckTimer:ReturnType<typeof setTimeout>|null=null;
 let activePreset:CinematicPreset|null=null;
@@ -79,6 +80,8 @@ export function stopCinematicAudio(){
   for(const player of cinematicPlayers.values())stopPlayer(player);
   cinematicPlayers.clear();
   cinematicLayerBaseVolume.clear();
+  for(const timer of cinematicEventCleanup.values())clearTimeout(timer);
+  cinematicEventCleanup.clear();
   for(const player of cinematicEventPlayers)stopPlayer(player);
   cinematicEventPlayers.clear();
 }
@@ -145,7 +148,8 @@ export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
   if(['OGRE_ROAR','BUILDING_HIT','THUNDER','PORTAL_ENERGY','BASS_IMPACT','BOSS_ENTER','BOSS_ATTACK','BOSS_PHASE_2','BOSS_ENRAGE','BOSS_DEATH','VICTORY','AWAKENING_ENTER','AWAKENING_RISE','AWAKENING_FLASH','AWAKENING_COMPLETE'].includes(_event))duckMusic(_event==='OGRE_ROAR'?1100:_event==='AWAKENING_ENTER'?1250:700,_event==='BASS_IMPACT'?.34:_event==='THUNDER'?.40:.48);
   const player=spawn(source,Math.min(1,volume*mix.sfx),false);
   cinematicEventPlayers.add(player);
-  setTimeout(()=>{cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
+  const cleanup=setTimeout(()=>{cinematicEventCleanup.delete(player);cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
+  cinematicEventCleanup.set(player,cleanup);
 }
 
 export type CinematicPreset='CITY'|'FOREST'|'INDUSTRIAL'|'RUINS'|'WORLD'|'PORTAL'|'BOSS'|'AWAKENING';
