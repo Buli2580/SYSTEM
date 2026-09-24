@@ -2,12 +2,15 @@ import SystemScreen from './SystemScreen';
 import SystemError from './SystemError';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated,{FadeInDown,FadeInUp} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SYSTEM_COLORS as C } from '../core';
 import { useSystem } from '../state/SystemProvider';
 import BottomNavigation from './BottomNavigation';
 import SystemAmbientBackground from './SystemAmbientBackground';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
+import {useAnimationEngine4} from './AnimationEngine4Provider';
+import SystemMotionLayer from './SystemMotionLayer';
 
 export default function SystemPage({
   title,subtitle,children,intensity='quiet',showNavigation=true,
@@ -20,16 +23,20 @@ export default function SystemPage({
 }) {
   const insets=useSafeAreaInsets();
   const {ready,error,refreshPlayer,player}=useSystem();
+  const motion=useAnimationEngine4();
   return <SystemScreen style={styles.root}>
     <SystemAmbientBackground intensity={intensity} screen={screen} scene={scene} threat={threat} weather={weather} level={player.realLevel}/>
+    <SystemMotionLayer intensity={intensity}/>
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content,{paddingTop:20,paddingBottom:(showNavigation?150:44)+insets.bottom}]}>
-      <View style={styles.headerScrim}>
+      <Animated.View entering={FadeInDown.duration(motion.duration('normal'))} style={styles.headerScrim}>
         <Text style={styles.code}>{subtitle}</Text>
         <Text style={styles.title}>{title}</Text>
-      </View>
-      {ready?children:<View style={styles.panel}>
-        {error?<SystemError message={error} retry={()=>{void refreshPlayer();}}/>:<Text style={styles.body}>SYSTEM // URUCHAMIANIE</Text>}
-      </View>}
+      </Animated.View>
+      <Animated.View entering={FadeInUp.duration(motion.duration(intensity==='hero'||intensity==='world'?'hero':'normal')).delay(motion.stagger(1,intensity))}>
+        {ready?children:<View style={styles.panel}>
+          {error?<SystemError message={error} retry={()=>{void refreshPlayer();}}/>:<Text style={styles.body}>SYSTEM // URUCHAMIANIE</Text>}
+        </View>}
+      </Animated.View>
     </ScrollView>
     {showNavigation&&<BottomNavigation/>}
   </SystemScreen>;
