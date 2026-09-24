@@ -51,6 +51,8 @@ export const LEGACY_AUDIO_FALLBACKS={
       OGRE_ROAR:{source:require('../../../assets/audio/boss_theme.mp3'),volume:.55},
       BUILDING_HIT:{source:require('../../../assets/audio/error.wav'),volume:.90},
       DEBRIS:{source:require('../../../assets/audio/error.wav'),volume:.42},
+      THUNDER:{source:require('../../../assets/audio/error.wav'),volume:.72},
+      PORTAL_ENERGY:{source:require('../../../assets/audio/system_wake.wav'),volume:.52},
       BASS_IMPACT:{source:require('../../../assets/audio/error.wav'),volume:1},
       BOSS_ENTER:{source:require('../../../assets/audio/boss_theme.mp3'),volume:.90},
       AWAKENING_ENTER:{source:require('../../../assets/audio/system_wake.wav'),volume:.85},
