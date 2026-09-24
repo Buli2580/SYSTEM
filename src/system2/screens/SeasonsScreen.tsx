@@ -21,7 +21,7 @@ export default function SeasonsScreen(){
  async function claim(level:number){setBusy(true);setError(null);try{await claimSeasonRewardV3(level);const item={5:'season-signal',15:'vanguard-frame',30:'season-veteran-sigil',50:'ascended-season-aura'}[level as 5|15|30|50];if(item)await grantInventoryItem(item);await load()}catch(e){setError(e instanceof Error?e.message:'SEASON_CLAIM_FAILED');setBusy(false)}}
  const now=Date.now(),progress=season?seasonProgress(now,Date.parse(season.startsAt),Date.parse(season.endsAt)):0,countdown=season?seasonCountdown(now,Date.parse(season.endsAt)):0;
  const season2=season?seasonProgress2(season,now):null;
- return <SystemPage title="SEZON" subtitle="SYSTEM ONLINE // CYCLE">
+ return <SystemPage title="SEZON" subtitle="SYSTEM ONLINE // CYCLE" screen="WORLD" scene="WORLD" threat={2} weather="STORM" intensity="world">
   <View style={s.panel}><Text style={s.label}>SEASON 2.1 // CURRENT CYCLE</Text>{season
    ? <SeasonCycleCard season={season} progress={progress} countdown={countdown}/>
    : <Text style={s.title}>{busy?'SPRAWDZANIE…':'BRAK AKTYWNEGO SEZONU'}</Text>}
