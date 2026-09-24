@@ -53,7 +53,7 @@ export function playFeedback(event:FeedbackEvent){
     QUEST_START:'QUEST_START',
     VERIFY:'VERIFY',
     QUEST_COMPLETE:'REWARD',
-    XP:'REWARD',
+    XP:'XP',
     LEVEL_UP:'LEVEL_UP',
     RANK_UP:'RANK_UP',
     PORTAL:'PORTAL',
