@@ -3,6 +3,7 @@ import Animated,{FadeInDown} from 'react-native-reanimated';
 import Action from '../components/Action';
 import type {PlayerProfile} from '../core/types';
 import {buildSystemCard,type CardReason} from './engine';
+import {queueTelemetry} from '../telemetry/amplitude';
 
 export default function SystemPlayerCard({player,reason='PROFILE'}:{player:PlayerProfile;reason?:CardReason}){
   const card=buildSystemCard(player,reason);
@@ -43,7 +44,7 @@ export default function SystemPlayerCard({player,reason='PROFILE'}:{player:Playe
       <Info label="SPECIAL" value={card.subtitle}/>
     </View>
     <Text style={styles.socialHint}>SOCIAL CARD // FACEBOOK · INSTAGRAM · TIKTOK</Text>
-    <Action label="UDOSTĘPNIJ KARTĘ →" onPress={()=>{void Share.share({title:'SYSTEM CARD',message:card.shareCaption})}}/>
+    <Action label="UDOSTĘPNIJ KARTĘ →" onPress={()=>{void queueTelemetry({event_type:'CARD_SHARE',event_properties:{rarity:card.rarity,level:card.level}}).then(()=>Share.share({title:'SYSTEM CARD',message:card.shareCaption}))}}/>
   </Animated.View>;
 }
 function Info({label,value}:{label:string;value:string}){return <View style={styles.info}><Text style={styles.label}>{label}</Text><Text numberOfLines={2} style={styles.value}>{value}</Text></View>}
