@@ -53,7 +53,7 @@ export default function MoveCloudGroupPanel({kind}:{kind:MoveGroupKind}){
     <Text style={styles.groupName}>{g.name}</Text>
     <Text style={styles.meta}>{g.role} · {g.memberCount} MEMBERS · {g.totalMinutes} MIN · {g.activeDays} ACTIVE DAYS</Text>
   </View>):<Text style={styles.body}>{busy?'SYNCHRONIZACJA…':'Brak podłączonej grupy online.'}</Text>}
-  {!!groups.length&&<Text style={styles.privacy}>Punkty ONLINE obejmują tylko aktywności zaakceptowane przez serwer. Obecnie dostępne dla WALK/RUN/BIKE po zatwierdzeniu odpowiadającej misji core i synchronizacji. Pozostałe MOVE oraz lokalne potwierdzenie opiekuna pozostają wyłącznie lokalne do czasu osobnego protokołu.</Text>}
+  {!!groups.length&&<Text style={styles.privacy}>Punkty ONLINE obejmują tylko aktywności zaakceptowane przez serwer. WALK/RUN/BIKE mają własny MOVE Verified Event i działają także bez odpowiadającej misji Daily. Pozostałe MOVE oraz lokalne potwierdzenie opiekuna pozostają lokalne.</Text>}
   {!!leaderboard.length&&<View style={styles.board}>
     <Text style={styles.label}>7D VERIFIED CONTRIBUTION · PARENT/TEACHER VIEW</Text>
     {leaderboard.slice(0,8).map((row,i)=><View key={row.userId} style={styles.row}>
