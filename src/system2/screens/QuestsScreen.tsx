@@ -12,6 +12,8 @@ import { useSystem } from '../state/SystemProvider';
 import { QuestMissionCard } from '../components/QuestExperience';
 import { getNextAction } from '../quests/nextAction';
 import SystemAudioScene from '../components/SystemAudioScene';
+import AIDirectorPanel from '../components/AIDirectorPanel';
+import NextActionPanel from '../components/NextActionPanel';
 
 export default function QuestsScreen() {
   const router = useRouter();
@@ -26,21 +28,14 @@ export default function QuestsScreen() {
     : router.push(nextAction.route);
   return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS" screen="QUESTS" scene={story?.worldLinkComplete&&!story?.bossComplete?"BOSS_ZONE":"RUINS"} threat={story?.worldLinkComplete&&!story?.bossComplete?3:1} intensity="hero">
     <SystemAudioScene cue={story?.worldLinkComplete&&!story?.bossComplete?"BOSS":"QUEST"} />
-    <View style={styles.panel}>
-      <Text style={styles.label}>SYSTEM // NEXT ACTION</Text>
-      <Text style={styles.title}>{nextAction.title}</Text>
-      <Text style={styles.body}>{nextAction.detail}</Text>
-      <Action label="CONTINUE →" onPress={openNextAction}/>
-    </View>
-    <View style={styles.panel}>
-      <Text style={styles.label}>AI GAME MASTER // {system.aiGameMaster?.source === 'ai' ? 'ONLINE' : 'SAFE FALLBACK'}</Text>
-      <Text style={styles.title}>{system.aiLoading ? 'ANALIZA GRACZA...' : system.aiGameMaster?.director.headline ?? 'DAILY DIRECTOR'}</Text>
-      <Text style={styles.body}>{system.aiGameMaster?.director.message ?? 'SYSTEM analizuje cele, serię i ostatnie wyniki bez zmiany zasad nagród.'}</Text>
-      {!!system.aiGameMaster?.briefing && <Text style={styles.body}>{system.aiGameMaster.briefing}</Text>}
-      {system.systemDebt > 0 && <Text style={styles.body}>SYSTEM DEBT {system.systemDebt} aktywny — poprzedni Daily Protocol nie został domknięty. Recovery Protocol ma priorytet; zdobyte wcześniej XP pozostaje bez zmian.</Text>}
-      {!!system.aiError && <Text style={styles.body}>{system.aiError}</Text>}
-      <Action label={system.aiLoading ? 'AI ANALIZUJE...' : 'ODŚWIEŻ AI DIRECTOR →'} onPress={() => { if (!system.aiLoading) void system.refreshAIGameMaster(); }} />
-    </View>
+    <NextActionPanel action={nextAction} onPress={openNextAction}/>
+    <AIDirectorPanel
+      response={system.aiGameMaster}
+      loading={system.aiLoading}
+      error={system.aiError}
+      systemDebt={system.systemDebt}
+      onRefresh={()=>{if(!system.aiLoading)void system.refreshAIGameMaster();}}
+    />
     <Action label="CELE →" onPress={() => router.push('/goals')} />
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
