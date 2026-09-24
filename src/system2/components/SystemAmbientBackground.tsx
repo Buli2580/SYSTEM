@@ -94,6 +94,8 @@ export default function SystemAmbientBackground({
       {(weather==='FOG'||weather==='RAIN'||weather==='STORM')&&<FogBands accent={worldScene.accent} strength={strength}/>}
     </Animated.View>
 
+    {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&
+      <CitySiege accent={worldScene.accent} strength={strength} reduced={motion.reduced} threat={threat}/>}
     <Animated.View style={[styles.nearLayer,nearStyle]}>
       <Particles kind={worldScene.particle} accent={worldScene.accent} strength={strength} weather={weather}/>
       {weather==='RAIN'||weather==='STORM'?<Rain accent={worldScene.accent} strength={strength}/>:null}
@@ -107,6 +109,51 @@ export default function SystemAmbientBackground({
     <View style={[styles.environmentDim,{backgroundColor:'#000',opacity:timeDim+weatherDim}]} />
     <View style={styles.uiScrim}/>
     <View style={styles.vignette}/>
+  </View>;
+}
+
+function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:number;reduced:boolean;threat:ThreatLevel}) {
+  const attack=useSharedValue(0);
+  const debris=useSharedValue(0);
+  useFocusEffect(useCallback(()=>{
+    if(reduced){attack.value=.55;debris.value=.45;return()=>{cancelAnimation(attack);cancelAnimation(debris)}}
+    attack.value=withRepeat(withTiming(1,{duration:1850,easing:Easing.inOut(Easing.ease)}),-1,true);
+    debris.value=withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
+    return()=>{cancelAnimation(attack);cancelAnimation(debris)};
+  },[attack,debris,reduced]));
+  const ogre=useAnimatedStyle(()=>({transform:[
+    {translateX:interpolate(attack.value,[0,1],[-8,5])},
+    {translateY:interpolate(attack.value,[0,.5,1],[3,-5,3])},
+    {rotate:interpolate(attack.value,[0,1],[-2,3])+'deg'},
+  ]}));
+  const arm=useAnimatedStyle(()=>({transform:[
+    {rotate:interpolate(attack.value,[0,.55,1],[-34,28,-34])+'deg'},
+    {translateY:interpolate(attack.value,[0,.55,1],[0,10,0])},
+  ]}));
+  const debrisStyle=useAnimatedStyle(()=>({opacity:interpolate(debris.value,[0,.18,.78,1],[0,.7,.34,0]),transform:[
+    {translateX:interpolate(debris.value,[0,1],[0,-54])},
+    {translateY:interpolate(debris.value,[0,.35,1],[0,-28,72])},
+    {rotate:interpolate(debris.value,[0,1],[0,160])+'deg'},
+  ]}));
+  const hitGlow=useAnimatedStyle(()=>({opacity:interpolate(attack.value,[0,.42,.58,1],[0,0,.52,0]),transform:[{scale:interpolate(attack.value,[0,.5,1],[.65,1.2,.8])}]}));
+  const opacity=(threat>=2?.42:.29)*strength;
+  return <View style={[styles.siege,{opacity}]}>
+    <View style={styles.damagedCity}>
+      {[0,1,2,3,4].map(i=><View key={i} style={[styles.siegeBuilding,{left:percent(i*19),height:58+(i%3)*34,borderColor:accent,transform:[{rotate:(i===2?'-7deg':i===3?'5deg':'0deg')}]}]}>
+        {i===2&&<View style={styles.buildingBite}/>}
+      </View>)}
+    </View>
+    <Animated.View style={[styles.ogre,ogre]}>
+      <View style={[styles.ogreBack,{borderColor:accent}]}/>
+      <View style={[styles.ogreHead,{borderColor:accent}]}>
+        <View style={[styles.ogreEye,{backgroundColor:accent,shadowColor:accent}]}/>
+        <View style={[styles.ogreEye2,{backgroundColor:accent,shadowColor:accent}]}/>
+      </View>
+      <View style={[styles.ogreHornL,{borderColor:accent}]}/><View style={[styles.ogreHornR,{borderColor:accent}]}/>
+      <Animated.View style={[styles.ogreArm,{borderColor:accent},arm]}/><View style={[styles.ogreArmRear,{borderColor:accent}]}/>
+    </Animated.View>
+    <Animated.View style={[styles.hitGlow,{backgroundColor:accent,shadowColor:accent},hitGlow]}/>
+    {[0,1,2,3,4,5].map(i=><Animated.View key={i} style={[styles.debris,{left:percent(54+(i%3)*6),top:percent(50+(i%2)*5),borderColor:accent},debrisStyle]}/>)}
   </View>;
 }
 
@@ -193,4 +240,19 @@ const styles=StyleSheet.create({
   bossEye:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:120,shadowOpacity:1,shadowRadius:10},
   bossEye2:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:82,shadowOpacity:1,shadowRadius:10},
   threatCore:{position:'absolute',width:92,height:92,borderRadius:46,borderWidth:1.5,top:'42%',left:'50%',marginLeft:-46,shadowOpacity:.8,shadowRadius:22},
+  siege:{position:'absolute',left:0,right:0,bottom:0,height:'58%',overflow:'hidden'},
+  damagedCity:{position:'absolute',left:0,right:0,bottom:-4,height:'52%'},
+  siegeBuilding:{position:'absolute',bottom:0,width:'23%',borderWidth:1,borderBottomWidth:0,backgroundColor:'rgba(2,6,9,.72)'},
+  buildingBite:{position:'absolute',right:-8,top:-7,width:24,height:28,backgroundColor:'#020609',transform:[{rotate:'28deg'}]},
+  ogre:{position:'absolute',right:'5%',bottom:'7%',width:185,height:245},
+  ogreBack:{position:'absolute',right:22,bottom:0,width:132,height:170,borderWidth:2,borderRadius:58,backgroundColor:'rgba(2,5,7,.82)'},
+  ogreHead:{position:'absolute',right:42,top:18,width:86,height:92,borderWidth:2,borderRadius:38,backgroundColor:'rgba(2,5,7,.9)'},
+  ogreHornL:{position:'absolute',right:105,top:2,width:40,height:58,borderLeftWidth:3,borderTopWidth:3,borderTopLeftRadius:40,transform:[{rotate:'-22deg'}]},
+  ogreHornR:{position:'absolute',right:23,top:3,width:40,height:58,borderRightWidth:3,borderTopWidth:3,borderTopRightRadius:40,transform:[{rotate:'24deg'}]},
+  ogreEye:{position:'absolute',left:20,top:42,width:11,height:4,borderRadius:4,shadowOpacity:1,shadowRadius:9},
+  ogreEye2:{position:'absolute',right:20,top:42,width:11,height:4,borderRadius:4,shadowOpacity:1,shadowRadius:9},
+  ogreArm:{position:'absolute',right:112,top:94,width:34,height:122,borderWidth:2,borderRadius:20,backgroundColor:'rgba(2,5,7,.86)',transformOrigin:'top center'},
+  ogreArmRear:{position:'absolute',right:4,top:98,width:31,height:112,borderWidth:2,borderRadius:20,backgroundColor:'rgba(2,5,7,.72)',transform:[{rotate:'-18deg'}]},
+  hitGlow:{position:'absolute',right:'37%',bottom:'29%',width:62,height:62,borderRadius:31,shadowOpacity:.9,shadowRadius:20},
+  debris:{position:'absolute',width:9,height:9,borderWidth:1,backgroundColor:'rgba(2,5,7,.8)'},
 });
