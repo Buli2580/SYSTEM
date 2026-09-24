@@ -6,6 +6,7 @@ import {bossPhaseState} from '../story/bossEngine';
 import {combatSequence} from '../presentation/combat';
 import SystemAmbientBackground from './SystemAmbientBackground';
 import {playFeedback} from '../identity/audio';
+import {useAnimation4} from '../presentation/useAnimation4';
 import {useAnimationEngine4} from './AnimationEngine4Provider';
 
 export default function CombatImpactOverlay({
@@ -14,6 +15,7 @@ export default function CombatImpactOverlay({
   damage:NonNullable<RewardReceipt['bossDamage']>;
   onDismiss:()=>void;
 }){
+  const motion=useAnimation4();
   const motion=useAnimationEngine4();
   const before=useMemo(()=>bossPhaseState(damage.beforeHp),[damage.beforeHp]);
   const after=useMemo(()=>bossPhaseState(damage.afterHp),[damage.afterHp]);
@@ -27,7 +29,7 @@ export default function CombatImpactOverlay({
     const end=setTimeout(onDismiss,total);
     return()=>{timers.forEach(clearTimeout);clearTimeout(end)};
   },[beats,onDismiss,motion.reducedMotion]);
-  const beat=beats[Math.min(index,beats.length-1)];
+  const beat=beats[Math.min(motion.reduced?beats.length-1:index,beats.length-1)];
   const progress=Math.max(0,Math.min(1,damage.afterHp/Math.max(1,before.maxHp)));
   const phaseChanged=damage.phaseBefore!==damage.phaseAfter;
   return <Modal transparent animationType="none" onRequestClose={onDismiss}>
