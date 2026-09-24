@@ -26,7 +26,7 @@ export default function QuestsScreen() {
   const openNextAction = () => nextAction.route === '/quest' && nextAction.questId
     ? router.push({ pathname: '/quest', params: { questId: nextAction.questId } })
     : router.push(nextAction.route);
-  return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS" screen="QUESTS" scene={story?.worldLinkComplete&&!story?.bossComplete?"BOSS_ZONE":"RUINS"} threat={story?.worldLinkComplete&&!story?.bossComplete?3:1} intensity="hero">
+  return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS" screen="QUESTS" scene={story?.worldLinkComplete&&!story?.bossComplete?"BOSS_ZONE":"RUINS"} threat={story?.worldLinkComplete&&!story?.bossComplete?3:1} weather={story?.worldLinkComplete&&!story?.bossComplete?"STORM":"FOG"} intensity="hero">
     <SystemAudioScene cue={story?.worldLinkComplete&&!story?.bossComplete?"BOSS":"QUEST"} />
     <NextActionPanel action={nextAction} onPress={openNextAction}/>
     <AIDirectorPanel
