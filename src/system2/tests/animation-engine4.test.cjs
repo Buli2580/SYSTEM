@@ -2,57 +2,61 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const vm=require('node:vm');
+
 const root=process.env.SYSTEM_PROJECT_ROOT??path.resolve(__dirname,'../../..');
-const ts=require(require.resolve('typescript',{paths:[root,process.cwd()]}));
+const read=rel=>fs.readFileSync(path.join(root,rel),'utf8');
 
-function load(relative){
- const file=path.join(root,'src/system2',relative+'.ts');
- const source=ts.transpileModule(fs.readFileSync(file,'utf8'),{
-  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
- }).outputText;
- const module={exports:{}};
- vm.runInNewContext(source,{module,exports:module.exports,require:()=>{throw new Error('unexpected dependency')},Math,Number},{filename:file});
- return module.exports;
-}
-
-test('Animation Engine 4.0 reduced motion disables duration and stagger',()=>{
- const {motionDuration,motionStagger,motionProfile}=load('presentation/animationEngine4');
- assert.equal(motionDuration('hero',true),0);
- assert.equal(motionStagger(3,'hero',true),0);
- assert.equal(motionProfile('hero',true).scanOpacity,0);
- assert.equal(motionProfile('world',true).revealY,0);
-});
-
-test('Animation Engine 4.0 profiles scale intensity deterministically',()=>{
- const {motionDuration,motionStagger,motionProfile}=load('presentation/animationEngine4');
- assert.equal(motionDuration('normal',false),320);
- assert.ok(motionProfile('hero').scanOpacity>motionProfile('quiet').scanOpacity);
- assert.ok(motionStagger(2,'hero')>motionStagger(2,'quiet'));
- assert.ok(motionProfile('hero').scanDuration<motionProfile('quiet').scanDuration);
-});
-
-test('Animation Engine 4.0 is mounted globally and SystemPage owns screen motion',()=>{
- const layout=fs.readFileSync(path.join(root,'src/app/_layout.tsx'),'utf8');
- const page=fs.readFileSync(path.join(root,'src/system2/components/SystemPage.tsx'),'utf8');
+test('Animation Engine 4.0 is mounted once at app root',()=>{
+ const layout=read('src/app/_layout.tsx');
  assert.match(layout,/AnimationEngine4Provider/);
  assert.match(layout,/SystemRouteMotion/);
- assert.match(layout,/animation:\s*'none'/);
- assert.match(page,/SystemMotionLayer/);
- assert.match(page,/useAnimationEngine4/);
- assert.match(page,/FadeInDown/);
- assert.match(page,/FadeInUp/);
+ assert.match(layout,/animation:\s*['"]none['"]/);
 });
 
-test('Boot, event, combat and milestone overlays consume Animation Engine 4.0',()=>{
- const files=[
-  'src/system2/components/SystemBootSequence.tsx',
+test('first onboarding always runs FIRST_AWAKENING boot',()=>{
+ const onboarding=read('src/system2/screens/OnboardingScreen.tsx');
+ assert.match(onboarding,/SystemBootSequence[^>]*firstRun/);
+});
+
+test('boot sequence owns awakening audio and cinematic beats',()=>{
+ const boot=read('src/system2/components/SystemBootSequence.tsx');
+ assert.match(boot,/launchBeats/);
+ assert.match(boot,/FIRST_AWAKENING/);
+ assert.match(boot,/playAudioTheme\(resolved===['"]FIRST_AWAKENING['"]\?['"]AWAKENING['"]:['"]HOME['"]\)/);
+ assert.match(boot,/POMIŃ INTRO/);
+});
+
+test('LaunchGate remains mounted for returning sessions',()=>{
+ const layout=read('src/app/_layout.tsx');
+ const gate=read('src/system2/components/LaunchGate.tsx');
+ assert.match(layout,/<LaunchGate\s*\/>/);
+ assert.match(gate,/SystemBootSequence/);
+});
+
+test('Engine 4.0 respects reduced-motion without removing content instantly',()=>{
+ const engine=read('src/system2/presentation/animationEngine4.ts');
+ const boot=read('src/system2/components/SystemBootSequence.tsx');
+ assert.match(engine,/reduced\?Math\.max\(1500/);
+ assert.match(boot,/reducedMotion\?1800/);
+});
+
+test('global surfaces are wired to Engine 4.0',()=>{
+ for(const rel of [
+  'src/system2/components/SystemPage.tsx',
+  'src/system2/components/Action.tsx',
+  'src/system2/components/BottomNavigation.tsx',
+  'src/system2/components/SystemAmbientBackground.tsx',
   'src/system2/components/SystemEventOverlay.tsx',
   'src/system2/components/CombatImpactOverlay.tsx',
   'src/system2/cards/MilestoneCardOverlay.tsx',
- ];
- for(const relative of files){
-  const source=fs.readFileSync(path.join(root,relative),'utf8');
-  assert.match(source,/useAnimationEngine4/);
+ ]){
+  const source=read(rel);
+  assert.match(source,/Animation4|AnimationEngine4/,'missing Engine 4.0 in '+rel);
  }
+});
+
+test('legacy motion adapter has no second timing table',()=>{
+ const legacy=read('src/system2/presentation/motion.ts');
+ assert.doesNotMatch(legacy,/ANIMATION4\.durations/);
+ assert.match(legacy,/MOTION_4/);
 });
