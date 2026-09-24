@@ -308,7 +308,7 @@ function Runes({accent,strength}:{accent:string;strength:number}) {
 }
 
 function Silhouette({type,accent,strength,depth}:{type:string;accent:string;strength:number;depth:'far'|'mid'}) {
-  const depthScale=depth==='far'?.72:1;
+  const depthScale = depth === 'far' ? 0.72 : 1;
   if(type==='boss') return <View style={[styles.bossWrap,{opacity:.26*strength,transform:[{scale:depthScale}]}]}>
     <View style={[styles.bossHornLeft,{borderColor:accent}]}/>
     <View style={[styles.bossHornRight,{borderColor:accent}]}/>
