@@ -36,6 +36,8 @@ test('Animation Engine 4.0 is mounted globally and SystemPage owns screen motion
  const layout=fs.readFileSync(path.join(root,'src/app/_layout.tsx'),'utf8');
  const page=fs.readFileSync(path.join(root,'src/system2/components/SystemPage.tsx'),'utf8');
  assert.match(layout,/AnimationEngine4Provider/);
+ assert.match(layout,/SystemRouteMotion/);
+ assert.match(layout,/animation:\s*'none'/);
  assert.match(page,/SystemMotionLayer/);
  assert.match(page,/useAnimationEngine4/);
  assert.match(page,/FadeInDown/);
