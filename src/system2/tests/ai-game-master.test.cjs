@@ -269,3 +269,62 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   assert.deepEqual(JSON.parse(JSON.stringify(quest.rewards)), { realXp: 30, skillXp: { WIL: 25 }, gameEnergy: 3 });
   assert.notEqual(quest.verification.minimumDurationSeconds, 999999 * 60);
 });
+
+
+test('AI response validation keeps bounded web research and gameplay memory', () => {
+  const { validateAIGameMasterResponse } = loader()('ai/validate');
+  const value = validResponse();
+  value.research = {
+    usedWeb: true,
+    topics: ['official German B2 materials'],
+    sources: [{ title: 'Official resource', url: 'https://example.org/resource' }],
+  };
+  value.memory = {
+    summary: 'Prefers short concrete learning quests.',
+    interests: ['German B2'],
+    preferredQuestStyles: ['15 minute focused practice'],
+    successfulCategories: ['learning'],
+    recentFailureCategories: [],
+    researchTopics: ['German B2 resources'],
+  };
+  const result = validateAIGameMasterResponse(value, []);
+  assert.equal(result?.research?.usedWeb, true);
+  assert.equal(result?.research?.sources.length, 1);
+  assert.equal(result?.memory?.successfulCategories[0], 'learning');
+});
+
+test('AI response validation strips unsafe research URLs instead of trusting them', () => {
+  const { validateAIGameMasterResponse } = loader()('ai/validate');
+  const value = validResponse();
+  value.research = {
+    usedWeb: true,
+    topics: ['goal research'],
+    sources: [
+      { title: 'Bad local source', url: 'http://127.0.0.1/private' },
+      { title: 'Good source', url: 'https://example.org/public' },
+    ],
+  };
+  const result = validateAIGameMasterResponse(value, []);
+  assert.equal(result?.research?.sources.length, 1);
+  assert.equal(result?.research?.sources[0].url, 'https://example.org/public');
+});
+
+test('offline fallback personalizes quests to an active goal and respects movement preferences', () => {
+  const { buildFallback } = loader()('ai/fallback');
+  const context = {
+    player: {
+      level: 4, rank: 'E', streak: 2, completionRate7d: 0.6, systemDebt: 0,
+      activities: { walking: true, running: false, cycling: false },
+    },
+    goals: [{ id:'goal-1', title:'Niemiecki B2', description:'przygotowanie do egzaminu' }],
+    recentQuests: [
+      { title:'Powtórka słownictwa', category:'learning', completed:true, failed:false },
+    ],
+    nowIso: '2026-09-24T08:00:00.000Z',
+  };
+  const response = buildFallback(context, 3);
+  const text = response.quests.map(q => q.title + ' ' + q.description + ' ' + q.reason).join(' ');
+  assert.match(text, /Niemiecki B2/i);
+  assert.ok(response.quests.every(q => q.templateHint !== 'run_easy' && q.templateHint !== 'ride_easy'));
+  assert.match(response.director.message, /Niemiecki B2/i);
+});
