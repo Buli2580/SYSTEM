@@ -2,6 +2,8 @@ import {useEffect} from 'react';
 import {Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import Animated,{FadeIn,FadeInUp} from 'react-native-reanimated';
 import {playFeedback} from '../identity/audio';
+import {overlayAutoDismiss} from '../presentation/animationEngine4';
+import {useAnimationEngine4} from './AnimationEngine4Provider';
 
 const ACCENT={CYAN:'#6ceeff',GOLD:'#ffd36c',VIOLET:'#e4baff'} as const;
 export type SystemEvent={id:string;eyebrow:string;title:string;detail?:string;accent?:'CYAN'|'GOLD'|'VIOLET';durationMs?:number};
@@ -15,12 +17,13 @@ function soundFor(event:SystemEvent){
 }
 
 export default function SystemEventOverlay({event,onDismiss}:{event:SystemEvent|null;onDismiss:()=>void}){
+  const motion=useAnimationEngine4();
   useEffect(()=>{
     if(!event)return;
     playFeedback(soundFor(event));
-    const t=setTimeout(onDismiss,event.durationMs??2800);
+    const t=setTimeout(onDismiss,overlayAutoDismiss(event.durationMs??2800,motion.reducedMotion));
     return()=>clearTimeout(t);
-  },[event,onDismiss]);
+  },[event,onDismiss,motion.reducedMotion]);
 
   if(!event)return null;
   const accent=ACCENT[event.accent??'CYAN'];
@@ -28,8 +31,8 @@ export default function SystemEventOverlay({event,onDismiss}:{event:SystemEvent|
     <Pressable accessibilityRole="button" accessibilityLabel="Zamknij komunikat SYSTEMU" onPress={onDismiss} style={styles.root}>
       <View style={[styles.haloOuter,{borderColor:accent+'33'}]}/>
       <View style={[styles.haloInner,{borderColor:accent+'66'}]}/>
-      <Animated.View entering={FadeIn.duration(220)} style={[styles.scan,{backgroundColor:accent+'66'}]}/>
-      <Animated.View entering={FadeInUp.duration(320)} style={[styles.card,{borderColor:accent+'88',shadowColor:accent}]}>
+      <Animated.View entering={FadeIn.duration(motion.duration('fast'))} style={[styles.scan,{backgroundColor:accent+'66'}]}/>
+      <Animated.View entering={FadeInUp.duration(motion.duration('normal'))} style={[styles.card,{borderColor:accent+'88',shadowColor:accent}]}>
         <Text style={[styles.eyebrow,{color:accent}]}>{event.eyebrow}</Text>
         <Text style={styles.title}>{event.title}</Text>
         {event.detail?<Text style={styles.detail}>{event.detail}</Text>:null}
