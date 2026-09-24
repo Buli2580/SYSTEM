@@ -203,13 +203,9 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
   const pattern=useSharedValue(0);
   useFocusEffect(useCallback(()=>{
     if(reduced){attack.value=.55;debris.value=.45;collapse.value=.35;lunge.value=.2;stomp.value=.2;pattern.value=0;return()=>{[attack,debris,collapse,lunge,stomp,pattern].forEach(cancelAnimation)}}
-    attack.value=withRepeat(withTiming(1,{duration:1850,easing:Easing.inOut(Easing.ease)}),-1,true);
-    debris.value=withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
-    collapse.value=withRepeat(withTiming(1,{duration:5700,easing:Easing.inOut(Easing.ease)}),-1,true);
-    lunge.value=withRepeat(withTiming(1,{duration:4300,easing:Easing.inOut(Easing.ease)}),-1,true);
-    stomp.value=withRepeat(withTiming(1,{duration:3200,easing:Easing.inOut(Easing.ease)}),-1,true);
+    attack.value=0;debris.value=0;collapse.value=0;lunge.value=0;stomp.value=0;pattern.value=0;
     return()=>{[attack,debris,collapse,lunge,stomp,pattern].forEach(cancelAnimation)};
-  },[attack,debris,collapse,lunge,stomp,reduced]));
+  },[attack,debris,collapse,lunge,stomp,pattern,reduced]));
   useFocusEffect(useCallback(()=>{
     if(reduced)return;
     let phase=0;
@@ -230,7 +226,7 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
     };
     timer=setTimeout(run,900);
     return()=>clearTimeout(timer);
-  },[reduced,threat]));
+  },[attack,collapse,debris,lunge,pattern,reduced,stomp,threat]));
   const ogre=useAnimatedStyle(()=>({transform:[
     {scale:interpolate(stomp.value,[0,.45,.55,1],[1,1.025,.97,1])},
     {translateX:interpolate(lunge.value,[0,.5,1],[0,12,0])},
