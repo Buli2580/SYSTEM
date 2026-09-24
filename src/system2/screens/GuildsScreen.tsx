@@ -37,7 +37,7 @@ export default function GuildsScreen(){
   finally{lock.current=false;if(mounted.current)setBusy(false);}
  }
 
- return <SystemPage title="GILDIE" subtitle="SYSTEM ONLINE // TEAMS">
+ return <SystemPage title="GILDIE" subtitle="SYSTEM ONLINE // TEAMS" screen="WORLD" scene="CITY" threat={2} weather="RAIN" intensity="world">
   <View style={s.panel}><Text style={s.label}>GUILD NETWORK // GUILD WARS 3.0</Text><Text style={s.body}>Znajdź ekipę, buduj wspólny wynik zweryfikowanymi questami i przygotuj się do raidów.</Text>{myGuild&&<Text style={s.body}>MY GUILD // [{myGuild.tag}] {myGuild.name} · {myGuild.role} · LV.{myGuild.level}</Text>}<Action label={busy?'ŁADOWANIE…':'ODŚWIEŻ'} disabled={busy} onPress={()=>void refresh()}/></View>
   {error&&<SystemError message={error} retry={()=>void refresh()}/>}
   {!error&&loaded&&!busy&&rows.length===0&&<View style={s.panel}><Text style={s.title}>BRAK PUBLICZNYCH GILDII</Text></View>}
