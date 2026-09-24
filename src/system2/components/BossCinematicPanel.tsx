@@ -1,5 +1,5 @@
 import {useEffect} from 'react';
-import {StyleSheet,Text,View} from 'react-native';
+import {StyleSheet,Text,View,type DimensionValue} from 'react-native';
 import {VideoView,useVideoPlayer} from 'expo-video';
 import Animated,{FadeIn,FadeInUp} from 'react-native-reanimated';
 import {bossPhaseState} from '../story/bossEngine';
@@ -30,7 +30,7 @@ export default function BossCinematicPanel({
       <Text style={styles.phase}>{phase.label}</Text>
       <Text style={styles.name}>THE FIRST WALL</Text>
       <Text style={styles.meta}>WEAK POINT // {phase.weakPoint}{phase.enrage?' · ENRAGE':''}</Text>
-      <View style={styles.hpTrack}><View style={[styles.hpFill,{width:`${hpPercent}%`}]} /></View>
+      <View style={styles.hpTrack}><View style={[styles.hpFill,{width:`${hpPercent}%` as DimensionValue}]} /></View>
       <View style={styles.hpRow}>
         <Text style={styles.hp}>{phase.hp} / {phase.maxHp} HP</Text>
         <Text style={styles.damage}>{broken}% PRZEŁAMANIA</Text>
