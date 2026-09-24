@@ -28,13 +28,14 @@ export default function AwakeningPathScreen() {
   const firstQuest = AWAKENING_QUESTS.find(quest => !system.completedQuestIds.includes(quest.id));
 
   useEffect(() => {
+    if (!goal) return;
     applyCinematicPreset('AWAKENING');
     const sequence:Array<[number,Parameters<typeof triggerAwakeningCinematicState>[0]]>=[
       [350,'PORTAL'],[1300,'RUNES'],[2200,'ENERGY'],[3100,'WIND'],[4000,'PUSH'],[4800,'FLASH'],[5100,'DROP'],[5900,'AWAKENED'],
     ];
     const timers=sequence.map(([delay,state])=>setTimeout(()=>{setAwakeningState(state);triggerAwakeningCinematicState(state)},delay));
     return()=>{timers.forEach(timer=>clearTimeout(timer));stopCinematicAudio()};
-  },[]);
+  },[goal?.id]);
 
   useEffect(() => {
     if (!goal || system.aiGameMaster || system.aiLoading || requested.current) return;
