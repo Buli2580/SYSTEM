@@ -4,12 +4,16 @@ import { LEGACY_AUDIO_FALLBACKS } from './manifest';
 export type AudioBus='music'|'ambient'|'sfx';
 export type MusicCue='HOME'|'WORLD'|'QUEST'|'ACTIVE_QUEST'|'BOSS'|'VICTORY'|'AWAKENING';
 export type SfxCue='UI_TAP'|'SCAN'|'QUEST_START'|'VERIFY'|'REWARD'|'XP'|'LEVEL_UP'|'RANK_UP'|'PORTAL'|'BOSS_HIT'|'ERROR';
+export type CinematicLayer='CITY_RUINS'|'FIRE'|'WIND'|'RAIN'|'STORM'|'PORTAL_ENERGY';
+export type CinematicEvent='OGRE_STEP'|'OGRE_ROAR'|'BUILDING_HIT'|'DEBRIS'|'BASS_IMPACT'|'BOSS_ENTER'|'AWAKENING_ENTER';
 
 type Mix={enabled:boolean;music:number;ambient:number;sfx:number};
 let mix:Mix={enabled:false,music:.8,ambient:.55,sfx:.9};
 let musicPlayer:AudioPlayer|null=null;
 let ambientPlayer:AudioPlayer|null=null;
 let fxPlayer:AudioPlayer|null=null;
+const cinematicPlayers=new Map<CinematicLayer,AudioPlayer>();
+const cinematicEventPlayers=new Set<AudioPlayer>();
 let currentMusic:MusicCue|null=null;
 const fades=new Map<AudioPlayer,ReturnType<typeof setInterval>>();
 
@@ -65,9 +69,15 @@ export function configureAudioEngine(next:Partial<Mix>){
   }
 }
 export function getAudioMix(){return{...mix}}
+export function stopCinematicAudio(){
+  for(const player of cinematicPlayers.values())stopPlayer(player);
+  cinematicPlayers.clear();
+  for(const player of cinematicEventPlayers)stopPlayer(player);
+  cinematicEventPlayers.clear();
+}
 export function stopAllAudio(){
   clearFade();
-  stopPlayer(musicPlayer);stopPlayer(ambientPlayer);stopPlayer(fxPlayer);
+  stopPlayer(musicPlayer);stopPlayer(ambientPlayer);stopPlayer(fxPlayer);stopCinematicAudio();
   musicPlayer=ambientPlayer=fxPlayer=null;currentMusic=null;
 }
 export function playMusic(cue:MusicCue){
@@ -101,4 +111,23 @@ export function audioAssetStatus(){
     music:Object.fromEntries(Object.entries(LEGACY_AUDIO_FALLBACKS.music).map(([k,v])=>[k,{placeholder:v.placeholder,replacement:v.recommendedReplacement}])),
     sfx:Object.fromEntries(Object.entries(LEGACY_AUDIO_FALLBACKS.sfx).map(([k,v])=>[k,{placeholder:v.placeholder,replacement:v.recommendedReplacement}])),
   };
+}
+
+export function setCinematicLayer(layer:CinematicLayer,source:any,volume=.35){
+  if(!mix.enabled||mix.ambient<=0||!source)return;
+  const previous=cinematicPlayers.get(layer);
+  if(previous)fadeOutAndRemove(previous,350);
+  const player=spawn(source,0,true);
+  cinematicPlayers.set(layer,player);
+  fadeIn(player,Math.min(1,volume*mix.ambient),650);
+}
+export function clearCinematicLayer(layer:CinematicLayer){
+  const player=cinematicPlayers.get(layer);if(!player)return;
+  cinematicPlayers.delete(layer);fadeOutAndRemove(player,350);
+}
+export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
+  if(!mix.enabled||mix.sfx<=0||!source)return;
+  const player=spawn(source,Math.min(1,volume*mix.sfx),false);
+  cinematicEventPlayers.add(player);
+  setTimeout(()=>{cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
 }
