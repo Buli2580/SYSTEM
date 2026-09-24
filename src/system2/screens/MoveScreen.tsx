@@ -21,6 +21,7 @@ import {buildMovementProgressCard} from '../move/card';
 import MovementProgressCard from '../components/MovementProgressCard';
 import MoveQuestCard from '../components/MoveQuestCard';
 import SystemAudioScene from '../components/SystemAudioScene';
+import MoveEventHUD from '../components/MoveEventHUD';
 
 export default function MoveScreen(){
  const router=useRouter(),{player}=useSystem();
@@ -52,11 +53,7 @@ export default function MoveScreen(){
     {reward&&<Text style={styles.reward}>UNLOCK // {reward}</Text>}
    </View>
 
-   <View style={styles.event}>
-    <Text style={styles.eventCode}>WORLD EVENT MOVE // {event.kind.replaceAll('_',' ')}</Text>
-    <Text style={styles.eventTitle}>{event.title}</Text>
-    <Text style={styles.body}>{event.minutes} MIN · SKILL {event.skill} · EVENT WINDOW 3H</Text>
-   </View>
+   <MoveEventHUD event={event} />
 
    <Text style={styles.section}>MOVE DIRECTOR // LOCAL</Text>
    <View style={styles.panel}><Text style={styles.next}>{moveDirectorLine(plan,completed)}</Text><Text style={styles.body}>{plan.recovery?'EASY DAY // po słabszym dniu SYSTEM wybiera lżejszy plan.':`PLANOWANE ${plan.plannedMinutes} MIN // cel 60 MIN`}</Text></View>
