@@ -14,7 +14,7 @@ export default function AchievementsScreen() {
   const categories = Object.keys(ACHIEVEMENT_CATEGORIES).sort((a,b) => ACHIEVEMENT_CATEGORIES[a].order - ACHIEVEMENT_CATEGORIES[b].order);
   const unlocked = Object.values(evaluated).filter(item => item.state === 'UNLOCKED' || item.state === 'CLAIMED').length;
   const mastery=achievementMastery(player,unlocked,ACHIEVEMENTS.length),momentum=achievementMomentum(unlocked,ACHIEVEMENTS.length,player.streak);
-  return <SystemPage title="OSIĄGNIĘCIA" subtitle="SYSTEM ACHIEVEMENTS 2.0">
+  return <SystemPage title="OSIĄGNIĘCIA" subtitle="SYSTEM ACHIEVEMENTS 2.0" screen="CHARACTER" scene="PORTAL" threat={1} intensity="hero">
     {achievementError && <SystemError message={achievementError} retry={() => { void refreshAchievements(); }} />}
     <View style={s.panel}><Text style={s.label}>MASTERY // {momentum.signal}</Text><Text style={s.title}>{mastery.tier} // {mastery.score}</Text><Text style={s.body}>{momentum.percent}% katalogu · następny mastery threshold {mastery.nextScore}</Text></View>
     <View style={s.panel}><Text style={s.label}>PROGRESS</Text><Text style={s.title}>{unlocked} / {ACHIEVEMENTS.length}</Text>
