@@ -25,10 +25,10 @@ export default function MoveSchoolScreen(){
    <Text style={styles.body}>School Mode nagradza regularność i wkład. Nie tworzymy rankingów wagi, wyglądu ani sprawności fizycznej dzieci.</Text>
 
    <View style={styles.grid}>
-    <Card label="7D MOVE" value={minutes+' MIN'}/>
-    <Card label="ACTIVE DAYS" value={String(activeDays)}/>
-    <Card label="CONTRIBUTION" value={String(contribution)}/>
-    <Card label="RAID DAMAGE" value={String(localDamage)}/>
+    <Card label="LOCAL 7D MOVE" value={minutes+' MIN'}/>
+    <Card label="LOCAL ACTIVE DAYS" value={String(activeDays)}/>
+    <Card label="LOCAL CONTRIBUTION" value={String(contribution)}/>
+    <Card label="LOCAL RAID PREVIEW" value={String(localDamage)}/>
    </View>
 
    <View style={styles.panel}><Text style={styles.label}>SCHOOL 2.0 // CLASS MISSIONS</Text>{SCHOOL_MISSIONS_2.map(m=><Pressable key={m.id} onPress={()=>router.push({pathname:'/move-quest',params:{questId:m.questId}})} style={{marginTop:10}}><Text style={styles.big}>{m.title}</Text><Text style={styles.body}>{m.minutes} MIN · {m.verification.replaceAll('_',' ')} · PRIVACY {m.privacy.replaceAll('_',' ')}</Text><Text style={styles.back}>START VERIFIED MOVE QUEST →</Text></Pressable>)}</View>
