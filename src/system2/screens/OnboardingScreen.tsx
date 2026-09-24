@@ -10,6 +10,7 @@ import SystemBootSequence from '../components/SystemBootSequence';
 import { useSystem } from '../state/SystemProvider';
 import { SKILL_KEYS, SYSTEM_COLORS as C } from '../core';
 import {queueTelemetry} from '../telemetry/amplitude';
+import {useAnimationEngine4} from '../components/AnimationEngine4Provider';
 
 const pages = [
   { code: '00 // SIGNAL', title: 'SYSTEM WYKRYTY', kicker: 'TWOJE ŻYCIE STAJE SIĘ GRĄ', body: 'Nie tworzysz bohatera w fikcyjnym świecie. Rozwijasz siebie, a SYSTEM zapisuje prawdziwy postęp.' },
@@ -31,6 +32,7 @@ export default function OnboardingScreen() {
   const busyRef = useRef(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const motion = useAnimationEngine4();
   const { finishOnboarding,saveSettings } = useSystem();
   const identityStep = step === pages.length - 1;
   const preferencesStep = step === pages.length - 2;
@@ -66,9 +68,9 @@ export default function OnboardingScreen() {
           {pages.map((_, index) => <View key={index} style={[styles.progressSegment, index <= step && styles.progressSegmentActive]} />)}
         </View>
 
-        <Animated.View key={step} entering={FadeInUp.duration(380)} style={styles.hero}>
+        <Animated.View key={step} entering={motion.reducedMotion?undefined:FadeInUp.duration(motion.duration('normal'))} style={styles.hero}>
           <View style={styles.coreWrap}>
-            <Animated.View entering={FadeIn.duration(650)} style={styles.coreOuter}>
+            <Animated.View entering={motion.reducedMotion?undefined:FadeIn.duration(motion.duration('hero'))} style={styles.coreOuter}>
               <View style={styles.coreInner} />
             </Animated.View>
           </View>
