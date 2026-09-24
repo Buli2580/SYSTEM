@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+declare const process:{env:{EXPO_PUBLIC_AMPLITUDE_API_KEY?:string}};
 const KEY='system.telemetry.queue.v1';
 export type TelemetryEvent={event_type:string;user_id?:string;device_id?:string;event_properties?:Record<string,string|number|boolean>;time:number};
 export async function queueTelemetry(event:Omit<TelemetryEvent,'time'>){const raw=await AsyncStorage.getItem(KEY);let rows:TelemetryEvent[]=[];try{rows=raw?JSON.parse(raw):[]}catch{}rows.push({...event,time:Date.now()});await AsyncStorage.setItem(KEY,JSON.stringify(rows.slice(-200)));}
