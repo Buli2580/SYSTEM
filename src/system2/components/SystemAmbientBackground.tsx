@@ -149,7 +149,10 @@ export default function SystemAmbientBackground({
     </Animated.View>
 
     {worldScene.id==='BOSS_ZONE'&&<Animated.View style={[styles.bossDomain,{borderColor:worldScene.accent,shadowColor:worldScene.accent},bossPhaseStyle]} />}
-    {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<Animated.View style={[styles.awakeningBurst,{borderColor:worldScene.accent,shadowColor:worldScene.accent},awakeningStyle]} />}
+    {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<>
+      <Animated.View style={[styles.awakeningBurst,{borderColor:worldScene.accent,shadowColor:worldScene.accent},awakeningStyle]} />
+      <Animated.View style={[styles.awakeningCore,{backgroundColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]} />
+    </>}
     <Animated.View style={[styles.portal,{borderColor:worldScene.accent,shadowColor:worldScene.accent},pulseStyle]} />
     <Animated.View style={[styles.scanLine,{backgroundColor:worldScene.accent},scanStyle]} />
     {threat>=2&&<Animated.View style={[styles.threatCore,{borderColor:worldScene.accent,shadowColor:worldScene.accent},pulseStyle]} />}
@@ -202,6 +205,7 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
       else if(phase===1){triggerCinematicEvent('BUILDING_HIT');triggerCinematicEvent('BASS_IMPACT')}
       else if(phase===2)triggerCinematicEvent('DEBRIS');
       else if(threat>=2)triggerCinematicEvent('OGRE_ROAR');
+      if(threat>=2&&phase===0&&Math.floor(Date.now()/1900)%3===0)triggerCinematicEvent('THUNDER');
     },1900);
     return()=>clearInterval(timer);
   },[reduced,threat]));
@@ -353,4 +357,5 @@ const styles=StyleSheet.create({
   debris:{position:'absolute',width:9,height:9,borderWidth:1,backgroundColor:'rgba(2,5,7,.8)'},
   bossDomain:{position:'absolute',width:330,height:330,borderRadius:165,borderWidth:3,top:'18%',left:'8%',shadowOpacity:.85,shadowRadius:36},
   awakeningBurst:{position:'absolute',width:260,height:260,borderRadius:130,borderWidth:2,top:'24%',left:'17%',shadowOpacity:.95,shadowRadius:42},
+  awakeningCore:{position:'absolute',width:72,height:72,borderRadius:36,top:'35%',left:'41%',shadowOpacity:1,shadowRadius:34,opacity:.28},
 });
