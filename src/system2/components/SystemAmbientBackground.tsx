@@ -21,9 +21,15 @@ type Intensity = 'quiet' | 'default' | 'hero' | 'world';
 type CinematicSource = number | {uri:string};
 
 const CINEMATIC_ART:Partial<Record<WorldSceneId,CinematicSource>>={
-  // Local require(...) assets can be added here when final artwork is committed.
-  // Remote/CDN sources may be passed explicitly through cinematicSource.
+  // Final artwork slots. Keep fallbacks procedural until binary artwork is committed.
 };
+export const CINEMATIC_ASSET_SLOTS={
+  HOME_CITY:'assets/cinematic/home-ogre-city.jpg',
+  AWAKENING:'assets/cinematic/awakening-card.jpg',
+  WORLD:'assets/cinematic/world-rift.jpg',
+  BOSS:'assets/cinematic/boss-domain.jpg',
+  CHARACTER:'assets/cinematic/character-awakened.jpg',
+} as const;
 
 export default function SystemAmbientBackground({
   intensity='default', screen='HOME', level=1, threat=0, scene, weather='CLEAR', cinematicSource,
