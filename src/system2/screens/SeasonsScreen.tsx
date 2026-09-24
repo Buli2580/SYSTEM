@@ -6,6 +6,7 @@ import SystemError from '../components/SystemError';
 import {getCurrentSeason} from '../cloud/seasons';
 import type {SocialSeason} from '../social/seasons';
 import {seasonProgress,seasonCountdown} from '../social/seasonPresentation';
+import SeasonCycleCard from '../components/SeasonCycleCard';
 
 function remaining(ms:number){
  const d=Math.floor(ms/86400000),h=Math.floor((ms%86400000)/3600000);
@@ -18,14 +19,11 @@ export default function SeasonsScreen(){
  useEffect(()=>{void load();},[]);
  const now=Date.now(),progress=season?seasonProgress(now,Date.parse(season.startsAt),Date.parse(season.endsAt)):0,countdown=season?seasonCountdown(now,Date.parse(season.endsAt)):0;
  return <SystemPage title="SEZON" subtitle="SYSTEM ONLINE // CYCLE">
-  <View style={s.panel}><Text style={s.label}>SEASON 2.0 // CURRENT CYCLE</Text>{season?<>
-   <Text style={s.title}>{season.name}</Text>
-   <Text style={s.body}>ACTIVE · {season.startsAt.slice(0,10)} → {season.endsAt.slice(0,10)}</Text>
-   <Text style={s.label}>SEASON TIME PROGRESS // {Math.round(progress*100)}%</Text>
-   <View style={{height:6,borderRadius:6,overflow:'hidden',backgroundColor:'#17333e',marginTop:10}}><View style={{height:'100%',width:`${Math.max(2,Math.round(progress*100))}%`,backgroundColor:'#6ceeff'}}/></View>
-   <Text style={s.body}>DO KOŃCA: {remaining(countdown)}</Text>
-   <Text style={s.body}>Reward Track, Season XP, weekly season quests i historyczne badges są następną warstwą backendową — ekran nie pokazuje fikcyjnych punktów, których chmura jeszcze nie zwraca.</Text>
-  </>:<Text style={s.title}>{busy?'SPRAWDZANIE…':'BRAK AKTYWNEGO SEZONU'}</Text>}<Action label="ODŚWIEŻ" disabled={busy} onPress={()=>void load()}/></View>
+  <View style={s.panel}><Text style={s.label}>SEASON 2.1 // CURRENT CYCLE</Text>{season
+   ? <SeasonCycleCard season={season} progress={progress} countdown={countdown}/>
+   : <Text style={s.title}>{busy?'SPRAWDZANIE…':'BRAK AKTYWNEGO SEZONU'}</Text>}
+   <Action label="ODŚWIEŻ" disabled={busy} onPress={()=>void load()}/>
+  </View>
   {error&&<SystemError message={error} retry={()=>void load()}/>}
  </SystemPage>;
 }
