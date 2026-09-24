@@ -8,7 +8,7 @@ import {queueTelemetry} from '../telemetry/amplitude';
 import {loadEquippedInventory,type EquippedInventory} from '../inventory/storage';
 import {INVENTORY_ITEMS} from '../inventory/catalog';
 
-export default function SystemPlayerCard({player,reason='PROFILE'}:{player:PlayerProfile;reason?:CardReason}){
+export default function SystemPlayerCard({player,reason='PROFILE',activeTitle2,companionName}:{player:PlayerProfile;reason?:CardReason;activeTitle2?:string|null;companionName?:string|null}){
   const[equipped,setEquipped]=useState<EquippedInventory>({});
   useEffect(()=>{void loadEquippedInventory().then(setEquipped)},[]);
   const card=buildSystemCard(player,reason);
@@ -50,8 +50,12 @@ export default function SystemPlayerCard({player,reason='PROFILE'}:{player:Playe
       <Info label="SPECIAL" value={card.subtitle}/>
     </View>
     {!!equippedItems.length&&<View style={styles.equipped}><Text style={styles.meta}>EQUIPPED // {equippedItems.map(item=>item!.name).join(' · ')}</Text></View>}
+    {(activeTitle2||companionName)&&<View style={styles.equipped}>
+      {activeTitle2&&<Text style={styles.meta}>TITLE 2.0 // {activeTitle2}</Text>}
+      {companionName&&<Text style={styles.meta}>COMPANION // {companionName}</Text>}
+    </View>}
     <Text style={styles.socialHint}>SOCIAL CARD // FACEBOOK · INSTAGRAM · TIKTOK</Text>
-    <Action label="UDOSTĘPNIJ KARTĘ →" onPress={()=>{void queueTelemetry({event_type:'CARD_SHARE',event_properties:{rarity:card.rarity,level:card.level}}).then(()=>Share.share({title:'SYSTEM CARD',message:card.shareCaption}))}}/>
+    <Action label="UDOSTĘPNIJ KARTĘ →" onPress={()=>{const loadout=[activeTitle2?'TITLE '+activeTitle2:'',companionName?'COMPANION '+companionName:''].filter(Boolean).join(' // ');void queueTelemetry({event_type:'CARD_SHARE',event_properties:{rarity:card.rarity,level:card.level}}).then(()=>Share.share({title:'SYSTEM CARD',message:card.shareCaption+(loadout?'\n'+loadout:'')}))}}/>
   </Animated.View>;
 }
 function Info({label,value}:{label:string;value:string}){return <View style={styles.info}><Text style={styles.label}>{label}</Text><Text numberOfLines={2} style={styles.value}>{value}</Text></View>}
