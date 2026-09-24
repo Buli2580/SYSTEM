@@ -6,6 +6,7 @@ import {
   clearBackgroundQuestSession,
   clearQuestCheckpoint,
   completeVerifiedQuest,
+  endQuestAttempt,
   loadBackgroundQuestSession,
   loadQuestCheckpoint,
   saveQuestCheckpoint,
@@ -17,6 +18,7 @@ import { getQuest } from '../quests/catalog';
 import { dayKey } from '../daily/calendar';
 import { buildEvidence } from '../verification/evidence';
 import { distanceBetween, verificationScoreForAccuracy, verifiedSegment } from '../verification/gps';
+import {EMPTY_GPS_RISK,inspectGpsRisk,mergeRiskSnapshots} from '../verification/sessionRisk';
 import {
   SYSTEM_BACKGROUND_LOCATION_TASK,
   locationFromStored,
@@ -67,6 +69,22 @@ async function completeInBackground(
   }
 }
 
+async function rejectSuspiciousBackground(
+  session: NonNullable<Awaited<ReturnType<typeof loadBackgroundQuestSession>>>,
+) {
+  const checkpoint=await loadQuestCheckpoint(session.questId).catch(()=>null);
+  await endQuestAttempt(
+    session.attemptId,
+    'SUSPICIOUS',
+    'VERIFICATION_REJECTED',
+    checkpoint?.durationSeconds ?? 0,
+    checkpoint?.distanceMeters ?? 0,
+  ).catch(()=>undefined);
+  await clearQuestCheckpoint(session.questId).catch(()=>undefined);
+  await clearBackgroundQuestSession(session.questId).catch(()=>undefined);
+  await stopOrphanedLocationTask();
+}
+
 async function processLocations(rawLocations: Location.LocationObject[]) {
   const session = await loadBackgroundQuestSession();
   if (!session) {
@@ -75,9 +93,20 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   }
   if (rawLocations.length === 0) return;
 
-  const locations = rawLocations
-    .filter(location => Boolean(usableBackgroundLocation(location)))
-    .sort((a, b) => a.timestamp - b.timestamp);
+  const orderedRaw=[...rawLocations].sort((a,b)=>a.timestamp-b.timestamp);
+  let risk=EMPTY_GPS_RISK;
+  let riskAnchor=session.lastPoint?locationFromStored(session.lastPoint):null;
+  for(const location of orderedRaw){
+    risk=mergeRiskSnapshots(risk,inspectGpsRisk(riskAnchor,location));
+    if(risk.action==='REJECT'){
+      await rejectSuspiciousBackground(session);
+      return;
+    }
+    if(location.mocked!==true)riskAnchor=location;
+  }
+
+  const locations = orderedRaw
+    .filter(location => Boolean(usableBackgroundLocation(location)));
   if (locations.length === 0) return;
 
   const latest = storedLocationPoint(locations[locations.length - 1])!;
