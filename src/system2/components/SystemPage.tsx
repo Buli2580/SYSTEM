@@ -2,6 +2,7 @@ import SystemScreen from './SystemScreen';
 import SystemError from './SystemError';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated,{FadeIn,FadeInDown} from 'react-native-reanimated';
 import Animated,{FadeInDown,FadeInUp} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SYSTEM_COLORS as C } from '../core';
@@ -9,6 +10,7 @@ import { useSystem } from '../state/SystemProvider';
 import BottomNavigation from './BottomNavigation';
 import SystemAmbientBackground from './SystemAmbientBackground';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
+import {useAnimation4} from '../presentation/useAnimation4';
 import {useAnimationEngine4} from './AnimationEngine4Provider';
 import SystemMotionLayer from './SystemMotionLayer';
 
@@ -23,6 +25,7 @@ export default function SystemPage({
 }) {
   const insets=useSafeAreaInsets();
   const {ready,error,refreshPlayer,player}=useSystem();
+  const motion=useAnimation4();
   const motion=useAnimationEngine4();
   return <SystemScreen style={styles.root}>
     <SystemAmbientBackground intensity={intensity} screen={screen} scene={scene} threat={threat} weather={weather} level={player.realLevel}/>
