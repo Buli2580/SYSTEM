@@ -9,7 +9,7 @@ import {raidHp} from '../social/raids';
 import {raidProgress,raidThreat} from '../social/raidThreat';
 import SystemAudioScene from '../components/SystemAudioScene';
 import {raid2Phase} from '../social/raid2';
-import {triggerBossCinematicState} from '../audio/engine';
+import {triggerBossCinematicState,type BossCinematicState} from '../audio/engine';
 
 function remaining(end:string){
  const ms=Math.max(0,Date.parse(end)-Date.now());
@@ -17,6 +17,7 @@ function remaining(end:string){
  return d>0?`${d}D ${h}H`:h>0?`${h}H ${m}MIN`:`${m}MIN`;
 }
 export default function RaidsScreen(){
+ const[bossState,setBossState]=useState<BossCinematicState>('ENTER');
  const[rows,setRows]=useState<CloudRaidV3[]>([]),[leaderboards,setLeaderboards]=useState<Record<string,CloudRaidLeaderboardRow[]>>({}),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);const epoch=useRef(0),mounted=useRef(true);
  useEffect(()=>()=>{mounted.current=false;epoch.current++;},[]);
  async function load(){const id=++epoch.current;if(mounted.current){setBusy(true);setError(null);setRows([]);}try{const next=await getActiveRaids();const boards=Object.fromEntries(await Promise.all(next.slice(0,5).map(async raid=>[raid.id,await getRaidLeaderboardV3(raid.id,5)] as const)));if(mounted.current&&id===epoch.current){setRows(next);setLeaderboards(boards)}}catch(e){if(mounted.current&&id===epoch.current)setError(e instanceof Error?e.message:'RAIDS_FAILED');}finally{if(mounted.current&&id===epoch.current)setBusy(false);}}
@@ -24,13 +25,11 @@ export default function RaidsScreen(){
  useEffect(()=>{
    if(!rows.length)return;
    const raid=rows[0],progress=raidProgress(raidHp(raid),raid.bossHp);
-   if(progress>=1){triggerBossCinematicState('DEATH');const t=setTimeout(()=>triggerBossCinematicState('VICTORY'),900);return()=>clearTimeout(t)}
-   if(progress>=.75)triggerBossCinematicState('ENRAGE');
-   else if(progress>=.5)triggerBossCinematicState('PHASE_2');
-   else if(progress>=.2)triggerBossCinematicState('ATTACK');
-   else triggerBossCinematicState('ROAR');
+   if(progress>=1){setBossState('DEATH');triggerBossCinematicState('DEATH');const t=setTimeout(()=>{setBossState('VICTORY');triggerBossCinematicState('VICTORY')},900);return()=>clearTimeout(t)}
+   const next:BossCinematicState=progress>=.75?'ENRAGE':progress>=.5?'PHASE_2':progress>=.2?'ATTACK':'ROAR';
+   setBossState(next);triggerBossCinematicState(next);
  },[rows]);
- return <SystemPage title="WORLD RAIDS" subtitle="SYSTEM ONLINE // CO-OP BOSS" intensity="world" screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM">
+ return <SystemPage title="WORLD RAIDS" subtitle="SYSTEM ONLINE // CO-OP BOSS" intensity="world" screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM" bossState={bossState}>
  {rows.length>0&&<SystemAudioScene cue="BOSS" preset="BOSS" />}
  <View style={s.panel}><Text style={[s.label,{color:'#e4baff'}]}>RAID 2.0 // GLOBAL THREAT NETWORK</Text><Text style={s.title}>{rows.length?'RAID SIGNAL DETECTED':busy?'SCANNING NETWORK':'SECTOR QUIET'}</Text><Text style={s.body}>Zweryfikowany progres graczy zasila wspólny damage. Raid nie przyznaje lokalnie XP — wynik rozlicza warstwa online.</Text><Action label={busy?'SYNCHRONIZACJA…':'ODŚWIEŻ SYGNAŁ'} disabled={busy} onPress={()=>void load()}/></View>
  {error&&<SystemError message={error} retry={()=>void load()}/>}
