@@ -141,7 +141,7 @@ function duckMusic(duration=650,depth=.46){
 }
 export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
   if(!mix.enabled||mix.sfx<=0||!source)return;
-  if(_event==='OGRE_ROAR'||_event==='BUILDING_HIT'||_event==='BASS_IMPACT'||_event==='BOSS_ENTER'||_event==='AWAKENING_ENTER')duckMusic(_event==='OGRE_ROAR'?1100:700,_event==='BASS_IMPACT'?.34:.48);
+  if(_event==='OGRE_ROAR'||_event==='BUILDING_HIT'||_event==='THUNDER'||_event==='PORTAL_ENERGY'||_event==='BASS_IMPACT'||_event==='BOSS_ENTER'||_event==='AWAKENING_ENTER')duckMusic(_event==='OGRE_ROAR'?1100:_event==='AWAKENING_ENTER'?1250:700,_event==='BASS_IMPACT'?.34:_event==='THUNDER'?.40:.48);
   const player=spawn(source,Math.min(1,volume*mix.sfx),false);
   cinematicEventPlayers.add(player);
   setTimeout(()=>{cinematicEventPlayers.delete(player);stopPlayer(player)},12000);
