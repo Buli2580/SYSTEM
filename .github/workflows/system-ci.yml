@@ -73,6 +73,9 @@ jobs:
       - name: Expansion Pack tests
         run: node --test src/system2/tests/expansion-pack.test.cjs
 
+      - name: Animation Engine 4.0 tests
+        run: node --test src/system2/tests/animation-engine4.test.cjs
+
       - name: Cloud processor SQL and mobile tests
         run: |
           node supabase/tests/normalize-calendar-fixtures.cjs
