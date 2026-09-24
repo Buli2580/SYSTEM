@@ -23,7 +23,7 @@ export default function BattleNetworkScreen(){
   finally{if(mounted.current&&id===epoch.current)setBusy(false);}
  }
  useEffect(()=>{void load();return()=>{mounted.current=false;epoch.current++;};},[]);
- async function accept(id:string){setBusy(true);setError(null);try{await acceptPvpChallenge(id);await load()}catch(e){setError(e instanceof Error?e.message:'PVP_ACCEPT_FAILED');setBusy(false)}}
+ async function accept(id:string){const request=++epoch.current;if(mounted.current){setBusy(true);setError(null);}try{await acceptPvpChallenge(id);if(mounted.current&&request===epoch.current)await load()}catch(e){if(mounted.current&&request===epoch.current){setError(e instanceof Error?e.message:'PVP_ACCEPT_FAILED');setBusy(false)}}}}
  return <SystemPage title="BATTLE NETWORK" subtitle="PVP // GUILD WARS // RAIDS // SEASONS" screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM" intensity="world">
   <View style={s.panel}><Text style={s.label}>PLAYER NODE</Text><Text style={s.title}>{player.displayName}</Text><Text style={s.body}>Serwer przyjmuje wynik tylko z kanonicznych verified events. Telefon nie może sam dopisać punktów.</Text><Action label={busy?'SYNCING…':'ODŚWIEŻ NETWORK'} disabled={busy} onPress={()=>void load()}/></View>
   {error&&<SystemError message={error} retry={()=>void load()}/>}
