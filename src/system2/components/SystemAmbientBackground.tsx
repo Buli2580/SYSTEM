@@ -44,6 +44,9 @@ export default function SystemAmbientBackground({
 }) {
   const far=useSharedValue(0);
   const fire=useSharedValue(0);
+  const smoke=useSharedValue(0);
+  const embers=useSharedValue(0);
+  const energy=useSharedValue(0);
   const lightning=useSharedValue(0);
   const shake=useSharedValue(0);
   const mid=useSharedValue(0);
@@ -57,8 +60,8 @@ export default function SystemAmbientBackground({
 
   useFocusEffect(useCallback(()=>{
     if(motion.reduced){
-      far.value=.5;mid.value=.5;near.value=.5;scan.value=.5;pulse.value=.5;fire.value=.5;lightning.value=0;shake.value=.5;
-      return()=>[far,mid,near,scan,pulse,fire,lightning,shake].forEach(cancelAnimation);
+      far.value=.5;mid.value=.5;near.value=.5;scan.value=.5;pulse.value=.5;fire.value=.5;smoke.value=.5;embers.value=.5;energy.value=.5;lightning.value=0;shake.value=.5;
+      return()=>[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake].forEach(cancelAnimation);
     }
     far.value=withRepeat(withTiming(1,{duration:22000,easing:Easing.inOut(Easing.ease)}),-1,true);
     mid.value=withRepeat(withTiming(1,{duration:13500,easing:Easing.inOut(Easing.ease)}),-1,true);
@@ -66,10 +69,13 @@ export default function SystemAmbientBackground({
     scan.value=withRepeat(withTiming(1,{duration:8400,easing:Easing.linear}),-1,false);
     pulse.value=withRepeat(withTiming(1,{duration:2800,easing:Easing.inOut(Easing.ease)}),-1,true);
     fire.value=withRepeat(withTiming(1,{duration:760,easing:Easing.inOut(Easing.ease)}),-1,true);
+    smoke.value=withRepeat(withTiming(1,{duration:9800,easing:Easing.inOut(Easing.ease)}),-1,true);
+    embers.value=withRepeat(withTiming(1,{duration:4300,easing:Easing.linear}),-1,false);
+    energy.value=withRepeat(withTiming(1,{duration:1450,easing:Easing.inOut(Easing.ease)}),-1,true);
     lightning.value=withRepeat(withTiming(1,{duration:5100,easing:Easing.linear}),-1,false);
     shake.value=withRepeat(withTiming(1,{duration:1900,easing:Easing.inOut(Easing.ease)}),-1,true);
     return()=>[far,mid,near,scan,pulse,fire,lightning,shake].forEach(cancelAnimation);
-  },[far,mid,near,scan,pulse,fire,lightning,shake,motion.reduced]));
+  },[far,mid,near,scan,pulse,fire,smoke,embers,energy,lightning,shake,motion.reduced]));
 
   const farStyle=useAnimatedStyle(()=>({transform:[
     {translateX:interpolate(far.value,[0,1],[-7,10])},
@@ -95,6 +101,9 @@ export default function SystemAmbientBackground({
   }));
 
   const fireStyle=useAnimatedStyle(()=>({opacity:interpolate(fire.value,[0,1],[.08,.26]),transform:[{translateY:interpolate(fire.value,[0,1],[4,-5])},{scaleY:interpolate(fire.value,[0,1],[.9,1.12])}]}));
+  const smokeStyle=useAnimatedStyle(()=>({opacity:interpolate(smoke.value,[0,1],[.10,.24]),transform:[{translateX:interpolate(smoke.value,[0,1],[-35,42])},{translateY:interpolate(smoke.value,[0,1],[18,-26])},{scale:interpolate(smoke.value,[0,1],[.96,1.08])}]}));
+  const emberStyle=useAnimatedStyle(()=>({opacity:interpolate(embers.value,[0,.15,.8,1],[0,.9,.55,0]),transform:[{translateY:interpolate(embers.value,[0,1],[80,-520])},{translateX:interpolate(embers.value,[0,.5,1],[-8,18,-4])}]}));
+  const energyStyle=useAnimatedStyle(()=>({opacity:interpolate(energy.value,[0,1],[.16,.62]),transform:[{scale:interpolate(energy.value,[0,1],[.92,1.12])}]}));
   const lightningStyle=useAnimatedStyle(()=>({opacity:interpolate(lightning.value,[0,.72,.76,.79,.82,1],[0,0,.62,.05,.38,0])}));
   const shakeStyle=useAnimatedStyle(()=>({transform:[{translateX:interpolate(shake.value,[0,1],[-1.5,1.5])},{translateY:interpolate(shake.value,[0,1],[1,-1])}]}));
 
@@ -120,7 +129,10 @@ export default function SystemAmbientBackground({
     </Animated.View>
 
     {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&<>
+      <Animated.View style={[styles.smokeBand,smokeStyle]}/>
       <Animated.View style={[styles.fireField,fireStyle]}>{Array.from({length:12},(_,i)=><View key={i} style={[styles.flame,{left:percent((i*31)%104),height:24+(i%5)*15,opacity:.28+(i%3)*.12}]}/>)}</Animated.View>
+      <Animated.View style={[styles.emberField,emberStyle]}>{Array.from({length:20},(_,i)=><View key={i} style={[styles.hotEmber,{left:percent((i*47)%100),top:percent((i*29)%92)}]}/>)}</Animated.View>
+      <Animated.View style={[styles.energyPulse,{borderColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]}/>
       <Animated.View style={[styles.lightningFlash,lightningStyle]}/>
       <Animated.View style={[styles.impactShake,shakeStyle]}><CitySiege accent={worldScene.accent} strength={strength} reduced={motion.reduced} threat={threat}/></Animated.View></>}
     <Animated.View style={[styles.nearLayer,nearStyle]}>
@@ -289,6 +301,10 @@ const styles=StyleSheet.create({
   bossEye:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:120,shadowOpacity:1,shadowRadius:10},
   bossEye2:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:82,shadowOpacity:1,shadowRadius:10},
   threatCore:{position:'absolute',width:92,height:92,borderRadius:46,borderWidth:1.5,top:'42%',left:'50%',marginLeft:-46,shadowOpacity:.8,shadowRadius:22},
+  smokeBand:{position:'absolute',left:'-20%',bottom:'16%',width:'140%',height:180,borderRadius:90,backgroundColor:'rgba(35,42,48,.34)'},
+  emberField:{...StyleSheet.absoluteFill},
+  hotEmber:{position:'absolute',width:3,height:7,borderRadius:3,backgroundColor:'#ff9b42',shadowColor:'#ff5a16',shadowOpacity:.9,shadowRadius:6},
+  energyPulse:{position:'absolute',right:'4%',top:'23%',width:170,height:170,borderRadius:85,borderWidth:2,shadowOpacity:.9,shadowRadius:28},
   fireField:{position:'absolute',left:0,right:0,bottom:0,height:'38%',overflow:'hidden'},
   flame:{position:'absolute',bottom:-8,width:18,borderRadius:12,backgroundColor:'#ff6a1a',shadowColor:'#ff9b42',shadowOpacity:.9,shadowRadius:12,transform:[{rotate:'8deg'}]},
   lightningFlash:{...StyleSheet.absoluteFill,backgroundColor:'rgba(175,225,255,.55)'},
