@@ -67,7 +67,7 @@ export default function CharacterScreen() {
   const archetype=archetypeForPlayer(player);
   const perks=playerPerks(player);
   const activeTitle2=TITLES.find(t=>t.id===achievementState.titles.activeTitleId)?.name??null;
-  return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY // CHARACTER 2.0" screen="CHARACTER" scene="PORTAL" intensity="hero">
+  return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY // CHARACTER 2.0" screen="CHARACTER" scene="PORTAL" threat={1} weather="FOG" intensity="hero">
     <SystemAudioScene cue="HOME" />
     <View style={s.panel}><Text style={s.label}>CHARACTER MATRIX // {Math.round(profileCompletion*100)}%</Text><Text style={s.title}>TWOJA POSTAĆ ROŚNIE Z TOBĄ</Text><Text style={s.body}>{CHARACTER_SECTIONS.join(' · ')}</Text></View>
     <View style={s.panel}>
