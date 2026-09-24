@@ -10,6 +10,7 @@ import { AWAKENING_QUESTS } from '../quests/catalog';
 import { journeyPlan } from '../journeys/model';
 import { GOAL_LABELS } from '../goals/model';
 import { SYSTEM_COLORS as C } from '../core';
+import {applyCinematicPreset,stopCinematicAudio,triggerAwakeningCinematicState} from '../audio/engine';
 
 export default function AwakeningPathScreen() {
   const router = useRouter();
@@ -24,6 +25,15 @@ export default function AwakeningPathScreen() {
   const journey = goal ? system.journeys.find(item => item.goalId === goal.id) : undefined;
   const stages = goal ? journeyPlan(goal.category) : [];
   const firstQuest = AWAKENING_QUESTS.find(quest => !system.completedQuestIds.includes(quest.id));
+
+  useEffect(() => {
+    applyCinematicPreset('AWAKENING');
+    const sequence:Array<[number,Parameters<typeof triggerAwakeningCinematicState>[0]]>=[
+      [350,'PORTAL'],[1300,'RUNES'],[2200,'ENERGY'],[3100,'WIND'],[4000,'PUSH'],[4800,'FLASH'],[5100,'DROP'],[5900,'AWAKENED'],
+    ];
+    const timers=sequence.map(([delay,state])=>setTimeout(()=>triggerAwakeningCinematicState(state),delay));
+    return()=>{timers.forEach(clearTimeout);stopCinematicAudio()};
+  },[]);
 
   useEffect(() => {
     if (!goal || system.aiGameMaster || system.aiLoading || requested.current) return;
