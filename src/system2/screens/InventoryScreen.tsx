@@ -4,13 +4,13 @@ import SystemPage,{pageStyles as s} from '../components/SystemPage';
 import Action from '../components/Action';
 import {useSystem} from '../state/SystemProvider';
 import {unlockedInventory,INVENTORY_ITEMS} from '../inventory/catalog';
-import {equipInventoryItem,loadEquippedInventory,type EquippedInventory} from '../inventory/storage';
+import {equipInventoryItem,loadEquippedInventory,loadOwnedInventory,type EquippedInventory} from '../inventory/storage';
 
 export default function InventoryScreen(){
  const {player,awakeningCompleted,story}=useSystem();
- const[equipped,setEquipped]=useState<EquippedInventory>({});
- useEffect(()=>{void loadEquippedInventory().then(setEquipped)},[]);
- const unlocked=unlockedInventory(player.realLevel,!!story?.bossComplete,awakeningCompleted);
+ const[equipped,setEquipped]=useState<EquippedInventory>({}),[owned,setOwned]=useState<string[]>([]);
+ useEffect(()=>{void Promise.all([loadEquippedInventory(),loadOwnedInventory()]).then(([eq,grants])=>{setEquipped(eq);setOwned(grants)})},[]);
+ const unlocked=unlockedInventory(player.realLevel,!!story?.bossComplete,awakeningCompleted,owned);
  async function equip(kind:Parameters<typeof equipInventoryItem>[0],id:string){setEquipped(await equipInventoryItem(kind,id))}
  return <SystemPage title="INVENTORY" subtitle="ITEMS // RELICS // COSMETICS">
   <View style={s.panel}><Text style={s.label}>COLLECTION // EQUIPPED {Object.keys(equipped).length}</Text><Text style={s.title}>{unlocked.length} / {INVENTORY_ITEMS.length}</Text><Text style={s.body}>Inventory nie daje XP ani przewagi. Wyposażone przedmioty zmieniają wyłącznie tożsamość i prezentację SYSTEMU.</Text></View>
