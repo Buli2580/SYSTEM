@@ -16,6 +16,7 @@ const cinematicPlayers=new Map<CinematicLayer,AudioPlayer>();
 const cinematicEventPlayers=new Set<AudioPlayer>();
 const cinematicLayerBaseVolume=new Map<CinematicLayer,number>();
 let musicDuckTimer:ReturnType<typeof setTimeout>|null=null;
+let activePreset:CinematicPreset|null=null;
 let currentMusic:MusicCue|null=null;
 const fades=new Map<AudioPlayer,ReturnType<typeof setInterval>>();
 
@@ -74,6 +75,7 @@ export function configureAudioEngine(next:Partial<Mix>){
 }
 export function getAudioMix(){return{...mix}}
 export function stopCinematicAudio(){
+  activePreset=null;
   for(const player of cinematicPlayers.values())stopPlayer(player);
   cinematicPlayers.clear();
   cinematicLayerBaseVolume.clear();
@@ -147,7 +149,9 @@ export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
 
 export type CinematicPreset='CITY'|'FOREST'|'INDUSTRIAL'|'RUINS'|'WORLD'|'PORTAL'|'BOSS'|'AWAKENING';
 export function applyCinematicPreset(preset:CinematicPreset){
+  if(activePreset===preset)return;
   stopCinematicAudio();
+  activePreset=preset;
   const layers:CinematicLayer[]=preset==='BOSS'?['CITY_RUINS','FIRE','WIND','STORM']:preset==='AWAKENING'||preset==='PORTAL'?['WIND','PORTAL_ENERGY']:preset==='WORLD'?['WIND','RAIN']:preset==='FOREST'?['WIND','RAIN']:preset==='INDUSTRIAL'?['CITY_RUINS','WIND']:preset==='RUINS'?['CITY_RUINS','FIRE','WIND']:['CITY_RUINS','WIND'];
   for(const layer of layers){const asset=cinematicSources.layers[layer];if(asset)setCinematicLayer(layer,asset.source,asset.volume)}
   const event=preset==='BOSS'?'BOSS_ENTER':preset==='AWAKENING'?'AWAKENING_ENTER':null;
