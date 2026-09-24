@@ -1,7 +1,7 @@
 import StreakMilestoneCard from '../components/StreakMilestoneCard';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import Action from '../components/Action';
@@ -18,6 +18,11 @@ import SystemPlayerCard from '../cards/SystemPlayerCard';
 import HeroCardCollection from '../cards/HeroCardCollection';
 import SystemAudioScene from '../components/SystemAudioScene';
 import { archetypeForPlayer, playerPerks } from '../progression/perks';
+import {loadEquippedInventory,type EquippedInventory} from '../inventory/storage';
+import {INVENTORY_ITEMS} from '../inventory/catalog';
+import {loadActiveSkillNodes,type ActiveSkillNodes} from '../progression/skillTreeStorage';
+import {loadActiveCompanion} from '../companions/storage';
+import {COMPANIONS} from '../companions/catalog';
 
 export default function CharacterScreen() {
   const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, progression, achievementState, settings, saveSettings } = useSystem();
@@ -26,9 +31,14 @@ export default function CharacterScreen() {
   useEffect(() => setBirthDate(player.birthDate ?? ''), [player.id, player.birthDate]);
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
+  const [equipped,setEquipped]=useState<EquippedInventory>({});
+  const [activeNodes,setActiveNodes]=useState<ActiveSkillNodes>({});
+  const [activeCompanion,setActiveCompanion]=useState<string|null>(null);
   const lock = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => setName(player.displayName), [player.id, player.displayName]);
+  const refreshLoadout=useCallback(()=>{void Promise.all([loadEquippedInventory(),loadActiveSkillNodes(),loadActiveCompanion()]).then(([items,nodes,companion])=>{if(!mounted.current)return;setEquipped(items);setActiveNodes(nodes);setActiveCompanion(companion);}).catch(()=>undefined)},[]);
+  useFocusEffect(useCallback(()=>{refreshLoadout();},[refreshLoadout]));
   async function run(task: () => Promise<void>) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
     try { await task(); } catch (cause) { if (__DEV__) console.error('[SYSTEM identity] Operation failed', cause); if (mounted.current) setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać tożsamości.'); }
@@ -58,6 +68,15 @@ export default function CharacterScreen() {
   return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY // CHARACTER 2.0" screen="CHARACTER" scene="PORTAL" intensity="hero">
     <SystemAudioScene cue="HOME" />
     <View style={s.panel}><Text style={s.label}>CHARACTER MATRIX // {Math.round(profileCompletion*100)}%</Text><Text style={s.title}>TWOJA POSTAĆ ROŚNIE Z TOBĄ</Text><Text style={s.body}>{CHARACTER_SECTIONS.join(' · ')}</Text></View>
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER LOADOUT 2.0</Text>
+      <Text style={s.title}>{activeCompanion ? (COMPANIONS.find(c=>c.id===activeCompanion)?.name ?? activeCompanion).toUpperCase() : 'NO COMPANION'} // {Object.keys(equipped).length} ITEMS // {Object.keys(activeNodes).length} NODES</Text>
+      {Object.entries(equipped).map(([kind,id])=>{const item=INVENTORY_ITEMS.find(x=>x.id===id);return <Text key={kind} style={s.body}>{kind} // {item?.name??id}</Text>})}
+      {Object.entries(activeNodes).map(([skill,id])=><Text key={skill} style={s.body}>{skill} NODE // {id}</Text>)}
+      <Action label="INVENTORY →" onPress={()=>router.push('/inventory')} />
+      <Action label="COMPANIONS →" onPress={()=>router.push('/companions')} />
+      <Action label="PROGRESSION 2.0 →" onPress={()=>router.push('/progression-2')} />
+    </View>
     <View style={s.panel}>
       <Text style={s.label}>CHARACTER BUILD // ARCHETYPE</Text>
       <Text style={s.title}>{archetype}</Text>
