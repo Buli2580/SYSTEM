@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { reminderPlan } from './planner';
 import type { Settings } from '../identity/model';
 import { smartReminderCopy, type SmartReminderContext } from './smart';
+import {smartNotificationDecision} from './smart2';
 
 const PREFIX = 'system2-daily-';
 const CHANNEL_ID = 'system2-daily';
@@ -34,10 +35,12 @@ export function syncReminders(settings: Settings, complete: boolean, unlocked: b
     await ensureReminderChannel();
     const permission = await awaitWithTimeout(Notifications.getPermissionsAsync());
     for (const date of reminderPlan(true, settings.reminderTime ?? '19:00', permission.granted, complete)) {
-      const copy=smartReminderCopy(context,new Date(date).getTime());
+      const scheduledAt=new Date(date).getTime();
+      const copy=smartReminderCopy(context,scheduledAt);
+      const decision=smartNotificationDecision(context,scheduledAt);
       await awaitWithTimeout(Notifications.scheduleNotificationAsync({
         identifier: PREFIX + date,
-        content: copy,
+        content: {...copy,data:{systemPriority:decision.kind,systemScore:decision.score,systemReason:decision.reason}},
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: new Date(date),
