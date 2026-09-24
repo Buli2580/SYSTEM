@@ -43,7 +43,7 @@ export default function SystemBootSequence({
       else if(item.impact==='MEDIUM')playFeedback('SCAN');
     },item.at));
     const skip=setTimeout(()=>setCanSkip(true),motion.reducedMotion?0:1300);
-    const end=setTimeout(finish,motion.reducedMotion?650:launchDuration(resolved));
+    const end=setTimeout(finish,motion.reducedMotion?1800:launchDuration(resolved));
     return()=>{
       timers.forEach(clearTimeout);
       clearTimeout(skip);
