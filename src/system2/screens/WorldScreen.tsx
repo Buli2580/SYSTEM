@@ -15,7 +15,8 @@ import { SYSTEM_COLORS as C } from '../core';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import {worldBossMode} from '../beta/worldBoss';
 import SystemAudioScene from '../components/SystemAudioScene';
-import {activeWorldEvent,formatWorldEventRemaining} from '../world/events';
+import {activeWorldEvent} from '../world/events';
+import WorldEventHUD from '../components/WorldEventHUD';
 
 export default function WorldScreen() {
   const router = useRouter();
@@ -58,11 +59,14 @@ function OnlineWorld() {
       <Text style={styles.body}>ŁĄCZNY DYSTANS {(player.totalDistanceMeters / 1000).toFixed(2)} KM · ZWERYFIKOWANE MISJE</Text>
     </View>
     {mode==='BOSS'&&<Pressable onPress={()=>router.push('/story')} style={styles.bossSignal}><Text style={styles.bossSignalCode}>THREAT DETECTED // BOSS PROTOCOL</Text><Text style={styles.bossSignalTitle}>THE FIRST WALL</Text><Text style={styles.bossSignalCta}>WEJDŹ DO WALKI →</Text></Pressable>}
-    {worldEvent&&<View style={styles.eventCard}>
-      <View style={styles.eventTop}><Text style={styles.eventCode}>WORLD SIGNAL PREVIEW // {worldEvent.kind.replaceAll('_',' ')}</Text><Text style={styles.eventTimer}>{formatWorldEventRemaining(worldEvent,clock)}</Text></View>
-      <Text style={styles.eventTitle}>{worldEvent.title}</Text>
-      <Text style={styles.eventBody}>{worldEvent.subtitle}</Text>
-      <Text style={styles.eventMeta}>{worldEvent.sector} · THREAT {worldEvent.threat} · PLANOWANA NAGRODA {worldEvent.rewardTag}</Text><Text style={styles.eventBody}>Sygnał poglądowy. Misja eventowa i odbiór nagrody nie są jeszcze dostępne.</Text>
+    {worldEvent&&<View style={{paddingHorizontal:16,marginBottom:10}}>
+      <WorldEventHUD event={worldEvent} now={clock} onAction={()=>{
+        if(worldEvent.recommendedAction==='BOSS'){router.push('/story');return;}
+        if(worldEvent.recommendedAction==='MOVE'){router.push('/move');return;}
+        if(worldEvent.recommendedAction==='FOCUS'){router.push('/quests');return;}
+        setCenterRequest(n=>n+1);
+      }}/>
+      <Text style={styles.eventDisclaimer}>EVENT HUD // wizualizacja aktywnego okna. Nagroda pojawi się dopiero po kanonicznie zweryfikowanej aktywności.</Text>
     </View>}
     <View style={styles.map}>
       {world.fix ? <WorldMap fix={world.fix} sectorIds={world.sectorIds} signal={world.signal} follow={follow} centerRequest={centerRequest} /> :
@@ -96,6 +100,7 @@ function Button({ label, onPress, disabled = false }: { label: string; onPress: 
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={({ pressed }) => [styles.button, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}><Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78} style={styles.buttonLabel}>{label}</Text></Pressable>;
 }
 const styles = StyleSheet.create({
+  eventDisclaimer:{color:'#6f8791',fontSize:8,lineHeight:12,marginTop:6},
   bossSignal:{marginHorizontal:16,marginBottom:10,padding:16,borderWidth:1,borderColor:'rgba(228,186,255,0.48)',borderRadius:16,backgroundColor:'rgba(35,13,45,0.72)'},bossSignalCode:{color:'#e4baff',fontSize:9,lineHeight:14,fontWeight:'900',letterSpacing:1.2,flexShrink:1},bossSignalTitle:{color:'#fff',fontSize:22,lineHeight:28,fontWeight:'900',marginTop:6,flexShrink:1},bossSignalCta:{color:'#6ceeff',fontSize:10,lineHeight:15,fontWeight:'900',marginTop:10,flexShrink:1},
   eventCard:{marginHorizontal:16,marginBottom:10,padding:14,borderWidth:1,borderColor:'rgba(108,238,255,.34)',borderRadius:16,backgroundColor:'rgba(6,20,27,.9)'},
   eventTop:{flexDirection:'row',justifyContent:'space-between',gap:10},
