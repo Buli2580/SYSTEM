@@ -44,7 +44,7 @@ export default function AwakeningPathScreen() {
   const aiState = system.aiLoading ? 'ANALYZING' : system.aiGameMaster?.source === 'ai' ? 'AI ONLINE' : 'SAFE FALLBACK';
   const currentStage = journey?.currentStage ?? 0;
 
-  return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER // FIRST CAMPAIGN" intensity="hero" showNavigation={false}>
+  return <SystemPage title="AWAKENING PATH" subtitle="AI GAME MASTER // FIRST CAMPAIGN" intensity="hero" screen="LAUNCH" scene="PORTAL" threat={2} weather="STORM" showNavigation={false}>
     <AudioEnableAction cue="AWAKENING" />
     <Animated.View entering={FadeInUp.duration(420)} style={[styles.panel, styles.hero]}>
       <Text style={styles.code}>06 // DIRECTION LOCKED</Text>
