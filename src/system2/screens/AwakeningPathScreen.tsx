@@ -33,7 +33,7 @@ export default function AwakeningPathScreen() {
       [350,'PORTAL'],[1300,'RUNES'],[2200,'ENERGY'],[3100,'WIND'],[4000,'PUSH'],[4800,'FLASH'],[5100,'DROP'],[5900,'AWAKENED'],
     ];
     const timers=sequence.map(([delay,state])=>setTimeout(()=>{setAwakeningState(state);triggerAwakeningCinematicState(state)},delay));
-    return()=>{timers.forEach(clearTimeout);stopCinematicAudio()};
+    return()=>{timers.forEach(timer=>clearTimeout(timer));stopCinematicAudio()};
   },[]);
 
   useEffect(() => {
