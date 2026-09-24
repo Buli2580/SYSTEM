@@ -12,7 +12,7 @@ export default function InventoryScreen(){
  useEffect(()=>{void Promise.all([loadEquippedInventory(),loadOwnedInventory()]).then(([eq,grants])=>{setEquipped(eq);setOwned(grants)})},[]);
  const unlocked=unlockedInventory(player.realLevel,!!story?.bossComplete,awakeningCompleted,owned);
  async function equip(kind:Parameters<typeof equipInventoryItem>[0],id:string){setEquipped(await equipInventoryItem(kind,id))}
- return <SystemPage title="INVENTORY" subtitle="ITEMS // RELICS // COSMETICS">
+ return <SystemPage title="INVENTORY" subtitle="ITEMS // RELICS // COSMETICS" screen="CHARACTER" scene="PORTAL" threat={1} weather="FOG" intensity="hero">
   <View style={s.panel}><Text style={s.label}>COLLECTION // EQUIPPED {Object.keys(equipped).length}</Text><Text style={s.title}>{unlocked.length} / {INVENTORY_ITEMS.length}</Text><Text style={s.body}>Inventory nie daje XP ani przewagi. Wyposażone przedmioty zmieniają wyłącznie tożsamość i prezentację SYSTEMU.</Text></View>
   {INVENTORY_ITEMS.map(item=>{const open=unlocked.some(x=>x.id===item.id),active=equipped[item.kind]===item.id;return <View key={item.id} style={[s.panel,{opacity:open?1:.45}]}><Text style={s.label}>{item.rarity} // {item.kind}{active?' // EQUIPPED':''}</Text><Text style={s.title}>{open?item.name:'SEALED ITEM'}</Text><Text style={s.body}>{open?item.description:'Wymaganie nie zostało jeszcze spełnione.'}</Text><Text style={s.body}>SOURCE // {item.source}{item.levelRequired?' · LV.'+item.levelRequired:''}</Text>{open&&<Action label={active?'EQUIPPED ✓':'WYPOSAŻ'} disabled={active} onPress={()=>void equip(item.kind,item.id)}/>}</View>})}
  </SystemPage>;
