@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {getValidSession} from './auth';
 import {cloudRequest} from './http';
 import {loadMoveState} from '../storage/database';
@@ -11,6 +12,95 @@ export type CloudMoveGroup={
 export type CloudMoveLeaderboardRow={
   userId:string;verifiedMinutes:number;activeDays:number;contributionScore:number;
 };
+
+const MOVE_VERIFY_OUTBOX_KEY='system.move.serverVerification.v3';
+export type SupportedMoveCloudQuest='move_walk_10'|'move_run_10'|'move_bike_20';
+export type PendingMoveServerVerification={
+  questId:SupportedMoveCloudQuest;
+  dayKey:string;
+  durationSeconds:number;
+  distanceMeters:number;
+  verificationScore:number;
+  activityType:'WALK'|'RUN'|'BIKE';
+};
+const EXPECTED_MOVE_ACTIVITY:Record<SupportedMoveCloudQuest,PendingMoveServerVerification['activityType']>={
+  move_walk_10:'WALK',move_run_10:'RUN',move_bike_20:'BIKE',
+};
+export function supportsMoveServerVerification(id:string):id is SupportedMoveCloudQuest{
+  return Object.prototype.hasOwnProperty.call(EXPECTED_MOVE_ACTIVITY,id);
+}
+function validPendingMove(row:unknown):row is PendingMoveServerVerification{
+  if(!row||typeof row!=='object')return false;
+  const x=row as Partial<PendingMoveServerVerification>;
+  return typeof x.questId==='string'&&supportsMoveServerVerification(x.questId)&&
+    typeof x.dayKey==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x.dayKey)&&
+    typeof x.durationSeconds==='number'&&Number.isFinite(x.durationSeconds)&&x.durationSeconds>=0&&x.durationSeconds<=172800&&
+    typeof x.distanceMeters==='number'&&Number.isFinite(x.distanceMeters)&&x.distanceMeters>=0&&x.distanceMeters<=500000&&
+    typeof x.verificationScore==='number'&&Number.isSafeInteger(x.verificationScore)&&x.verificationScore>=0&&x.verificationScore<=100&&
+    x.activityType===EXPECTED_MOVE_ACTIVITY[x.questId];
+}
+async function loadMoveVerifyOutbox():Promise<PendingMoveServerVerification[]>{
+  try{
+    const raw=await AsyncStorage.getItem(MOVE_VERIFY_OUTBOX_KEY),parsed=raw?JSON.parse(raw):[];
+    return Array.isArray(parsed)?parsed.filter(validPendingMove).slice(-30):[];
+  }catch{return[];}
+}
+async function saveMoveVerifyOutbox(rows:PendingMoveServerVerification[]){
+  const safe=rows.filter(validPendingMove).slice(-30);
+  await AsyncStorage.setItem(MOVE_VERIFY_OUTBOX_KEY,JSON.stringify(safe));
+  return safe;
+}
+export async function queueMoveServerVerification(input:PendingMoveServerVerification){
+  if(!validPendingMove(input))throw new Error('Nieprawidłowy dowód MOVE do synchronizacji.');
+  const rows=await loadMoveVerifyOutbox();
+  const key=input.dayKey+'|'+input.questId;
+  const next=[...rows.filter(x=>x.dayKey+'|'+x.questId!==key),input];
+  await saveMoveVerifyOutbox(next);
+}
+export async function pendingMoveServerVerificationCount(){
+  return (await loadMoveVerifyOutbox()).length;
+}
+export async function submitMoveVerifiedEventV3(input:PendingMoveServerVerification){
+  if(!validPendingMove(input))throw new Error('Nieprawidłowy dowód MOVE.');
+  const s=await session();
+  return cloudRequest<string>('/rest/v1/rpc/submit_move_verified_event_v3',{
+    method:'POST',
+    body:JSON.stringify({
+      p_move_quest_id:input.questId,
+      p_day_key:input.dayKey,
+      p_duration_seconds:Math.floor(input.durationSeconds),
+      p_distance_meters:Math.floor(input.distanceMeters),
+      p_confidence_score:input.verificationScore,
+      p_activity_type:input.activityType,
+    }),
+  },s.accessToken);
+}
+export async function flushPendingMoveServerVerifications(limit=20){
+  const rows=await loadMoveVerifyOutbox();
+  if(!rows.length)return{sent:0,pending:0};
+  const s=await getValidSession();
+  if(!s)return{sent:0,pending:rows.length};
+  const keep:PendingMoveServerVerification[]=[];
+  let sent=0;
+  for(const row of rows.slice(0,Math.max(1,Math.min(30,Math.floor(limit))))){
+    try{
+      await cloudRequest<string>('/rest/v1/rpc/submit_move_verified_event_v3',{
+        method:'POST',
+        body:JSON.stringify({
+          p_move_quest_id:row.questId,p_day_key:row.dayKey,
+          p_duration_seconds:Math.floor(row.durationSeconds),
+          p_distance_meters:Math.floor(row.distanceMeters),
+          p_confidence_score:row.verificationScore,
+          p_activity_type:row.activityType,
+        }),
+      },s.accessToken);
+      sent++;
+    }catch{keep.push(row);}
+  }
+  keep.push(...rows.slice(Math.max(1,Math.min(30,Math.floor(limit)))));
+  await saveMoveVerifyOutbox(keep);
+  return{sent,pending:keep.length};
+}
 
 async function session(){const s=await getValidSession();if(!s)throw new Error('Najpierw zaloguj SYSTEM CLOUD.');return s;}
 function int(value:number|string,label:string,min=0){const n=Number(value);if(!Number.isSafeInteger(n)||n<min)throw new Error('Nieprawidłowe dane SYSTEM CLOUD: '+label+'.');return n;}
@@ -94,6 +184,7 @@ export async function publishVerifiedMoveToGroups(input:{
 // MOVE history without uploading sensitive raw locations or trusting local XP.
 // Only separately accepted core GPS quests can satisfy this protocol.
 export async function reconcileRecentMoveContributions(){
+ await flushPendingMoveServerVerifications().catch(()=>({sent:0,pending:0}));
  const state=await loadMoveState();
  const supported=new Set(['move_walk_10','move_run_10','move_bike_20']);
  const recent=[...state.history.slice(-6),{
