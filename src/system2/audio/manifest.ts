@@ -11,6 +11,22 @@ export type AudioAssetDescriptor={
 
 // Legacy files stay isolated here only as technical fallbacks.
 // Production assets can replace any entry without touching the audio engine.
+export const DARK_FANTASY_SOUNDTRACK_MAP={
+  HOME:{mood:'dark ambient / low drones / restrained pulse',target:'calm living world'},
+  WORLD:{mood:'dark fantasy exploration / strings / distant choir',target:'world exploration'},
+  QUEST:{mood:'cinematic tension / low percussion',target:'briefing and verification'},
+  ACTIVE_QUEST:{mood:'hybrid pulse / percussion / sub bass',target:'movement and action'},
+  BOSS:{mood:'dark orchestral battle / huge drums / choir / sub impacts',target:'boss combat'},
+  AWAKENING:{mood:'slow rise / choir / energy / cinematic drop',target:'awakening reveal'},
+  VICTORY:{mood:'short heroic dark-fantasy resolve',target:'reward and completion'},
+} as const;
+
+export const CINEMATIC_AUDIO_ASSET_PLAN={
+  layers:['city_ruins_ambient','fire_loop','wind_loop','rain_loop','storm_loop','portal_energy_loop'],
+  events:['ogre_step_01','ogre_step_02','ogre_roar_01','building_hit_01','concrete_debris_01','thunder_01','bass_impact_01','boss_enter','awakening_enter'],
+  sourcePolicy:'Only commit audio with verified redistribution/use rights; keep license/source metadata beside imported assets.',
+} as const;
+
 export const LEGACY_AUDIO_FALLBACKS={
   music:{
     HOME:{id:'music.home.fallback',kind:'music',source:require('../../../assets/audio/dashboard_ambient.mp3'),loop:true,placeholder:true,recommendedReplacement:'dark fantasy home/world orchestral loop'},
