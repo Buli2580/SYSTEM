@@ -43,6 +43,9 @@ export default function SystemAmbientBackground({
   cinematicSource?:CinematicSource;
 }) {
   const far=useSharedValue(0);
+  const fire=useSharedValue(0);
+  const lightning=useSharedValue(0);
+  const shake=useSharedValue(0);
   const mid=useSharedValue(0);
   const near=useSharedValue(0);
   const scan=useSharedValue(0);
@@ -54,16 +57,19 @@ export default function SystemAmbientBackground({
 
   useFocusEffect(useCallback(()=>{
     if(motion.reduced){
-      far.value=.5;mid.value=.5;near.value=.5;scan.value=.5;pulse.value=.5;
-      return()=>[far,mid,near,scan,pulse].forEach(cancelAnimation);
+      far.value=.5;mid.value=.5;near.value=.5;scan.value=.5;pulse.value=.5;fire.value=.5;lightning.value=0;shake.value=.5;
+      return()=>[far,mid,near,scan,pulse,fire,lightning,shake].forEach(cancelAnimation);
     }
     far.value=withRepeat(withTiming(1,{duration:22000,easing:Easing.inOut(Easing.ease)}),-1,true);
     mid.value=withRepeat(withTiming(1,{duration:13500,easing:Easing.inOut(Easing.ease)}),-1,true);
     near.value=withRepeat(withTiming(1,{duration:7600,easing:Easing.inOut(Easing.ease)}),-1,true);
     scan.value=withRepeat(withTiming(1,{duration:8400,easing:Easing.linear}),-1,false);
     pulse.value=withRepeat(withTiming(1,{duration:2800,easing:Easing.inOut(Easing.ease)}),-1,true);
-    return()=>[far,mid,near,scan,pulse].forEach(cancelAnimation);
-  },[far,mid,near,scan,pulse,motion.reduced]));
+    fire.value=withRepeat(withTiming(1,{duration:760,easing:Easing.inOut(Easing.ease)}),-1,true);
+    lightning.value=withRepeat(withTiming(1,{duration:5100,easing:Easing.linear}),-1,false);
+    shake.value=withRepeat(withTiming(1,{duration:1900,easing:Easing.inOut(Easing.ease)}),-1,true);
+    return()=>[far,mid,near,scan,pulse,fire,lightning,shake].forEach(cancelAnimation);
+  },[far,mid,near,scan,pulse,fire,lightning,shake,motion.reduced]));
 
   const farStyle=useAnimatedStyle(()=>({transform:[
     {translateX:interpolate(far.value,[0,1],[-7,10])},
@@ -88,6 +94,10 @@ export default function SystemAmbientBackground({
     transform:[{scale:interpolate(pulse.value,[0,1],[.9,1.1])}],
   }));
 
+  const fireStyle=useAnimatedStyle(()=>({opacity:interpolate(fire.value,[0,1],[.08,.26]),transform:[{translateY:interpolate(fire.value,[0,1],[4,-5])},{scaleY:interpolate(fire.value,[0,1],[.9,1.12])}]}));
+  const lightningStyle=useAnimatedStyle(()=>({opacity:interpolate(lightning.value,[0,.72,.76,.79,.82,1],[0,0,.62,.05,.38,0])}));
+  const shakeStyle=useAnimatedStyle(()=>({transform:[{translateX:interpolate(shake.value,[0,1],[-1.5,1.5])},{translateY:interpolate(shake.value,[0,1],[1,-1])}]}));
+
   const strength=intensity==='hero'?1:intensity==='world'?.94:intensity==='quiet'?.48:.74;
   const timeDim=ctx.time==='NIGHT'?.18:ctx.time==='DUSK'?.11:.05;
   const weatherDim=weather==='STORM'?.20:weather==='RAIN'?.13:weather==='FOG'?.09:.04;
@@ -109,8 +119,10 @@ export default function SystemAmbientBackground({
       {(weather==='FOG'||weather==='RAIN'||weather==='STORM')&&<FogBands accent={worldScene.accent} strength={strength}/>}
     </Animated.View>
 
-    {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&
-      <CitySiege accent={worldScene.accent} strength={strength} reduced={motion.reduced} threat={threat}/>}
+    {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&<>
+      <Animated.View style={[styles.fireField,fireStyle]}>{Array.from({length:12},(_,i)=><View key={i} style={[styles.flame,{left:percent((i*31)%104),height:24+(i%5)*15,opacity:.28+(i%3)*.12}]}/>)}</Animated.View>
+      <Animated.View style={[styles.lightningFlash,lightningStyle]}/>
+      <Animated.View style={[styles.impactShake,shakeStyle]}><CitySiege accent={worldScene.accent} strength={strength} reduced={motion.reduced} threat={threat}/></Animated.View></>}
     <Animated.View style={[styles.nearLayer,nearStyle]}>
       <Particles kind={worldScene.particle} accent={worldScene.accent} strength={strength} weather={weather}/>
       {weather==='RAIN'||weather==='STORM'?<Rain accent={worldScene.accent} strength={strength}/>:null}
@@ -277,6 +289,10 @@ const styles=StyleSheet.create({
   bossEye:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:120,shadowOpacity:1,shadowRadius:10},
   bossEye2:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:82,shadowOpacity:1,shadowRadius:10},
   threatCore:{position:'absolute',width:92,height:92,borderRadius:46,borderWidth:1.5,top:'42%',left:'50%',marginLeft:-46,shadowOpacity:.8,shadowRadius:22},
+  fireField:{position:'absolute',left:0,right:0,bottom:0,height:'38%',overflow:'hidden'},
+  flame:{position:'absolute',bottom:-8,width:18,borderRadius:12,backgroundColor:'#ff6a1a',shadowColor:'#ff9b42',shadowOpacity:.9,shadowRadius:12,transform:[{rotate:'8deg'}]},
+  lightningFlash:{...StyleSheet.absoluteFill,backgroundColor:'rgba(175,225,255,.55)'},
+  impactShake:{...StyleSheet.absoluteFill},
   cinematic:{...StyleSheet.absoluteFill,overflow:'hidden'},
   cinematicGlow:{position:'absolute',width:360,height:360,borderRadius:180,right:-170,top:'12%',shadowOpacity:.9,shadowRadius:36},
   cinematicContrast:{...StyleSheet.absoluteFill,backgroundColor:'rgba(0,5,8,.18)'},
