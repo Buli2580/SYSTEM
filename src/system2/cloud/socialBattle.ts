@@ -4,20 +4,27 @@ import {cloudRequest} from './http';
 async function session(){const s=await getValidSession();if(!s)throw new Error('Najpierw zaloguj SYSTEM CLOUD.');return s;}
 
 export type CloudPvpChallenge={
- id:string;creator_id:string;opponent_id:string;metric:'QUESTS'|'REAL_XP';target:number;
- creator_score:number;opponent_score:number;starts_at:string;ends_at:string;status:'OPEN'|'ACTIVE'|'COMPLETE'|'EXPIRED';
+ id:string;creator_id:string;opponent_id:string;creator_name:string;opponent_name:string;
+ metric:'QUESTS'|'REAL_XP';target:number;creator_score:number;opponent_score:number;
+ starts_at:string;ends_at:string;status:'OPEN'|'ACTIVE'|'COMPLETE'|'EXPIRED';
+ my_side:'CREATOR'|'OPPONENT';my_score:number;rival_score:number;progress_percent:number;
 };
-export type CloudGuildWar={id:string;guild_a:string;guild_b:string;starts_at:string;ends_at:string;score_a:number;score_b:number;status:'ACTIVE'|'COMPLETE'|'EXPIRED'};
+export type CloudGuildWar={
+ id:string;guild_a:string;guild_b:string;guild_a_name:string;guild_a_tag:string;guild_b_name:string;guild_b_tag:string;
+ score_a:number;score_b:number;starts_at:string;ends_at:string;status:'ACTIVE'|'COMPLETE'|'EXPIRED';
+ my_guild_id:string;my_side:'A'|'B';my_contribution:number;my_verified_events:number;
+};
 export type CloudReferralState={code:string;invited:number;activated:number};
 export type MyGuildSummary={guild_id:string;name:string;tag:string;role:'OWNER'|'OFFICER'|'MEMBER';level:number;xp:number};
 
 export async function getMyPvpChallenges(){
  const s=await session();
- return cloudRequest<CloudPvpChallenge[]>('/rest/v1/rpc/get_my_pvp_challenges',{method:'POST',body:'{}'},s.accessToken);
+ return cloudRequest<CloudPvpChallenge[]>('/rest/v1/rpc/get_my_pvp_challenges_v3',{method:'POST',body:'{}'},s.accessToken);
 }
 export async function createPvpChallenge(opponentId:string,metric:'QUESTS'|'REAL_XP',target:number,hours=24){
+ const safeTarget=Math.max(1,Math.min(metric==='QUESTS'?100:100000,Math.floor(target)));
  const s=await session();
- return cloudRequest<string>('/rest/v1/rpc/create_pvp_challenge',{method:'POST',body:JSON.stringify({p_opponent:opponentId,p_metric:metric,p_target:target,p_hours:hours})},s.accessToken);
+ return cloudRequest<string>('/rest/v1/rpc/create_pvp_challenge',{method:'POST',body:JSON.stringify({p_opponent:opponentId,p_metric:metric,p_target:safeTarget,p_hours:Math.max(1,Math.min(168,Math.floor(hours)))})},s.accessToken);
 }
 export async function acceptPvpChallenge(challengeId:string){
  const s=await session();
@@ -29,7 +36,7 @@ export async function submitPvpEvent(challengeId:string,eventKey:string){
 }
 export async function getActiveGuildWars(){
  const s=await session();
- return cloudRequest<CloudGuildWar[]>('/rest/v1/rpc/get_active_guild_wars',{method:'POST',body:'{}'},s.accessToken);
+ return cloudRequest<CloudGuildWar[]>('/rest/v1/rpc/get_my_guild_wars_v3',{method:'POST',body:'{}'},s.accessToken);
 }
 export async function getMyGuildSummary(){
  const s=await session();
@@ -38,7 +45,7 @@ export async function getMyGuildSummary(){
 }
 export async function createGuildWar(opponentGuildId:string,hours=72){
  const s=await session();
- return cloudRequest<string>('/rest/v1/rpc/create_guild_war',{method:'POST',body:JSON.stringify({p_opponent_guild:opponentGuildId,p_hours:hours})},s.accessToken);
+ return cloudRequest<string>('/rest/v1/rpc/create_guild_war',{method:'POST',body:JSON.stringify({p_opponent_guild:opponentGuildId,p_hours:Math.max(6,Math.min(168,Math.floor(hours)))})},s.accessToken);
 }
 export async function submitGuildWarEvent(warId:string,eventKey:string){
  const s=await session();
