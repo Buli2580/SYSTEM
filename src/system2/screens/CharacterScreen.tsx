@@ -23,6 +23,7 @@ import {INVENTORY_ITEMS} from '../inventory/catalog';
 import {loadActiveSkillNodes,type ActiveSkillNodes} from '../progression/skillTreeStorage';
 import {loadActiveCompanion} from '../companions/storage';
 import {COMPANIONS} from '../companions/catalog';
+import {TITLES} from '../achievements/catalog';
 
 export default function CharacterScreen() {
   const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, progression, achievementState, settings, saveSettings } = useSystem();
@@ -65,12 +66,14 @@ export default function CharacterScreen() {
   const forgeStyle:AvatarStyle=settings.avatarStyle??'CYBER';
   const archetype=archetypeForPlayer(player);
   const perks=playerPerks(player);
+  const activeTitle2=TITLES.find(t=>t.id===achievementState.titles.activeTitleId)?.name??null;
   return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY // CHARACTER 2.0" screen="CHARACTER" scene="PORTAL" intensity="hero">
     <SystemAudioScene cue="HOME" />
     <View style={s.panel}><Text style={s.label}>CHARACTER MATRIX // {Math.round(profileCompletion*100)}%</Text><Text style={s.title}>TWOJA POSTAĆ ROŚNIE Z TOBĄ</Text><Text style={s.body}>{CHARACTER_SECTIONS.join(' · ')}</Text></View>
     <View style={s.panel}>
-      <Text style={s.label}>CHARACTER LOADOUT 2.0</Text>
+      <Text style={s.label}>CHARACTER LOADOUT 2.0 // TITLE {activeTitle2??'DEFAULT'}</Text>
       <Text style={s.title}>{activeCompanion ? (COMPANIONS.find(c=>c.id===activeCompanion)?.name ?? activeCompanion).toUpperCase() : 'NO COMPANION'} // {Object.keys(equipped).length} ITEMS // {Object.keys(activeNodes).length} NODES</Text>
+      {activeTitle2&&<Text style={s.body}>ACTIVE TITLE 2.0 // {activeTitle2}</Text>}
       {Object.entries(equipped).map(([kind,id])=>{const item=INVENTORY_ITEMS.find(x=>x.id===id);return <Text key={kind} style={s.body}>{kind} // {item?.name??id}</Text>})}
       {Object.entries(activeNodes).map(([skill,id])=><Text key={skill} style={s.body}>{skill} NODE // {id}</Text>)}
       <Action label="INVENTORY →" onPress={()=>router.push('/inventory')} />
