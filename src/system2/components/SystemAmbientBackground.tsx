@@ -18,7 +18,7 @@ import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../vis
 import {useAnimation4} from '../presentation/useAnimation4';
 
 type Intensity = 'quiet' | 'default' | 'hero' | 'world';
-type CinematicSource = number | {uri:string};
+export type CinematicSource = number | {uri:string};
 
 const CINEMATIC_ART:Partial<Record<WorldSceneId,CinematicSource>>={
   // Final artwork slots. Keep fallbacks procedural until binary artwork is committed.
