@@ -59,7 +59,7 @@ export default function GameMasterScreen(){
 
   const goalExists=campaign?campaignGoalAlreadyExists(campaign,system.goals):false;
 
-  return <SystemPage title="GAME MASTER" subtitle="AI CORE // CAMPAIGN PREVIEW">
+  return <SystemPage title="GAME MASTER" subtitle="AI CORE // CAMPAIGN PREVIEW" screen="LAUNCH" scene="PORTAL" threat={2} weather="FOG" intensity="hero">
     <View style={s.panel}>
       <Text style={s.label}>TWÓJ CEL</Text>
       <Text style={s.title}>CO CHCESZ ZMIENIĆ?</Text>
