@@ -21,6 +21,25 @@ export const LEGACY_AUDIO_FALLBACKS={
     VICTORY:{id:'music.victory.fallback',kind:'music',source:require('../../../assets/audio/quest_complete.mp3'),loop:false,placeholder:true,recommendedReplacement:'short victory fanfare'},
     AWAKENING:{id:'music.awakening.fallback',kind:'music',source:require('../../../assets/audio/boss_theme.mp3'),loop:false,placeholder:true,recommendedReplacement:'awakening cinematic launch theme'},
   },
+  cinematic:{
+    layers:{
+      CITY_RUINS:{source:require('../../../assets/audio/dashboard_ambient.mp3'),volume:.30},
+      FIRE:{source:require('../../../assets/audio/dashboard_ambient.mp3'),volume:.16},
+      WIND:{source:require('../../../assets/audio/dashboard_ambient.mp3'),volume:.18},
+      RAIN:{source:require('../../../assets/audio/dashboard_ambient.mp3'),volume:.20},
+      STORM:{source:require('../../../assets/audio/boss_theme.mp3'),volume:.16},
+      PORTAL_ENERGY:{source:require('../../../assets/audio/system_wake.wav'),volume:.12},
+    },
+    events:{
+      OGRE_STEP:{source:require('../../../assets/audio/error.wav'),volume:.70},
+      OGRE_ROAR:{source:require('../../../assets/audio/boss_theme.mp3'),volume:.55},
+      BUILDING_HIT:{source:require('../../../assets/audio/error.wav'),volume:.90},
+      DEBRIS:{source:require('../../../assets/audio/error.wav'),volume:.42},
+      BASS_IMPACT:{source:require('../../../assets/audio/error.wav'),volume:1},
+      BOSS_ENTER:{source:require('../../../assets/audio/boss_theme.mp3'),volume:.90},
+      AWAKENING_ENTER:{source:require('../../../assets/audio/system_wake.wav'),volume:.85},
+    },
+  },
   sfx:{
     UI_TAP:{id:'sfx.ui',kind:'sfx',source:require('../../../assets/audio/ui_tap.wav'),loop:false,placeholder:false,recommendedReplacement:'SYSTEM UI tap'},
     SCAN:{id:'sfx.scan',kind:'sfx',source:require('../../../assets/audio/system_wake.wav'),loop:false,placeholder:false,recommendedReplacement:'SYSTEM wake / scan'},
