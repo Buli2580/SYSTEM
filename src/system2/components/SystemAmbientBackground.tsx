@@ -211,7 +211,7 @@ function CitySiege({accent,strength,reduced,threat}:{accent:string;strength:numb
   },[attack,debris,collapse,lunge,stomp,pattern,reduced]));
   useFocusEffect(useCallback(()=>{
     if(reduced)return;
-    let phase=0;
+    let phase=-1;
     const delays=[1700,2350,1450,3100,2050,2700];
     let timer:ReturnType<typeof setTimeout>|null=null;
     let active=true;
