@@ -8,6 +8,7 @@ import { validateCampaign } from '../gameMaster/guardrails';
 import { requestGoalAIGameMaster, type AIGameMasterResponse } from '../ai';
 import { useSystem } from '../state/SystemProvider';
 import { campaignGoalAlreadyExists, campaignGoalToInput } from '../gameMaster/goalBridge';
+import AIDirectorPanel from '../components/AIDirectorPanel';
 
 const input={color:'#fff',minHeight:56,borderWidth:1,borderColor:'#24505c',borderRadius:12,paddingHorizontal:14,marginTop:12} as const;
 
@@ -72,18 +73,7 @@ export default function GameMasterScreen(){
       <Text style={s.title}>{campaign.title}</Text>
       <Text style={s.body}>{campaign.goal}</Text>
     </View>}
-    {preview&&<View style={s.panel}>
-      <Text style={s.label}>AI DIRECTOR // {preview.source==='ai'?'ONLINE':'SAFE FALLBACK'}</Text>
-      <Text style={s.title}>{preview.director.headline}</Text>
-      <Text style={s.body}>{preview.director.message}</Text>
-      <Text style={s.body}>{preview.briefing}</Text>
-    </View>}
-    {preview?.quests.map(q=><View key={q.key} style={s.panel}>
-      <Text style={s.label}>{q.estimatedMinutes} MIN · {q.difficulty.toUpperCase()} · {q.verification.toUpperCase()}</Text>
-      <Text style={s.title}>{q.title}</Text>
-      <Text style={s.body}>{q.description}</Text>
-      <Text style={s.body}>WHY // {q.reason}</Text>
-    </View>)}
+    {(preview||loading)&&<AIDirectorPanel response={preview} loading={loading} error={error} systemDebt={system.systemDebt} preview />}
     {campaign&&<View style={s.panel}>
       <Text style={s.label}>MILESTONES</Text>
       {campaign.milestones.map(x=><Text key={x} style={s.body}>• {x}</Text>)}
