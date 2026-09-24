@@ -4,9 +4,11 @@ import SystemAmbientBackground from '../components/SystemAmbientBackground';
 import SystemPlayerCard from './SystemPlayerCard';
 import type {PlayerProfile} from '../core/types';
 import type {CardReason} from './engine';
+import {useAnimation4} from '../presentation/useAnimation4';
 import {useAnimationEngine4} from '../components/AnimationEngine4Provider';
 
 export default function MilestoneCardOverlay({player,reason,onDismiss}:{player:PlayerProfile;reason:CardReason;onDismiss:()=>void}){
+  const motion=useAnimation4();
   const motion=useAnimationEngine4();
   return <Animated.View entering={FadeIn.duration(motion.duration('fast'))} style={styles.root}>
     <SystemAmbientBackground intensity="hero" screen={reason==='BOSS'?'BOSS':'CHARACTER'} scene={reason==='BOSS'?'BOSS_ZONE':'PORTAL'} threat={reason==='BOSS'?3:2} level={player.realLevel}/>
