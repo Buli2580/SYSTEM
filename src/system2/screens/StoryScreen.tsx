@@ -22,7 +22,7 @@ export default function StoryScreen() {
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
  const boss=story?.boss;
  const bossPhase=boss?bossPhaseState(story?.bossHp??100,100,Date.now(),boss.started_at):null;
- return <SystemPage title="HISTORIA / KRONIKA" subtitle={`AKT 01 // ${ARC.title}`}>
+ return <SystemPage title="HISTORIA / KRONIKA" subtitle={`AKT 01 // ${ARC.title}`} screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM" intensity="world">
   {boss&&<SystemAudioScene cue="BOSS" />}
   <Text style={s.label}>POSTĘP AKTU · {story?.chapters.filter(c=>c.status==='COMPLETED').length??0}/2 UKOŃCZONE</Text>
   {story?.chapters.map(c=><View key={c.id} style={s.panel}><Text style={s.label}>ROZDZIAŁ {String(c.number).padStart(2,'0')} // {c.status === 'COMPLETED' ? 'UKOŃCZONY' : c.status === 'ACTIVE' ? 'AKTYWNY' : c.status === 'AVAILABLE' ? 'DOSTĘPNY' : 'ZABLOKOWANY'}</Text><Text style={s.title}>{c.title}</Text><Text style={s.body}>{c.description} · {c.completed}/{c.total}</Text>
