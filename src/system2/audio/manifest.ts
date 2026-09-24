@@ -29,13 +29,13 @@ export const CINEMATIC_AUDIO_ASSET_PLAN={
 
 export const LEGACY_AUDIO_FALLBACKS={
   music:{
-    HOME:{id:'music.home.fallback',kind:'music',source:require('../../../assets/audio/dashboard_ambient.mp3'),loop:true,placeholder:true,recommendedReplacement:'dark fantasy home/world orchestral loop'},
-    WORLD:{id:'music.world.fallback',kind:'music',source:require('../../../assets/audio/dashboard_ambient.mp3'),loop:true,placeholder:true,recommendedReplacement:'exploration/world cinematic loop'},
-    QUEST:{id:'music.quest.fallback',kind:'music',source:require('../../../assets/audio/dashboard_ambient.mp3'),loop:true,placeholder:true,recommendedReplacement:'quest briefing tension loop'},
-    ACTIVE_QUEST:{id:'music.active.fallback',kind:'music',source:require('../../../assets/audio/dashboard_ambient.mp3'),loop:true,placeholder:true,recommendedReplacement:'active quest pulse / orchestral hybrid'},
-    BOSS:{id:'music.boss.fallback',kind:'music',source:require('../../../assets/audio/boss_theme.mp3'),loop:true,placeholder:true,recommendedReplacement:'heavy orchestral boss theme'},
-    VICTORY:{id:'music.victory.fallback',kind:'music',source:require('../../../assets/audio/quest_complete.mp3'),loop:false,placeholder:true,recommendedReplacement:'short victory fanfare'},
-    AWAKENING:{id:'music.awakening.fallback',kind:'music',source:require('../../../assets/audio/boss_theme.mp3'),loop:false,placeholder:true,recommendedReplacement:'awakening cinematic launch theme'},
+    HOME:{id:'music.home.fallback',kind:'music',source:require('../../../assets/audio/music/home.wav'),loop:true,placeholder:false,recommendedReplacement:'SYSTEM HOME soundtrack'},
+    WORLD:{id:'music.world.fallback',kind:'music',source:require('../../../assets/audio/music/world.mp3'),loop:true,placeholder:false,recommendedReplacement:'SYSTEM WORLD soundtrack'},
+    QUEST:{id:'music.quest.fallback',kind:'music',source:require('../../../assets/audio/music/quest.mp3'),loop:true,placeholder:false,recommendedReplacement:'SYSTEM QUEST soundtrack'},
+    ACTIVE_QUEST:{id:'music.active.fallback',kind:'music',source:require('../../../assets/audio/music/active_quest.mp3'),loop:true,placeholder:false,recommendedReplacement:'SYSTEM ACTIVE QUEST soundtrack'},
+    BOSS:{id:'music.boss.fallback',kind:'music',source:require('../../../assets/audio/music/boss.mp3'),loop:true,placeholder:false,recommendedReplacement:'SYSTEM BOSS soundtrack'},
+    VICTORY:{id:'music.victory.fallback',kind:'music',source:require('../../../assets/audio/music/victory.mp3'),loop:false,placeholder:false,recommendedReplacement:'SYSTEM VICTORY soundtrack'},
+    AWAKENING:{id:'music.awakening.fallback',kind:'music',source:require('../../../assets/audio/music/awakening.mp3'),loop:false,placeholder:false,recommendedReplacement:'SYSTEM AWAKENING soundtrack'},
   },
   cinematic:{
     layers:{
