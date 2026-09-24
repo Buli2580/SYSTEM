@@ -140,10 +140,12 @@ export default function SystemAmbientBackground({
       {(weather==='FOG'||weather==='RAIN'||weather==='STORM')&&<FogBands accent={worldScene.accent} strength={strength}/>}
     </Animated.View>
 
-    {worldScene.id==='FOREST'&&<Animated.View style={[styles.forestMist,smokeStyle]}>{Array.from({length:10},(_,i)=><View key={i} style={[styles.firefly,{left:percent((i*41)%96),top:percent(18+(i*23)%68),backgroundColor:worldScene.accent,shadowColor:worldScene.accent}]}/>)}</Animated.View>}
-    {worldScene.id==='INDUSTRIAL'&&<Animated.View style={[styles.industrialSteam,smokeStyle]}>{Array.from({length:8},(_,i)=><View key={i} style={[styles.spark,{left:percent(8+(i*17)%88),top:percent(25+(i*19)%62),backgroundColor:worldScene.accent}]}/>)}</Animated.View>}
-    {worldScene.id==='WORLD'&&<Animated.View style={[styles.worldCloud,smokeStyle]} />}
-    {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<Animated.View style={[styles.portalVeil,{borderColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]} />}
+    {worldScene.id==='FOREST'&&<Animated.View style={[styles.forestMist,smokeStyle]}>{Array.from({length:intensity==='quiet'?5:10},(_,i)=><View key={i} style={[styles.firefly,{left:percent((i*41)%96),top:percent(18+(i*23)%68),backgroundColor:worldScene.accent,shadowColor:worldScene.accent}]}/>)}</Animated.View>}
+    {worldScene.id==='INDUSTRIAL'&&<Animated.View style={[styles.industrialSteam,smokeStyle]}>{Array.from({length:intensity==='quiet'?4:8},(_,i)=><View key={i} style={[styles.spark,{left:percent(8+(i*17)%88),top:percent(25+(i*19)%62),backgroundColor:worldScene.accent}]}/>)}</Animated.View>}
+    {worldScene.id==='WORLD'&&<><Animated.View style={[styles.worldCloud,smokeStyle]} /><Animated.View style={[styles.energyPulse,{borderColor:worldScene.accent,shadowColor:worldScene.accent},pulseStyle]}/></>}
+    {(worldScene.id==='PORTAL'||screen==='LAUNCH')&&<><Animated.View style={[styles.portalVeil,{borderColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]} /><Animated.View style={[styles.energyArc,{borderColor:worldScene.accent,opacity:.34*strength},awakeningStyle]}/></>}
+    {worldScene.id==='BOSS_ZONE'&&<Animated.View style={[styles.lightningFlash,lightningStyle]}/>}
+    {worldScene.id==='RUINS'&&<Animated.View style={[styles.smokeBand,{opacity:.28*strength},smokeStyle]}/>} 
     {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&<>
       <Animated.View style={[styles.smokeBand,smokeStyle]}/>
       <Animated.View style={[styles.fireField,fireStyle]}>{Array.from({length:12},(_,i)=><View key={i} style={[styles.flame,{left:percent((i*31)%104),height:24+(i%5)*15,opacity:.28+(i%3)*.12}]}/>)}</Animated.View>
