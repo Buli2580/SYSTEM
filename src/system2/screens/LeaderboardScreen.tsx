@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import Action from '../components/Action';
 import SystemError from '../components/SystemError';
+import LeaderboardEntryCard from '../components/LeaderboardEntryCard';
 import { getValidSession } from '../cloud/auth';
 import {
   followPlayer,getFollowingIds,getLeaderboard,getMySocialProfile,searchPlayers,unfollowPlayer,
@@ -79,12 +80,9 @@ export default function LeaderboardScreen(){
    </View>
 
    <View style={s.panel}><Text style={s.label}>{scopeLabels[scope]} // TOP 50</Text>
-    {!busy&&rows.length===0?<Text style={s.body}>Brak graczy w tym zakresie albo nie ustawiono lokalizacji rankingu.</Text>:rows.map(row=><View key={row.user_id} style={{paddingVertical:12,borderBottomWidth:1,borderBottomColor:'#17333e'}}>
-     <Text style={s.title}>{'#'+row.rank_position+' @'+(row.handle??'gracz')}</Text>
-     <Text style={s.body}>{(row.public_name??'Gracz SYSTEMU')+' · poziom '+row.real_level+' · ranga '+row.rank}</Text>
-     <Text style={s.body}>{row.real_total_xp+' REAL XP · '+row.follower_count+' obserwujących'}</Text>
-     {row.user_id!==myId&&<Action label={following.has(row.user_id)?'PRZESTAŃ OBSERWOWAĆ':'OBSERWUJ'} disabled={busy} onPress={()=>{void run(()=>toggleFollow(row.user_id));}}/>}
-    </View>)}
+    {!busy&&rows.length===0?<Text style={s.body}>Brak graczy w tym zakresie albo nie ustawiono lokalizacji rankingu.</Text>:rows.map(row=>
+      <LeaderboardEntryCard key={row.user_id} row={row} isMe={row.user_id===myId} following={following.has(row.user_id)} busy={busy} onToggle={row.user_id===myId?undefined:()=>{void run(()=>toggleFollow(row.user_id));}}/>
+    )}
    </View>
 
    <View style={s.panel}><Text style={s.label}>ZNAJDŹ GRACZA</Text><Action label="OTWÓRZ WYSZUKIWARKĘ GRACZY →" onPress={()=>router.push('/player-search')}/>
