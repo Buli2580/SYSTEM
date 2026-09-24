@@ -8,6 +8,7 @@ import {getActiveRaids} from '../cloud/raids';
 import {raidHp,type SocialRaid} from '../social/raids';
 import {raidProgress,raidThreat} from '../social/raidThreat';
 import SystemAudioScene from '../components/SystemAudioScene';
+import {raid2Phase} from '../social/raid2';
 
 function remaining(end:string){
  const ms=Math.max(0,Date.parse(end)-Date.now());
@@ -24,10 +25,10 @@ export default function RaidsScreen(){
  <View style={s.panel}><Text style={[s.label,{color:'#e4baff'}]}>RAID 2.0 // GLOBAL THREAT NETWORK</Text><Text style={s.title}>{rows.length?'RAID SIGNAL DETECTED':busy?'SCANNING NETWORK':'SECTOR QUIET'}</Text><Text style={s.body}>Zweryfikowany progres graczy zasila wspólny damage. Raid nie przyznaje lokalnie XP — wynik rozlicza warstwa online.</Text><Action label={busy?'SYNCHRONIZACJA…':'ODŚWIEŻ SYGNAŁ'} disabled={busy} onPress={()=>void load()}/></View>
  {error&&<SystemError message={error} retry={()=>void load()}/>}
  {!error&&!busy&&rows.length===0&&<View style={s.panel}><Text style={s.label}>NO ACTIVE TARGET</Text><Text style={s.body}>SYSTEM nie wykrywa teraz aktywnego globalnego bossa.</Text></View>}
- {rows.map(r=>{const hp=raidHp(r),progress=Math.round(raidProgress(hp,r.bossHp)*100),threat=raidThreat(hp,r.bossHp);return <View key={r.id} style={s.panel}>
-   <Text style={[s.label,{color:threat==='CRITICAL'?'#ffcf6a':'#e4baff'}]}>RAID THREAT // {threat}</Text>
+ {rows.map(r=>{const hp=raidHp(r),progress=Math.round(raidProgress(hp,r.bossHp)*100),threat=raidThreat(hp,r.bossHp),phase=raid2Phase(r);return <View key={r.id} style={s.panel}>
+   <Text style={[s.label,{color:threat==='CRITICAL'?'#ffcf6a':'#e4baff'}]}>RAID 2.0 // {phase} // THREAT {threat}</Text>
    <BossStatusCard title={r.title} status={r.status} hp={hp} maxHp={r.bossHp}/>
-   <Text style={s.body}>GLOBAL DAMAGE: {r.damage.toLocaleString()} · PROGRESS {progress}% · TIME LEFT {remaining(r.endsAt)}</Text>
+   <Text style={s.body}>GLOBAL DAMAGE: {r.damage.toLocaleString()} · PROGRESS {progress}% · TIME LEFT {remaining(r.endsAt)}</Text><Text style={s.body}>PHASE // {phase} · contribution rank będzie liczony wyłącznie ze zweryfikowanych zdarzeń online.</Text>
    <View style={{height:6,borderRadius:6,overflow:'hidden',backgroundColor:'#17333e',marginTop:9}}><View style={{height:'100%',width:`${Math.max(2,progress)}%`,backgroundColor:'#e4baff'}}/></View>
    <Text style={s.body}>Participants, contribution leaderboard, raid phases i reward screen wymagają rozszerzenia danych zwracanych przez backend. Ten ekran nie tworzy fikcyjnych uczestników.</Text>
  </View>;})}
