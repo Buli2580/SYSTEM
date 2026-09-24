@@ -101,7 +101,7 @@ export default function CharacterScreen() {
     </View>
     <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
     <HeroCardCollection player={player} />
-    <SystemPlayerCard player={player} />
+    <SystemPlayerCard player={player} activeTitle2={activeTitle2} companionName={activeCompanion ? COMPANIONS.find(c=>c.id===activeCompanion)?.name ?? activeCompanion : null} />
     {progression && <StreakMilestoneCard days={progression.streak.currentStreak} />}
     <View style={s.panel}>
       <Text style={s.label}>NAZWA W SYSTEMIE</Text>
