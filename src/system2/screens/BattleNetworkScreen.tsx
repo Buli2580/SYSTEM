@@ -5,26 +5,28 @@ import SystemPage,{pageStyles as s} from '../components/SystemPage';
 import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import {useSystem} from '../state/SystemProvider';
-import {attachReferralCode,getActiveGuildWars,getMyPvpChallenges,getReferralState,ensureReferralCode,type CloudPvpChallenge,type CloudGuildWar,type CloudReferralState} from '../cloud/socialBattle';
+import {acceptPvpChallenge,attachReferralCode,getActiveGuildWars,getMyPvpChallenges,getReferralState,ensureReferralCode,type CloudPvpChallenge,type CloudGuildWar,type CloudReferralState} from '../cloud/socialBattle';
+import {getValidSession} from '../cloud/auth';
 
 export default function BattleNetworkScreen(){
  const {player}=useSystem(),router=useRouter();
- const[pvp,setPvp]=useState<CloudPvpChallenge[]>([]),[wars,setWars]=useState<CloudGuildWar[]>([]),[referral,setReferral]=useState<CloudReferralState|null>(null),[referralInput,setReferralInput]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
+ const[pvp,setPvp]=useState<CloudPvpChallenge[]>([]),[wars,setWars]=useState<CloudGuildWar[]>([]),[referral,setReferral]=useState<CloudReferralState|null>(null),[cloudUserId,setCloudUserId]=useState<string|null>(null),[referralInput,setReferralInput]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
  async function load(){
   setBusy(true);setError(null);
   try{
    await ensureReferralCode();
-   const [p,w,r]=await Promise.all([getMyPvpChallenges(),getActiveGuildWars(),getReferralState()]);
-   setPvp(p);setWars(w);setReferral(r);
+   const [p,w,r,session]=await Promise.all([getMyPvpChallenges(),getActiveGuildWars(),getReferralState(),getValidSession()]);
+   setPvp(p);setWars(w);setReferral(r);setCloudUserId(session?.user.id??null);
   }catch(e){setError(e instanceof Error?e.message:'BATTLE_NETWORK_FAILED');}
   finally{setBusy(false);}
  }
  useEffect(()=>{void load()},[]);
+ async function accept(id:string){setBusy(true);setError(null);try{await acceptPvpChallenge(id);await load()}catch(e){setError(e instanceof Error?e.message:'PVP_ACCEPT_FAILED');setBusy(false)}}
  return <SystemPage title="BATTLE NETWORK" subtitle="PVP // GUILD WARS // RAIDS // SEASONS">
   <View style={s.panel}><Text style={s.label}>PLAYER NODE</Text><Text style={s.title}>{player.displayName}</Text><Text style={s.body}>Serwer przyjmuje wynik tylko z kanonicznych verified events. Telefon nie może sam dopisać punktów.</Text><Action label={busy?'SYNCING…':'ODŚWIEŻ NETWORK'} disabled={busy} onPress={()=>void load()}/></View>
   {error&&<SystemError message={error} retry={()=>void load()}/>}
   <View style={s.panel}><Text style={s.label}>PVP CHALLENGES // LIVE</Text><Text style={s.title}>{pvp.filter(x=>x.status==='ACTIVE'||x.status==='OPEN').length} ACTIVE / OPEN</Text>
-   {pvp.length===0?<Text style={s.body}>Brak wyzwań PvP na tym koncie.</Text>:pvp.slice(0,5).map(row=><View key={row.id} style={{marginTop:10}}><Text style={s.body}>{row.metric} · {row.creator_score}:{row.opponent_score} / TARGET {row.target} · {row.status}</Text></View>)}
+   {pvp.length===0?<Text style={s.body}>Brak wyzwań PvP na tym koncie.</Text>:pvp.slice(0,5).map(row=><View key={row.id} style={{marginTop:10}}><Text style={s.body}>{row.metric} · {row.creator_score}:{row.opponent_score} / TARGET {row.target} · {row.status}</Text>{row.status==='OPEN'&&row.opponent_id===cloudUserId&&<Action label="AKCEPTUJ PVP →" disabled={busy} onPress={()=>void accept(row.id)}/>} {row.status==='OPEN'&&row.creator_id===cloudUserId&&<Text style={s.body}>WAITING FOR OPPONENT</Text>}</View>)}
    <Text style={s.body}>PvP 2.0 obsługuje teraz QUESTS i REAL_XP pochodzące wyłącznie ze zweryfikowanego reward ledger.</Text>
   </View>
   <View style={s.panel}><Text style={s.label}>GUILD WARS // LIVE</Text><Text style={s.title}>{wars.filter(x=>x.status==='ACTIVE').length} ACTIVE</Text>
