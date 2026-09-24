@@ -18,6 +18,7 @@ function remaining(end:string){
 }
 export default function RaidsScreen(){
  const[bossState,setBossState]=useState<BossCinematicState>('ENTER');
+ const previousRaidProgress=useRef<number|null>(null);
  const[rows,setRows]=useState<CloudRaidV3[]>([]),[leaderboards,setLeaderboards]=useState<Record<string,CloudRaidLeaderboardRow[]>>({}),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);const epoch=useRef(0),mounted=useRef(true);
  useEffect(()=>()=>{mounted.current=false;epoch.current++;},[]);
  async function load(){const id=++epoch.current;if(mounted.current){setBusy(true);setError(null);setRows([]);}try{const next=await getActiveRaids();const boards=Object.fromEntries(await Promise.all(next.slice(0,5).map(async raid=>[raid.id,await getRaidLeaderboardV3(raid.id,5)] as const)));if(mounted.current&&id===epoch.current){setRows(next);setLeaderboards(boards)}}catch(e){if(mounted.current&&id===epoch.current)setError(e instanceof Error?e.message:'RAIDS_FAILED');}finally{if(mounted.current&&id===epoch.current)setBusy(false);}}
@@ -25,8 +26,15 @@ export default function RaidsScreen(){
  useEffect(()=>{
    if(!rows.length)return;
    const raid=rows[0],progress=raidProgress(raidHp(raid),raid.bossHp);
-   if(progress>=1){setBossState('DEATH');triggerBossCinematicState('DEATH');const t=setTimeout(()=>{setBossState('VICTORY');triggerBossCinematicState('VICTORY')},900);return()=>clearTimeout(t)}
+   if(progress>=1){previousRaidProgress.current=progress;setBossState('DEATH');triggerBossCinematicState('DEATH');const t=setTimeout(()=>{setBossState('VICTORY');triggerBossCinematicState('VICTORY')},900);return()=>clearTimeout(t)}
    const next:BossCinematicState=progress>=.75?'ENRAGE':progress>=.5?'PHASE_2':progress>=.2?'ATTACK':'ROAR';
+   const previous=previousRaidProgress.current;
+   previousRaidProgress.current=progress;
+   if(previous!==null&&progress>previous){
+     setBossState('HIT');triggerBossCinematicState('HIT');
+     const t=setTimeout(()=>{setBossState(next);triggerBossCinematicState(next)},360);
+     return()=>clearTimeout(t);
+   }
    setBossState(next);triggerBossCinematicState(next);
  },[rows]);
  return <SystemPage title="WORLD RAIDS" subtitle="SYSTEM ONLINE // CO-OP BOSS" intensity="world" screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM" bossState={bossState}>
