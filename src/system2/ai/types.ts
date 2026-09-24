@@ -67,10 +67,32 @@ export interface AIDirectorDecision {
   message: string;
 }
 
+export interface AIResearchSource {
+  title: string;
+  url: string;
+}
+
+export interface AIResearchSummary {
+  usedWeb: boolean;
+  topics: string[];
+  sources: AIResearchSource[];
+}
+
+export interface AIPlayerMemory {
+  summary: string;
+  interests: string[];
+  preferredQuestStyles: string[];
+  successfulCategories: AIQuestCategory[];
+  recentFailureCategories: AIQuestCategory[];
+  researchTopics: string[];
+}
+
 export interface AIGameMasterResponse {
   quests: AIQuestProposal[];
   director: AIDirectorDecision;
   briefing: string;
   source: 'ai' | 'fallback';
   model?: string;
+  research?: AIResearchSummary;
+  memory?: AIPlayerMemory;
 }
