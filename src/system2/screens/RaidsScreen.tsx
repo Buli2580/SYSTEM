@@ -20,7 +20,7 @@ export default function RaidsScreen(){
  useEffect(()=>()=>{mounted.current=false;epoch.current++;},[]);
  async function load(){const id=++epoch.current;if(mounted.current){setBusy(true);setError(null);setRows([]);}try{const next=await getActiveRaids();const boards=Object.fromEntries(await Promise.all(next.slice(0,5).map(async raid=>[raid.id,await getRaidLeaderboardV3(raid.id,5)] as const)));if(mounted.current&&id===epoch.current){setRows(next);setLeaderboards(boards)}}catch(e){if(mounted.current&&id===epoch.current)setError(e instanceof Error?e.message:'RAIDS_FAILED');}finally{if(mounted.current&&id===epoch.current)setBusy(false);}}
  useEffect(()=>{void load();},[]);
- return <SystemPage title="WORLD RAIDS" subtitle="SYSTEM ONLINE // CO-OP BOSS" intensity="world">
+ return <SystemPage title="WORLD RAIDS" subtitle="SYSTEM ONLINE // CO-OP BOSS" intensity="world" screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM">
  {rows.length>0&&<SystemAudioScene cue="BOSS" />}
  <View style={s.panel}><Text style={[s.label,{color:'#e4baff'}]}>RAID 2.0 // GLOBAL THREAT NETWORK</Text><Text style={s.title}>{rows.length?'RAID SIGNAL DETECTED':busy?'SCANNING NETWORK':'SECTOR QUIET'}</Text><Text style={s.body}>Zweryfikowany progres graczy zasila wspólny damage. Raid nie przyznaje lokalnie XP — wynik rozlicza warstwa online.</Text><Action label={busy?'SYNCHRONIZACJA…':'ODŚWIEŻ SYGNAŁ'} disabled={busy} onPress={()=>void load()}/></View>
  {error&&<SystemError message={error} retry={()=>void load()}/>}
