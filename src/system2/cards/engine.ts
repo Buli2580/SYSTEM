@@ -4,10 +4,12 @@ export type CardRarity='R'|'SR'|'SSR'|'UR'|'MYTHIC'|'SYSTEM_EXCLUSIVE';
 export type CardStyle='DARK_FANTASY'|'HUNTER'|'RUNIC'|'SHADOW'|'BOSS_SLAYER';
 export type CardReason='PROFILE'|'LEVEL_UP'|'RANK_UP'|'STREAK'|'BOSS'|'AWAKENING';
 export type CardEvolution='ORIGIN'|'AWAKENED'|'HUNTER'|'VANGUARD'|'DOMINATOR'|'LEGEND'|'ASCENDED';
+export type HeroCardName='SYSTEM ZERO'|'NIGHT RUNNER'|'IRON TITAN'|'ORACLE'|'PATHFINDER'|'VOID WALKER'|'WRAITH'|'ASH KING'|'SYSTEM ASCENDANT';
 
 export type SystemCardModel={
   id:string;
   title:string;
+  heroName:HeroCardName;
   subtitle:string;
   rarity:CardRarity;
   style:CardStyle;
@@ -23,6 +25,21 @@ export type SystemCardModel={
 };
 
 const EVOLUTIONS:CardEvolution[]=['ORIGIN','AWAKENED','HUNTER','VANGUARD','DOMINATOR','LEGEND','ASCENDED'];
+export const HERO_CARD_COLLECTION:readonly {name:HeroCardName;level:number;tagline:string}[]=[
+  {name:'SYSTEM ZERO',level:1,tagline:'ORIGIN SIGNAL'},
+  {name:'NIGHT RUNNER',level:5,tagline:'FIRST AWAKENING'},
+  {name:'IRON TITAN',level:10,tagline:'POWER FORGED'},
+  {name:'ORACLE',level:15,tagline:'MIND ASCENDING'},
+  {name:'PATHFINDER',level:25,tagline:'WORLD WALKER'},
+  {name:'VOID WALKER',level:40,tagline:'BEYOND THE VEIL'},
+  {name:'WRAITH',level:50,tagline:'SHADOW FORM'},
+  {name:'ASH KING',level:75,tagline:'MYTHIC ASCENT'},
+  {name:'SYSTEM ASCENDANT',level:100,tagline:'FINAL EVOLUTION'},
+];
+export function heroCardNameForLevel(level:number):HeroCardName{
+  return [...HERO_CARD_COLLECTION].reverse().find(card=>level>=card.level)?.name??'SYSTEM ZERO';
+}
+
 const ACCENTS:Record<CardRarity,string>={
   R:'#7e99a5',SR:'#6ceeff',SSR:'#9d7cff',UR:'#ff9c5a',MYTHIC:'#ffd66c',SYSTEM_EXCLUSIVE:'#ffffff',
 };
@@ -56,15 +73,17 @@ export function buildSystemCard(player:PlayerProfile,reason:CardReason='PROFILE'
   const evolution=evolutionForLevel(player.realLevel);
   const rarity=rarityForLevel(player.realLevel);
   const evolutionName=EVOLUTIONS[evolution]??'ASCENDED';
+  const heroName=heroCardNameForLevel(player.realLevel);
   const power=Math.max(1000,Math.round(player.totalRealXp*3+player.realLevel*125+player.verifiedQuestCount*75+player.streak*40));
   const special=reason==='BOSS'?'BOSS SLAYER':reason==='STREAK'?player.streak+' DAY STREAK':reason.replaceAll('_',' ');
   return{
     id:'card:'+player.id+':'+reason+':'+player.realLevel+':'+player.rank,
     title:player.displayName+' // '+evolutionName,
+    heroName,
     subtitle:special,
     rarity,style:styleForPlayer(player,reason),power,level:player.realLevel,rank:player.rank,evolution,evolutionName,reason,
     accent:ACCENTS[rarity],frame:frameFor(rarity),
-    shareCaption:'SYSTEM // '+player.displayName+' · LV.'+player.realLevel+' · RANK '+player.rank+' · '+rarity+' · '+evolutionName+' · POWER '+power.toLocaleString(),
+    shareCaption:'SYSTEM // '+heroName+' · '+player.displayName+' · LV.'+player.realLevel+' · RANK '+player.rank+' · '+rarity+' · '+evolutionName+' · POWER '+power.toLocaleString(),
   };
 }
 
