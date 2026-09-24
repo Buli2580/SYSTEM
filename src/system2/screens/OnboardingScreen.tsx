@@ -1,5 +1,5 @@
 import { validateBirthDate } from '../identity/age';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import SystemError from '../components/SystemError';
 import SystemBootSequence from '../components/SystemBootSequence';
 import { useSystem } from '../state/SystemProvider';
 import { SKILL_KEYS, SYSTEM_COLORS as C } from '../core';
+import {queueTelemetry} from '../telemetry/amplitude';
 
 const pages = [
   { code: '00 // SIGNAL', title: 'SYSTEM WYKRYTY', kicker: 'TWOJE ŻYCIE STAJE SIĘ GRĄ', body: 'Nie tworzysz bohatera w fikcyjnym świecie. Rozwijasz siebie, a SYSTEM zapisuje prawdziwy postęp.' },
@@ -33,6 +34,7 @@ export default function OnboardingScreen() {
   const { finishOnboarding,saveSettings } = useSystem();
   const identityStep = step === pages.length - 1;
   const preferencesStep = step === pages.length - 2;
+  useEffect(()=>{void queueTelemetry({event_type:'ONBOARDING_START'})},[]);
 
   async function enter() {
     if (busyRef.current) return;
@@ -42,6 +44,7 @@ export default function OnboardingScreen() {
     try {
       await finishOnboarding(name, validateBirthDate(birthDate));
       await saveSettings({activities});
+      await queueTelemetry({event_type:'ONBOARDING_COMPLETE',event_properties:{walking:activities.walking,running:activities.running,cycling:activities.cycling}});
       router.replace('/goals');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać SYSTEM IDENTITY.');
