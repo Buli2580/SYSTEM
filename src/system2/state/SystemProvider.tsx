@@ -149,6 +149,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         briefing: next.aiDaily.briefing,
         source: next.aiDaily.source,
         ...(next.aiDaily.model ? { model: next.aiDaily.model } : {}),
+        ...(next.aiDaily.research ? { research: next.aiDaily.research } : {}),
+        ...(next.aiDaily.memory ? { memory: next.aiDaily.memory } : {}),
       });
       return;
     }
