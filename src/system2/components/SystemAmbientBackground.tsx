@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ImageBackground, StyleSheet, View } from 'react-native';
 
 // Preserve React Native's typed percentage syntax in dynamically generated scenes.
 const percent = (value: number): `${number}%` => `${value}%`;
@@ -18,9 +18,15 @@ import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../vis
 import {useAnimation4} from '../presentation/useAnimation4';
 
 type Intensity = 'quiet' | 'default' | 'hero' | 'world';
+type CinematicSource = number | {uri:string};
+
+const CINEMATIC_ART:Partial<Record<WorldSceneId,CinematicSource>>={
+  // Local require(...) assets can be added here when final artwork is committed.
+  // Remote/CDN sources may be passed explicitly through cinematicSource.
+};
 
 export default function SystemAmbientBackground({
-  intensity='default', screen='HOME', level=1, threat=0, scene, weather='CLEAR',
+  intensity='default', screen='HOME', level=1, threat=0, scene, weather='CLEAR', cinematicSource,
 }:{
   intensity?:Intensity;
   screen?:ScreenMood;
@@ -28,6 +34,7 @@ export default function SystemAmbientBackground({
   threat?:ThreatLevel;
   scene?:WorldSceneId;
   weather?:WorldWeather;
+  cinematicSource?:CinematicSource;
 }) {
   const far=useSharedValue(0);
   const mid=useSharedValue(0);
@@ -37,6 +44,7 @@ export default function SystemAmbientBackground({
   const motion=useAnimation4();
   const ctx=normalizedSceneContext({screen,level,threat,scene,weather});
   const worldScene=chooseScene(ctx);
+  const art=cinematicSource??CINEMATIC_ART[worldScene.id];
 
   useFocusEffect(useCallback(()=>{
     if(motion.reduced){
@@ -80,7 +88,8 @@ export default function SystemAmbientBackground({
   const threatGlow=.12+threat*.08;
 
   return <View pointerEvents="none" style={styles.root}>
-    <View style={[StyleSheet.absoluteFill,{backgroundColor:worldScene.secondary,opacity:.42*strength}]} />
+    {art?<CinematicBackdrop source={art} accent={worldScene.accent} strength={strength} reduced={motion.reduced}/>:null}
+    <View style={[StyleSheet.absoluteFill,{backgroundColor:worldScene.secondary,opacity:art?.20:.42*strength}]} />
     <View style={[styles.skyGlow,{backgroundColor:worldScene.accent,opacity:(.06+threatGlow)*strength}]} />
 
     <Animated.View style={[styles.farLayer,farStyle]}>
@@ -109,6 +118,28 @@ export default function SystemAmbientBackground({
     <View style={[styles.environmentDim,{backgroundColor:'#000',opacity:timeDim+weatherDim}]} />
     <View style={styles.uiScrim}/>
     <View style={styles.vignette}/>
+  </View>;
+}
+
+function CinematicBackdrop({source,accent,strength,reduced}:{source:CinematicSource;accent:string;strength:number;reduced:boolean}) {
+  const drift=useSharedValue(0);
+  useFocusEffect(useCallback(()=>{
+    if(reduced){drift.value=.5;return()=>cancelAnimation(drift)}
+    drift.value=withRepeat(withTiming(1,{duration:12000,easing:Easing.inOut(Easing.ease)}),-1,true);
+    return()=>cancelAnimation(drift);
+  },[drift,reduced]));
+  const artStyle=useAnimatedStyle(()=>({opacity:.78*strength,transform:[
+    {scale:interpolate(drift.value,[0,1],[1.04,1.11])},
+    {translateX:interpolate(drift.value,[0,1],[-7,7])},
+    {translateY:interpolate(drift.value,[0,1],[4,-7])},
+  ]}));
+  const glow=useAnimatedStyle(()=>({opacity:interpolate(drift.value,[0,1],[.08,.23])*strength,transform:[{scale:interpolate(drift.value,[0,1],[.88,1.12])}]}));
+  return <View style={styles.cinematic}>
+    <Animated.View style={[StyleSheet.absoluteFill,artStyle]}>
+      <ImageBackground source={source} resizeMode="cover" style={StyleSheet.absoluteFill}/>
+    </Animated.View>
+    <Animated.View style={[styles.cinematicGlow,{backgroundColor:accent,shadowColor:accent},glow]}/>
+    <View style={styles.cinematicContrast}/>
   </View>;
 }
 
@@ -240,6 +271,9 @@ const styles=StyleSheet.create({
   bossEye:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:120,shadowOpacity:1,shadowRadius:10},
   bossEye2:{position:'absolute',width:13,height:4,borderRadius:4,top:91,right:82,shadowOpacity:1,shadowRadius:10},
   threatCore:{position:'absolute',width:92,height:92,borderRadius:46,borderWidth:1.5,top:'42%',left:'50%',marginLeft:-46,shadowOpacity:.8,shadowRadius:22},
+  cinematic:{...StyleSheet.absoluteFill,overflow:'hidden'},
+  cinematicGlow:{position:'absolute',width:360,height:360,borderRadius:180,right:-170,top:'12%',shadowOpacity:.9,shadowRadius:36},
+  cinematicContrast:{...StyleSheet.absoluteFill,backgroundColor:'rgba(0,5,8,.18)'},
   siege:{position:'absolute',left:0,right:0,bottom:0,height:'58%',overflow:'hidden'},
   damagedCity:{position:'absolute',left:0,right:0,bottom:-4,height:'52%'},
   siegeBuilding:{position:'absolute',bottom:0,width:'23%',borderWidth:1,borderBottomWidth:0,backgroundColor:'rgba(2,6,9,.72)'},
