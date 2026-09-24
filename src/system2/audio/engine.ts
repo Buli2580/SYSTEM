@@ -77,6 +77,11 @@ export function configureAudioEngine(next:Partial<Mix>){
 export function getAudioMix(){return{...mix}}
 export function stopCinematicAudio(){
   activePreset=null;
+  if(musicDuckTimer){
+    clearTimeout(musicDuckTimer);
+    musicDuckTimer=null;
+    if(musicPlayer){try{musicPlayer.volume=mix.music}catch{}}
+  }
   for(const player of cinematicPlayers.values())stopPlayer(player);
   cinematicPlayers.clear();
   cinematicLayerBaseVolume.clear();
