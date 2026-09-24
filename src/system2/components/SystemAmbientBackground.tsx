@@ -149,7 +149,7 @@ export default function SystemAmbientBackground({
     {(worldScene.id==='CITY'||worldScene.id==='RUINS'||worldScene.id==='BOSS_ZONE')&&<>
       <Animated.View style={[styles.smokeBand,smokeStyle]}/>
       <Animated.View style={[styles.fireField,fireStyle]}>{Array.from({length:12},(_,i)=><View key={i} style={[styles.flame,{left:percent((i*31)%104),height:24+(i%5)*15,opacity:.28+(i%3)*.12}]}/>)}</Animated.View>
-      <Animated.View style={[styles.emberField,emberStyle]}>{Array.from({length:20},(_,i)=><View key={i} style={[styles.hotEmber,{left:percent((i*47)%100),top:percent((i*29)%92)}]}/>)}</Animated.View>
+      <Animated.View style={[styles.emberField,emberStyle]}>{Array.from({length:intensity==='quiet'?8:intensity==='default'?12:intensity==='hero'?16:20},(_,i)=><View key={i} style={[styles.hotEmber,{left:percent((i*47)%100),top:percent((i*29)%92)}]}/>)}</Animated.View>
       <Animated.View style={[styles.energyPulse,{borderColor:worldScene.accent,shadowColor:worldScene.accent},energyStyle]}/>
       <Animated.View style={[styles.lightningFlash,lightningStyle]}/>
       <Animated.View style={[styles.impactShake,shakeStyle]}><CitySiege accent={worldScene.accent} strength={strength} reduced={motion.reduced} threat={threat}/></Animated.View></>}
