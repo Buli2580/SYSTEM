@@ -28,6 +28,7 @@ export default function SettingsScreen() {
   return <SystemPage title="WIĘCEJ" subtitle="USTAWIENIA SYSTEMU">
     <View style={s.panel}><Text style={s.label}>SYSTEM ID // TOŻSAMOŚĆ LOKALNA</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
+      <Action label="SYSTEM EXPANSION // NOWE PACZKI →" onPress={() => router.push('/expansion')} />
       <Action label="AI GAME MASTER →" onPress={() => router.push('/game-master')} />
       <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /><Action label="SYSTEM ONLINE // HUB →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI // SYSTEM ONLINE →" onPress={() => router.push('/leaderboard')} /><Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} /></View>
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
