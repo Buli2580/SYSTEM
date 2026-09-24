@@ -22,7 +22,7 @@ export default function BattleNetworkScreen(){
  }
  useEffect(()=>{void load()},[]);
  async function accept(id:string){setBusy(true);setError(null);try{await acceptPvpChallenge(id);await load()}catch(e){setError(e instanceof Error?e.message:'PVP_ACCEPT_FAILED');setBusy(false)}}
- return <SystemPage title="BATTLE NETWORK" subtitle="PVP // GUILD WARS // RAIDS // SEASONS">
+ return <SystemPage title="BATTLE NETWORK" subtitle="PVP // GUILD WARS // RAIDS // SEASONS" screen="BOSS" scene="BOSS_ZONE" threat={3} weather="STORM" intensity="world">
   <View style={s.panel}><Text style={s.label}>PLAYER NODE</Text><Text style={s.title}>{player.displayName}</Text><Text style={s.body}>Serwer przyjmuje wynik tylko z kanonicznych verified events. Telefon nie może sam dopisać punktów.</Text><Action label={busy?'SYNCING…':'ODŚWIEŻ NETWORK'} disabled={busy} onPress={()=>void load()}/></View>
   {error&&<SystemError message={error} retry={()=>void load()}/>}
   <View style={s.panel}><Text style={s.label}>PVP CHALLENGES // LIVE</Text><Text style={s.title}>{pvp.filter(x=>x.status==='ACTIVE'||x.status==='OPEN').length} ACTIVE / OPEN</Text>
