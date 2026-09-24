@@ -124,7 +124,7 @@ export function audioAssetStatus(){
 export function setCinematicLayer(layer:CinematicLayer,source:any,volume=.35){
   if(!mix.enabled||mix.ambient<=0||!source)return;
   const previous=cinematicPlayers.get(layer);
-  if(previous)return;
+  if(previous){cinematicLayerBaseVolume.set(layer,volume);try{previous.volume=Math.min(1,volume*mix.ambient)}catch{}return;}
   cinematicLayerBaseVolume.set(layer,volume);
   const player=spawn(source,0,true);
   cinematicPlayers.set(layer,player);
@@ -138,7 +138,7 @@ function duckMusic(duration=650,depth=.46){
   if(!musicPlayer)return;
   if(musicDuckTimer)clearTimeout(musicDuckTimer);
   try{musicPlayer.volume=Math.max(.08,mix.music*depth)}catch{}
-  musicDuckTimer=setTimeout(()=>{if(musicPlayer)fadeIn(musicPlayer,mix.music,260);musicDuckTimer=null},duration);
+  musicDuckTimer=setTimeout(()=>{if(musicPlayer){try{musicPlayer.volume=mix.music}catch{}}musicDuckTimer=null},duration);
 }
 export function playCinematicEvent(_event:CinematicEvent,source:any,volume=1){
   if(!mix.enabled||mix.sfx<=0||!source)return;
