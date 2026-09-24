@@ -179,3 +179,41 @@ test('Season rewards remain cosmetic-only',()=>{
  assert.match(source,/COSMETIC/);
  assert.match(source,/CARD_FRAME/);
 });
+
+
+test('Animation Engine 4.0 is mounted once and owns route transitions',()=>{
+ const layout=fs.readFileSync(path.join(root,'src/app/_layout.tsx'),'utf8');
+ assert.match(layout,/AnimationEngine4Provider/);
+ assert.match(layout,/SystemRouteMotion/);
+ assert.match(layout,/animation:\s*['"]none['"]/);
+});
+
+test('Boot intro remains wired to Animation Engine 4.0 and audio',()=>{
+ const boot=fs.readFileSync(path.join(root,'src/system2/components/SystemBootSequence.tsx'),'utf8');
+ assert.match(boot,/useAnimationEngine4/);
+ assert.match(boot,/playAudioTheme/);
+ assert.match(boot,/AWAKENING/);
+ assert.match(boot,/POMIŃ INTRO/);
+});
+
+test('Animation Engine 4.0 has a single canonical timing source',()=>{
+ const engine=fs.readFileSync(path.join(root,'src/system2/presentation/animationEngine4.ts'),'utf8');
+ const adapter=fs.readFileSync(path.join(root,'src/system2/presentation/animation4.ts'),'utf8');
+ assert.match(engine,/MOTION_4/);
+ assert.match(engine,/reducedMotion|reduced/);
+ assert.match(adapter,/from '.\/animationEngine4'/);
+ assert.doesNotMatch(adapter,/durations:\s*\{/);
+});
+
+test('Core overlays use the canonical Animation Engine 4.0 provider',()=>{
+ for(const rel of [
+  'src/system2/components/SystemPage.tsx',
+  'src/system2/components/SystemEventOverlay.tsx',
+  'src/system2/components/CombatImpactOverlay.tsx',
+  'src/system2/cards/MilestoneCardOverlay.tsx',
+ ]){
+  const source=fs.readFileSync(path.join(root,rel),'utf8');
+  assert.match(source,/AnimationEngine4Provider|useAnimation4/);
+  assert.equal((source.match(/const motion\s*=/g)||[]).length,1,rel+' must have exactly one motion hook');
+ }
+});
