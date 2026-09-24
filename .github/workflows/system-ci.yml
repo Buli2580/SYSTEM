@@ -10,6 +10,7 @@ on:
       - master
       - "agent/**"
       - "chore/**"
+      - "fix/**"
       - "feature/system-ai-game-master-1.0"
       - "feature/system-core-freeze-1.0"
       - "feature/system-presentation-social-1.0"
