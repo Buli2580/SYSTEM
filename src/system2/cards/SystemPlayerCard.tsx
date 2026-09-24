@@ -1,12 +1,18 @@
 import {Image,Share,StyleSheet,Text,View} from 'react-native';
+import {useEffect,useState} from 'react';
 import Animated,{FadeInDown} from 'react-native-reanimated';
 import Action from '../components/Action';
 import type {PlayerProfile} from '../core/types';
 import {buildSystemCard,type CardReason} from './engine';
 import {queueTelemetry} from '../telemetry/amplitude';
+import {loadEquippedInventory,type EquippedInventory} from '../inventory/storage';
+import {INVENTORY_ITEMS} from '../inventory/catalog';
 
 export default function SystemPlayerCard({player,reason='PROFILE'}:{player:PlayerProfile;reason?:CardReason}){
+  const[equipped,setEquipped]=useState<EquippedInventory>({});
+  useEffect(()=>{void loadEquippedInventory().then(setEquipped)},[]);
   const card=buildSystemCard(player,reason);
+  const equippedItems=Object.values(equipped).map(id=>INVENTORY_ITEMS.find(item=>item.id===id)).filter(Boolean);
   const accent=card.accent;
   const highTier=card.rarity==='MYTHIC'||card.rarity==='SYSTEM_EXCLUSIVE';
   return <Animated.View entering={FadeInDown.duration(420)} style={[styles.card,{borderColor:accent,shadowColor:accent}]}>
@@ -43,6 +49,7 @@ export default function SystemPlayerCard({player,reason='PROFILE'}:{player:Playe
       <Info label="ARCHETYPE" value={card.style.replaceAll('_',' ')}/>
       <Info label="SPECIAL" value={card.subtitle}/>
     </View>
+    {!!equippedItems.length&&<View style={styles.equipped}><Text style={styles.meta}>EQUIPPED // {equippedItems.map(item=>item!.name).join(' · ')}</Text></View>}
     <Text style={styles.socialHint}>SOCIAL CARD // FACEBOOK · INSTAGRAM · TIKTOK</Text>
     <Action label="UDOSTĘPNIJ KARTĘ →" onPress={()=>{void queueTelemetry({event_type:'CARD_SHARE',event_properties:{rarity:card.rarity,level:card.level}}).then(()=>Share.share({title:'SYSTEM CARD',message:card.shareCaption}))}}/>
   </Animated.View>;
@@ -75,5 +82,6 @@ const styles=StyleSheet.create({
   statsGrid:{flexDirection:'row',flexWrap:'wrap',gap:8},
   info:{width:'48%',padding:11,borderRadius:12,backgroundColor:'rgba(255,255,255,.025)',borderWidth:1,borderColor:'rgba(120,180,200,.12)'},
   label:{color:'#657b85',fontSize:8,fontWeight:'900',letterSpacing:1},value:{color:'#e9fbff',fontSize:10,lineHeight:14,fontWeight:'900',marginTop:4},
+  equipped:{marginTop:12,padding:9,borderWidth:1,borderColor:'rgba(108,238,255,.12)',borderRadius:10},
   socialHint:{color:'#5f7782',fontSize:8,fontWeight:'900',letterSpacing:1.15,textAlign:'center',marginTop:15,marginBottom:2},
 });
