@@ -117,7 +117,7 @@ export default function OnboardingScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-    <SystemBootSequence visible={booting} onComplete={() => setBooting(false)} />
+    <SystemBootSequence visible={booting} firstRun onComplete={() => setBooting(false)} />
   </View>;
 }
 
