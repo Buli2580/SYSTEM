@@ -142,7 +142,8 @@ export default function SystemHomeScreen() {
     activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward,
   } = useSystem();
 
-  const reduced = width < 370 || height < 700;
+  const performanceMode: 'LOW'|'MEDIUM'|'HIGH' = width < 370 || height < 700 ? 'LOW' : width < 430 || height < 800 ? 'MEDIUM' : 'HIGH';
+  const reduced = performanceMode === 'LOW';
   const bossActive = !story?.bossComplete && awakeningCompleted;
   const sceneMode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' =
     lastReward ? 'VICTORY' :
@@ -230,6 +231,7 @@ export default function SystemHomeScreen() {
       <View pointerEvents="none" style={styles.worldState}>
         <Text style={styles.worldStateText}>SYSTEM // {sceneMode}</Text>
         <Text style={styles.playerName}>{player.displayName} · {player.currentTitle}</Text>
+        <Text style={styles.performanceText}>FX {performanceMode} · AUTO</Text>
       </View>
     </View>
     <BottomNavigation />
@@ -239,6 +241,7 @@ export default function SystemHomeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#020508' },
   scene: { flex: 1, overflow: 'hidden', backgroundColor: SKY },
+  performanceText:{color:'rgba(108,238,255,.38)',fontSize:6,fontWeight:'900',letterSpacing:1.2,marginTop:2},
   sky: { backgroundColor: '#050A10' },
   cityGlow: { position: 'absolute', width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(62,76,180,.10)', top: -140, right: -110 },
   farCity: { position: 'absolute', left: -20, right: -20, top: '16%', height: 180, opacity: .56 },
