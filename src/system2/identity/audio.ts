@@ -15,7 +15,8 @@ export function configureAudio(value:boolean){enabled=value;if(!value){stopAudio
 function musicSource(scene:MusicScene){
  switch(scene){
   case 'WORLD': return require('../../../assets/audio/music/world.mp3');
-  case 'QUEST': case 'BOSS': return require('../../../assets/audio/dashboard_ambient.mp3');
+  case 'BOSS': return require('../../../assets/audio/boss_theme.mp3');
+  case 'QUEST': return require('../../../assets/audio/dashboard_ambient.mp3');
   case 'HOME': case 'AWAKENING': case 'VICTORY': default: return require('../../../assets/audio/music/home.wav');
  }
 }
