@@ -178,7 +178,11 @@ export default function SystemHomeScreen() {
       {sceneMode==='VICTORY' && lastReward && <View pointerEvents="none" style={styles.victoryBanner}>
         <Text style={styles.victoryEyebrow}>QUEST COMPLETE // VERIFIED</Text>
         <Text style={styles.victoryTitle}>VICTORY</Text>
-        <Text style={styles.victoryReward}>+{lastReward.totalXp} XP{lastReward.skillLevels.length ? ` · ${lastReward.skillLevels.length} SKILL UP` : ''}</Text>
+        <Text style={styles.victoryReward}>+{lastReward.realXp} XP{lastReward.skillLevels.length ? ` · ${lastReward.skillLevels.length} SKILL UP` : ''}</Text>
+        {lastReward.afterLevel>lastReward.beforeLevel && <Text style={styles.victoryEvolution}>LEVEL {lastReward.beforeLevel} → {lastReward.afterLevel}</Text>}
+        {lastReward.afterRank!==lastReward.beforeRank && <Text style={styles.victoryEvolution}>RANK {lastReward.beforeRank} → {lastReward.afterRank}</Text>}
+        {!!lastReward.newTitles.length && <Text style={styles.victoryEvolution}>NEW TITLE // {lastReward.newTitles[0]}</Text>}
+        {lastReward.worldUnlocked && <Text style={styles.victoryEvolution}>WORLD GATE // UNLOCKED</Text>}
       </View>}
       <View pointerEvents="none" style={[styles.progressAtmosphere, worldTier >= 2 && styles.progressAtmosphereMid, worldTier >= 3 && styles.progressAtmosphereHigh]} />
       {streakTier > 0 && <View pointerEvents="none" style={[styles.streakAura, streakTier >= 2 && styles.streakAuraStrong, streakTier >= 3 && styles.streakAuraMax]} />}
@@ -265,7 +269,7 @@ const styles = StyleSheet.create({
   rainDrop: { position: 'absolute', width: 1, backgroundColor: 'rgba(160,220,235,.62)', transform: [{ rotate: '12deg' }] },
   lightning: { backgroundColor: 'rgba(190,235,255,.18)' },
   foregroundFog: { position: 'absolute', left: -50, right: -50, bottom: 80, height: 180, backgroundColor: 'rgba(75,102,108,.07)', transform: [{ rotate: '-3deg' }] },
-  fireSource:{position:'absolute',bottom:'18%',width:34,height:58,borderRadius:22,backgroundColor:'rgba(255,92,35,.42)',shadowColor:'#FF6A2A',shadowOpacity:.9,shadowRadius:24},fireSourceLeft:{left:'9%'},fireSourceRight:{right:'8%',bottom:'22%'},victoryBanner:{position:'absolute',top:'23%',alignSelf:'center',zIndex:18,alignItems:'center',paddingHorizontal:24,paddingVertical:14,borderTopWidth:1,borderBottomWidth:1,borderColor:'rgba(255,196,91,.65)',backgroundColor:'rgba(5,10,16,.76)'},victoryEyebrow:{color:'#FFC45B',fontSize:7,fontWeight:'900',letterSpacing:2},victoryTitle:{color:'#fff',fontSize:32,fontWeight:'900',letterSpacing:5,textShadowColor:'#FFC45B',textShadowRadius:18},victoryReward:{color:'#6CEEFF',fontSize:10,fontWeight:'900',letterSpacing:1.4,marginTop:4},
+  fireSource:{position:'absolute',bottom:'18%',width:34,height:58,borderRadius:22,backgroundColor:'rgba(255,92,35,.42)',shadowColor:'#FF6A2A',shadowOpacity:.9,shadowRadius:24},fireSourceLeft:{left:'9%'},fireSourceRight:{right:'8%',bottom:'22%'},victoryBanner:{position:'absolute',top:'23%',alignSelf:'center',zIndex:18,alignItems:'center',paddingHorizontal:24,paddingVertical:14,borderTopWidth:1,borderBottomWidth:1,borderColor:'rgba(255,196,91,.65)',backgroundColor:'rgba(5,10,16,.76)'},victoryEyebrow:{color:'#FFC45B',fontSize:7,fontWeight:'900',letterSpacing:2},victoryTitle:{color:'#fff',fontSize:32,fontWeight:'900',letterSpacing:5,textShadowColor:'#FFC45B',textShadowRadius:18},victoryReward:{color:'#6CEEFF',fontSize:10,fontWeight:'900',letterSpacing:1.4,marginTop:4},victoryEvolution:{color:'#FFC45B',fontSize:8,fontWeight:'900',letterSpacing:1.2,marginTop:3},
   victoryLight:{position:'absolute',alignSelf:'center',top:'8%',width:320,height:520,borderRadius:180,backgroundColor:'rgba(255,205,100,.18)',shadowColor:'#FFD06A',shadowOpacity:.8,shadowRadius:50},
   ground: { position: 'absolute', left: -50, right: -50, bottom: -80, height: 260, backgroundColor: '#030607', transform: [{ rotate: '-2deg' }], borderTopWidth: 1, borderTopColor: '#17262B' },
   playerHero: { position: 'absolute', alignSelf: 'center', top: '26%', width: 190, height: 360, alignItems: 'center' },
