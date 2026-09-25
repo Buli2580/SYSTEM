@@ -26,7 +26,10 @@ export default function CharacterScreen() {
   const previousLevel = useRef(player.realLevel);
   const previousRank = useRef(player.rank);
   const [levelEvent, setLevelEvent] = useState<'LEVEL UP'|'RANK UP'|null>(null);
-  useEffect(() => { aura.value = withRepeat(withSequence(withTiming(1, { duration: 1600 }), withTiming(0.72, { duration: 1600 })), -1); }, [aura]);
+  useEffect(() => {
+    aura.value = withRepeat(withSequence(withTiming(1,{duration:1600}),withTiming(0.72,{duration:1600})),-1);
+    return () => { aura.value = 0.72; };
+  },[aura]);
   useEffect(() => {
     const rankChanged = previousRank.current !== player.rank;
     const levelChanged = player.realLevel > previousLevel.current;
