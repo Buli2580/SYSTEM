@@ -60,7 +60,6 @@ export default function BottomNavigation() {
         active={pathname === '/social'}
         onPress={() => router.replace('/social')}
         shape="dots"
-        unavailable
       />
     </View>
   );
