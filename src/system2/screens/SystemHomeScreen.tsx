@@ -102,6 +102,8 @@ function WorldScene({ reduced, bossActive, mode }: { reduced: boolean; bossActiv
     <Animated.View style={[StyleSheet.absoluteFill, styles.lightning, lightning]} />
     <View style={styles.foregroundFog} />
     <View style={styles.ground} />
+    {!reduced && <><Animated.View pointerEvents="none" style={[styles.fireSource,styles.fireSourceLeft,fireStyle]} /><Animated.View pointerEvents="none" style={[styles.fireSource,styles.fireSourceRight,fireStyle]} /></>}
+    {mode==='VICTORY' && <Animated.View pointerEvents="none" style={[styles.victoryLight,victoryStyle]} />}
   </View>;
 }
 
@@ -275,6 +277,7 @@ const styles = StyleSheet.create({
   rainDrop: { position: 'absolute', width: 1, backgroundColor: 'rgba(160,220,235,.62)', transform: [{ rotate: '12deg' }] },
   lightning: { backgroundColor: 'rgba(190,235,255,.18)' },
   foregroundFog: { position: 'absolute', left: -50, right: -50, bottom: 80, height: 180, backgroundColor: 'rgba(75,102,108,.07)', transform: [{ rotate: '-3deg' }] },
+  fireSource:{position:'absolute',bottom:'18%',width:34,height:58,borderRadius:22,backgroundColor:'rgba(255,92,35,.42)',shadowColor:'#FF6A2A',shadowOpacity:.9,shadowRadius:24},fireSourceLeft:{left:'9%'},fireSourceRight:{right:'8%',bottom:'22%'},victoryLight:{position:'absolute',alignSelf:'center',top:'8%',width:320,height:520,borderRadius:180,backgroundColor:'rgba(255,205,100,.18)',shadowColor:'#FFD06A',shadowOpacity:.8,shadowRadius:50},
   ground: { position: 'absolute', left: -50, right: -50, bottom: -80, height: 260, backgroundColor: '#030607', transform: [{ rotate: '-2deg' }], borderTopWidth: 1, borderTopColor: '#17262B' },
   playerHero: { position: 'absolute', alignSelf: 'center', top: '26%', width: 190, height: 360, alignItems: 'center' },
   playerAura: { position: 'absolute', top: 20, width: 190, height: 290, borderRadius: 100, backgroundColor: 'rgba(22,183,215,.055)', shadowColor: CYAN, shadowOpacity: .28, shadowRadius: 28 },
