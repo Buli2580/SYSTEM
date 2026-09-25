@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import Action from '../components/Action';
 import { useSystem } from '../state/SystemProvider';
@@ -44,3 +45,5 @@ export default function StoryScreen() {
     {entries.length === 0 ? <View style={s.panel}><Text style={s.body}>Chronicle zacznie się od pierwszego wydarzenia fabularnego.</Text></View> : entries.map(event=><View key={event.id} style={s.panel}><Text style={s.label}>{event.type.replaceAll('_',' ')}</Text><Text style={s.title}>{event.title}</Text>{!!event.subtitle&&<Text style={s.body}>{event.subtitle}</Text>}<Text style={s.body}>{new Date(event.created_at).toLocaleString()}</Text></View>)}
  </SystemPage>;
 }
+
+const bossStyles=StyleSheet.create({arena:{position:'relative',overflow:'hidden',marginVertical:14,minHeight:390,borderWidth:1,borderColor:'rgba(255,88,76,.34)',backgroundColor:'#070609',padding:22},threatGlow:{position:'absolute',width:260,height:260,borderRadius:130,backgroundColor:'rgba(180,30,42,.10)',top:20,alignSelf:'center'},code:{color:'#ff6a5e',fontSize:9,fontWeight:'900',letterSpacing:2.4},name:{color:'#fff',fontSize:34,fontWeight:'900',letterSpacing:1,marginTop:7},silhouette:{height:150,alignItems:'center',justifyContent:'flex-end'},head:{width:48,height:45,borderTopLeftRadius:22,borderTopRightRadius:22,backgroundColor:'#010203'},body:{width:126,height:92,borderTopLeftRadius:52,borderTopRightRadius:52,backgroundColor:'#010203'},hpTrack:{height:9,backgroundColor:'#241013',borderWidth:1,borderColor:'#4b1b20',overflow:'hidden'},hpFill:{height:'100%',backgroundColor:'#d53c43'},hpLabel:{color:'#ff8178',fontSize:8,fontWeight:'900',letterSpacing:1.6,marginTop:7,textAlign:'center'}});
