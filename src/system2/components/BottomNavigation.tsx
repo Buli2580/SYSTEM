@@ -28,38 +28,39 @@ export default function BottomNavigation() {
       ]}
     >
       <NavItem
-        label="SYSTEM"
+        label="HOME"
         active={pathname === '/'}
         onPress={() => router.replace('/')}
         shape="diamond"
       />
 
       <NavItem
-        label="QUESTY"
+        label="QUEST"
         active={pathname === '/quests'}
         onPress={() => router.replace('/quests')}
         shape="diamond"
       />
 
       <NavItem
-        label="POSTAĆ"
+        label="CHARACTER"
         active={pathname === '/character' || pathname === '/system-log'}
         onPress={() => router.replace('/character')}
         shape="diamond"
       />
 
       <NavItem
-        label="ŚWIAT"
+        label="WORLD"
         active={pathname === '/world'}
         onPress={() => router.replace('/world')}
         shape="circle"
       />
 
       <NavItem
-        label="WIĘCEJ"
-        active={pathname === '/more'}
-        onPress={() => router.replace('/more')}
+        label="SOCIAL"
+        active={pathname === '/social'}
+        onPress={() => router.replace('/social')}
         shape="dots"
+        unavailable
       />
     </View>
   );
