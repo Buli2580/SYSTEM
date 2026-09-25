@@ -22,7 +22,24 @@ export default function CharacterScreen() {
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => setName(player.displayName), [player.id, player.displayName]);
   const aura = useSharedValue(0.72);
+  const levelPulse = useSharedValue(0);
+  const previousLevel = useRef(player.realLevel);
+  const previousRank = useRef(player.rank);
+  const [levelEvent, setLevelEvent] = useState<'LEVEL UP'|'RANK UP'|null>(null);
   useEffect(() => { aura.value = withRepeat(withSequence(withTiming(1, { duration: 1600 }), withTiming(0.72, { duration: 1600 })), -1); }, [aura]);
+  useEffect(() => {
+    const rankChanged = previousRank.current !== player.rank;
+    const levelChanged = player.realLevel > previousLevel.current;
+    if (rankChanged || levelChanged) {
+      setLevelEvent(rankChanged ? 'RANK UP' : 'LEVEL UP');
+      levelPulse.value = withSequence(withTiming(1,{duration:180}),withTiming(0,{duration:900}));
+      const timer=setTimeout(()=>{ if(mounted.current) setLevelEvent(null); },1800);
+      previousLevel.current=player.realLevel; previousRank.current=player.rank;
+      return ()=>clearTimeout(timer);
+    }
+    previousLevel.current=player.realLevel; previousRank.current=player.rank;
+  },[player.realLevel,player.rank,levelPulse]);
+  const levelPulseStyle=useAnimatedStyle(()=>({opacity:levelPulse.value,transform:[{scale:0.92+levelPulse.value*.12}]}));
   const auraStyle = useAnimatedStyle(() => ({ opacity: aura.value, transform: [{ scale: 0.96 + aura.value * 0.06 }] }));
   async function run(task: () => Promise<void>) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
@@ -48,6 +65,7 @@ export default function CharacterScreen() {
   }
   return <SystemPage title="POSTAĆ" subtitle="CHARACTER 3.0">
     <Animated.View entering={FadeIn.duration(450)} style={cs.hero}>
+      {levelEvent && <Animated.View pointerEvents="none" style={[cs.levelEvent,levelPulseStyle]}><Text style={cs.levelEventText}>{levelEvent}</Text><Text style={cs.levelEventSub}>SYSTEM EVOLUTION CONFIRMED</Text></Animated.View>}
       <Animated.View pointerEvents="none" style={[cs.aura, auraStyle]} />
       <View style={cs.levelHud}><Text style={cs.kicker}>REAL LEVEL</Text><Text style={cs.level}>{player.realLevel}</Text><Text style={cs.rank}>RANK {player.rank}</Text></View>
       <View style={cs.characterStage}>
@@ -58,6 +76,7 @@ export default function CharacterScreen() {
           <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} />
           <Text style={cs.name}>{player.displayName}</Text><Text style={cs.title}>{player.currentTitle}</Text>
           <Text style={cs.meta}>EVOLUTION {player.avatarEvolution} · {dominantSkill(player)}</Text>
+          <View style={cs.powerLine}><View style={cs.powerDot}/><Text style={cs.powerText}>CORE POWER {SKILL_KEYS.reduce((sum,key)=>sum+player.stats[key].level,0)}</Text><View style={cs.powerDot}/></View>
         </View>
         <View style={cs.gearRail}>
           <GearSlot glyph="⬡" label="PANCERZ" /><GearSlot glyph="◉" label="PIERŚCIEŃ" /><GearSlot glyph="✦" label="RELIKWIARZ" />
@@ -121,11 +140,12 @@ function Progress({ value, max }: { value: number; max: number }) {
 
 function GearSlot({ glyph, label }: { glyph: string; label: string }) { return <View style={cs.gearSlot}><Text style={cs.gearGlyph}>{glyph}</Text><Text style={cs.gearLabel}>{label}</Text></View>; }
 const cs=StyleSheet.create({
+ levelEvent:{position:'absolute',zIndex:30,top:105,alignSelf:'center',width:'82%',paddingVertical:16,borderTopWidth:1,borderBottomWidth:1,borderColor:'#62efff',backgroundColor:'rgba(5,12,24,.88)',alignItems:'center',shadowColor:'#62efff',shadowOpacity:.7,shadowRadius:30},levelEventText:{color:'#fff',fontSize:28,fontWeight:'900',letterSpacing:4,textShadowColor:'#765CFF',textShadowRadius:14},levelEventSub:{color:'#62efff',fontSize:7,fontWeight:'900',letterSpacing:2,marginTop:4},
  hero:{minHeight:430,marginHorizontal:-12,marginTop:-8,overflow:'hidden',backgroundColor:'#03080D',borderBottomWidth:1,borderColor:'rgba(98,239,255,.25)',paddingTop:18},
  aura:{position:'absolute',alignSelf:'center',top:70,width:260,height:300,borderRadius:150,backgroundColor:'rgba(65,70,220,.12)',borderWidth:1,borderColor:'rgba(98,239,255,.18)',shadowColor:'#765CFF',shadowOpacity:.7,shadowRadius:36},
  levelHud:{alignItems:'center'},kicker:{color:'#62efff',fontSize:8,fontWeight:'900',letterSpacing:2},level:{color:'#fff',fontSize:38,fontWeight:'900'},rank:{color:'#b79cff',fontSize:12,fontWeight:'900',letterSpacing:2},
  characterStage:{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:10},
- avatarStage:{alignItems:'center',flex:1},name:{color:'#fff',fontSize:18,fontWeight:'900',marginTop:12},title:{color:'#62efff',fontSize:10,fontWeight:'800',letterSpacing:1.2},meta:{color:'rgba(220,240,245,.45)',fontSize:7,fontWeight:'800',marginTop:6},
+ avatarStage:{alignItems:'center',flex:1},powerLine:{flexDirection:'row',alignItems:'center',gap:6,marginTop:8},powerDot:{width:3,height:3,borderRadius:2,backgroundColor:'#765CFF'},powerText:{color:'rgba(183,156,255,.72)',fontSize:6,fontWeight:'900',letterSpacing:1.2},name:{color:'#fff',fontSize:18,fontWeight:'900',marginTop:12},title:{color:'#62efff',fontSize:10,fontWeight:'800',letterSpacing:1.2},meta:{color:'rgba(220,240,245,.45)',fontSize:7,fontWeight:'800',marginTop:6},
  gearRail:{gap:18},gearSlot:{width:62,height:62,borderWidth:1,borderColor:'rgba(98,239,255,.3)',backgroundColor:'rgba(3,12,18,.72)',alignItems:'center',justifyContent:'center'},gearGlyph:{color:'#dcefff',fontSize:21},gearLabel:{color:'#7fa5b1',fontSize:6,fontWeight:'900',marginTop:3},
  xp:{height:5,marginHorizontal:45,backgroundColor:'#10242d'},xpFill:{height:5,backgroundColor:'#62efff'},xpText:{color:'#7695a0',fontSize:7,textAlign:'center',marginTop:5,marginBottom:12},
  statField:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:8,paddingVertical:16},statNode:{width:'29%',minHeight:78,borderWidth:1,borderColor:'#173944',backgroundColor:'#061015',alignItems:'center',justifyContent:'center',padding:6},statNodeActive:{borderColor:'#765CFF',backgroundColor:'rgba(70,50,150,.15)'},statKey:{color:'#62efff',fontSize:9,fontWeight:'900'},statLevel:{color:'#fff',fontSize:24,fontWeight:'900'},statName:{color:'#718d96',fontSize:6,fontWeight:'800',textAlign:'center'},statDetail:{color:'#b79cff',fontSize:7,marginTop:4},
