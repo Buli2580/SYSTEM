@@ -45,7 +45,7 @@
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3",
     "eslint": "^9.0.0",
-    "eslint-config-expo": "~11.0.0"
+    "eslint-config-expo": "~57.0.2"
   },
   "scripts": {
     "start": "expo start",
