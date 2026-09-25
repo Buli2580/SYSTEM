@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
@@ -122,7 +122,12 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
           <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
-        {showLiveTracker && <View style={styles.tracker}>
+        {showLiveTracker && <Animated.View entering={FadeInDown.duration(320)} style={styles.activeQuestStage}>
+          <Text style={styles.activeQuestCode}>ACTIVE QUEST // LIVE PROTOCOL</Text>
+          <Text numberOfLines={2} style={styles.activeQuestTitle}>{quest.title}</Text>
+          <View style={styles.activeQuestPulse}><View style={styles.activeQuestPulseCore}/></View>
+        </Animated.View>}
+        {showLiveTracker && <Animated.View entering={FadeIn.duration(260)} style={styles.tracker}>
           <Text
             style={styles.trackerLabel}
           >
@@ -376,7 +381,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
       )}
 
       {questCompleteVisible && (
-        <Animated.View pointerEvents="none" entering={FadeIn.duration(250)} exiting={FadeOut.duration(220)} style={styles.questCompleteOverlay}>
+        <Animated.View pointerEvents="none" entering={ZoomIn.duration(320)} exiting={FadeOut.duration(220)} style={styles.questCompleteOverlay}>
           <Text style={styles.questOverlayLabel}>QUEST COMPLETE</Text>
           <Text style={styles.questOverlayTitle}>VERIFIED</Text>
         </Animated.View>
