@@ -145,10 +145,10 @@ export default function SystemHomeScreen() {
   const reduced = width < 370 || height < 700;
   const bossActive = !story?.bossComplete && awakeningCompleted;
   const sceneMode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' =
-    bossActive ? 'BOSS' :
-    !awakeningCompleted ? 'AWAKENING' :
     lastReward ? 'VICTORY' :
-    activeQuestId ? 'QUEST' : 'HOME';
+    activeQuestId ? 'QUEST' :
+    bossActive ? 'BOSS' :
+    !awakeningCompleted ? 'AWAKENING' : 'HOME';
   const worldTier = player.realLevel >= 25 ? 3 : player.realLevel >= 10 ? 2 : 1;
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
