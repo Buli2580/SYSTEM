@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -139,7 +139,7 @@ export default function SystemHomeScreen() {
   const { width, height } = useWindowDimensions();
   const {
     player, ready, completedQuestIds, awakeningCompleted, worldUnlocked,
-    activeQuestId, error, refreshPlayer, daily, story, lastReward,
+    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward,
   } = useSystem();
 
   const reduced = width < 370 || height < 700;
@@ -163,6 +163,12 @@ export default function SystemHomeScreen() {
   const active = !awakeningCompleted && nextQuest
     ? { title: nextQuest.title, subtitle: 'AWAKENING PROTOCOL', action: activeQuestId === nextQuest.id ? 'CONTINUE' : 'START', route: { pathname: '/quest' as const, params: { questId: nextQuest.id } } }
     : { title: objective.title, subtitle: objective.subtitle, action: 'CONTINUE', route: '/story' as const };
+  useEffect(() => {
+    if (!lastReward) return;
+    const timer = setTimeout(dismissLastReward, 4200);
+    return () => clearTimeout(timer);
+  }, [lastReward, dismissLastReward]);
+
   const weekly = Math.min(5, daily?.weeklyCompleted ?? 0);
   const dailyDone = daily?.completed ?? 0;
 
