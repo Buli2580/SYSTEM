@@ -87,7 +87,8 @@ function WorldScene({ reduced, bossActive, mode }: { reduced: boolean; bossActiv
     <View style={styles.portalAnchor}>
       <Animated.View style={[styles.portalGlow, portalStyle]} />
       <Animated.View style={[styles.portalRing, portalStyle]} />
-      <View style={styles.portalCore} />
+      <Animated.View style={[styles.portalEnergy,portalEnergyStyle]} />
+        <View style={styles.portalCore} />
     </View>
 
     {bossActive && <View style={styles.bossSilhouette}>
@@ -96,7 +97,7 @@ function WorldScene({ reduced, bossActive, mode }: { reduced: boolean; bossActiv
       <View style={styles.bossBody} />
     </View>}
 
-    {!reduced && Array.from({ length: 12 }).map((_, i) => <View key={i} style={[styles.systemParticle, { left: `${8 + ((i * 19) % 84)}%`, bottom: 110 + (i * 43) % 260 }]} />)}
+    {!reduced && Array.from({ length: 12 }).map((_, i) => <Animated.View key={i} style={[styles.systemParticle,sparkStyle,{ left: `${8 + ((i * 19) % 84)}%`, bottom: 110 + (i * 43) % 260, transform:[{translateY:(i%4)*-9}] }]} />)}
     <Rain reduced={reduced} />
     <Animated.View style={[StyleSheet.absoluteFill, styles.lightning, lightning]} />
     <View style={styles.foregroundFog} />
@@ -189,7 +190,7 @@ export default function SystemHomeScreen() {
   </View>;
 
   return <SystemScreen style={styles.root}>
-    <View style={[styles.scene, mode === 'BOSS' && styles.sceneBoss, mode === 'AWAKENING' && styles.sceneAwakening, mode === 'VICTORY' && styles.sceneVictory]}>
+    <View style={[styles.scene, mode === 'BOSS' && styles.sceneBoss, mode === 'AWAKENING' && styles.sceneAwakening, mode === 'VICTORY' && styles.sceneVictory, mode === 'QUEST' && styles.sceneQuest]}>
       <WorldScene reduced={reduced} bossActive={bossActive} mode={sceneMode} />
       <View pointerEvents="none" style={[styles.progressAtmosphere, worldTier >= 2 && styles.progressAtmosphereMid, worldTier >= 3 && styles.progressAtmosphereHigh]} />
       {streakTier > 0 && <View pointerEvents="none" style={[styles.streakAura, streakTier >= 2 && styles.streakAuraStrong, streakTier >= 3 && styles.streakAuraMax]} />}
@@ -253,6 +254,7 @@ const styles = StyleSheet.create({
   portalAnchor: { position: 'absolute', width: 150, height: 210, right: 18, top: '29%', alignItems: 'center', justifyContent: 'center' },
   portalGlow: { position: 'absolute', width: 140, height: 205, borderRadius: 75, backgroundColor: 'rgba(45,220,255,.10)', shadowColor: CYAN, shadowOpacity: .7, shadowRadius: 28 },
   portalRing: { width: 105, height: 178, borderRadius: 55, borderWidth: 4, borderColor: 'rgba(108,238,255,.7)' },
+  portalEnergy:{position:'absolute',width:88,height:128,borderRadius:50,borderWidth:2,borderColor:'rgba(118,92,255,.58)',backgroundColor:'rgba(80,45,210,.10)',shadowColor:'#765CFF',shadowOpacity:.9,shadowRadius:28},
   portalCore: { position: 'absolute', width: 82, height: 148, borderRadius: 44, backgroundColor: 'rgba(5,72,92,.48)' },
   portalTouch: { position: 'absolute', right: 15, top: '29%', width: 155, height: 220, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 },
   portalLabel: { color: CYAN, fontSize: 8, fontWeight: '900', letterSpacing: 2.2, backgroundColor: 'rgba(2,7,10,.72)', paddingHorizontal: 9, paddingVertical: 5 },
