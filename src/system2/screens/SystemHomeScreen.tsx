@@ -75,6 +75,7 @@ function WorldScene({ reduced, bossActive, mode }: { reduced: boolean; bossActiv
       </View>)}
     </Animated.View>
     <View style={styles.horizonFog} />
+    {!reduced && <Animated.View pointerEvents="none" style={[styles.depthVeil,depthStyle]} />}
     {!reduced && <Animated.View pointerEvents="none" style={[styles.lightningWash,lightningStyle]} />}
     {!reduced && <Animated.View pointerEvents="none" style={[styles.rainField,rainStyle]}>{Array.from({length:18}).map((_,i)=><View key={i} style={[styles.rainDrop,{left:`${(i*17)%100}%`,top:(i*31)%210}]} />)}</Animated.View>}
     {!reduced && <Animated.View pointerEvents="none" style={[styles.smokeBank,smokeStyle]}><View style={styles.smokeCloud}/><View style={[styles.smokeCloud,{left:90,top:18,transform:[{scale:1.3}]}]}/><View style={[styles.smokeCloud,{left:190,top:-8,transform:[{scale:.8}]}]}/></Animated.View>}
@@ -250,6 +251,7 @@ const styles = StyleSheet.create({
   farCity: { position: 'absolute', left: -20, right: -20, top: '16%', height: 180, opacity: .56 },
   farTower: { position: 'absolute', bottom: 0, width: 38, backgroundColor: '#091219', borderTopWidth: 1, borderColor: '#17323D', overflow: 'hidden' },
   windowBand: { position: 'absolute', left: 6, right: 6, height: 2, backgroundColor: 'rgba(108,238,255,.18)' },
+  depthVeil:{position:'absolute',left:-30,right:-30,top:'18%',bottom:'22%',borderTopWidth:1,borderBottomWidth:1,borderColor:'rgba(98,239,255,.035)',backgroundColor:'rgba(4,12,20,.10)'},
   lightningWash:{position:'absolute',inset:0,backgroundColor:'rgba(190,220,255,.55)'},rainField:{position:'absolute',inset:-40,overflow:'hidden'},rainDrop:{position:'absolute',width:1,height:24,backgroundColor:'rgba(180,220,240,.42)',transform:[{rotate:'12deg'}]},
   smokeBank:{position:'absolute',left:-40,right:-40,bottom:'29%',height:100},smokeCloud:{position:'absolute',left:10,top:10,width:150,height:65,borderRadius:80,backgroundColor:'rgba(100,125,145,.18)'},backgroundCreature:{position:'absolute',right:'13%',bottom:'32%',width:46,height:90,opacity:.34},creatureHead:{position:'absolute',top:0,left:11,width:25,height:25,borderRadius:13,backgroundColor:'#020609'},creatureBody:{position:'absolute',top:20,left:4,width:38,height:70,borderTopLeftRadius:18,borderTopRightRadius:18,backgroundColor:'#020609'},creatureEye:{position:'absolute',top:10,left:21,width:4,height:3,borderRadius:2,backgroundColor:'#765CFF',shadowColor:'#765CFF',shadowOpacity:1,shadowRadius:7},
   horizonFog: { position: 'absolute', left: 0, right: 0, top: '34%', height: 150, backgroundColor: 'rgba(79,116,125,.08)' },
