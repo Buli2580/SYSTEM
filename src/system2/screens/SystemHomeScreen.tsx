@@ -157,6 +157,8 @@ export default function SystemHomeScreen() {
   } = useSystem();
 
   const reduced = width < 370 || height < 700;
+  const worldTier = player.realLevel >= 25 ? 3 : player.realLevel >= 10 ? 2 : 1;
+  const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story, awakeningCompleted);
   const progress = awakeningCompleted ? objective.completed : awakening.completed;
@@ -182,6 +184,8 @@ export default function SystemHomeScreen() {
   return <SystemScreen style={styles.root}>
     <View style={styles.scene}>
       <WorldScene reduced={reduced} bossActive={bossActive} />
+      <View pointerEvents="none" style={[styles.progressAtmosphere, worldTier >= 2 && styles.progressAtmosphereMid, worldTier >= 3 && styles.progressAtmosphereHigh]} />
+      {streakTier > 0 && <View pointerEvents="none" style={[styles.streakAura, streakTier >= 2 && styles.streakAuraStrong, streakTier >= 3 && styles.streakAuraMax]} />}
       <Hud top={insets.top} />
 
       <Pressable accessibilityRole="button" accessibilityLabel="Otwórz SYSTEM WORLD" disabled={!worldUnlocked} onPress={() => router.push('/world')} style={styles.portalTouch}>
@@ -193,6 +197,16 @@ export default function SystemHomeScreen() {
       <WorldNode label="BOSS" sub={story?.bossComplete ? 'CLEARED' : bossActive ? 'ANOMALY' : 'DORMANT'} style={styles.bossNode} onPress={() => router.push('/story')} locked={!awakeningCompleted} />
 
       <PlayerHero />
+      <View pointerEvents="none" style={styles.systemWindowLeft}>
+        <Text style={styles.systemWindowCode}>SYSTEM // STATUS</Text>
+        <Text style={styles.systemWindowTitle}>RANK {player.rank}</Text>
+        <Text style={styles.systemWindowMeta}>EVOLUTION {player.avatarEvolution} · VERIFIED {player.verifiedQuestCount}</Text>
+      </View>
+      <View pointerEvents="none" style={styles.systemWindowRight}>
+        <Text style={styles.systemWindowCode}>{bossActive ? 'WARNING // ANOMALY' : 'WORLD // SIGNAL'}</Text>
+        <Text style={[styles.systemWindowTitle, bossActive && styles.warningText]}>{bossActive ? 'BOSS DETECTED' : worldUnlocked ? 'GATE STABLE' : 'GATE LOCKED'}</Text>
+        <Text style={styles.systemWindowMeta}>{bossActive ? 'THREAT RESPONSE AVAILABLE' : 'REALITY LAYER SYNCHRONIZED'}</Text>
+      </View>
 
       <View style={[styles.questCallout, { bottom: Math.max(insets.bottom + 82, 94) }]}>
         <Text style={styles.questEyebrow}>ACTIVE QUEST // {active.subtitle}</Text>
@@ -234,6 +248,12 @@ const styles = StyleSheet.create({
   portalCore: { position: 'absolute', width: 82, height: 148, borderRadius: 44, backgroundColor: 'rgba(5,72,92,.48)' },
   portalTouch: { position: 'absolute', right: 15, top: '29%', width: 155, height: 220, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 },
   portalLabel: { color: CYAN, fontSize: 8, fontWeight: '900', letterSpacing: 2.2, backgroundColor: 'rgba(2,7,10,.72)', paddingHorizontal: 9, paddingVertical: 5 },
+  progressAtmosphere: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,40,65,.015)' },
+  progressAtmosphereMid: { backgroundColor: 'rgba(56,72,150,.025)' },
+  progressAtmosphereHigh: { backgroundColor: 'rgba(80,52,180,.035)' },
+  streakAura: { position: 'absolute', alignSelf: 'center', top: '22%', width: 260, height: 410, borderRadius: 140, borderWidth: 1, borderColor: 'rgba(108,238,255,.08)' },
+  streakAuraStrong: { borderColor: 'rgba(118,92,255,.16)', shadowColor: VIOLET, shadowOpacity: .22, shadowRadius: 30 },
+  streakAuraMax: { borderWidth: 2, borderColor: 'rgba(108,238,255,.24)', shadowOpacity: .42, shadowRadius: 42 },
   bossSilhouette: { position: 'absolute', left: 30, top: '30%', width: 105, height: 230, opacity: .82, alignItems: 'center' },
   bossHead: { width: 58, height: 55, borderRadius: 25, backgroundColor: '#020304', marginTop: 18 },
   bossBody: { width: 102, height: 170, borderTopLeftRadius: 45, borderTopRightRadius: 45, backgroundColor: '#020304', marginTop: -4 },
@@ -289,6 +309,12 @@ const styles = StyleSheet.create({
   questActionPressed: { opacity: .82, transform: [{ scale: .99 }] },
   questActionText: { color: '#001015', fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
   questReward: { color: '#00313A', fontSize: 8, fontWeight: '900' },
+  systemWindowLeft: { position: 'absolute', left: 12, top: '18%', width: 142, paddingVertical: 8, paddingHorizontal: 9, borderLeftWidth: 1, borderLeftColor: 'rgba(108,238,255,.55)', backgroundColor: 'rgba(2,8,12,.28)', zIndex: 11 },
+  systemWindowRight: { position: 'absolute', right: 12, top: '18%', width: 150, paddingVertical: 8, paddingHorizontal: 9, borderRightWidth: 1, borderRightColor: 'rgba(118,92,255,.55)', backgroundColor: 'rgba(2,8,12,.28)', zIndex: 11, alignItems: 'flex-end' },
+  systemWindowCode: { color: CYAN, fontSize: 6, fontWeight: '900', letterSpacing: 1.4 },
+  systemWindowTitle: { color: '#FFF', fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginTop: 3 },
+  systemWindowMeta: { color: 'rgba(210,235,240,.45)', fontSize: 5.5, fontWeight: '800', letterSpacing: .7, marginTop: 3 },
+  warningText: { color: '#FF5C63', textShadowColor: '#FF2732', textShadowRadius: 8 },
   worldState: { position: 'absolute', top: '14%', alignSelf: 'center', alignItems: 'center', zIndex: 10 },
   worldStateText: { color: 'rgba(190,238,246,.48)', fontSize: 6, fontWeight: '900', letterSpacing: 2 },
   playerName: { color: 'rgba(255,255,255,.62)', fontSize: 7, fontWeight: '800', marginTop: 4, letterSpacing: 1 },
