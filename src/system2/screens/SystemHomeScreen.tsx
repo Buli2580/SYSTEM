@@ -23,7 +23,7 @@ import { mainStoryObjective } from '../story/selectors';
 
 const CYAN = '#6CEEFF';
 const SKY = '#071017';
-const FIRE = '#FF6A2A';
+const VIOLET = '#765CFF';
 const GOLD = '#FFC45B';
 
 function Rain({ reduced }: { reduced: boolean }) {
@@ -68,15 +68,18 @@ function WorldScene({ reduced, bossActive }: { reduced: boolean; bossActive: boo
 
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
     <View style={[StyleSheet.absoluteFill, styles.sky]} />
-    <View style={styles.moonGlow} />
+    <View style={styles.cityGlow} />
     <Animated.View style={[styles.farCity, far]}>
-      {[58, 95, 72, 130, 84, 112, 64, 145, 88].map((h, i) => <View key={i} style={[styles.farTower, { height: h, left: i * 48 - 16 }]} />)}
+      {[96, 145, 118, 188, 126, 164, 105, 210, 138].map((h, i) => <View key={i} style={[styles.farTower, { height: h, left: i * 48 - 16 }]}>
+        {!reduced && <View style={[styles.windowBand, { top: 18 + (i % 4) * 13 }]} />}
+      </View>)}
     </Animated.View>
     <View style={styles.horizonFog} />
     <Animated.View style={[styles.midCity, mid]}>
-      <View style={[styles.ruin, { left: -24, height: 250, width: 122 }]} />
-      <View style={[styles.ruin, styles.ruinBroken, { right: -35, height: 290, width: 142 }]} />
-      <View style={[styles.ruin, { right: 90, height: 160, width: 76, opacity: .5 }]} />
+      <View style={[styles.modernBlock, { left: -32, height: 270, width: 128 }]} />
+      <View style={[styles.modernBlock, { right: -42, height: 315, width: 148 }]} />
+      <View style={[styles.modernBlock, { right: 98, height: 185, width: 82, opacity: .55 }]} />
+      <View style={styles.streetLight}><View style={styles.streetLamp} /></View>
     </Animated.View>
 
     <View style={styles.portalAnchor}>
@@ -91,9 +94,7 @@ function WorldScene({ reduced, bossActive }: { reduced: boolean; bossActive: boo
       <View style={styles.bossBody} />
     </View>}
 
-    <View style={styles.fireLeft}><View style={styles.fireGlow} /><Text style={styles.fireGlyph}>▲</Text></View>
-    <View style={styles.fireRight}><View style={styles.fireGlow} /><Text style={styles.fireGlyph}>▲</Text></View>
-    {!reduced && Array.from({ length: 9 }).map((_, i) => <View key={i} style={[styles.ember, { left: `${8 + ((i * 19) % 84)}%`, bottom: 110 + (i * 43) % 220 }]} />)}
+    {!reduced && Array.from({ length: 12 }).map((_, i) => <View key={i} style={[styles.systemParticle, { left: `${8 + ((i * 19) % 84)}%`, bottom: 110 + (i * 43) % 260 }]} />)}
     <Rain reduced={reduced} />
     <Animated.View style={[StyleSheet.absoluteFill, styles.lightning, lightning]} />
     <View style={styles.foregroundFog} />
@@ -187,9 +188,9 @@ export default function SystemHomeScreen() {
         <Text style={styles.portalLabel}>{worldUnlocked ? 'WORLD GATE' : 'WORLD LOCKED'}</Text>
       </Pressable>
 
-      <WorldNode label="DAILY" sub={`${dailyDone}/3`} style={styles.dailyNode} onPress={() => router.push('/quests')} />
-      <WorldNode label="WEEKLY" sub={`${weekly}/5`} style={styles.weeklyNode} onPress={() => router.push('/quests')} />
-      <WorldNode label="BOSS" sub={story?.bossComplete ? 'DEFEATED' : bossActive ? 'ENCOUNTER' : 'DORMANT'} style={styles.bossNode} onPress={() => router.push('/story')} locked={!awakeningCompleted} />
+      <WorldNode label="DAILY" sub={`${dailyDone}/3 · SIGNAL` style={styles.dailyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="WEEKLY" sub={`${weekly}/5 · PROTOCOL` style={styles.weeklyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="BOSS" sub={story?.bossComplete ? 'CLEARED' : bossActive ? 'ANOMALY' : 'DORMANT'} style={styles.bossNode} onPress={() => router.push('/story')} locked={!awakeningCompleted} />
 
       <PlayerHero />
 
@@ -207,7 +208,7 @@ export default function SystemHomeScreen() {
       </View>
 
       <View pointerEvents="none" style={styles.worldState}>
-        <Text style={styles.worldStateText}>SYSTEM WORLD // {bossActive ? 'THREAT DETECTED' : worldUnlocked ? 'ONLINE' : 'AWAKENING'}</Text>
+        <Text style={styles.worldStateText}>SYSTEM // {bossActive ? 'ANOMALY DETECTED' : worldUnlocked ? 'GATE ONLINE' : 'AWAKENING'}</Text>
         <Text style={styles.playerName}>{player.displayName} · {player.currentTitle}</Text>
       </View>
     </View>
@@ -219,9 +220,10 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#020508' },
   scene: { flex: 1, overflow: 'hidden', backgroundColor: SKY },
   sky: { backgroundColor: '#050A10' },
-  moonGlow: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(35,100,125,.12)', top: -120, right: -90 },
+  cityGlow: { position: 'absolute', width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(62,76,180,.10)', top: -140, right: -110 },
   farCity: { position: 'absolute', left: -20, right: -20, top: '16%', height: 180, opacity: .56 },
-  farTower: { position: 'absolute', bottom: 0, width: 38, backgroundColor: '#0A151B', borderTopWidth: 1, borderColor: '#16303A' },
+  farTower: { position: 'absolute', bottom: 0, width: 38, backgroundColor: '#091219', borderTopWidth: 1, borderColor: '#17323D', overflow: 'hidden' },
+  windowBand: { position: 'absolute', left: 6, right: 6, height: 2, backgroundColor: 'rgba(108,238,255,.18)' },
   horizonFog: { position: 'absolute', left: 0, right: 0, top: '34%', height: 150, backgroundColor: 'rgba(79,116,125,.08)' },
   midCity: { position: 'absolute', left: 0, right: 0, top: '25%', height: 320 },
   ruin: { position: 'absolute', bottom: 0, backgroundColor: '#071015', borderWidth: 1, borderColor: '#13252D', transform: [{ rotate: '-2deg' }] },
@@ -238,11 +240,7 @@ const styles = StyleSheet.create({
   bossHornLeft: { position: 'absolute', top: 0, left: 14, width: 7, height: 45, backgroundColor: '#020304', transform: [{ rotate: '-28deg' }] },
   bossHornRight: { position: 'absolute', top: 0, right: 14, width: 7, height: 45, backgroundColor: '#020304', transform: [{ rotate: '28deg' }] },
   bossEye: { position: 'absolute', top: 24, left: 13, width: 9, height: 3, backgroundColor: '#FF3B35', shadowColor: '#FF3B35', shadowOpacity: 1, shadowRadius: 7 },
-  fireLeft: { position: 'absolute', left: 12, bottom: 180, width: 50, height: 80, alignItems: 'center', justifyContent: 'flex-end' },
-  fireRight: { position: 'absolute', right: 24, bottom: 165, width: 42, height: 70, alignItems: 'center', justifyContent: 'flex-end' },
-  fireGlow: { position: 'absolute', width: 78, height: 78, borderRadius: 39, backgroundColor: 'rgba(255,89,28,.12)' },
-  fireGlyph: { color: FIRE, fontSize: 43, textShadowColor: FIRE, textShadowRadius: 14 },
-  ember: { position: 'absolute', width: 3, height: 3, borderRadius: 2, backgroundColor: '#FFB14A', shadowColor: FIRE, shadowOpacity: .8, shadowRadius: 5 },
+  systemParticle: { position: 'absolute', width: 3, height: 10, borderRadius: 2, backgroundColor: VIOLET, opacity: .5, shadowColor: CYAN, shadowOpacity: .8, shadowRadius: 6 },
   rainLayer: { position: 'absolute', left: 0, right: 0, top: -120, height: 420 },
   rainDrop: { position: 'absolute', width: 1, backgroundColor: 'rgba(160,220,235,.62)', transform: [{ rotate: '12deg' }] },
   lightning: { backgroundColor: 'rgba(190,235,255,.18)' },
