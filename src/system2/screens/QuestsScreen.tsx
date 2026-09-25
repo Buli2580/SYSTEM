@@ -6,11 +6,14 @@ import SystemPage, { pageStyles as styles } from '../components/SystemPage';
 import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useSystem } from '../state/SystemProvider';
 import { QuestMissionCard } from '../components/QuestExperience';
+import { mainStoryObjective } from '../story/selectors';
 
 export default function QuestsScreen() {
   const router = useRouter();
   const { completedQuestIds, activeQuestId, daily, awakeningCompleted, story } = useSystem();
   const progress = getAwakeningProgress(completedQuestIds);
+  const directive = mainStoryObjective(story, awakeningCompleted);
+  const gmState = activeQuestId ? 'MISSION IN PROGRESS' : directive.total > 0 ? 'NEXT DIRECTIVE READY' : 'STANDBY';
   return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
