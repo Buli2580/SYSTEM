@@ -16,6 +16,7 @@ export default function CharacterScreen() {
   const { player, titles, updateIdentity } = useSystem();
   const router = useRouter();
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
+  const [section, setSection] = useState<'EQUIPMENT'|'SKILLS'|'TITLES'|'ACHIEVEMENTS'>('EQUIPMENT');
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const lock = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -74,11 +75,30 @@ export default function CharacterScreen() {
     </Animated.View>
 
     <View style={cs.rpgNav}>
-      <Pressable style={cs.rpgNavItem}><Text style={cs.navGlyph}>⌘</Text><Text style={cs.navText}>EKWIPUNEK</Text></Pressable>
-      <Pressable style={cs.rpgNavItem}><Text style={cs.navGlyph}>✦</Text><Text style={cs.navText}>SKILL TREE</Text></Pressable>
-      <View style={cs.rpgNavItem}><Text style={cs.navGlyph}>♛</Text><Text style={cs.navText}>TITLES</Text></View>
-      <View style={cs.rpgNavItem}><Text style={cs.navGlyph}>◆</Text><Text style={cs.navText}>ACHIEVEMENTS</Text></View>
+      <Pressable onPress={()=>setSection('EQUIPMENT')} style={[cs.rpgNavItem,section==='EQUIPMENT'&&cs.rpgNavActive]}><Text style={cs.navGlyph}>⌘</Text><Text style={cs.navText}>EKWIPUNEK</Text></Pressable>
+      <Pressable onPress={()=>setSection('SKILLS')} style={[cs.rpgNavItem,section==='SKILLS'&&cs.rpgNavActive]}><Text style={cs.navGlyph}>✦</Text><Text style={cs.navText}>SKILL TREE</Text></Pressable>
+      <Pressable onPress={()=>setSection('TITLES')} style={[cs.rpgNavItem,section==='TITLES'&&cs.rpgNavActive]}><Text style={cs.navGlyph}>♛</Text><Text style={cs.navText}>TITLES</Text></Pressable>
+      <Pressable onPress={()=>setSection('ACHIEVEMENTS')} style={[cs.rpgNavItem,section==='ACHIEVEMENTS'&&cs.rpgNavActive]}><Text style={cs.navGlyph}>◆</Text><Text style={cs.navText}>ACHIEVEMENTS</Text></Pressable>
     </View>
+
+    {section==='EQUIPMENT' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
+      <Text style={cs.panelKicker}>LOADOUT // EQUIPMENT</Text>
+      <View style={cs.loadoutRow}><GearSlot glyph="⚔" label="BROŃ" /><GearSlot glyph="⬡" label="PANCERZ" /><GearSlot glyph="◉" label="PIERŚCIEŃ" /><GearSlot glyph="✦" label="RELIKWIARZ" /></View>
+    </Animated.View>}
+    {section==='SKILLS' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
+      <Text style={cs.panelKicker}>SKILL TREE // CORE</Text>
+      <View style={cs.skillTree}>{SKILL_KEYS.map((key,i)=><View key={key} style={cs.skillBranch}><View style={[cs.skillOrb,i===0&&cs.skillOrbCore]}><Text style={cs.skillOrbKey}>{key}</Text><Text style={cs.skillOrbLevel}>{player.stats[key].level}</Text></View><Text style={cs.skillBranchName}>{SKILL_META[key].name}</Text></View>)}</View>
+    </Animated.View>}
+    {section==='TITLES' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
+      <Text style={cs.panelKicker}>TITLES // UNLOCKED</Text>
+      {titles.map(title => <Pressable key={title} disabled={busy} onPress={()=>{void run(()=>updateIdentity({currentTitle:title}));}} style={[cs.titleRow,player.currentTitle===title&&cs.titleRowActive]}><Text style={cs.titleCrown}>♛</Text><Text style={cs.titleName}>{title}</Text><Text style={cs.titleState}>{player.currentTitle===title?'EQUIPPED':'SELECT'}</Text></Pressable>)}
+    </Animated.View>}
+    {section==='ACHIEVEMENTS' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
+      <Text style={cs.panelKicker}>ACHIEVEMENTS // RECORD</Text>
+      <View style={cs.achievementHero}><Text style={cs.achievementValue}>{player.verifiedQuestCount}</Text><Text style={cs.achievementLabel}>ZWERYFIKOWANE QUESTY</Text></View>
+      <View style={cs.achievementTrack}><View style={[cs.achievementFill,{width:`${Math.min(100,(player.verifiedQuestCount%10)*10)}%`}]} /></View>
+      <Text style={cs.achievementHint}>NASTĘPNY MILESTONE // {Math.ceil((player.verifiedQuestCount+1)/10)*10}</Text>
+    </Animated.View>}
 
     <View style={cs.identityDrawer}>
       <Text style={cs.drawerTitle}>IDENTITY // PROFILE</Text>
@@ -109,6 +129,11 @@ const cs=StyleSheet.create({
  gearRail:{gap:18},gearSlot:{width:62,height:62,borderWidth:1,borderColor:'rgba(98,239,255,.3)',backgroundColor:'rgba(3,12,18,.72)',alignItems:'center',justifyContent:'center'},gearGlyph:{color:'#dcefff',fontSize:21},gearLabel:{color:'#7fa5b1',fontSize:6,fontWeight:'900',marginTop:3},
  xp:{height:5,marginHorizontal:45,backgroundColor:'#10242d'},xpFill:{height:5,backgroundColor:'#62efff'},xpText:{color:'#7695a0',fontSize:7,textAlign:'center',marginTop:5,marginBottom:12},
  statField:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:8,paddingVertical:16},statNode:{width:'29%',minHeight:78,borderWidth:1,borderColor:'#173944',backgroundColor:'#061015',alignItems:'center',justifyContent:'center',padding:6},statNodeActive:{borderColor:'#765CFF',backgroundColor:'rgba(70,50,150,.15)'},statKey:{color:'#62efff',fontSize:9,fontWeight:'900'},statLevel:{color:'#fff',fontSize:24,fontWeight:'900'},statName:{color:'#718d96',fontSize:6,fontWeight:'800',textAlign:'center'},statDetail:{color:'#b79cff',fontSize:7,marginTop:4},
- rpgNav:{flexDirection:'row',borderTopWidth:1,borderBottomWidth:1,borderColor:'#173944',paddingVertical:12},rpgNavItem:{flex:1,alignItems:'center'},navGlyph:{color:'#dcefff',fontSize:20},navText:{color:'#8ba8b2',fontSize:6,fontWeight:'900',marginTop:4},
+ rpgNav:{flexDirection:'row',borderTopWidth:1,borderBottomWidth:1,borderColor:'#173944',paddingVertical:12},rpgNavItem:{flex:1,alignItems:'center',paddingVertical:4},rpgNavActive:{backgroundColor:'rgba(98,239,255,.06)'},navGlyph:{color:'#dcefff',fontSize:20},navText:{color:'#8ba8b2',fontSize:6,fontWeight:'900',marginTop:4},
+ rpgPanel:{minHeight:150,marginTop:12,padding:14,borderWidth:1,borderColor:'rgba(98,239,255,.16)',backgroundColor:'rgba(3,10,15,.82)'},panelKicker:{color:'#62efff',fontSize:8,fontWeight:'900',letterSpacing:1.8,marginBottom:14},
+ loadoutRow:{flexDirection:'row',justifyContent:'space-around'},
+ skillTree:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:12},skillBranch:{width:'28%',alignItems:'center'},skillOrb:{width:58,height:58,borderRadius:29,borderWidth:1,borderColor:'#765CFF',backgroundColor:'rgba(60,42,130,.15)',alignItems:'center',justifyContent:'center',shadowColor:'#765CFF',shadowOpacity:.35,shadowRadius:12},skillOrbCore:{borderColor:'#62efff',shadowColor:'#62efff'},skillOrbKey:{color:'#62efff',fontSize:8,fontWeight:'900'},skillOrbLevel:{color:'#fff',fontSize:18,fontWeight:'900'},skillBranchName:{color:'#77949e',fontSize:6,fontWeight:'800',marginTop:5,textAlign:'center'},
+ titleRow:{minHeight:48,flexDirection:'row',alignItems:'center',borderBottomWidth:1,borderBottomColor:'#122a33',gap:10},titleRowActive:{backgroundColor:'rgba(118,92,255,.10)'},titleCrown:{color:'#b79cff',fontSize:18},titleName:{color:'#fff',fontSize:11,fontWeight:'800',flex:1},titleState:{color:'#62efff',fontSize:7,fontWeight:'900',letterSpacing:1},
+ achievementHero:{alignItems:'center',paddingVertical:10},achievementValue:{color:'#fff',fontSize:42,fontWeight:'900'},achievementLabel:{color:'#62efff',fontSize:8,fontWeight:'900',letterSpacing:1.4},achievementTrack:{height:5,backgroundColor:'#10242d',marginTop:10},achievementFill:{height:5,backgroundColor:'#765CFF'},achievementHint:{color:'#708d96',fontSize:7,fontWeight:'800',textAlign:'center',marginTop:7},
  identityDrawer:{paddingTop:18},drawerTitle:{color:'#62efff',fontSize:9,fontWeight:'900',letterSpacing:1.6,marginVertical:10},input:{color:'#fff',minHeight:48,borderBottomWidth:1,borderBottomColor:'#417480'}
 });
