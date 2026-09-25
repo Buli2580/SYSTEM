@@ -20,12 +20,13 @@ let musicDuckTimer:ReturnType<typeof setTimeout>|null=null;
 let activePreset:CinematicPreset|null=null;
 let currentMusic:MusicCue|null=null;
 const fades=new Map<AudioPlayer,ReturnType<typeof setInterval>>();
+const retiringPlayers=new Set<AudioPlayer>();
 
 const musicSources:Partial<Record<MusicCue,any>>=LEGACY_AUDIO_FALLBACKS.music;
 const sfxSources:Partial<Record<SfxCue,any>>=LEGACY_AUDIO_FALLBACKS.sfx;
 const cinematicSources=LEGACY_AUDIO_FALLBACKS.cinematic;
 
-function stopPlayer(player:AudioPlayer|null){if(!player)return;clearFade(player);try{player.remove()}catch{}}
+function stopPlayer(player:AudioPlayer|null){if(!player)return;clearFade(player);retiringPlayers.delete(player);try{player.remove()}catch{}}
 function spawn(source:any,volume:number,loop=false){
   const p=createAudioPlayer(source);
   p.volume=Math.max(0,Math.min(1,volume));
@@ -41,6 +42,7 @@ function clearFade(player?:AudioPlayer){
 function fadeOutAndRemove(player:AudioPlayer|null,duration=450){
   if(!player)return;
   clearFade(player);
+  retiringPlayers.add(player);
   const start=Number(player.volume||0);
   const steps=9;
   let i=0;
@@ -92,6 +94,7 @@ export function stopCinematicAudio(){
 }
 export function stopAllAudio(){
   if(musicDuckTimer){clearTimeout(musicDuckTimer);musicDuckTimer=null}
+  for(const player of retiringPlayers)stopPlayer(player);
   clearFade();
   stopPlayer(musicPlayer);stopPlayer(ambientPlayer);stopPlayer(fxPlayer);stopCinematicAudio();
   musicPlayer=ambientPlayer=fxPlayer=null;currentMusic=null;
