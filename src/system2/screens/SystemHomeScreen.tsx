@@ -45,71 +45,49 @@ function Rain({ reduced }: { reduced: boolean }) {
 }
 
 function WorldScene({ reduced, bossActive, mode }: { reduced: boolean; bossActive: boolean; mode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' }) {
-  const drift = useSharedValue(0);
-  const portal = useSharedValue(0);
-  const flash = useSharedValue(0);
+  const drift = useSharedValue(0), portal = useSharedValue(0), flash = useSharedValue(0);
+  const smoke = useSharedValue(0), threat = useSharedValue(0), particles = useSharedValue(0), fire = useSharedValue(0);
 
   useFocusEffect(useCallback(() => {
-    drift.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.inOut(Easing.ease) }), -1, true);
-    portal.value = withRepeat(withTiming(1, { duration: 2100, easing: Easing.inOut(Easing.ease) }), -1, true);
-    if (!reduced) flash.value = withRepeat(withTiming(1, { duration: 7600, easing: Easing.linear }), -1, false);
-    return () => { cancelAnimation(drift); cancelAnimation(portal); cancelAnimation(flash); };
-  }, [drift, portal, flash, reduced]));
+    drift.value = withRepeat(withTiming(1,{duration:9000,easing:Easing.inOut(Easing.ease)}),-1,true);
+    portal.value = withRepeat(withTiming(1,{duration:2100,easing:Easing.inOut(Easing.ease)}),-1,true);
+    if (!reduced) {
+      flash.value = withRepeat(withTiming(1,{duration:7600,easing:Easing.linear}),-1,false);
+      smoke.value = withRepeat(withTiming(1,{duration:7000,easing:Easing.inOut(Easing.ease)}),-1,true);
+      threat.value = withRepeat(withTiming(1,{duration:4200,easing:Easing.inOut(Easing.ease)}),-1,true);
+      particles.value = withRepeat(withTiming(1,{duration:2600,easing:Easing.linear}),-1,false);
+      fire.value = withRepeat(withTiming(1,{duration:650,easing:Easing.inOut(Easing.ease)}),-1,true);
+    }
+    return () => [drift,portal,flash,smoke,threat,particles,fire].forEach(cancelAnimation);
+  },[drift,portal,flash,smoke,threat,particles,fire,reduced]));
 
-  const far = useAnimatedStyle(() => ({ transform: [{ translateX: interpolate(drift.value, [0, 1], [-5, 5]) }] }));
-  const mid = useAnimatedStyle(() => ({ transform: [{ translateX: interpolate(drift.value, [0, 1], [8, -8]) }] }));
-  const portalStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(portal.value, [0, 1], [0.94, 1.06]) }],
-    opacity: interpolate(portal.value, [0, 1], [0.58, 0.95]),
-  }));
-  const lightning = useAnimatedStyle(() => ({
-    opacity: reduced ? 0 : interpolate(flash.value, [0, .86, .88, .9, 1], [0, 0, .38, 0, 0]),
-  }));
+  const far=useAnimatedStyle(()=>({transform:[{translateX:interpolate(drift.value,[0,1],[-5,5])},{translateY:bossActive?interpolate(flash.value,[0,.88,.9,1],[0,-3,3,0]):0}]}));
+  const mid=useAnimatedStyle(()=>({transform:[{translateX:interpolate(drift.value,[0,1],[8,-8])}]}));
+  const portalStyle=useAnimatedStyle(()=>({transform:[{scale:interpolate(portal.value,[0,1],[.94,1.06])},{rotate:`${interpolate(portal.value,[0,1],[-3,3])}deg`}],opacity:interpolate(portal.value,[0,1],[.58,.95])}));
+  const lightning=useAnimatedStyle(()=>({opacity:reduced?0:interpolate(flash.value,[0,.86,.88,.9,1],[0,0,.42,0,0])}));
+  const smokeStyle=useAnimatedStyle(()=>({transform:[{translateX:interpolate(smoke.value,[0,1],[-14,14])}],opacity:interpolate(smoke.value,[0,1],[.18,.3])}));
+  const threatStyle=useAnimatedStyle(()=>({transform:[{translateX:interpolate(threat.value,[0,1],[-6,6])},{translateY:interpolate(threat.value,[0,1],[0,-3])}]}));
+  const particleStyle=useAnimatedStyle(()=>({transform:[{translateY:interpolate(particles.value,[0,1],[20,-48])}],opacity:interpolate(particles.value,[0,.8,1],[0,1,0])}));
+  const fireStyle=useAnimatedStyle(()=>({opacity:interpolate(fire.value,[0,1],[.28,.7]),transform:[{scaleY:interpolate(fire.value,[0,1],[.82,1.1])}]}));
 
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-    <View style={[StyleSheet.absoluteFill, styles.sky]} />
-    <View style={styles.cityGlow} />
-    <Animated.View style={[styles.farCity, far, impactStyle]}>
-      {[96, 145, 118, 188, 126, 164, 105, 210, 138].map((h, i) => <View key={i} style={[styles.farTower, { height: h, left: i * 48 - 16 }]}>
-        {!reduced && <View style={[styles.windowBand, { top: 18 + (i % 4) * 13 }]} />}
-      </View>)}
-    </Animated.View>
-    <View style={styles.horizonFog} />
-    {!reduced && <Animated.View pointerEvents="none" style={[styles.depthVeil,depthStyle]} />}
-    {!reduced && <Animated.View pointerEvents="none" style={[styles.lightningWash,lightningStyle]} />}
-    {!reduced && <Animated.View pointerEvents="none" style={[styles.rainField,rainStyle]}>{Array.from({length:18}).map((_,i)=><View key={i} style={[styles.rainDrop,{left:`${(i*17)%100}%`,top:(i*31)%210}]} />)}</Animated.View>}
-    {!reduced && <Animated.View pointerEvents="none" style={[styles.smokeBank,smokeStyle]}><View style={styles.smokeCloud}/><View style={[styles.smokeCloud,{left:90,top:18,transform:[{scale:1.3}]}]}/><View style={[styles.smokeCloud,{left:190,top:-8,transform:[{scale:.8}]}]}/></Animated.View>}
-    {!reduced && <Animated.View pointerEvents="none" style={[styles.backgroundCreature,monsterStyle]}><View style={styles.creatureHead}/><View style={styles.creatureBody}/><View style={styles.creatureEye}/></Animated.View>}
-    <Animated.View style={[styles.midCity, mid]}>
-      <View style={[styles.modernBlock, { left: -32, height: 270, width: 128 }]} />
-      <View style={[styles.modernBlock, { right: -42, height: 315, width: 148 }]} />
-      <View style={[styles.modernBlock, { right: 98, height: 185, width: 82, opacity: .55 }]} />
-      <View style={styles.streetLight}><View style={styles.streetLamp} /></View>
-    </Animated.View>
-
-    <View style={styles.portalAnchor}>
-      <Animated.View style={[styles.portalGlow, portalStyle]} />
-      <Animated.View style={[styles.portalRing, portalStyle]} />
-      <Animated.View style={[styles.portalEnergy,portalEnergyStyle]} />
-        <View style={styles.portalCore} />
-    </View>
-
-    {bossActive && <View style={styles.bossSilhouette}>
-      <View style={styles.bossHornLeft} /><View style={styles.bossHornRight} />
-      <View style={styles.bossHead}><View style={styles.bossEye} /><View style={[styles.bossEye, { right: 13, left: undefined }]} /></View>
-      <View style={styles.bossBody} />
-    </View>}
-
-    {!reduced && Array.from({ length: 12 }).map((_, i) => <Animated.View key={i} style={[styles.systemParticle,sparkStyle,{ left: `${8 + ((i * 19) % 84)}%`, bottom: 110 + (i * 43) % 260, transform:[{translateY:(i%4)*-9}] }]} />)}
-    <Rain reduced={reduced} />
-    <Animated.View style={[StyleSheet.absoluteFill, styles.lightning, lightning]} />
-    <View style={styles.foregroundFog} />
-    <View style={styles.ground} />
-    {!reduced && <><Animated.View pointerEvents="none" style={[styles.fireSource,styles.fireSourceLeft,fireStyle]} /><Animated.View pointerEvents="none" style={[styles.fireSource,styles.fireSourceRight,fireStyle]} /></>}
-    {mode==='VICTORY' && <Animated.View pointerEvents="none" style={[styles.victoryLight,victoryStyle]} />}
+    <View style={[StyleSheet.absoluteFill,styles.sky,mode==='BOSS'&&styles.sceneBoss,mode==='AWAKENING'&&styles.sceneAwakening,mode==='VICTORY'&&styles.sceneVictory,mode==='QUEST'&&styles.sceneQuest]} />
+    <View style={styles.cityGlow}/>
+    <Animated.View style={[styles.farCity,far]}>{[96,145,118,188,126,164,105,210,138].map((height,i)=><View key={i} style={[styles.farTower,{height,left:i*48-16}]}>{!reduced&&<View style={[styles.windowBand,{top:18+(i%4)*13}]}/>}</View>)}</Animated.View>
+    <View style={styles.horizonFog}/>
+    {!reduced&&<Animated.View style={[styles.smokeBank,smokeStyle]}><View style={styles.smokeCloud}/><View style={[styles.smokeCloud,{left:90,top:18}]}/><View style={[styles.smokeCloud,{left:190,top:-8}]}/></Animated.View>}
+    {!reduced&&<Animated.View style={[styles.backgroundCreature,threatStyle]}><View style={styles.creatureHead}/><View style={styles.creatureBody}/><View style={styles.creatureEye}/></Animated.View>}
+    <Animated.View style={[styles.midCity,mid]}><View style={[styles.modernBlock,{left:-32,height:270,width:128}]}/><View style={[styles.modernBlock,{right:-42,height:315,width:148}]}/><View style={[styles.modernBlock,{right:98,height:185,width:82,opacity:.55}]}/><View style={styles.streetLight}><View style={styles.streetLamp}/></View></Animated.View>
+    <View style={styles.portalAnchor}><Animated.View style={[styles.portalGlow,portalStyle]}/><Animated.View style={[styles.portalRing,portalStyle]}/><Animated.View style={[styles.portalEnergy,portalStyle]}/><View style={styles.portalCore}/></View>
+    {bossActive&&<View style={styles.bossSilhouette}><View style={styles.bossHornLeft}/><View style={styles.bossHornRight}/><View style={styles.bossHead}><View style={styles.bossEye}/><View style={[styles.bossEye,{right:13,left:undefined}]}/></View><View style={styles.bossBody}/></View>}
+    {!reduced&&Array.from({length:12}).map((_,i)=><Animated.View key={i} style={[styles.systemParticle,particleStyle,{left:`${8+((i*19)%84)}%`,bottom:110+(i*43)%260}]}/>)}
+    <Rain reduced={reduced}/>
+    <Animated.View style={[StyleSheet.absoluteFill,styles.lightning,lightning]}/>
+    <View style={styles.foregroundFog}/><View style={styles.ground}/>
+    {!reduced&&<><Animated.View style={[styles.fireSource,styles.fireSourceLeft,fireStyle]}/><Animated.View style={[styles.fireSource,styles.fireSourceRight,fireStyle]}/></>}
+    {mode==='VICTORY'&&<View style={styles.victoryLight}/>}
   </View>;
 }
-
 function PlayerHero() {
   const { player } = useSystem();
   const breathe = useSharedValue(0);
@@ -165,10 +143,10 @@ export default function SystemHomeScreen() {
   } = useSystem();
 
   const reduced = width < 370 || height < 700;
+  const bossActive = !story?.bossComplete && awakeningCompleted;
   const sceneMode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' =
     bossActive ? 'BOSS' :
     !awakeningCompleted ? 'AWAKENING' :
-    lastReward ? 'VICTORY' :
     activeQuestId ? 'QUEST' : 'HOME';
   const worldTier = player.realLevel >= 25 ? 3 : player.realLevel >= 10 ? 2 : 1;
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
@@ -184,7 +162,6 @@ export default function SystemHomeScreen() {
   const active = !awakeningCompleted && nextQuest
     ? { title: nextQuest.title, subtitle: 'AWAKENING PROTOCOL', action: activeQuestId === nextQuest.id ? 'CONTINUE' : 'START', route: { pathname: '/quest' as const, params: { questId: nextQuest.id } } }
     : { title: objective.title, subtitle: objective.subtitle, action: 'CONTINUE', route: '/story' as const };
-  const bossActive = !story?.bossComplete && awakeningCompleted;
   const weekly = Math.min(5, daily?.weeklyCompleted ?? 0);
   const dailyDone = daily?.completed ?? 0;
 
@@ -195,7 +172,7 @@ export default function SystemHomeScreen() {
   </View>;
 
   return <SystemScreen style={styles.root}>
-    <View style={[styles.scene, mode === 'BOSS' && styles.sceneBoss, mode === 'AWAKENING' && styles.sceneAwakening, mode === 'VICTORY' && styles.sceneVictory, mode === 'QUEST' && styles.sceneQuest]}>
+    <View style={styles.scene}>
       <WorldScene reduced={reduced} bossActive={bossActive} mode={sceneMode} />
       <View pointerEvents="none" style={[styles.progressAtmosphere, worldTier >= 2 && styles.progressAtmosphereMid, worldTier >= 3 && styles.progressAtmosphereHigh]} />
       {streakTier > 0 && <View pointerEvents="none" style={[styles.streakAura, streakTier >= 2 && styles.streakAuraStrong, streakTier >= 3 && styles.streakAuraMax]} />}
