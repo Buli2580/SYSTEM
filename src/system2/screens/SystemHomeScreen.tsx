@@ -1,12 +1,13 @@
+import { questAvailability } from '../quests/availability';
 import { mainStoryObjective } from '../story/selectors';
 import SystemScreen from '../components/SystemScreen';
-import { DAILY_RULES } from '../daily/calendar';
-import RewardSummary from '../components/RewardSummary';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import BottomNavigation from '../components/BottomNavigation';
-import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
+import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import SystemAudioScene from '../components/SystemAudioScene';
+import HomeCommandCenter from '../components/HomeCommandCenter';
+import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress } from '../quests/catalog';
 import { useCallback } from 'react';
 
 import {
@@ -14,14 +15,15 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    useWindowDimensions,
     View,
+    type DimensionValue,
 } from 'react-native';
 
 import { useRouter, useFocusEffect } from 'expo-router';
 
 import Animated, {
     Easing,
+    FadeInUp,
     cancelAnimation,
     interpolate,
     useAnimatedStyle,
@@ -31,70 +33,17 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-    Canvas,
-    Circle,
-    LinearGradient,
-    Rect,
-    vec,
-} from '@shopify/react-native-skia';
-
-import {
-    getPlayerProgressPercent,
+    getSkillProgressPercent,
     SKILL_KEYS,
     SKILL_META,
     SYSTEM_COLORS,
-    type SkillKey
+    type SkillProgress
 } from '../core';
 
 import { useSystem } from '../state/SystemProvider';
-import { questStatusPl, titlePl } from '../i18n/pl';
 
-function SystemBackground() {
-  const { width, height } = useWindowDimensions();
-
-  return (
-    <Canvas style={StyleSheet.absoluteFill}>
-      <Rect
-        x={0}
-        y={0}
-        width={width}
-        height={height}
-      >
-        <LinearGradient
-          start={vec(0, 0)}
-          end={vec(width, height)}
-          colors={[
-            '#020708',
-            '#031114',
-            '#010506',
-            '#000000',
-          ]}
-        />
-      </Rect>
-
-      <Circle
-        cx={width * 0.88}
-        cy={height * 0.15}
-        r={width * 0.55}
-        color="rgba(0,229,255,0.025)"
-      />
-
-      <Circle
-        cx={width * 0.03}
-        cy={height * 0.7}
-        r={width * 0.7}
-        color="rgba(0,229,255,0.018)"
-      />
-    </Canvas>
-  );
-}
-
-function PlayerCore() {
-  const { player } = useSystem();
-  const { width } = useWindowDimensions();
+function WorldSignalBeacon({ active }: { active: boolean }) {
   const pulse = useSharedValue(0);
-  const rotation = useSharedValue(0);
-  const reverseRotation = useSharedValue(0);
 
   useFocusEffect(useCallback(() => {
     pulse.value = withRepeat(
@@ -106,133 +55,40 @@ function PlayerCore() {
       true
     );
 
-    rotation.value = withRepeat(
-      withTiming(1, {
-        duration: 9000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    );
+    return () => cancelAnimation(pulse);
+  }, [pulse]));
 
-    reverseRotation.value = withRepeat(
-      withTiming(1, {
-        duration: 13000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    );
-    return () => { cancelAnimation(pulse); cancelAnimation(rotation); cancelAnimation(reverseRotation); };
-  }, [pulse, rotation, reverseRotation]));
-
-  const pulseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          scale: interpolate(
-            pulse.value,
-            [0, 1],
-            [0.96, 1.06]
-          ),
-        },
-      ],
-
-      opacity: interpolate(
-        pulse.value,
-        [0, 1],
-        [0.35, 0.8]
-      ),
-    };
-  });
-
-  const rotationStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          rotate: `${rotation.value * 360}deg`,
-        },
-      ],
-    };
-  });
-
-  const reverseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          rotate: `${reverseRotation.value * -360}deg`,
-        },
-      ],
-    };
-  });
+  const beaconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.85, 1.35]) }],
+    opacity: interpolate(pulse.value, [0, 0.5, 1], [0.22, 0.72, 0.12]),
+  }));
 
   return (
-    <View style={[styles.coreContainer, width < 380 && { transform: [{ scale: 0.75 }] }]}>
-      <Animated.View
-        style={[
-          styles.corePulse,
-          pulseStyle,
-        ]}
-      />
-
-      <Animated.View
-        style={[
-          styles.coreRingOuter,
-          rotationStyle,
-        ]}
-      >
-        <View style={styles.orbitPointOne} />
-
-        <View style={styles.orbitPointTwo} />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.coreRingMiddle,
-          reverseStyle,
-        ]}
-      >
-        <View style={styles.orbitPointThree} />
-      </Animated.View>
-
-      <View style={styles.coreRingInner}>
-        {player.avatarUri ? <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={88} /> : <View style={styles.coreDiamondOuter}><View style={styles.coreDiamondInner} /></View>}
-      </View>
-
-      <Text style={styles.playerCoreText}>
-        RDZEŃ GRACZA
-      </Text>
+    <View style={[styles.systemSignal, active && styles.systemSignalActive]}>
+      <Animated.View style={[styles.systemSignalHalo, beaconStyle]} />
+      <View style={styles.systemSignalDiamond} />
     </View>
   );
 }
 
 function SkillCard({
   skill,
-  level,
-  xp,
-  xpToNextLevel,
 }: {
-  skill: SkillKey;
-  level: number;
-  xp: number;
-  xpToNextLevel: number;
+  skill: SkillProgress;
 }) {
-  const meta = SKILL_META[skill];
+  const meta = SKILL_META[skill.key];
 
-  const progress =
-    xpToNextLevel > 0
-      ? Math.min(100, (xp / xpToNextLevel) * 100)
-      : 0;
+  const progress = getSkillProgressPercent(skill) * 100;
 
   return (
     <View style={styles.skillCard}>
       <View style={styles.skillTop}>
         <Text style={styles.skillCode}>
-          {skill}
+          {skill.key}
         </Text>
 
         <Text style={styles.skillLevel}>
-          {level}
+          {skill.level}
         </Text>
       </View>
 
@@ -245,17 +101,14 @@ function SkillCard({
           style={[
             styles.skillProgressFill,
             {
-              width: `${Math.max(
-                3,
-                progress
-              )}%`,
+              width: `${Math.max(3, Math.min(100, progress))}%` as DimensionValue,
             },
           ]}
         />
       </View>
 
       <Text style={styles.skillXp}>
-        {xp} / {xpToNextLevel} XP
+        {skill.xp} / {skill.xpToNextLevel} XP
       </Text>
     </View>
   );
@@ -287,14 +140,13 @@ function SectionTitle({
 
 export default function SystemHomeScreen() {
   const insets = useSafeAreaInsets();
-  const { lastReward, daily, story } = useSystem();
+  const { daily, story } = useSystem();
   const router = useRouter();
 
-  const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, error, refreshPlayer } = useSystem();
+  const { player, ready, completedQuestIds, awakeningCompleted, worldUnlocked, activeQuestId, failedQuestIds = [], error, refreshPlayer } = useSystem();
 
-  const realProgress =
-    getPlayerProgressPercent(player) * 100;
-
+  useFocusEffect(useCallback(() => { void refreshPlayer(); }, [refreshPlayer]));
+  const questAccess = (id: string) => questAvailability(id, { completedQuestIds, activeQuestId, daily, failedQuestId: failedQuestIds.includes(id) ? id : null });
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story,awakeningCompleted);
   const mainQuestProgress = awakeningCompleted ? objective.completed : awakening.completed;
@@ -319,7 +171,8 @@ export default function SystemHomeScreen() {
 
   return (
     <SystemScreen style={styles.root}>
-      <SystemBackground />
+      <SystemAmbientBackground intensity="hero" screen="HOME" scene={worldUnlocked?"CITY":"RUINS"} threat={worldUnlocked?1:0} weather={worldUnlocked?"STORM":"FOG"} level={player.realLevel} />
+      <SystemAudioScene cue="HOME" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -330,241 +183,28 @@ export default function SystemHomeScreen() {
         {/* HEADER */}
 
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerBody}>
             <Text style={styles.systemOnline}>
               SYSTEM // ONLINE
             </Text>
 
             <Text style={styles.awakening}>
-              PRZEBUDZENIE
+              {awakeningCompleted ? 'COMMAND CENTER' : 'PRZEBUDZENIE'}
             </Text>
           </View>
 
-          <View style={styles.systemSignal}>
-            <View
-              style={
-                styles.systemSignalDiamond
-              }
-            />
-          </View>
+          <WorldSignalBeacon active={worldUnlocked} />
         </View>
 
-        {/* PLAYER CARD */}
+        <HomeCommandCenter />
 
-        <View style={styles.playerCard}>
-          <View style={styles.playerGlow} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Otwórz SYSTEM MOVE" onPress={()=>router.push('/move')} style={({pressed})=>[styles.moveEntry,pressed&&styles.moveEntryPressed]}>
+          <View style={styles.moveEntryTop}><Text style={styles.moveEntryCode}>SYSTEM MOVE 1.0</Text><Text style={styles.moveEntryArrow}>→</Text></View>
+          <Text style={styles.moveEntryTitle}>60 MIN MISSION</Text>
+          <Text style={styles.moveEntryBody}>Daily Move Quests · Movement Skills · Move Streak · Family / School.</Text>
+        </Pressable>
 
-          <View style={styles.playerTop}>
-            <View>
-              <Text
-                style={
-                  styles.identityLabel
-                }
-              >
-                TOŻSAMOŚĆ REAL
-              </Text>
-
-              <Text
-                style={
-                  styles.awakeningActive
-                }
-              >
-                {player.displayName} // {titlePl(player.currentTitle)}
-              </Text>
-            </View>
-
-            <View style={styles.originBadge}>
-              <Text
-                style={
-                  styles.originText
-                }
-              >
-                POCZĄTEK 0
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.identityContent}>
-            <View style={styles.coreColumn}>
-              <PlayerCore />
-            </View>
-
-            <View style={styles.levelColumn}>
-              <Text
-                style={
-                  styles.realRankLabel
-                }
-              >
-                RANGA REAL
-              </Text>
-
-              <View style={styles.levelRow}>
-                <Text
-                  style={
-                    styles.levelPrefix
-                  }
-                >
-                  LV.
-                </Text>
-
-                <Text
-                  style={
-                    styles.levelNumber
-                  }
-                >
-                  {player.realLevel}
-                </Text>
-              </View>
-
-              <View style={styles.rankBadge}>
-                <Text
-                  style={
-                    styles.rankBadgeText
-                  }
-                >
-                  RANGA {player.rank}
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.evolutionDivider
-                }
-              />
-
-              <Text
-                style={
-                  styles.evolutionLabel
-                }
-              >
-                EWOLUCJA
-              </Text>
-
-              <Text
-                style={
-                  styles.evolutionValue
-                }
-              >
-                ETAP{' '}
-                {player.avatarEvolution}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.equalOrigin}>
-            EQUAL ORIGIN // KAŻDY ZACZYNA OD TEGO
-            SAMEGO PUNKTU
-          </Text>
-
-          {/* XP */}
-
-          <View style={styles.realXpBlock}>
-            <View style={styles.realXpHeader}>
-              <Text
-                style={
-                  styles.realXpLabel
-                }
-              >
-                REAL XP
-              </Text>
-
-              <Text
-                style={
-                  styles.realXpValue
-                }
-              >
-                {player.realXp} /{' '}
-                {player.realXpToNextLevel}
-              </Text>
-            </View>
-
-            <View style={styles.realXpTrack}>
-              <View
-                style={[
-                  styles.realXpFill,
-                  {
-                    width: `${Math.max(
-                      1.5,
-                      realProgress
-                    )}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          {/* QUICK STATS */}
-
-          <View style={styles.playerDivider} />
-
-          <View style={styles.quickStats}>
-            <View style={styles.quickStat}>
-              <Text
-                style={
-                  styles.quickNumber
-                }
-              >
-                {player.streak}
-              </Text>
-
-              <Text
-                style={
-                  styles.quickLabel
-                }
-              >
-                STREAK
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.quickDivider
-              }
-            />
-
-            <View style={styles.quickStat}>
-              <Text
-                style={
-                  styles.quickNumber
-                }
-              >
-                {player.verifiedQuestCount}
-              </Text>
-
-              <Text
-                style={
-                  styles.quickLabel
-                }
-              >
-                POTWIERDZONE
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.quickDivider
-              }
-            />
-
-            <View style={styles.quickStat}>
-              <Text
-                style={
-                  styles.quickNumber
-                }
-              >
-                {player.gameEnergy}
-              </Text>
-
-              <Text
-                style={
-                  styles.quickLabel
-                }
-              >
-                ENERGIA
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* CHARACTER SNAPSHOT MOVED INTO HOME COMMAND CENTER */}
 
         {/* SKILLS */}
 
@@ -592,12 +232,7 @@ export default function SystemHomeScreen() {
             return (
               <SkillCard
                 key={skill}
-                skill={skill}
-                level={data.level}
-                xp={data.xp}
-                xpToNextLevel={
-                  data.xpToNextLevel
-                }
+                skill={data}
               />
             );
           })}
@@ -610,7 +245,7 @@ export default function SystemHomeScreen() {
           title="GŁÓWNA MISJA"
         />
 
-        <View style={styles.mainQuest}>
+        <Animated.View entering={FadeInUp.duration(500).delay(120)} style={styles.mainQuest}>
           <View style={styles.questAccent} />
 
           <View style={styles.questContent}>
@@ -715,30 +350,34 @@ export default function SystemHomeScreen() {
                 style={[
                   styles.questProgressFill,
                   {
-                    width: `${Math.max(
-                      0,
-                      mainQuestPercent
-                    )}%`,
+                    width: `${Math.max(0, Math.min(100, mainQuestPercent))}%` as DimensionValue,
                   },
                 ]}
               />
             </View>
 
-            {awakeningCompleted && <Pressable style={styles.startQuestButton} onPress={() => router.push('/story')}><Text style={styles.startQuestText}>HISTORIA / KRONIKA →</Text></Pressable>}
-            {!awakeningCompleted && AWAKENING_QUESTS.map(quest => (
-              <Pressable key={quest.id} style={styles.startQuestButton}
-                disabled={getQuestStatus(quest.id, completedQuestIds, activeQuestId) === 'LOCKED'}
+            {awakeningCompleted && <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.startQuestButton, pressed && styles.startQuestButtonPressed]}
+              onPress={() => router.push('/story')}>
+              <Text style={styles.startQuestText}>STORY / CHRONICLE →</Text>
+            </Pressable>}
+            {!awakeningCompleted && AWAKENING_QUESTS.map(quest => {
+              const status = questAccess(quest.id).status;
+              const locked = status === 'LOCKED';
+              return <Pressable key={quest.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${quest.title} — ${status}`}
+                accessibilityState={{ disabled: locked }}
+                style={({ pressed }) => [styles.startQuestButton, pressed && styles.startQuestButtonPressed, locked && styles.lockedQuestButton]}
+                disabled={locked}
                 onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
-                <Text style={styles.startQuestText}>{quest.title}</Text>
-                <Text style={styles.startQuestText}>
-                  {questStatusPl(getQuestStatus(quest.id, completedQuestIds, activeQuestId))}
-                </Text>
-              </Pressable>
-            ))}
+                <Text style={[styles.startQuestText, locked && styles.lockedQuestTitle]}>{quest.title}</Text>
+                {locked && <View style={[styles.questStatusBadge, styles.lockedQuestBadge]}><Text style={[styles.questStatusText, styles.lockedQuestText]}>{status}</Text></View>}
+              </Pressable>;
+            })}
           </View>
-        </View>
-
-        {lastReward && <RewardSummary receipt={lastReward} />}
+        </Animated.View>
 
         {/* WORLD */}
 
@@ -747,14 +386,16 @@ export default function SystemHomeScreen() {
           title="SYSTEM WORLD"
         />
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Otwórz SYSTEM WORLD" style={styles.worldCard} disabled={!worldUnlocked} onPress={() => router.replace('/world')}>
-          <View style={styles.gateIcon}>
-            <View
-              style={
-                styles.gateDiamond
-              }
-            />
-          </View>
+        <Animated.View entering={FadeInUp.duration(500).delay(180)}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Otwórz SYSTEM WORLD"
+            style={({ pressed }) => [styles.worldCard, pressed && styles.worldCardPressed, !worldUnlocked && { opacity: 0.8 }]}
+            disabled={!worldUnlocked}
+            onPress={() => router.replace('/world')}>
+            <View style={styles.gateIcon}>
+              <View style={styles.gateDiamond} />
+            </View>
 
           <View style={styles.worldContent}>
             <Text style={styles.locked}>
@@ -772,8 +413,9 @@ export default function SystemHomeScreen() {
             >
               {worldUnlocked ? 'Odkrywaj sektory i uruchom wyszukiwanie sygnału, aby odnaleźć pierwszy ślad.' : 'Ukończ Pierwsze Przebudzenie, aby odblokować dostęp do SYSTEM WORLD.'}
             </Text>
-          </View>
-        </Pressable>
+            </View>
+          </Pressable>
+        </Animated.View>
 
         <View style={styles.protocol}>
           <Text
@@ -803,6 +445,13 @@ export default function SystemHomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  moveEntry:{marginTop:12,padding:16,borderWidth:1,borderColor:'rgba(108,238,255,.34)',borderRadius:18,backgroundColor:'rgba(5,17,20,.94)'},moveEntryPressed:{opacity:.75},moveEntryTop:{flexDirection:'row',justifyContent:'space-between'},moveEntryCode:{color:'#6ceeff',fontSize:9,fontWeight:'900',letterSpacing:1.2},moveEntryArrow:{color:'#6ceeff',fontSize:16,fontWeight:'900'},moveEntryTitle:{color:'#fff',fontSize:20,fontWeight:'900',marginTop:7},moveEntryBody:{color:'#8fa6ae',fontSize:10,lineHeight:15,marginTop:5},
+  betaDeck:{marginHorizontal:18,marginTop:8,padding:16,borderWidth:1,borderColor:'rgba(108,238,255,0.25)',borderRadius:18,backgroundColor:'rgba(5,17,20,0.92)'},
+  betaDeckCode:{color:'#6ceeff',fontSize:9,fontWeight:'900',letterSpacing:1.6},
+  betaDeckTitle:{color:'#fff',fontSize:20,fontWeight:'900',marginTop:7},
+  betaDeckRow:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},
+  betaDeckChip:{borderWidth:1,borderColor:'rgba(108,238,255,0.25)',borderRadius:999,paddingHorizontal:10,paddingVertical:7},
+  betaDeckChipText:{color:'#bdeff5',fontSize:8,fontWeight:'900'},
   root: {
     flex: 1,
     backgroundColor:
@@ -841,14 +490,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 14,
     marginBottom: 26,
   },
+  headerBody: { flex: 1, minWidth: 0 },
 
   systemOnline: {
     color: SYSTEM_COLORS.cyan,
     fontSize: 11,
+    lineHeight: 16,
     fontWeight: '900',
-    letterSpacing: 4,
+    letterSpacing: 2.4,
+    flexShrink: 1,
   },
 
   awakening: {
@@ -857,6 +510,7 @@ const styles = StyleSheet.create({
     lineHeight: 39,
     fontWeight: '900',
     marginTop: 6,
+    flexShrink: 1,
   },
 
   systemSignal: {
@@ -868,6 +522,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#061014',
+    overflow: 'hidden',
+  },
+
+  systemSignalActive: {
+    borderColor: SYSTEM_COLORS.cyan,
+    shadowColor: SYSTEM_COLORS.cyan,
+    shadowOpacity: 0.35,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 0 },
+  },
+
+  systemSignalHalo: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 238, 255, 0.6)',
+    backgroundColor: 'rgba(108, 238, 255, 0.08)',
   },
 
   systemSignalDiamond: {
@@ -880,6 +553,7 @@ const styles = StyleSheet.create({
         rotate: '45deg',
       },
     ],
+    zIndex: 1,
   },
 
   playerCard: {
@@ -1358,23 +1032,30 @@ const styles = StyleSheet.create({
 
   questContent: {
     flex: 1,
-    padding: 23,
+    padding: 20,
   },
 
   questHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 12,
+    minHeight: 30,
   },
 
   questCategory: {
+    flex: 1,
+    minWidth: 0,
     color: SYSTEM_COLORS.cyan,
     fontSize: 10,
+    lineHeight: 15,
     fontWeight: '900',
-    letterSpacing: 2.5,
+    letterSpacing: 1.5,
   },
 
   availableBadge: {
+    flexShrink: 0,
+    marginLeft: 4,
     borderRadius: 999,
     backgroundColor:
       'rgba(0,229,255,0.07)',
@@ -1385,58 +1066,68 @@ const styles = StyleSheet.create({
   availableText: {
     color: SYSTEM_COLORS.cyan,
     fontSize: 8,
+    lineHeight: 12,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.05,
+    textAlign: 'center',
   },
 
   questTitle: {
     color: SYSTEM_COLORS.white,
     fontSize: 29,
-    lineHeight: 34,
+    lineHeight: 35,
     fontWeight: '900',
-    marginTop: 25,
+    marginTop: 18,
+    flexShrink: 1,
   },
 
   questDescription: {
     color: SYSTEM_COLORS.textMuted,
     fontSize: 14,
     lineHeight: 22,
-    marginTop: 14,
+    marginTop: 11,
   },
 
   questStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 28,
+    gap: 8,
+    marginTop: 21,
   },
 
   questStatLabel: {
     color:
       SYSTEM_COLORS.textVeryMuted,
     fontSize: 8,
+    lineHeight: 12,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 1.15,
+    flexShrink: 1,
   },
 
   questStatValue: {
     color: SYSTEM_COLORS.white,
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: '900',
     marginTop: 8,
+    flexShrink: 1,
   },
 
   questReward: {
     color: SYSTEM_COLORS.cyan,
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: '900',
     marginTop: 8,
+    flexShrink: 1,
   },
 
   questProgressTrack: {
     height: 7,
     backgroundColor: '#09272D',
     borderRadius: 999,
-    marginTop: 24,
+    marginTop: 18,
     overflow: 'hidden',
   },
 
@@ -1447,22 +1138,68 @@ const styles = StyleSheet.create({
   },
 
   startQuestButton: {
-    height: 78,
+    minHeight: 62,
     borderRadius: 20,
     backgroundColor:
       SYSTEM_COLORS.cyan,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 27,
-    marginTop: 27,
+    paddingHorizontal: 20,
+    marginTop: 20,
+    transform: [{ scale: 1 }],
+  },
+
+  startQuestButtonPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.96,
+    backgroundColor: '#72effd',
   },
 
   startQuestText: {
     color: '#001015',
     fontSize: 15,
+    lineHeight: 20,
     fontWeight: '900',
-    letterSpacing: 2.5,
+    letterSpacing: 1.35,
+    flexShrink: 1,
+  },
+
+  lockedQuestButton: {
+    backgroundColor: '#102329',
+    borderWidth: 1,
+    borderColor: SYSTEM_COLORS.line,
+  },
+
+  lockedQuestTitle: {
+    color: SYSTEM_COLORS.text,
+  },
+
+  questStatusBadge: {
+    flexShrink: 0,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#001015',
+    backgroundColor: 'rgba(0,16,21,0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    marginLeft: 12,
+  },
+
+  lockedQuestBadge: {
+    borderColor: SYSTEM_COLORS.textMuted,
+    backgroundColor: 'rgba(113,128,134,0.12)',
+  },
+
+  questStatusText: {
+    color: '#001015',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
+
+  lockedQuestText: {
+    color: SYSTEM_COLORS.textMuted,
   },
 
   startQuestArrow: {
@@ -1478,6 +1215,13 @@ const styles = StyleSheet.create({
     padding: 25,
     flexDirection: 'row',
     alignItems: 'center',
+    transform: [{ scale: 1 }],
+  },
+
+  worldCardPressed: {
+    transform: [{ scale: 0.985 }],
+    borderColor: SYSTEM_COLORS.cyan,
+    backgroundColor: '#091d24',
   },
 
   gateIcon: {
@@ -1506,6 +1250,7 @@ const styles = StyleSheet.create({
 
   worldContent: {
     flex: 1,
+    minWidth: 0,
     paddingLeft: 25,
   },
 
@@ -1519,8 +1264,10 @@ const styles = StyleSheet.create({
   gateTitle: {
     color: SYSTEM_COLORS.white,
     fontSize: 21,
+    lineHeight: 27,
     fontWeight: '900',
     marginTop: 8,
+    flexShrink: 1,
   },
 
   gateDescription: {

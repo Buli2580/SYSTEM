@@ -4,11 +4,16 @@ on:
   pull_request:
     branches:
       - master
+      - "feature/system-ai-game-master-1.0"
   push:
     branches:
       - master
       - "agent/**"
       - "chore/**"
+      - "fix/**"
+      - "feature/system-ai-game-master-1.0"
+      - "feature/system-core-freeze-1.0"
+      - "feature/system-presentation-social-1.0"
 
 permissions:
   contents: read
@@ -43,6 +48,39 @@ jobs:
 
       - name: Gameplay tests
         run: node --test src/system2/tests/gameplay.test.cjs
+
+      - name: MOVE monotonic clock tests
+        run: node --test src/system2/tests/move-clock.test.cjs
+
+      - name: MOVE GPS cancellation tests
+        run: node --test src/system2/tests/move-gps-lifecycle.test.cjs
+
+      - name: Character Forge tests
+        run: node --test src/system2/tests/character-forge.test.cjs
+
+      - name: Camera private photo tests
+        run: node --test src/system2/tests/private-photo.test.cjs
+
+      - name: AI Game Master tests
+        run: node --test src/system2/tests/ai-game-master.test.cjs
+
+      - name: Beta Experience 2.0 tests
+        run: node --test src/system2/tests/beta-experience.test.cjs
+
+      - name: App integrity tests
+        run: node --test src/system2/tests/app-integrity.test.cjs
+
+      - name: Expansion Pack tests
+        run: node --test src/system2/tests/expansion-pack.test.cjs
+
+      - name: Animation Engine 4.0 tests
+        run: node --test src/system2/tests/animation-engine4.test.cjs
+
+      - name: Cloud processor SQL and mobile tests
+        run: |
+          node supabase/tests/normalize-calendar-fixtures.cjs
+          npm ci --prefix supabase/tests --ignore-scripts
+          npm test --prefix supabase/tests
 
       - name: Legacy server syntax
         run: node --check server/server.js

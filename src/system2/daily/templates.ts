@@ -1,3 +1,4 @@
+import { generatedQuest } from '../generation/templates';
 import type { RunnableQuest } from '../quests/types';
 import type { SkillKey } from '../core';
 import { deterministicPick } from './calendar';
@@ -20,6 +21,7 @@ export const DAILY_TEMPLATES = [
  template('organize','UPORZĄDKUJ','RES',900,50,50,5),
 ];
 export function dailyQuest(id: string): RunnableQuest | undefined {
+  const generated = generatedQuest(id); if (generated) return generated;
  const match = /^daily:(\d{4}-\d{2}-\d{2}):([a-z0-9_]+)$/.exec(id);
  const t = match && DAILY_TEMPLATES.find(q => q.id === match[2]);
  return t ? { ...t, id, templateId: t.id, dayKey: match![1] } : undefined;

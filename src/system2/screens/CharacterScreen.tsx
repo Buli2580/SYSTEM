@@ -1,25 +1,45 @@
-import { useEffect, useRef, useState } from 'react';
-import { Text, TextInput, View, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import StreakMilestoneCard from '../components/StreakMilestoneCard';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Text, TextInput, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import Action from '../components/Action';
-import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
-import { SKILL_KEYS, SKILL_META, type SkillKey } from '../core';
-import { dominantSkill } from '../identity/model';
+import type { SkillKey } from '../core';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
+import CharacterProgressPanel from '../components/CharacterProgressPanel';
+import CharacterCard from '../components/CharacterCard';
+import type {AvatarStyle} from '../identity/model';
 import { titlePl } from '../i18n/pl';
+import {CHARACTER_SECTIONS,characterCompletion} from '../beta/character';
+import SystemPlayerCard from '../cards/SystemPlayerCard';
+import HeroCardCollection from '../cards/HeroCardCollection';
+import SystemAudioScene from '../components/SystemAudioScene';
+import { archetypeForPlayer, playerPerks } from '../progression/perks';
+import {loadEquippedInventory,type EquippedInventory} from '../inventory/storage';
+import {INVENTORY_ITEMS} from '../inventory/catalog';
+import {loadActiveSkillNodes,type ActiveSkillNodes} from '../progression/skillTreeStorage';
+import {loadActiveCompanion} from '../companions/storage';
+import {COMPANIONS} from '../companions/catalog';
+import {TITLES} from '../achievements/catalog';
 
 export default function CharacterScreen() {
-  const { player, titles, updateIdentity } = useSystem();
+  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, progression, achievementState, settings, saveSettings } = useSystem();
   const router = useRouter();
+  const [birthDate, setBirthDate] = useState(player.birthDate ?? '');
+  useEffect(() => setBirthDate(player.birthDate ?? ''), [player.id, player.birthDate]);
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
+  const [equipped,setEquipped]=useState<EquippedInventory>({});
+  const [activeNodes,setActiveNodes]=useState<ActiveSkillNodes>({});
+  const [activeCompanion,setActiveCompanion]=useState<string|null>(null);
   const lock = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => setName(player.displayName), [player.id, player.displayName]);
+  const refreshLoadout=useCallback(()=>{void Promise.all([loadEquippedInventory(),loadActiveSkillNodes(),loadActiveCompanion()]).then(([items,nodes,companion])=>{if(!mounted.current)return;setEquipped(items);setActiveNodes(nodes);setActiveCompanion(companion);}).catch(()=>undefined)},[]);
+  useFocusEffect(useCallback(()=>{refreshLoadout();},[refreshLoadout]));
   async function run(task: () => Promise<void>) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
     try { await task(); } catch (cause) { if (__DEV__) console.error('[SYSTEM identity] Operation failed', cause); if (mounted.current) setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać tożsamości.'); }
@@ -42,40 +62,64 @@ export default function CharacterScreen() {
     await updateIdentity({ avatarUri: uri });
     removeOwnedAvatar(player.avatarUri);
   }
-  return <SystemPage title="POSTAĆ" subtitle="TOŻSAMOŚĆ SYSTEMU">
-    <View style={[s.panel, { alignItems: 'center' }]}>
-      <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} />
-      <Text style={s.title}>{player.displayName}</Text><Text style={s.label}>{titlePl(player.currentTitle)}</Text>
-      <Text style={[s.value, { fontSize: 40 }]}>REAL LEVEL {player.realLevel}</Text>
-      <Text style={s.body}>RANGA {player.rank} · ETAP EWOLUCJI {player.avatarEvolution}</Text>
-      <Text style={s.body}>{player.realXp} / {player.realXpToNextLevel} REAL XP</Text>
-      <Progress value={player.realXp} max={player.realXpToNextLevel} />
-      <Text style={s.body}>DOMINUJĄCA CECHA · {dominantSkill(player)}</Text><Text style={s.label}>ARCHETYP // NIEUKSZTAŁTOWANY</Text>
+  const profileCompletion=characterCompletion({avatar:!!player.avatarUri,title:!!player.currentTitle&&player.currentTitle!=='UNAWAKENED',skills:Object.values(player.stats).some(skill=>skill.level>1),achievement:Object.values(achievementState.achievements).some(a=>!!a.unlockedAt)});
+  const forgeStyle:AvatarStyle=settings.avatarStyle??'CYBER';
+  const archetype=archetypeForPlayer(player);
+  const perks=playerPerks(player);
+  const activeTitle2=TITLES.find(t=>t.id===achievementState.titles.activeTitleId)?.name??null;
+  return <SystemPage title="POSTAĆ" subtitle="SYSTEM IDENTITY // CHARACTER 2.0" screen="CHARACTER" scene="PORTAL" threat={1} weather="FOG" intensity="hero">
+    <SystemAudioScene cue="HOME" preset="PORTAL" />
+    <View style={s.panel}><Text style={s.label}>CHARACTER MATRIX // {Math.round(profileCompletion*100)}%</Text><Text style={s.title}>TWOJA POSTAĆ ROŚNIE Z TOBĄ</Text><Text style={s.body}>{CHARACTER_SECTIONS.join(' · ')}</Text></View>
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER LOADOUT 2.0 // TITLE {activeTitle2??'DEFAULT'}</Text>
+      <Text style={s.title}>{activeCompanion ? (COMPANIONS.find(c=>c.id===activeCompanion)?.name ?? activeCompanion).toUpperCase() : 'NO COMPANION'} // {Object.keys(equipped).length} ITEMS // {Object.keys(activeNodes).length} NODES</Text>
+      {activeTitle2&&<Text style={s.body}>ACTIVE TITLE 2.0 // {activeTitle2}</Text>}
+      {Object.entries(equipped).map(([kind,id])=>{const item=INVENTORY_ITEMS.find(x=>x.id===id);return <Text key={kind} style={s.body}>{kind} // {item?.name??id}</Text>})}
+      {Object.entries(activeNodes).map(([skill,id])=><Text key={skill} style={s.body}>{skill} NODE // {id}</Text>)}
+      <Action label="INVENTORY →" onPress={()=>router.push('/inventory')} />
+      <Action label="COMPANIONS →" onPress={()=>router.push('/companions')} />
+      <Action label="PROGRESSION 2.0 →" onPress={()=>router.push('/progression-2')} />
     </View>
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER BUILD // ARCHETYPE</Text>
+      <Text style={s.title}>{archetype}</Text>
+      <Text style={s.body}>Archetyp jest wyliczany z dominujących statystyk STR/VIT/INT/WIL/CHA/CRE/RES i wpływa na dalsze systemy ACTION 3.0.</Text>
+      {perks.map(perk=><View key={perk.id} style={{marginTop:12,paddingTop:10,borderTopWidth:1,borderTopColor:'#17333e'}}>
+        <Text style={[s.label,{color:perk.unlocked?'#6ceeff':'#657b85'}]}>{perk.unlocked?'UNLOCKED':'LOCKED'} // {perk.title}</Text>
+        <Text style={s.body}>{perk.description} · {perk.unlockReason}</Text>
+      </View>)}
+    </View>
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER FORGE // EVOLUTION</Text>
+      <Text style={s.body}>Styl zmienia wyłącznie wygląd postaci. Ranga i XP wynikają z rzeczywistego postępu.</Text>
+      <CharacterCard player={player} style={forgeStyle} archetype={archetype} compact />
+      {(['DARK','CYBER','WARLORD'] as const).map(style=>
+        <Action key={style} label={forgeStyle===style?'✓ '+style:style} disabled={busy}
+          onPress={()=>{void run(()=>saveSettings({avatarStyle:style}));}} />
+      )}
+      <Text style={s.body}>Możesz zmienić styl w dowolnym momencie, bez resetowania osiągnięć.</Text>
+    </View>
+    <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
+    <HeroCardCollection player={player} />
+    <SystemPlayerCard player={player} activeTitle2={activeTitle2} companionName={activeCompanion ? COMPANIONS.find(c=>c.id===activeCompanion)?.name ?? activeCompanion : null} />
+    {progression && <StreakMilestoneCard days={progression.streak.currentStreak} />}
     <View style={s.panel}>
       <Text style={s.label}>NAZWA W SYSTEMIE</Text>
       <TextInput accessibilityLabel="Zmień nazwę w SYSTEMIE" value={name} onChangeText={setName} maxLength={24} style={{ color: '#fff', minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#417480' }} />
       <Action label="ZAPISZ NAZWĘ" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
+      <Text style={s.label}>DATA URODZENIA · RRRR-MM-DD</Text>
+      <TextInput accessibilityLabel="Data urodzenia" value={birthDate} onChangeText={setBirthDate} maxLength={10} placeholder="RRRR-MM-DD" keyboardType="numbers-and-punctuation" style={{color:'#fff',minHeight:48}} />
+      <Action label="ZAPISZ DATĘ URODZENIA" disabled={busy} onPress={() => { void run(() => updateIdentity({birthDate})); }} />
       <Action label="AVATAR Z GALERII" disabled={busy} onPress={() => { void run(() => chooseAvatar(false)); }} />
       <Action label="ZRÓB ZDJĘCIE" disabled={busy} onPress={() => { void run(() => chooseAvatar(true)); }} />
       {player.avatarUri && <Action label="USUŃ AVATAR" disabled={busy} onPress={() => { void run(async () => { await updateIdentity({ avatarUri: null }); removeOwnedAvatar(player.avatarUri); }); }} />}
-      {error && <SystemError message={error} retry={() => setError(null)} />}
+      {error && <SystemError message={error} retry={() => setError(null)} actionLabel="ZAMKNIJ" />}
     </View>
     <View style={s.panel}><Text style={s.label}>ZDOBYTE TYTUŁY</Text>
       {titles.map(title => <Action key={title} label={`${player.currentTitle === title ? '✓ ' : ''}${titlePl(title)}`} disabled={busy} onPress={() => { void run(() => updateIdentity({ currentTitle: title })); }} />)}
     </View>
-    <Text style={s.title}>7 CECH REAL</Text>
-    {SKILL_KEYS.map(key => { const skill = player.stats[key]; return <Pressable key={key} accessibilityRole="button" accessibilityLabel={`${key}, poziom ${skill.level}, szczegóły`} onPress={() => setSelected(selected === key ? null : key)} style={s.panel}>
-      <Text style={s.label}>{key} // {SKILL_META[key].name}</Text><Text style={s.title}>LV. {skill.level}</Text>
-      <Text style={s.body}>{skill.xp} / {skill.xpToNextLevel} XP · do awansu {skill.xpToNextLevel - skill.xp} XP</Text>
-      <Progress value={skill.xp} max={skill.xpToNextLevel} />
-      {selected === key && <Text style={s.body}>{SKILL_META[key].description} XP przyznają wyłącznie dostępne, zweryfikowane aktywności SYSTEMU.</Text>}
-    </Pressable>; })}
-    <Action label="HISTORIA SYSTEMU →" onPress={() => router.push('/system-log')} />
+    <Action label="CELE →" onPress={() => router.push('/goals')} />
+    <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} />
+    <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} />
   </SystemPage>;
-}
-function Progress({ value, max }: { value: number; max: number }) {
-  return <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max, now: value }} style={{ width: '100%', height: 5, backgroundColor: '#17333e', borderRadius: 4, marginVertical: 12 }}>
-    <View style={{ width: `${Math.min(100, value / max * 100)}%`, height: 5, backgroundColor: '#62efff', borderRadius: 4 }} />
-  </View>;
 }

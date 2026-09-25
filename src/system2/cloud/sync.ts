@@ -8,17 +8,29 @@ import {
   ensureCloudUserBinding,
 } from '../storage/database';
 import { getValidSession } from './auth';
+import {reconcileRecentMoveContributions} from './move';
 import { CloudRequestError } from './http';
-import { submitSyncEvent } from './state';
+import { processPendingSyncEvents, submitSyncEvent } from './state';
 
 const INSTALL_ID_KEY = 'system.cloud.install.v1';
+let installIdPromise: Promise<string> | null = null;
 
-async function getInstallId() {
+async function createOrLoadInstallId() {
   let id = await AsyncStorage.getItem(INSTALL_ID_KEY);
   if (id) return id;
   id = 'install_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
   await AsyncStorage.setItem(INSTALL_ID_KEY, id);
   return id;
+}
+
+function getInstallId() {
+  if (!installIdPromise) {
+    installIdPromise = createOrLoadInstallId().catch(error => {
+      installIdPromise = null;
+      throw error;
+    });
+  }
+  return installIdPromise;
 }
 
 export type CloudSyncResult = {
@@ -64,6 +76,26 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
           cause.status === 429 || cause.status >= 500)
       ) break;
     }
+  }
+
+  // Uploaded events may still be RECEIVED after a transient server error or
+  // out-of-order offline delivery. Retry them even when the local outbox is empty.
+  // This changes cloud state only; SQLite remains the offline gameplay source.
+  try {
+    await processPendingSyncEvents(limit);
+  } catch (cause) {
+    // Allow the mobile update to run against Online 0.3 during migration rollout.
+    if (!(cause instanceof CloudRequestError && cause.code === 'PGRST202')) throw cause;
+  }
+
+  // A cloud sync may make older MOVE sessions eligible for Family/School
+  // scoring. Reconcile only from PROCESSED server evidence; failure in this
+  // optional feature must not invalidate already-synced core gameplay.
+  try{
+    await reconcileRecentMoveContributions();
+  }catch{
+    // Group backend can be offline or pending its separate migration.
+    // Persisted local MOVE history is retried at the next cloud sync.
   }
 
   const stats = await cloudOutboxStats();

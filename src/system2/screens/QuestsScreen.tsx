@@ -1,47 +1,69 @@
+import { buildDailyProgressModel, getDailySummaryText } from '../daily/progression';
+import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
+import { useCallback } from 'react';
+import { questAvailability } from '../quests/availability';
 import Action from '../components/Action';
 import { DAILY_RULES } from '../daily/calendar';
-import { Pressable, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Text, View } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import SystemPage, { pageStyles as styles } from '../components/SystemPage';
-import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
+import { AWAKENING_QUESTS, getQuest, getAwakeningProgress } from '../quests/catalog';
 import { useSystem } from '../state/SystemProvider';
-import { questStatusPl, verificationPl } from '../i18n/pl';
+import { QuestMissionCard } from '../components/QuestExperience';
+import { getNextAction } from '../quests/nextAction';
+import SystemAudioScene from '../components/SystemAudioScene';
+import AIDirectorPanel from '../components/AIDirectorPanel';
+import NextActionPanel from '../components/NextActionPanel';
 
 export default function QuestsScreen() {
   const router = useRouter();
-  const { completedQuestIds, activeQuestId, daily, awakeningCompleted, story } = useSystem();
+  const system = useSystem();
+  const { completedQuestIds, activeQuestId, failedQuestIds = [], daily, awakeningCompleted, story } = system;
+  useFocusEffect(useCallback(() => { void system.refreshPlayer(); }, [system.refreshPlayer]));
+  const access = (id: string) => questAvailability(id, { completedQuestIds, activeQuestId, daily, failedQuestId: failedQuestIds.includes(id) ? id : null });
   const progress = getAwakeningProgress(completedQuestIds);
-  return <SystemPage title="QUESTY" subtitle="GŁÓWNA HISTORIA // PROTOKOŁY">
-    {!!story && <Action label="GŁÓWNA HISTORIA / KRONIKA →" onPress={()=>router.push('/story')}/>}
+  const nextAction = getNextAction({ ...system, player: system.player, completedQuestIds, failedQuestIds, activeQuestId, awakeningCompleted, daily, story, achievements: system.achievementState });
+  const openNextAction = () => nextAction.route === '/quest' && nextAction.questId
+    ? router.push({ pathname: '/quest', params: { questId: nextAction.questId } })
+    : router.push(nextAction.route);
+  return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS" screen="QUESTS" scene={story?.worldLinkComplete&&!story?.bossComplete?"BOSS_ZONE":"RUINS"} threat={story?.worldLinkComplete&&!story?.bossComplete?3:1} weather={story?.worldLinkComplete&&!story?.bossComplete?"STORM":"FOG"} intensity="hero">
+    <SystemAudioScene cue={story?.worldLinkComplete&&!story?.bossComplete?"BOSS":"QUEST"} />
+    <NextActionPanel action={nextAction} onPress={openNextAction}/>
+    <AIDirectorPanel
+      response={system.aiGameMaster}
+      loading={system.aiLoading}
+      error={system.aiError}
+      systemDebt={system.systemDebt}
+      onRefresh={()=>{if(!system.aiLoading)void system.refreshAIGameMaster();}}
+    />
+    <Action label="CELE →" onPress={() => router.push('/goals')} />
+    {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
-    {awakeningCompleted && daily && <View style={styles.panel}>
-      <Text style={styles.title}>PROTOKÓŁ DZIENNY · {daily.completed}/3</Text>
-      <Text style={styles.body}>{daily.dayKey} · {daily.clear ? 'DZIEŃ UKOŃCZONY' : `+${DAILY_RULES.clearXp} REAL XP / +${DAILY_RULES.clearEnergy} ENERGII za ${DAILY_RULES.slots}/${DAILY_RULES.slots}`}</Text>
-      {daily.clockAnomaly && <Text style={styles.body}>BŁĄD CZASU — sprawdź datę i godzinę telefonu. Twój postęp został zachowany.</Text>}
-      {daily.questIds.map(id => { const q = getQuest(id); if (!q) return null; const done = completedQuestIds.includes(id); return <Pressable key={id} style={styles.panel} disabled={daily.clockAnomaly}
-        accessibilityRole="button" onPress={() => router.push({ pathname: '/quest', params: { questId: id } })}>
-        <Text style={styles.label}>{done ? 'UKOŃCZONA' : activeQuestId === id ? 'AKTYWNA' : story?.rematchQuestIds.includes(id) ? 'DOSTĘPNY REWANŻ' : daily.suspiciousQuestIds.includes(id) ? 'WYMAGA UWAGI' : 'DOSTĘPNA'} · {q.primarySkill} · {verificationPl(q.verification.type)}{q.activityType ? ' + AKTYWNOŚĆ' : ''}</Text>
-        <Text style={styles.title}>{q.title}</Text><Text style={styles.body}>{q.description}</Text>
-        <Text style={styles.body}>+{q.rewards.realXp} REAL XP · +{q.rewards.gameEnergy} ENERGII · {Object.entries(q.rewards.skillXp ?? {}).map(([k,v]) => `+${v} ${k} XP`).join(' · ')}</Text>
-      </Pressable>; })}
-      <Text style={styles.title}>PROTOKÓŁ TYGODNIOWY · {Math.min(5, daily.weeklyCompleted)}/5</Text>
-      <Text style={styles.body}>{daily.weeklyClear ? 'TYDZIEŃ UKOŃCZONY' : `${DAILY_RULES.weeklyTarget} aktywności dziennych · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGII`} · {daily.weekKey}</Text>
+    {awakeningCompleted && !daily && <View style={styles.panel}>
+      <Text style={styles.label}>DAILY PROTOCOL // PREPARATION</Text>
+      <Text style={styles.title}>SYSTEM ODBUDOWUJE DZISIEJSZY ZESTAW</Text>
+      <Text style={styles.body}>Rdzeń działa lokalnie. Odśwież stan SYSTEMU; jeśli AI jest niedostępne, bezpieczny fallback nadal może przygotować kanoniczne Daily.</Text>
+      <Action label="ODŚWIEŻ DAILY →" onPress={()=>{void system.refreshPlayer();}} />
+      <Action label="HOME →" onPress={()=>router.replace('/')} />
     </View>}
-    {AWAKENING_QUESTS.map(quest => {
-      const status = getQuestStatus(quest.id, completedQuestIds, activeQuestId);
-      const locked = status === 'LOCKED';
-      return <Pressable key={quest.id} style={styles.panel} disabled={locked}
-        accessibilityRole="button" accessibilityLabel={quest.title + ' — ' + status} accessibilityState={{ disabled: locked }}
-        onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })}>
-        <Text style={styles.label}>MISJA {quest.order}/{progress.total} // {questStatusPl(status)}</Text>
-        <Text style={styles.title}>{quest.title}</Text>
-        <Text style={styles.body}>{[quest.primarySkill, ...quest.secondarySkills].join(' + ')} · {verificationPl(quest.verification.type)}</Text>
-        <Text style={styles.body}>{quest.description}</Text>
-        <Text style={styles.label}>+{quest.rewards.realXp} REAL XP · +{quest.rewards.gameEnergy} ENERGII</Text>
-        <Text style={styles.body}>{Object.entries(quest.rewards.skillXp ?? {}).map(([skill, xp]) => `+${xp} ${skill} XP`).join(' · ')}</Text>
-        <Text style={styles.link}>{locked ? 'UKOŃCZ POPRZEDNIĄ MISJĘ' : status === 'COMPLETED' ? 'ZOBACZ UKOŃCZENIE →' : story?.rematchQuestIds.includes(quest.id) ? 'ROZPOCZNIJ REWANŻ →' : 'OTWÓRZ MISJĘ →'}</Text>
-      </Pressable>;
-    })}
+    {awakeningCompleted && daily && <View style={styles.panel}>
+      <Text style={styles.body}>{getDailySummaryText(buildDailyProgressModel(daily, completedQuestIds, activeQuestId, getQuest))}</Text>
+      <Text style={styles.title}>DAILY PROTOCOL · {daily.completed}/3</Text>
+      <Text style={styles.body}>{daily.dayKey} · {daily.clear ? 'DAILY COMPLETE' : `+${DAILY_RULES.clearXp} REAL XP / +${DAILY_RULES.clearEnergy} ENERGY za ${DAILY_RULES.slots}/${DAILY_RULES.slots}`}</Text>
+      {daily.clockAnomaly && <><Text style={styles.body}>CLOCK_ANOMALY — sprawdź datę telefonu. Zachowaliśmy Twój postęp i blokujemy nieprawidłowe Daily.</Text><Action label="SPRAWDZIŁEM DATĘ · ODŚWIEŻ →" onPress={()=>{void system.refreshPlayer();}} /></>}
+      {[...new Set(daily.questIds)].map((id, index) => { const q = getQuest(id); if (!q) return null; const status = access(id).status; const reason = daily.reasons?.[id]; const contextLabel = story?.rematchQuestIds.includes(id) ? 'REMATCH AVAILABLE' : daily.suspiciousQuestIds.includes(id) ? 'VERIFICATION REVIEW REQUIRED' : reason?.startsWith('AI GAME MASTER') ? reason : undefined; return <QuestMissionCard key={id} quest={q} status={status} contextLabel={contextLabel} disabled={status === 'LOCKED'} progress={q.progress} progressTarget={q.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: id } })} />; })}
+      <Text style={styles.title}>WEEKLY PROTOCOL · {Math.min(5, daily.weeklyCompleted)}/5</Text>
+      <Text style={styles.body}>{daily.weeklyClear ? 'WEEKLY COMPLETE' : `${DAILY_RULES.weeklyTarget} Daily activities · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGY`} · {daily.weekKey}</Text>
+    </View>}
+    {system.progression?.weeklyChallenges.map(challenge => <WeeklyChallengeCard key={challenge.id} title={challenge.title} progress={challenge.progress} target={challenge.target} completed={challenge.rewardClaimed} />)}
+    {!awakeningCompleted && <>
+      <Text style={styles.body}>AWAKENING QUEST LINE</Text>
+      {AWAKENING_QUESTS.map((quest, index) => {
+        const status = access(quest.id).status;
+        const locked = status === 'LOCKED';
+        return <QuestMissionCard key={quest.id} quest={quest} status={status} disabled={locked} progress={quest.progress} progressTarget={quest.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })} />;
+      })}
+    </>}
     {progress.completed === progress.total && <View style={styles.panel}><Text style={styles.label}>ROZDZIAŁ 01 // UKOŃCZONY</Text><Text style={styles.body}>POŁĄCZENIE ZE ŚWIATEM // {story?.chapters[1]?.completed??0}/3</Text></View>}
     {!!story && <View style={styles.panel}><Text style={styles.label}>MISJE POBOCZNE</Text><Text style={styles.title}>DODATKOWY WYSIŁEK // {story.sideComplete?'UKOŃCZONA':'DOSTĘPNA'}</Text><Text style={styles.body}>Dzienna misja ruchowa z dystansem co najmniej 125% celu. +50 REAL XP · +40 WIL XP. Jednorazowo.</Text></View>}
     {!!story?.hiddenComplete && <View style={styles.panel}><Text style={styles.label}>UKRYTA // UKOŃCZONA</Text><Text style={styles.title}>BEZ ODWROTU</Text></View>}

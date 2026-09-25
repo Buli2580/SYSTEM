@@ -146,6 +146,7 @@ const styles = StyleSheet.create({
   },
 
   identity: {
+    flexShrink: 1,
     color: SYSTEM_COLORS.textMuted,
     fontSize: 9,
     fontWeight: '900',
@@ -153,6 +154,7 @@ const styles = StyleSheet.create({
   },
 
   status: {
+    flexShrink: 1,
     color: SYSTEM_COLORS.cyan,
     fontSize: 8,
     fontWeight: '900',
@@ -238,6 +240,8 @@ const styles = StyleSheet.create({
   },
 
   rank: {
+    flexShrink: 1,
+    textAlign: 'center',
     color: SYSTEM_COLORS.cyan,
     fontSize: 9,
     fontWeight: '900',
@@ -266,6 +270,7 @@ const styles = StyleSheet.create({
   },
 
   equalOrigin: {
+    flexShrink: 1,
     color: SYSTEM_COLORS.textMuted,
     textAlign: 'center',
     fontSize: 8,

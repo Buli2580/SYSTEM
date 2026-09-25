@@ -1,32 +1,41 @@
 import '../system2/background/locationTask';
+import GameplayGate from '../system2/components/GameplayGate';
 import StoryNotice from '../system2/components/StoryNotice';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import {useEffect} from 'react';
+import {flushAmplitude,queueTelemetry} from '../system2/telemetry/amplitude';
 
 import { SystemProvider } from '../system2/state/SystemProvider';
 import SessionGate from '../system2/components/SessionGate';
-import LevelUpCelebration from '../system2/components/LevelUpCelebration';
 import SystemBoundary from '../system2/components/SystemBoundary';
 import AwakeningCelebration from '../system2/components/AwakeningCelebration';
+import RewardEventSequence from '../system2/components/RewardEventSequence';
+import LaunchGate from '../system2/components/LaunchGate';
+import {AnimationEngine4Provider} from '../system2/components/AnimationEngine4Provider';
+import SystemRouteMotion from '../system2/components/SystemRouteMotion';
 
 export default function RootLayout() {
+  useEffect(()=>{void queueTelemetry({event_type:'APP_OPEN'}).then(()=>flushAmplitude()).catch(()=>undefined)},[]);
   return (
-    <SystemBoundary><SystemProvider>
+    <SystemBoundary><AnimationEngine4Provider><SystemProvider>
       <StatusBar style="light" />
 
       <Stack
+        screenLayout={({ children }) => <SystemRouteMotion><GameplayGate>{children}</GameplayGate></SystemRouteMotion>}
         screenOptions={{
           headerShown: false,
           contentStyle: {
             backgroundColor: '#030709',
           },
-          animation: 'fade',
+          animation: 'none',
         }}
       />
       <AwakeningCelebration />
-      <LevelUpCelebration />
+      <RewardEventSequence />
       <StoryNotice />
       <SessionGate />
-    </SystemProvider></SystemBoundary>
+      <LaunchGate />
+    </SystemProvider></AnimationEngine4Provider></SystemBoundary>
   );
 }

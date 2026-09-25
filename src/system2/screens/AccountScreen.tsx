@@ -20,6 +20,7 @@ import {
 } from '../cloud/social';
 import { ensureCurrentCloudBinding, flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
 import { requestAccountDeletion } from '../cloud/account';
+import { normalizeCity, normalizeCountryCode } from '../social/validation';
 
 const inputStyle = {
   color: '#fff',
@@ -53,9 +54,10 @@ export default function AccountScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const lock = useRef(false);
+  const lock = useRef(false), mounted = useRef(true);
 
   function fillSocial(profile: SocialProfile) {
+    if (!mounted.current) return;
     setSocial(profile);
     setHandle(profile.handle ?? '');
     setPublicName(profile.public_name ?? player.displayName);
@@ -68,7 +70,8 @@ export default function AccountScreen() {
   }
 
   async function refreshSyncStats() {
-    setSyncStats(await getLocalCloudSyncStatus());
+    const stats = await getLocalCloudSyncStatus();
+    if (mounted.current) setSyncStats(stats);
   }
 
   async function loadOnline(current: CloudSession) {
@@ -76,32 +79,39 @@ export default function AccountScreen() {
       await ensureCurrentCloudBinding();
     } catch (cause) {
       await signOutCloud().catch(() => undefined);
-      setSession(null);
+      if (mounted.current) setSession(null);
       throw cause;
     }
-    const profile = await getMySocialProfile();
-    fillSocial(profile);
+    // Authentication is already durable at this point. Keep the signed-in UI
+    // even if the optional social profile endpoint is temporarily unavailable.
+    if (mounted.current) setSession(current);
     await refreshSyncStats();
-    setStatus('SYSTEM CLOUD // POŁĄCZONY');
-    setSession(current);
+    try {
+      const profile = await getMySocialProfile();
+      fillSocial(profile);
+      if (mounted.current) setStatus('SYSTEM CLOUD // POŁĄCZONY');
+    } catch (cause) {
+      if (mounted.current) { setSocial(null); setStatus('SYSTEM CLOUD // POŁĄCZONY · PROFIL ONLINE NIEDOSTĘPNY'); }
+      throw cause;
+    }
   }
 
   async function run(task: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
-    setBusy(true);
-    setError(null);
+    if (mounted.current) { setBusy(true); setError(null); }
     try {
       await task();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Operacja SYSTEM CLOUD nie powiodła się.');
+      if (mounted.current) setError(cause instanceof Error ? cause.message : 'Operacja SYSTEM CLOUD nie powiodła się.');
     } finally {
       lock.current = false;
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
 
   useEffect(() => {
+    mounted.current = true;
     let active = true;
     void (async () => {
       try {
@@ -129,69 +139,82 @@ export default function AccountScreen() {
         if (active) setError(cause instanceof Error ? cause.message : 'Nie udało się odczytać sesji SYSTEM CLOUD.');
       }
     })();
-    return () => { active = false; };
+    return () => { active = false; mounted.current = false; };
   }, []);
 
   async function signIn() {
     const current = await signInWithPassword(email, password);
+    if (mounted.current) setPassword('');
     await loadOnline(current);
     const result = await flushCloudOutbox(50);
-    setSyncStats({ pending: result.pending, synced: (await getLocalCloudSyncStatus()).synced, failed: result.failed });
-    setPassword('');
+    const stats = await getLocalCloudSyncStatus();
+    if (mounted.current) setSyncStats({ pending: result.pending, synced: stats.synced, failed: result.failed });
+    if (mounted.current) setPassword('');
   }
 
   async function signUp() {
     const result = await signUpWithPassword(email, password, player.displayName);
     if (!result.session) {
-      setStatus(result.confirmationRequired
+      if (mounted.current) setStatus(result.confirmationRequired
         ? 'KONTO UTWORZONE // POTWIERDŹ REJESTRACJĘ W E-MAILU'
         : 'KONTO UTWORZONE // ZALOGUJ SIĘ');
-      setPassword('');
+      if (mounted.current) setPassword('');
       return;
     }
+    if (mounted.current) setPassword('');
     await loadOnline(result.session);
-    setPassword('');
   }
 
   async function saveSocial() {
     const normalizedHandle = handle.trim().toLowerCase();
-    if (isPublic && !/^[a-z0-9_]{3,24}$/.test(normalizedHandle)) {
-      throw new Error('Publiczny profil wymaga nazwy użytkownika o długości 3–24 znaków: a–z, 0–9 lub _.');
+    if (normalizedHandle && !/^[a-z0-9_]{3,24}$/.test(normalizedHandle)) {
+      throw new Error('Nazwa użytkownika: 3–24 znaki, tylko a–z, 0–9 lub _.');
     }
+    if (isPublic && !normalizedHandle) {
+      throw new Error('Publiczny profil wymaga nazwy użytkownika.');
+    }
+    const continentCode = continent.trim() ? normalizeCountryCode(continent) : undefined;
+    const countryCode = country.trim() ? normalizeCountryCode(country) : undefined;
+    if (continent.trim() && !continentCode) throw new Error('Kontynent wpisz jako dwuliterowy kod, np. EU.');
+    if (country.trim() && !countryCode) throw new Error('Kraj wpisz jako dwuliterowy kod, np. PL.');
     const profile = await updateMySocialProfile({
       handle: normalizedHandle || null,
       public_name: publicName.trim() || player.displayName,
       bio: bio.trim() || null,
       visibility: isPublic ? 'public' : 'private',
-      continent_code: continent.trim() || null,
-      country_code: country.trim() || null,
-      region_code: region.trim() || null,
-      city_label: city.trim() || null,
+      continent_code: continentCode ?? null,
+      country_code: countryCode ?? null,
+      region_code: region.trim().replace(/\s+/g,' ') || null,
+      city_label: normalizeCity(city) ?? null,
     });
     fillSocial(profile);
-    setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
+    if (mounted.current) setStatus(isPublic ? 'PROFIL PUBLICZNY // POŁĄCZONY' : 'PROFIL PRYWATNY // POŁĄCZONY');
   }
 
   async function checkCloud() {
     const state = await fetchCloudState();
     const level = Number(state.state.player?.real_level ?? 1);
-    setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
+    if (mounted.current) setStatus('CHMURA GOTOWA // SCHEMAT ' + state.schemaVersion + ' // POZIOM ' + level);
   }
 
   async function syncNow() {
     const result = await flushCloudOutbox(100);
+    if (!result.authenticated) {
+      if (mounted.current) { setSession(null); setSocial(null); setStatus('SYSTEM CLOUD // SESJA WYGASŁA'); }
+      throw new Error('Sesja SYSTEM CLOUD wygasła. Zaloguj się ponownie.');
+    }
     const stats = await getLocalCloudSyncStatus();
-    setSyncStats(stats);
-    setStatus(result.pending === 0
-      ? 'SYNCHRONIZACJA // WSZYSTKO WYSŁANE'
-      : 'SYNCHRONIZACJA // OCZEKUJE ' + result.pending);
+    if (mounted.current) setSyncStats(stats);
+    if (mounted.current) setStatus(result.failed > 0
+      ? 'SYNCHRONIZACJA // WYMAGA PONOWIENIA'
+      : result.pending === 0
+        ? 'SYNCHRONIZACJA // SPRAWDZONO KOLEJKĘ'
+        : 'SYNCHRONIZACJA // OCZEKUJE ' + result.pending);
   }
 
   async function logout() {
     await signOutCloud();
-    setSession(null);
-    setSocial(null);
-    setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY');
+    if (mounted.current) { setSession(null); setSocial(null); setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY'); }
   }
 
   return <SystemPage title="SYSTEM ONLINE" subtitle="KONTO // CHMURA // SPOŁECZNOŚĆ">
@@ -201,7 +224,7 @@ export default function AccountScreen() {
       <Text style={s.body}>
         SYSTEM działa lokalnie także bez internetu. Konto online jest dodatkową warstwą i nie usuwa progresu zapisanego w telefonie.
       </Text>
-      <Action label="← WRÓĆ" onPress={() => router.back()} />
+      <Action label="← WRÓĆ" onPress={() => router.replace('/more')} />
     </View>
 
     {!session ? <View style={s.panel}>
@@ -237,6 +260,7 @@ export default function AccountScreen() {
         <Text style={s.title}>{session.user.email ?? 'GRACZ SYSTEMU'}</Text>
         <Text style={s.body}>{session.user.id}</Text>
         <Action label="SPRAWDŹ STAN CHMURY" disabled={busy} onPress={() => { void run(checkCloud); }} />
+        <Action label="MÓJ PROFIL SYSTEMU →" onPress={() => router.push('/social-profile')} />
         <Action label="RANKINGI I GRACZE →" disabled={busy} onPress={() => router.push('/leaderboard')} />
         <Action label="WYLOGUJ SIĘ" disabled={busy} onPress={() => { void run(logout); }} />
       </View>
@@ -250,8 +274,7 @@ export default function AccountScreen() {
             <Text style={s.body}>To utworzy żądanie usunięcia konta SYSTEM CLOUD i powiązanych danych. Operacja nie usuwa danych natychmiast — żądanie trafia do obsługi usunięcia.</Text>
             <Action label="POTWIERDŹ ŻĄDANIE USUNIĘCIA" danger disabled={busy} onPress={() => { void run(async () => {
               await requestAccountDeletion();
-              setDeleteConfirm(false);
-              setStatus('USUNIĘCIE KONTA // ŻĄDANIE ZAPISANE');
+              if (mounted.current) { setDeleteConfirm(false); setStatus('USUNIĘCIE KONTA // ŻĄDANIE ZAPISANE'); }
             }); }} />
             <Action label="ANULUJ" disabled={busy} onPress={() => setDeleteConfirm(false)} />
           </>}
@@ -263,7 +286,7 @@ export default function AccountScreen() {
         <Text style={s.body}>
           Wysłane: {syncStats.synced} · po błędzie: {syncStats.failed}. SYSTEM wysyła wyłącznie podsumowania zweryfikowanych zdarzeń — bez surowych tras GPS i zdjęć.
         </Text>
-        <Action label="SYNCHRONIZUJ TERAZ" disabled={busy || syncStats.pending === 0} onPress={() => { void run(syncNow); }} />
+        <Action label={syncStats.pending === 0 ? "SPRAWDŹ SYNCHRONIZACJĘ" : "SYNCHRONIZUJ TERAZ"} disabled={busy} onPress={() => { void run(syncNow); }} />
       </View>
 
       <View style={s.panel}>
@@ -292,6 +315,6 @@ export default function AccountScreen() {
       </View>
     </>}
 
-    {error && <SystemError message={error} retry={() => setError(null)} />}
+    {error && <SystemError message={error} retry={() => setError(null)} actionLabel="ZAMKNIJ" />}
   </SystemPage>;
 }

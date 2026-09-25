@@ -64,8 +64,8 @@ export async function prepareQuestBackgroundTracking(input: {
     updatedAt: new Date().toISOString(),
   });
 
-  if (!await Location.hasStartedLocationUpdatesAsync(SYSTEM_BACKGROUND_LOCATION_TASK)) {
-    try {
+  try {
+    if (!await Location.hasStartedLocationUpdatesAsync(SYSTEM_BACKGROUND_LOCATION_TASK)) {
       await Location.startLocationUpdatesAsync(SYSTEM_BACKGROUND_LOCATION_TASK, {
         accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: 1500,
@@ -81,10 +81,12 @@ export async function prepareQuestBackgroundTracking(input: {
           killServiceOnDestroy: false,
         },
       });
-    } catch (error) {
-      await clearBackgroundQuestSession(input.questId).catch(() => undefined);
-      throw error;
     }
+  } catch (error) {
+    // Session is persisted before native startup so TaskManager can see it.
+    // Any native status/start failure must remove that ownership again.
+    await stopQuestBackgroundTracking(input.questId).catch(() => undefined);
+    throw error;
   }
 }
 
@@ -93,14 +95,16 @@ export async function handoffQuestToBackground(
   lastLocation?: Location.LocationObject | null,
 ) {
   const point = lastLocation ? storedLocationPoint(lastLocation) : null;
-  await updateBackgroundQuestSession(questId, {
+  const updated = await updateBackgroundQuestSession(questId, {
     mode: 'BACKGROUND',
     ...(point ? { lastPoint: point, lastObservedTimestamp: point.timestamp } : {}),
   });
+  if (!updated) throw new Error('Sesja GPS tej misji nie jest już aktywna.');
 }
 
 export async function markQuestForeground(questId: string) {
-  await updateBackgroundQuestSession(questId, { mode: 'FOREGROUND' });
+  const updated = await updateBackgroundQuestSession(questId, { mode: 'FOREGROUND' });
+  if (!updated) throw new Error('Sesja GPS tej misji nie jest już aktywna.');
 }
 
 export async function stopQuestBackgroundTracking(questId?: string) {

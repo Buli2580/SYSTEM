@@ -1,0 +1,3 @@
+import type {SocialRaid} from './raids';
+export function raid2Phase(raid:SocialRaid){const hp=Math.max(0,raid.bossHp-raid.damage),pct=raid.bossHp?hp/raid.bossHp:0;return pct<=0?'DEFEATED':pct<=.15?'FINAL_STRIKE':pct<=.35?'ENRAGE':pct<=.7?'BREAK':'ENGAGE';}
+export function raidContributionRank(damage:number){return damage>=1000?'MYTHIC':damage>=500?'ELITE':damage>=100?'VANGUARD':damage>0?'SCOUT':'NONE';}

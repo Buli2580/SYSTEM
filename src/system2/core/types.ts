@@ -90,6 +90,7 @@ export interface PlayerProfile {
   id: string;
 
   displayName: string;
+  birthDate?: string;
   currentTitle?: 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
 
   // RULE #1 — EQUAL ORIGIN
@@ -202,6 +203,8 @@ export interface Quest {
 }
 
 export interface VerifiedEvent {
+  levelBefore?: number;
+  levelAfter?: number;
   activity?: import('../activity/types').ActivityEvidence;
   id: string;
 

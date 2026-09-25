@@ -1,0 +1,1 @@
+export type Skill='STRENGTH'|'ENDURANCE'|'KNOWLEDGE'|'DISCIPLINE'|'SOCIAL'|'CRAFT';export type SkillState=Record<Skill,number>;export function skillLevel(xp:number){return Math.max(1,Math.floor(Math.sqrt(Math.max(0,xp)/250))+1)}export function grantSkillXp(state:SkillState,skill:Skill,xp:number):SkillState{return{...state,[skill]:state[skill]+Math.max(0,Math.round(xp))};}

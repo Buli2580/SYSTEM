@@ -1,0 +1,4 @@
+import type {OnboardingState} from './state';
+export type OnboardingProfile2=OnboardingState&{activities?:('WALK'|'RUN'|'BIKE'|'FOCUS'|'LEARN')[];questMinutes?:10|20|30|45;tone?:'CALM'|'BALANCED'|'INTENSE';allowResearch?:boolean};
+export const DEFAULT_ONBOARDING_2:OnboardingProfile2={step:'WELCOME',completed:false,activities:['WALK','FOCUS','LEARN'],questMinutes:20,tone:'BALANCED',allowResearch:true};
+export function onboardingCompleteness(s:OnboardingProfile2){let n=0;if(s.goal)n+=25;if(s.difficulty)n+=20;if(s.activities?.length)n+=20;if(s.questMinutes)n+=15;if(s.tone)n+=10;if(s.step==='READY'||s.completed)n+=10;return Math.min(100,n);}

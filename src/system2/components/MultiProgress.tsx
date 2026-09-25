@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { SYSTEM_COLORS as C } from '../core';
 
 export function formatQuestTime(seconds: number) {
@@ -11,15 +11,16 @@ export default function MultiProgress({ distance, duration, meters, seconds }: {
 }) {
   return <View style={styles.root}>
     <Text style={styles.heading}>OBA WARUNKI SĄ WYMAGANE</Text>
-    <Condition label="GPS" value={`${Math.floor(distance)} / ${meters} M`} progress={distance / meters} />
-    <Condition label="AKTYWNY CZAS" value={`${formatQuestTime(duration)} / ${formatQuestTime(seconds)}`} progress={duration / seconds} />
+    <Condition label="GPS" value={`${Math.floor(distance)} / ${meters} M`} progress={meters > 0 ? distance / meters : 0} />
+    <Condition label="AKTYWNY CZAS" value={`${formatQuestTime(duration)} / ${formatQuestTime(seconds)}`} progress={seconds > 0 ? duration / seconds : 0} />
     <Text style={styles.hint}>Pozostań na ekranie misji z aktywnym GPS, aż oba warunki zostaną spełnione.</Text>
   </View>;
 }
 function Condition({ label, value, progress }: { label: string; value: string; progress: number }) {
+  const safeProgress = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;
   return <View style={styles.condition}>
-    <Text style={styles.label}>{label} · {value} {progress >= 1 ? '✓' : ''}</Text>
-    <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, Math.max(0, progress * 100))}%` }]} /></View>
+    <Text style={styles.label}>{label} · {value} {safeProgress >= 1 ? '✓' : ''}</Text>
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max: 100, now: Math.round(safeProgress * 100) }} style={styles.track}><View style={[styles.fill, { width: `${safeProgress * 100}%` as DimensionValue }]} /></View>
   </View>;
 }
 const styles = StyleSheet.create({

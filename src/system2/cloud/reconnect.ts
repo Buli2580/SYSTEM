@@ -1,0 +1,18 @@
+export type ReconnectState={online:boolean;pending:number;lastAttemptAt?:string;failures:number};
+
+export function reconnectDelayMs(failures:number){
+  return Math.min(60000,1000*Math.pow(2,Math.max(0,Math.min(failures,6))));
+}
+
+export function shouldFlushOnReconnect(prev:ReconnectState,next:ReconnectState){
+  return !prev.online&&next.online&&next.pending>0;
+}
+
+export function shouldRetrySync(s:ReconnectState,now=Date.now()){
+  if(!s.online||s.pending<=0)return false;
+  if(!s.lastAttemptAt)return true;
+  const lastAttempt=Date.parse(s.lastAttemptAt);
+  // Corrupt or legacy timestamps must never stall the outbox forever.
+  if(!Number.isFinite(lastAttempt))return true;
+  return now-lastAttempt>=reconnectDelayMs(s.failures);
+}

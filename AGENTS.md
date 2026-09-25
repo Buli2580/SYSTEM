@@ -6,11 +6,8 @@ This repository is developed by multiple AI-assisted workstreams. Keep `master` 
 
 ## Worktrees / branches
 
-- Integration: `C:\\Users\\Ja\\SYSTEM` → `master`
-- Codex: `C:\\Users\\Ja\\SYSTEM-codex` → `agent/codex`
-- OpenCode/local: `C:\\Users\\Ja\\SYSTEM-local` → `agent/local`
-- UI/Cline: `C:\\Users\\Ja\\SYSTEM-ui` → `agent/ui`
-- Release: `C:\\Users\\Ja\\SYSTEM-release` → `agent/release`
+- Canonical project: `E:\SYSTEM\SYSTEM-CANONICAL` → `integration/system-canonical`
+- Source archives are read-only references; the canonical checkout has independent Git objects.
 
 Never do feature work directly on `master`.
 

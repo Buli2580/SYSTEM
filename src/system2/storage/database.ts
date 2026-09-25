@@ -1,3 +1,19 @@
+import { readGoals, insertGoal, changeGoalStatus } from './goals';
+import type { PlayerGoal, GoalInput, GoalStatus } from '../goals/model';
+import type { Journey } from '../journeys/model';
+import type { RecentActivity } from '../generation/engine';
+import { ensureJourneys, bindJourneyQuests, journeyBindings, advanceJourney } from './journeys';
+import { generationInput, persistCandidate } from './generation';
+import { generateLoadout } from '../generation/engine';
+import { templateFor } from '../generation/templates';
+import { applyProgression, readProgression, type ProgressionState } from './progression';
+import { ensureAchievementSchema } from '../achievements/schema';
+import { validateBirthDate } from '../identity/age';
+import { inspectLocalHealth, type LocalHealth } from './health';
+import { createQuestCompletion } from '../application/completeQuest';
+import { localQuestVerification } from '../verification/localProvider';
+import { questAvailability } from '../quests/availability';
+import { completionRepositories } from './completionRepositories';
 import { reconcileStory, completeStoryActivity, bossAccess, storyEvent } from './story';
 import { BOSS_ID, attemptKind } from '../story/catalog';
 import type { StoryState, StoryEvent, QuestAttempt, AttemptResult, AttemptReason } from '../story/types';
@@ -10,19 +26,27 @@ import { getQuest } from '../quests/catalog';
 import * as SQLite from 'expo-sqlite';
 import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
-import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
+import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, mergeSettings, type Settings, type SettingsPatch, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
+import type { AIGameMasterResponse } from '../ai/types';
+import { candidatesFromAI } from '../ai/bridge';
+import { replaceAIQuestPresentations } from '../ai/registry';
+import { clearAIConsequenceDebt, readAIConsequenceState } from './aiState';
 import { parseEvent } from '../identity/history';
+import { bossPhaseState } from '../story/bossEngine';
+import { createMoveState, rolloverMoveState, completeMoveQuest as reduceMoveQuest, type MoveCompletionEvidence, type MoveState } from '../move/state';
+import { moveAgeMode } from '../move/age';
+import { MOVEMENT_SKILLS } from '../move/skills';
 
 import {
-  addRealXp, addSkillXp, createNewPlayer,
-  type PlayerProfile, type SkillKey, type VerifiedEvent,
+  createNewPlayer,
+  type PlayerProfile, type VerifiedEvent,
 } from '../core';
-import { validateQuestEvidence, getQuestStatus, prerequisitesCompleted } from '../quests/catalog';
+import { getQuestStatus, prerequisitesCompleted } from '../quests/catalog';
 import type { QuestEvidence } from '../quests/types';
 import { awardAwakeningIfEligible } from './chapter';
 
-export type CompleteQuestInput = QuestEvidence;
+export type CompleteQuestInput = QuestEvidence & { operationKey?: string };
 export type QuestCheckpoint = {
   questId: string;
   distanceMeters: number;
@@ -50,7 +74,22 @@ export type BackgroundQuestSession = {
   lastObservedTimestamp?: number;
   updatedAt: string;
 };
+export type AIDailyCache = {
+  dayKey: string;
+  source: 'ai';
+  model?: string;
+  briefing: string;
+  director: AIGameMasterResponse['director'];
+  research?: AIGameMasterResponse['research'];
+  memory?: AIGameMasterResponse['memory'];
+  generatedAt: string;
+};
+
 export type SystemSnapshot = {
+  systemDebt: 0 | 1 | 2 | 3;
+  aiDaily?: AIDailyCache | null;
+  goals: PlayerGoal[]; journeys: Journey[]; journeyQuestIds: Record<string,string>; recentActivity: readonly RecentActivity[]; progression: ProgressionState | null;
+  failedQuestIds?: string[];
   story: StoryState | null;
   daily: DailyState | null;
   player: PlayerProfile;
@@ -64,9 +103,141 @@ export type SystemSnapshot = {
 };
 export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt };
 
+const PENDING_REWARD_PRESENTATIONS_KEY = 'pending_reward_presentations';
+
+function validRewardReceipt(value: unknown): value is RewardReceipt {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Partial<RewardReceipt>;
+  const rewards = [row.realXp,row.energy,row.distanceMeters];
+  const skillXp = row.skillXp;
+  const skillLevels = row.skillLevels;
+  const newTitles = row.newTitles;
+  const ranks = ['E','D','C','B','A','S','SS','SSS','ASCENDED'];
+  const skills = ['STR','VIT','INT','WIL','CHA','CRE','RES'];
+  const titles = ['UNAWAKENED','AWAKENED','SIGNAL HUNTER','PATHFINDER','WALLBREAKER'];
+  return typeof row.id === 'string' && row.id.length > 0 && row.id.length <= 220
+    && rewards.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0)
+    && Number.isSafeInteger(row.beforeLevel) && Number(row.beforeLevel) >= 1
+    && Number.isSafeInteger(row.afterLevel) && Number(row.afterLevel) >= Number(row.beforeLevel)
+    && typeof row.beforeRank === 'string' && ranks.includes(row.beforeRank)
+    && typeof row.afterRank === 'string' && ranks.includes(row.afterRank)
+    && !!skillXp && typeof skillXp === 'object' && !Array.isArray(skillXp)
+    && Object.entries(skillXp).every(([key,xp]) =>
+      skills.includes(key) && typeof xp === 'number' && Number.isSafeInteger(xp) && xp >= 0)
+    && Array.isArray(skillLevels) && skillLevels.every(item => {
+      if (!item || typeof item !== 'object') return false;
+      const candidate = item as {key?:unknown;before?:unknown;after?:unknown};
+      return skills.includes(String(candidate.key))
+        && typeof candidate.before === 'number' && Number.isSafeInteger(candidate.before) && candidate.before >= 1
+        && typeof candidate.after === 'number' && Number.isSafeInteger(candidate.after) && candidate.after > candidate.before;
+    })
+    && Array.isArray(newTitles) && newTitles.every(title => typeof title === 'string' && titles.includes(title))
+    && typeof row.worldUnlocked === 'boolean'
+    && (row.bossDamage === undefined || (
+      !!row.bossDamage && typeof row.bossDamage === 'object'
+      && ['beforeHp','afterHp','dealt'].every(key => {
+        const value = (row.bossDamage as Record<string, unknown>)[key];
+        return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+      })
+      && typeof (row.bossDamage as Record<string, unknown>).phaseBefore === 'string'
+      && typeof (row.bossDamage as Record<string, unknown>).phaseAfter === 'string'
+    ));
+}
+
+function parsePendingRewardPresentations(raw?: string): RewardReceipt[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    return parsed.filter(validRewardReceipt).filter(receipt => {
+      if (seen.has(receipt.id)) return false;
+      seen.add(receipt.id);
+      return true;
+    }).slice(-16);
+  } catch {
+    return [];
+  }
+}
+
+export async function enqueuePendingRewardPresentation(txn: SQLite.SQLiteDatabase, receipt: RewardReceipt) {
+  const row = await txn.getFirstAsync<{ value: string }>(
+    'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
+  );
+  const queue = parsePendingRewardPresentations(row?.value).filter(item => item.id !== receipt.id);
+  queue.push(receipt);
+  await txn.runAsync(
+    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    PENDING_REWARD_PRESENTATIONS_KEY, JSON.stringify(queue.slice(-16))
+  );
+}
+
 async function completedQuestIds(db: SQLite.SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ quest_id: string }>('SELECT quest_id FROM quest_completions');
   return rows.map(row => row.quest_id);
+}
+
+function validAIDirector(value: unknown): value is AIGameMasterResponse['director'] {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return ['normal','recovery','challenge'].includes(String(row.mode)) &&
+    [-1,0,1].includes(Number(row.difficultyBias)) &&
+    typeof row.headline === 'string' && row.headline.length <= 80 &&
+    typeof row.message === 'string' && row.message.length <= 220;
+}
+
+async function readAIDailyCache(db: SQLite.SQLiteDatabase, day: string): Promise<AIDailyCache | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM app_state WHERE key=?',
+    'ai_daily_applied:' + day,
+  );
+  if (!row) return null;
+  try {
+    const parsed = JSON.parse(row.value) as Record<string, unknown>;
+    if (parsed.source !== 'ai') return null;
+    const director = validAIDirector(parsed.director)
+      ? parsed.director
+      : {
+          mode: 'normal' as const,
+          difficultyBias: 0 as const,
+          headline: 'DAILY DIRECTIVE',
+          message: 'SYSTEM korzysta z zapisanej dziennej konfiguracji AI.',
+        };
+    return {
+      dayKey: day,
+      source: 'ai',
+      ...(typeof parsed.model === 'string' && parsed.model.length <= 120 ? { model: parsed.model } : {}),
+      briefing: typeof parsed.briefing === 'string' ? parsed.briefing.slice(0, 180) : '',
+      director,
+      ...(parsed.research && typeof parsed.research === 'object' ? { research: parsed.research as AIGameMasterResponse['research'] } : {}),
+      ...(parsed.memory && typeof parsed.memory === 'object' ? { memory: parsed.memory as AIGameMasterResponse['memory'] } : {}),
+      generatedAt: typeof parsed.generatedAt === 'string' ? parsed.generatedAt : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function hydrateAIQuestPresentations(db: SQLite.SQLiteDatabase) {
+  const rows = await db.getAllAsync<{ value: string }>(
+    "SELECT value FROM app_state WHERE key LIKE 'ai_daily_presentation:%' ORDER BY key DESC LIMIT 14"
+  );
+  const presentations: { id: string; title: string; description: string }[] = [];
+  for (const row of rows.reverse()) {
+    try {
+      const parsed = JSON.parse(row.value) as { quests?: unknown };
+      if (!Array.isArray(parsed.quests)) continue;
+      for (const item of parsed.quests) {
+        if (!item || typeof item !== 'object') continue;
+        const quest = item as Record<string, unknown>;
+        if (typeof quest.id !== 'string' || typeof quest.title !== 'string' || typeof quest.description !== 'string') continue;
+        presentations.push({ id: quest.id, title: quest.title, description: quest.description });
+      }
+    } catch {
+      // Presentation copy is non-authoritative; corrupt rows fall back to canonical quest copy.
+    }
+  }
+  replaceAIQuestPresentations(presentations);
 }
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -97,6 +268,23 @@ export async function initSystemDatabase() {
       const db = await getDatabase();
       await migrateDatabase(db);
       await db.withExclusiveTransactionAsync(async txn => {
+        // Older builds could commit a quest without closing its attempt row.
+        // Reconcile those rows from the canonical completion record before
+        // treating genuinely unfinished attempts as abandoned.
+        await txn.runAsync(
+          `UPDATE quest_attempts
+           SET result='COMPLETED',
+               reason=NULL,
+               ended_at=COALESCE(
+                 (SELECT c.completed_at FROM quest_completions c WHERE c.quest_id=quest_attempts.quest_id),
+                 ended_at,
+                 ?
+               ),
+               eligible=0
+           WHERE result IS NULL
+             AND quest_id IN (SELECT quest_id FROM quest_completions)`,
+          new Date(Date.now()).toISOString(),
+        );
         const activeRow = await txn.getFirstAsync<{ value: string }>(
           'SELECT value FROM app_state WHERE key=?',
           BACKGROUND_QUEST_SESSION_KEY,
@@ -155,17 +343,16 @@ export function getQuestAccess(questId: string): Promise<ReturnType<typeof getQu
     await db.withExclusiveTransactionAsync(async txn => {
       await txn.runAsync('UPDATE app_state SET value=value WHERE key=?', 'player');
       const snapshot = await snapshotInTransaction(txn);
-      access = getQuestStatus(questId, snapshot.completedQuestIds);
-      if (getQuest(questId)?.category === 'BOSS' && access !== 'COMPLETED' && !await bossAccess(txn,questId)) access = 'LOCKED';
-      if (getQuest(questId)?.category === 'DAILY' && access !== 'COMPLETED') {
-        if (!snapshot.daily || snapshot.daily.clockAnomaly || !snapshot.daily.questIds.includes(questId)) access = 'LOCKED';
-      }
+      const resolved = questAvailability(questId, { completedQuestIds: snapshot.completedQuestIds, daily: snapshot.daily,
+        bossAccessible: getQuest(questId)?.category === 'BOSS' ? await bossAccess(txn, questId) : false });
+      access = resolved.status === 'FAILED' ? 'AVAILABLE' : resolved.status;
     });
     return access;
   });
 }
 
 async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
+  await hydrateAIQuestPresentations(db);
   const ids = await completedQuestIds(db);
   const chapter = await awardAwakeningIfEligible(db, await readPlayer(db), ids);
   const seen = await db.getFirstAsync('SELECT value FROM app_state WHERE key = ?', 'awakening_presentation_seen');
@@ -179,10 +366,19 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
   const selected = titles.includes(chapter.player.currentTitle as Title) ? chapter.player.currentTitle : titles[titles.length - 1];
   const preferences = parseSettings(settings?.value);
+  const goals = await readGoals(db);
+  const journeys = await ensureJourneys(db, goals);
   const daily = await dailyState(db, chapter.player, chapter.awakeningCompleted, preferences.activities ?? DEFAULT_ACTIVITIES);
+  if (daily) await bindJourneyQuests(db, daily.questIds, goals, journeys);
+  const recentActivity = (await generationInput(db, chapter.player, daily?.dayKey ?? dayKey(), preferences.activities ?? DEFAULT_ACTIVITIES)).history;
+  const progression = await readProgression(db, new Date(Date.now()).toISOString());
+  const consequence = await readAIConsequenceState(db);
+  const aiDaily = daily ? await readAIDailyCache(db, daily.dayKey) : null;
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
+  const failed = await db.getAllAsync<{ quest_id: string }>("SELECT DISTINCT quest_id FROM quest_attempts WHERE result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS') AND quest_id NOT IN (SELECT quest_id FROM quest_completions)");
   return {
-    daily, story: reconciled.story,
+    systemDebt: consequence.systemDebt, aiDaily, goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
+    failedQuestIds: failed.map(row => row.quest_id), daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
     completedQuestIds: ids, worldUnlocked: chapter.awakeningCompleted,
@@ -208,71 +404,99 @@ export function worldTransaction<T>(task: (txn: SQLite.SQLiteDatabase, player: P
   });
 }
 
-export function completeVerifiedQuest(input: CompleteQuestInput): Promise<CompleteQuestResult> {
-  // Snapshot caller data before entering the queue. Rewards come only from the quest definition.
-  const evidence: CompleteQuestInput = JSON.parse(JSON.stringify(input));
-  return serialized(async () => {
-    const quest = validateQuestEvidence(evidence);
+// Compatibility facade: Provider/UI continue to call the same API.
+const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
+  run: work => serialized(async () => {
     await initSystemDatabase();
     const db = await getDatabase();
-    let result: CompleteQuestResult | undefined;
+    let result: Awaited<ReturnType<typeof work>>;
     await db.withExclusiveTransactionAsync(async txn => {
-      const now = new Date().toISOString();
-      // First statement takes the write lock BEFORE reading the current profile.
-      const claim = await txn.runAsync(
-        'INSERT INTO quest_completions (quest_id, completed_at) VALUES (?, ?) ON CONFLICT(quest_id) DO NOTHING',
-        quest.id, now
-      );
-      let player = await readPlayer(txn);
-      if (claim.changes === 0) {
-        result = { awarded: false, ...await snapshotInTransaction(txn) };
-        return;
-      }
-      if (!prerequisitesCompleted(quest, await completedQuestIds(txn))) {
-        throw new Error('Ta misja jest zablokowana. Ukończ poprzednie questy Awakening.');
-      }
-      if (quest.category === 'BOSS' && !await bossAccess(txn,quest.id)) throw new Error('Ten etap Bossa jest zablokowany.');
-      if (quest.category === 'DAILY') {
-        const snapshot = await snapshotInTransaction(txn);
-        await ensureDailyAccess(txn, player, quest.id, snapshot.awakeningCompleted, snapshot.settings.activities ?? DEFAULT_ACTIVITIES);
-        player = await readPlayer(txn);
-      }
-      let next = addRealXp(player, quest.rewards.realXp);
-      for (const [key, xp] of Object.entries(quest.rewards.skillXp ?? {})) {
-        next = addSkillXp(next, key as SkillKey, xp);
-      }
-      next = {
-        ...next,
-        verifiedQuestCount: next.verifiedQuestCount + 1,
-        gameEnergy: next.gameEnergy + (quest.rewards.gameEnergy ?? 0),
-        totalDistanceMeters: next.totalDistanceMeters + (evidence.verificationType !== 'TIMER' ? evidence.distanceMeters : 0),
-        updatedAt: now,
-      };
-      const event: VerifiedEvent = {
-        activity: quest.activityType ? evidence.activity : undefined,
-        id: 'quest_' + quest.id,
-        playerId: next.id, questId: quest.id, createdAt: now,
-        verificationType: evidence.verificationType,
-        verificationScore: evidence.verificationScore, verified: true,
-        realXpAwarded: quest.rewards.realXp,
-        skillXpAwarded: { ...quest.rewards.skillXp },
-        gameEnergyAwarded: quest.rewards.gameEnergy ?? 0,
-        distanceMeters: evidence.distanceMeters, durationSeconds: evidence.durationSeconds,
-      };
-      next = await completeStoryActivity(txn,next,quest,evidence);
-      next = await awardProtocols(txn, next, quest.id, now);
-      await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(next), 'player');
-      await txn.runAsync(
-        'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
-        event.id, quest.id, JSON.stringify(event), now
-      );
-      await enqueueCloudOutboxEvent(txn, event);
-      const snapshot = await snapshotInTransaction(txn);
-      result = { awarded: true, ...snapshot, receipt: rewardReceipt(event.id, player, snapshot.player,
-        snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
+      // Lock before reads; uniqueness on completion/event remains the final duplicate guard.
+      await txn.runAsync('UPDATE app_state SET value = value WHERE key = ?', 'player');
+      const presentationBefore = await snapshotInTransaction(txn);
+      result = await work(completionRepositories(txn, () => readPlayer(txn), async id => {
+        const quest = getQuest(id);
+        const ids = await completedQuestIds(txn);
+        const daily = quest?.category === 'DAILY' ? (await snapshotInTransaction(txn)).daily : null;
+        return questAvailability(id, { completedQuestIds: ids, daily,
+          bossAccessible: quest?.category === 'BOSS' ? await bossAccess(txn, id) : false });
+      }, {
+        async apply(player, quest, evidence, now) {
+          // completeStoryActivity owns attempt validation + closure because it
+          // also derives rematch/hidden-story rewards from the still-open attempt.
+          const storyPlayer = await completeStoryActivity(txn, player, quest, evidence);
+          const journeyPlayer = await advanceJourney(txn, storyPlayer, quest, now);
+          const protocolPlayer = await awardProtocols(txn, journeyPlayer, quest.id, now);
+          if (templateFor(quest.id)?.id === 'focus_return') await clearAIConsequenceDebt(txn);
+          return applyProgression(txn, protocolPlayer, quest, evidence, 'quest_' + quest.id, now);
+        },
+        async result(awarded, before, event) {
+          if (awarded && event) await enqueueCloudOutboxEvent(txn, event);
+          const snapshot = await snapshotInTransaction(txn);
+          const beforeHp = presentationBefore.story?.bossHp;
+          const afterHp = snapshot.story?.bossHp;
+          const hasBossDelta = typeof beforeHp === 'number' && typeof afterHp === 'number' && afterHp < beforeHp;
+          const bossDamage = hasBossDelta ? {
+            beforeHp,
+            afterHp,
+            dealt: Math.max(0, beforeHp - afterHp),
+            phaseBefore: bossPhaseState(beforeHp, 100, Date.now(), presentationBefore.story?.boss?.started_at).phase,
+            phaseAfter: bossPhaseState(afterHp, 100, Date.now(), snapshot.story?.boss?.started_at).phase,
+          } : undefined;
+          const receipt = event ? rewardReceipt(
+            event.id,
+            before,
+            snapshot.player,
+            snapshot.titles.filter(title => !presentationBefore.titles.includes(title)),
+            !presentationBefore.worldUnlocked && snapshot.worldUnlocked,
+            bossDamage,
+          ) : undefined;
+          if (awarded && receipt) await enqueuePendingRewardPresentation(txn, receipt);
+          return { awarded, ...snapshot, ...(receipt ? { receipt } : {}) };
+        },
+      }));
     });
-    if (!result) throw new Error('Nie udało się potwierdzić zapisu misji.');
-    return result;
+    return result!;
+  }),
+}, localQuestVerification, () => new Date(Date.now()).toISOString());
+
+export async function completeVerifiedQuest(input: CompleteQuestInput): Promise<CompleteQuestResult> {
+  const result = await completeQuestUseCase({ evidence: input, operationKey: input.operationKey });
+  if ('value' in result) return result.value;
+  throw new Error(result.reason);
+}
+
+export function loadPendingRewardPresentations(): Promise<RewardReceipt[]> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
+    );
+    const queue = parsePendingRewardPresentations(row?.value);
+    if (!row) return queue;
+    if (queue.length === 0) {
+      await txn.runAsync('DELETE FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY);
+      return queue;
+    }
+    const canonical = JSON.stringify(queue);
+    if (canonical !== row.value) {
+      await txn.runAsync('UPDATE app_state SET value=? WHERE key=?', canonical, PENDING_REWARD_PRESENTATIONS_KEY);
+    }
+    return queue;
+  });
+}
+
+export function acknowledgeRewardPresentation(receiptId: string): Promise<void> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY
+    );
+    if (!row) return;
+    const queue = parsePendingRewardPresentations(row.value).filter(receipt => receipt.id !== receiptId);
+    if (queue.length) {
+      await txn.runAsync('UPDATE app_state SET value=? WHERE key=?', JSON.stringify(queue), PENDING_REWARD_PRESENTATIONS_KEY);
+    } else {
+      await txn.runAsync('DELETE FROM app_state WHERE key=?', PENDING_REWARD_PRESENTATIONS_KEY);
+    }
   });
 }
 
@@ -288,6 +512,7 @@ export function loadSystemState(): Promise<SystemSnapshot> {
         'player', JSON.stringify(createNewPlayer('GRACZ'))
       );
       await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING', 'onboarding_complete', 'false');
+      await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING', 'settings', JSON.stringify(DEFAULT_SETTINGS));
       snapshot = await snapshotInTransaction(txn);
     });
     if (!snapshot) throw new Error('Nie udało się odczytać zapisu SYSTEMU.');
@@ -296,17 +521,14 @@ export function loadSystemState(): Promise<SystemSnapshot> {
 }
 
 export function acknowledgeAwakening() {
-  return serialized(async () => {
-    await initSystemDatabase();
-    const db = await getDatabase();
-    await db.withExclusiveTransactionAsync(async txn => {
-      const snapshot = await snapshotInTransaction(txn);
-      if (!snapshot.awakeningCompleted) throw new Error('Przebudzenie nie zostało ukończone.');
-      await txn.runAsync(
-        'INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
-        'awakening_presentation_seen', 'true'
-      );
-    });
+  return profileTransaction(async txn => {
+    const snapshot = await snapshotInTransaction(txn);
+    if (!snapshot.awakeningCompleted) throw new Error('Przebudzenie nie zostało ukończone.');
+    await txn.runAsync(
+      'INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
+      'awakening_presentation_seen', 'true'
+    );
+    return snapshotInTransaction(txn);
   });
 }
 
@@ -322,24 +544,26 @@ export function profileTransaction<T>(task: (txn: SQLite.SQLiteDatabase) => Prom
     return result!;
   });
 }
-export function finishOnboarding(name: string) {
+export function finishOnboarding(name: string, birthDate?: string) {
+  const birth = birthDate === undefined ? undefined : validateBirthDate(birthDate);
   const displayName = systemName(name);
   return profileTransaction(async txn => {
     const marker = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'onboarding_complete');
     if (marker?.value === 'true') return snapshotInTransaction(txn);
     const player = await readPlayer(txn);
-    await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify({ ...player, displayName }), 'player');
+    await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify({ ...player, displayName, ...(birth ? { birthDate: birth } : {}) }), 'player');
     await txn.runAsync("INSERT INTO app_state(key, value) VALUES ('onboarding_complete', 'true') ON CONFLICT(key) DO UPDATE SET value = excluded.value");
     return snapshotInTransaction(txn);
   });
 }
-export function updateIdentity(patch: { displayName?: string; avatarUri?: string | null; currentTitle?: Title }) {
+export function updateIdentity(patch: { displayName?: string; birthDate?: string; avatarUri?: string | null; currentTitle?: Title }) {
   const update = { ...patch };
   return profileTransaction(async txn => {
     const snapshot = await snapshotInTransaction(txn);
     if (update.currentTitle && !snapshot.titles.includes(update.currentTitle)) throw new Error('Title nie został jeszcze zdobyty.');
     if (update.avatarUri && !update.avatarUri.startsWith('file://')) throw new Error('Avatar musi być lokalnym plikiem.');
     const player = { ...snapshot.player,
+      ...(update.birthDate !== undefined ? { birthDate: validateBirthDate(update.birthDate) } : {}),
       ...(update.displayName !== undefined ? { displayName: systemName(update.displayName) } : {}),
       ...(update.avatarUri !== undefined ? { avatarUri: update.avatarUri ?? undefined } : {}),
       ...(update.currentTitle ? { currentTitle: update.currentTitle } : {}) };
@@ -347,9 +571,11 @@ export function updateIdentity(patch: { displayName?: string; avatarUri?: string
     return snapshotInTransaction(txn);
   });
 }
-export function saveSettings(settings: Settings) {
-  const safe = parseSettings(JSON.stringify(settings));
+export function saveSettings(patch: SettingsPatch) {
   return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'settings');
+    const current = parseSettings(row?.value);
+    const safe = mergeSettings(current, patch);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', 'settings', JSON.stringify(safe));
     return snapshotInTransaction(txn);
   });
@@ -364,7 +590,10 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['cloud_outbox', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    await ensureAchievementSchema(txn);
+    if (await txn.getFirstAsync("SELECT name FROM sqlite_master WHERE type='table' AND name='legacy_player_goals_v8'"))
+      await txn.runAsync('DELETE FROM legacy_player_goals_v8');
+    for (const table of ['progression_claims', 'progression_contributions', 'journey_milestones', 'journey_activity', 'journey_quests', 'journeys', 'legacy_goal_imports', 'goal_operations', 'player_goals', 'daily_generation', 'daily_rerolls', 'boss_contributions', 'cloud_outbox', 'achievement_events', 'player_titles', 'achievements', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -600,6 +829,17 @@ export function startBossProtocol() {
  });
 }
 
+// Manual local diagnostics: no telemetry and no repair of corrupt player values.
+export function testerHealthCheck(): Promise<LocalHealth> {
+  return serialized(async () => {
+    try {
+      await initSystemDatabase();
+      let result: LocalHealth | undefined;
+      await (await getDatabase()).withExclusiveTransactionAsync(async txn => { result = await inspectLocalHealth(txn); });
+      return result!;
+    } catch { return { ok: false, schema: null, issues: [{ code: 'STORAGE_UNAVAILABLE' }] }; }
+  });
+}
 
 const CLOUD_USER_BINDING_KEY = 'cloud_user_binding_v1';
 
@@ -655,6 +895,7 @@ export type CloudOutboxRow = {
 function cloudEvidencePayload(event: VerifiedEvent) {
   return {
     quest_id: event.questId,
+    completed_day: dayKey(Date.parse(event.createdAt)),
     verification_type: event.verificationType,
     verification_score: event.verificationScore,
     ...(event.distanceMeters !== undefined ? { distance_meters: event.distanceMeters } : {}),
@@ -690,24 +931,40 @@ async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: Verifi
 
 export function backfillCloudOutbox() {
   return profileTransaction(async txn => {
-    const marker = await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', 'cloud_outbox_backfill_v1');
-    if (marker) return;
+    // Chapter, daily/weekly and world transactions also produce verified events.
+    // Reconcile missing entries on every sync, including after the legacy marker.
     const rows = await txn.getAllAsync<{ payload: string }>(
-      'SELECT payload FROM verified_events ORDER BY created_at ASC, id ASC LIMIT 500'
+      `SELECT v.payload FROM verified_events v
+       WHERE NOT EXISTS (SELECT 1 FROM cloud_outbox o WHERE o.event_key = 'verified:' || v.id)
+         AND CASE WHEN json_valid(v.payload) THEN
+           json_extract(v.payload, '$.verified') = 1
+           AND json_extract(v.payload, '$.id') = v.id
+           AND json_extract(v.payload, '$.questId') = v.quest_id
+         ELSE 0 END
+       ORDER BY v.created_at ASC, v.id ASC LIMIT 500`
     );
     for (const row of rows) {
-      try {
-        const event = JSON.parse(row.payload) as VerifiedEvent;
-        if (event?.verified === true && typeof event.id === 'string' && typeof event.questId === 'string') {
-          await enqueueCloudOutboxEvent(txn, event);
-        }
-      } catch {
-        // A malformed legacy log entry must not block startup or later sync.
+      const event = JSON.parse(row.payload) as VerifiedEvent;
+      if (event?.verified === true && typeof event.id === 'string' && typeof event.questId === 'string') {
+        await enqueueCloudOutboxEvent(txn, event);
       }
     }
-    await txn.runAsync(
-      "INSERT INTO app_state(key,value) VALUES('cloud_outbox_backfill_v1','true') ON CONFLICT(key) DO UPDATE SET value='true'"
+    // Story awards use a separate local journal. Send only a completion claim;
+    // the server must derive eligibility and reward from its own evidence.
+    const story = await txn.getAllAsync<{ id: string; completed_at: string }>(
+      `SELECT s.id,s.completed_at FROM story_progress s
+       WHERE NOT EXISTS (SELECT 1 FROM cloud_outbox o WHERE o.event_key = 'verified:story:' || s.id)
+       ORDER BY s.completed_at,s.id LIMIT 100`
     );
+    for (const row of story) {
+      await txn.runAsync(
+        `INSERT INTO cloud_outbox(event_key,entity_type,entity_id,payload,client_created_at,schema_version)
+         VALUES(?,?,?,?,?,1) ON CONFLICT(event_key) DO NOTHING`,
+        'verified:story:' + row.id, 'VERIFIED_EVENT', row.id,
+        JSON.stringify({ quest_id: row.id, verification_type: 'MULTI', verification_score: 100 }),
+        row.completed_at,
+      );
+    }
   });
 }
 
@@ -754,4 +1011,160 @@ export function cloudOutboxStats() {
     );
     return { pending: row?.pending ?? 0, synced: row?.synced ?? 0, failed: row?.failed ?? 0 };
   });
+}
+
+export function createPlayerGoal(input: GoalInput, operationKey?: string) {
+ return profileTransaction(async txn => { await insertGoal(txn,input,Date.now(),operationKey); return snapshotInTransaction(txn); });
+}
+export function updateGoalStatus(id: string, status: GoalStatus) {
+ return profileTransaction(async txn => { await changeGoalStatus(txn,id,status); return snapshotInTransaction(txn); });
+}
+
+export function applyAIDailyPlan(plan: AIGameMasterResponse) {
+ return profileTransaction(async txn => {
+   const snapshot = await snapshotInTransaction(txn);
+   const daily = snapshot.daily;
+   if (!daily || daily.clockAnomaly || daily.clear || plan.source !== 'ai') return snapshot;
+
+   const markerKey = 'ai_daily_applied:' + daily.dayKey;
+   const presentationKey = 'ai_daily_presentation:' + daily.dayKey;
+   if (await txn.getFirstAsync('SELECT value FROM app_state WHERE key=?', markerKey)) return snapshot;
+
+   const touched = await txn.getFirstAsync(
+     `SELECT d.id FROM daily_instances d
+      WHERE d.day_key=? AND (
+        EXISTS(SELECT 1 FROM quest_completions c WHERE c.quest_id=d.id)
+        OR EXISTS(SELECT 1 FROM quest_attempts a WHERE a.quest_id=d.id)
+      ) LIMIT 1`,
+     daily.dayKey,
+   );
+   if (touched) return snapshot;
+
+   const input = await generationInput(
+     txn,
+     snapshot.player,
+     daily.dayKey,
+     snapshot.settings.activities ?? DEFAULT_ACTIVITIES,
+   );
+   input.exclude = [];
+   const candidates = candidatesFromAI(input, plan, 3);
+   if (candidates.length !== 3) return snapshot;
+
+   const old = await txn.getAllAsync<{id:string}>(
+     'SELECT id FROM daily_instances WHERE day_key=?',
+     daily.dayKey,
+   );
+   for (const row of old) {
+     await txn.runAsync('DELETE FROM journey_quests WHERE quest_id=?', row.id);
+     await txn.runAsync('DELETE FROM journey_activity WHERE quest_id=?', row.id);
+   }
+   await txn.runAsync('DELETE FROM daily_rerolls WHERE day_key=?', daily.dayKey);
+   await txn.runAsync('DELETE FROM daily_generation WHERE day_key=?', daily.dayKey);
+   await txn.runAsync('DELETE FROM daily_instances WHERE day_key=?', daily.dayKey);
+
+   for (const candidate of candidates) await persistCandidate(txn, candidate);
+
+   await txn.runAsync(
+     'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+     presentationKey,
+     JSON.stringify({
+       quests: candidates.map(candidate => ({
+         id: candidate.quest.id,
+         title: candidate.quest.title,
+         description: candidate.quest.description,
+       })),
+     }),
+   );
+   await hydrateAIQuestPresentations(txn);
+
+   await txn.runAsync(
+     'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+     markerKey,
+     JSON.stringify({
+       source: plan.source,
+       model: plan.model ?? null,
+       briefing: plan.briefing,
+       director: plan.director,
+       research: plan.research ?? null,
+       memory: plan.memory ?? null,
+       generatedAt: new Date().toISOString(),
+     }),
+   );
+   await storyEvent(
+     txn,
+     'ai_daily_applied:' + daily.dayKey,
+     'DAILY_GENERATED',
+     'AI GAME MASTER // LOADOUT',
+     plan.briefing.slice(0, 240),
+   );
+   return snapshotInTransaction(txn);
+ });
+}
+
+export function rerollDailyQuest(id:string) { return profileTransaction(async txn=>{
+ const snapshot=await snapshotInTransaction(txn),daily=snapshot.daily;
+ if(!daily||daily.clockAnomaly||daily.rerollsUsed||!daily.questIds.includes(id)||snapshot.completedQuestIds.includes(id)) throw new Error('Wymiana niedostępna: jeden niewykonany Daily dziennie.');
+ if(await txn.getFirstAsync('SELECT attempt_id FROM quest_attempts WHERE quest_id=? LIMIT 1',id))throw new Error('Rozpoczętej misji nie można wymienić.');
+ const input=await generationInput(txn,snapshot.player,daily.dayKey,snapshot.settings.activities??DEFAULT_ACTIVITIES);
+ input.exclude=daily.questIds.map(id=>templateFor(id)?.id??'');
+ const old=getQuest(id)!;
+ input.maximumDifficulty=old.difficulty==='EXTREME'?'HARD':old.difficulty;
+ const choices=generateLoadout(input,3);
+ const next=choices.find(c=>c.quest.difficulty===old.difficulty)??choices.find(c=>c.quest.difficulty==='EASY')??choices[0];
+ if(!next||next.quest.id===id)throw new Error('Brak odpowiedniego zamiennika. Spróbuj jutro.');
+ await txn.runAsync('INSERT INTO daily_rerolls(day_key,old_id,new_id) VALUES (?,?,?)',daily.dayKey,id,next.quest.id);
+ await txn.runAsync('DELETE FROM daily_instances WHERE id=?',id);
+ await persistCandidate(txn,next);
+ await storyEvent(txn,'reroll:'+daily.dayKey,'QUEST_REROLLED','DAILY REPLACED',old.title+' → '+next.quest.title);
+ return snapshotInTransaction(txn);
+}); }
+
+const MOVE_STATE_KEY='system_move_state_v1';
+function validMoveState(value:unknown):value is MoveState{
+ if(!value||typeof value!=='object')return false;
+ const row=value as Partial<MoveState>;
+ const modes=['UNDER_6','AGE_6_8','AGE_9_12','AGE_13_17','ADULT','UNKNOWN'];
+ const safeInt=(n:unknown)=>typeof n==='number'&&Number.isSafeInteger(n)&&n>=0;
+ const skills=row.skills as Record<string,{key?:unknown;level?:unknown;xp?:unknown;xpToNext?:unknown}>|undefined;
+ return typeof row.dayKey==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(row.dayKey)&&typeof row.ageMode==='string'&&modes.includes(row.ageMode)
+  &&Array.isArray(row.completedQuestIds)&&row.completedQuestIds.every(x=>typeof x==='string'&&x.length>0)
+  &&safeInt(row.activeMinutes)&&safeInt(row.streak)&&safeInt(row.bestStreak)&&Number(row.bestStreak)>=Number(row.streak)
+  &&(row.lastActiveDay===null||typeof row.lastActiveDay==='string')
+  &&!!skills&&!Array.isArray(skills)&&MOVEMENT_SKILLS.every(key=>{
+    const item=skills[key];return !!item&&item.key===key&&safeInt(item.xp)&&safeInt(item.xpToNext)&&typeof item.level==='number'&&Number.isSafeInteger(item.level)&&item.level>=1;
+  })
+  &&Array.isArray(row.history)&&row.history.every(day=>!!day&&typeof day==='object'
+    &&typeof day.dayKey==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day.dayKey)
+    &&safeInt(day.minutes)&&Array.isArray(day.questIds)&&day.questIds.every(id=>typeof id==='string'));
+}
+export function loadMoveState(now=Date.now()):Promise<MoveState>{
+ return serialized(async()=>{
+  await initSystemDatabase();
+  const db=await getDatabase();
+  const player=await readPlayer(db);
+  const currentDay=dayKey(now),age=moveAgeMode(player.birthDate,new Date(now));
+  const row=await db.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?',MOVE_STATE_KEY);
+  let state:MoveState;
+  try{const parsed=row?JSON.parse(row.value):null;state=validMoveState(parsed)?parsed:createMoveState(currentDay,age)}catch{state=createMoveState(currentDay,age)}
+  const next=rolloverMoveState(state,currentDay,age);
+  if(!row||JSON.stringify(next)!==row.value)await db.runAsync('INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',MOVE_STATE_KEY,JSON.stringify(next));
+  return next;
+ });
+}
+export function completeMoveActivity(evidence:MoveCompletionEvidence):Promise<MoveState>{
+ return serialized(async()=>{
+  await initSystemDatabase();
+  const db=await getDatabase();
+  let result!:MoveState;
+  await db.withExclusiveTransactionAsync(async txn=>{
+    const player=await readPlayer(txn);
+    const age=moveAgeMode(player.birthDate,new Date(Date.now()));
+    const row=await txn.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?',MOVE_STATE_KEY);
+    let state:MoveState;
+    try{const parsed=row?JSON.parse(row.value):null;state=validMoveState(parsed)?parsed:createMoveState(evidence.dayKey,age)}catch{state=createMoveState(evidence.dayKey,age)}
+    result=reduceMoveQuest(rolloverMoveState(state,evidence.dayKey,age),evidence);
+    await txn.runAsync('INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',MOVE_STATE_KEY,JSON.stringify(result));
+  });
+  return result;
+ });
 }
