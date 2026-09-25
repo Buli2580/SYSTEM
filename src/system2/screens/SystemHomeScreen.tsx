@@ -44,7 +44,7 @@ function Rain({ reduced }: { reduced: boolean }) {
   </Animated.View>;
 }
 
-function WorldScene({ reduced, bossActive }: { reduced: boolean; bossActive: boolean }) {
+function WorldScene({ reduced, bossActive, mode }: { reduced: boolean; bossActive: boolean; mode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' }) {
   const drift = useSharedValue(0);
   const portal = useSharedValue(0);
   const flash = useSharedValue(0);
@@ -69,7 +69,7 @@ function WorldScene({ reduced, bossActive }: { reduced: boolean; bossActive: boo
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
     <View style={[StyleSheet.absoluteFill, styles.sky]} />
     <View style={styles.cityGlow} />
-    <Animated.View style={[styles.farCity, far]}>
+    <Animated.View style={[styles.farCity, far, impactStyle]}>
       {[96, 145, 118, 188, 126, 164, 105, 210, 138].map((h, i) => <View key={i} style={[styles.farTower, { height: h, left: i * 48 - 16 }]}>
         {!reduced && <View style={[styles.windowBand, { top: 18 + (i % 4) * 13 }]} />}
       </View>)}
@@ -157,6 +157,11 @@ export default function SystemHomeScreen() {
   } = useSystem();
 
   const reduced = width < 370 || height < 700;
+  const sceneMode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' =
+    bossActive ? 'BOSS' :
+    !awakeningCompleted ? 'AWAKENING' :
+    lastReward ? 'VICTORY' :
+    activeQuestId ? 'QUEST' : 'HOME';
   const worldTier = player.realLevel >= 25 ? 3 : player.realLevel >= 10 ? 2 : 1;
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
@@ -182,8 +187,8 @@ export default function SystemHomeScreen() {
   </View>;
 
   return <SystemScreen style={styles.root}>
-    <View style={styles.scene}>
-      <WorldScene reduced={reduced} bossActive={bossActive} />
+    <View style={[styles.scene, mode === 'BOSS' && styles.sceneBoss, mode === 'AWAKENING' && styles.sceneAwakening, mode === 'VICTORY' && styles.sceneVictory]}>
+      <WorldScene reduced={reduced} bossActive={bossActive} mode={sceneMode} />
       <View pointerEvents="none" style={[styles.progressAtmosphere, worldTier >= 2 && styles.progressAtmosphereMid, worldTier >= 3 && styles.progressAtmosphereHigh]} />
       {streakTier > 0 && <View pointerEvents="none" style={[styles.streakAura, streakTier >= 2 && styles.streakAuraStrong, streakTier >= 3 && styles.streakAuraMax]} />}
       <Hud top={insets.top} />
@@ -222,7 +227,7 @@ export default function SystemHomeScreen() {
       </View>
 
       <View pointerEvents="none" style={styles.worldState}>
-        <Text style={styles.worldStateText}>SYSTEM // {bossActive ? 'ANOMALY DETECTED' : worldUnlocked ? 'GATE ONLINE' : 'AWAKENING'}</Text>
+        <Text style={styles.worldStateText}>SYSTEM // {sceneMode}</Text>
         <Text style={styles.playerName}>{player.displayName} · {player.currentTitle}</Text>
       </View>
     </View>
