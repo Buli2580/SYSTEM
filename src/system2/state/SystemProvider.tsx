@@ -23,7 +23,7 @@ type SystemContextValue = db.SystemSnapshot & {
   resetData: (confirmed: true) => Promise<void>;
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
-  lastReward: RewardReceipt | null; notificationError: string | null;
+  lastReward: RewardReceipt | null; dismissLastReward: () => void; notificationError: string | null;
 };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
@@ -85,6 +85,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (receipt.afterLevel > receipt.beforeLevel || receipt.skillLevels.length) setCelebration(receipt);
   }, []);
   const dismissCelebration = useCallback(() => setCelebration(null), []);
+  const dismissLastReward = useCallback(() => setLastReward(null), []);
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     const epoch = generation.current;
     const result = await db.completeVerifiedQuest(input);
@@ -109,7 +110,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     finally { resetting.current = false; }
   }, []);
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
-    completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
+    completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
     finishOnboarding: name => apply(db.finishOnboarding(name)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)), resetData,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
