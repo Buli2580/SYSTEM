@@ -12,9 +12,11 @@ import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import type { InventoryItem } from '../core/inventory';
 import type { SocialMode, SocialSession } from '../core/social';
+import type { Plan, UserModel } from '../adaptive/engine';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
+  adaptivePlan: Plan | null; adaptiveModel: UserModel | null;
   setActiveQuestId: Dispatch<SetStateAction<string | null>>;
   acknowledgeAwakening: () => Promise<void>;
   completeVerifiedQuest: (input: db.CompleteQuestInput) => Promise<db.CompleteQuestResult>;
@@ -43,6 +45,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [lastReward, setLastReward] = useState<RewardReceipt | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [socialSessions, setSocialSessions] = useState<Partial<Record<SocialMode,SocialSession>>>({});
+  const [adaptivePlan,setAdaptivePlan]=useState<Plan|null>(null);
+  const [adaptiveModel,setAdaptiveModel]=useState<UserModel|null>(null);
   const seenRewards = useRef(new Set<string>());
   const refreshRef = useRef<Promise<void> | null>(null);
   const generation = useRef(0);
@@ -68,7 +72,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
         }
         const next = await awaitWithTimeout(db.loadSystemState());
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setInventory(await awaitWithTimeout(db.loadInventory())); setSocialSessions(await awaitWithTimeout(db.loadSocialSessions())); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setInventory(await awaitWithTimeout(db.loadInventory())); setSocialSessions(await awaitWithTimeout(db.loadSocialSessions())); setAdaptiveModel(await awaitWithTimeout(db.loadAdaptiveUserModel())); setAdaptivePlan(await awaitWithTimeout(db.getAdaptivePlan())); setReady(true); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError('Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
@@ -95,7 +99,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     const epoch = generation.current;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); if (result.loot) setInventory(current => current.some(i=>i.id===result.loot!.id)?current:[result.loot!,...current]); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) { setSnapshot(result); if (result.loot) setInventory(current => current.some(i=>i.id===result.loot!.id)?current:[result.loot!,...current]); if (result.receipt) presentReward(result.receipt); void db.loadAdaptiveUserModel().then(setAdaptiveModel).catch(()=>{}); void db.getAdaptivePlan().then(setAdaptivePlan).catch(()=>{}); }
     return result;
   }, [presentReward]);
   const apply = useCallback(async (operation: Promise<db.SystemSnapshot>) => {
@@ -111,14 +115,16 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       await awaitWithTimeout(db.resetSystemData(confirmed));
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());
-      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setInventory([]); setSocialSessions({}); setReady(true);
+      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setInventory([]); setSocialSessions({}); setAdaptiveModel(await awaitWithTimeout(db.loadAdaptiveUserModel())); setAdaptivePlan(await awaitWithTimeout(db.getAdaptivePlan())); setReady(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
   }, []);
   const refreshInventory=useCallback(async()=>setInventory(await awaitWithTimeout(db.loadInventory())),[]);
-  const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);\n  const unequipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.unequipInventoryItem(id))),[]);\n  const claimSocialSession=useCallback(async(session:SocialSession)=>{const result=await awaitWithTimeout(db.claimCompletedSocialSession(session));setInventory(await awaitWithTimeout(db.loadInventory()));setSocialSessions(current=>({...current,[result.session.mode]:result.session}));await refreshPlayer();},[refreshPlayer]);
+  const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);
+  const unequipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.unequipInventoryItem(id))),[]);
+  const claimSocialSession=useCallback(async(session:SocialSession)=>{const result=await awaitWithTimeout(db.claimCompletedSocialSession(session));setInventory(await awaitWithTimeout(db.loadInventory()));setSocialSessions(current=>({...current,[result.session.mode]:result.session}));await refreshPlayer();},[refreshPlayer]);
   const saveSocialSession=useCallback(async(session:SocialSession)=>setSocialSessions(await awaitWithTimeout(db.saveSocialSession(session))),[]);
-  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, socialSessions, saveSocialSession,
+  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, socialSessions, saveSocialSession, adaptivePlan, adaptiveModel,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
     finishOnboarding: (name, gameMasterProfile) => apply(db.finishOnboarding(name, gameMasterProfile)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)),
