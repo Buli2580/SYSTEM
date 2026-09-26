@@ -13,7 +13,7 @@ import { dominantSkill } from '../identity/model';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 
 export default function CharacterScreen() {
-  const { player, titles, updateIdentity, lastReward, inventory, equipItem, unequipItem } = useSystem();
+  const { player, titles, updateIdentity, lastReward, inventory, equipItem, unequipItem, latestRaidVictory } = useSystem();
   const router = useRouter();
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
   const [rarityFilter,setRarityFilter]=useState<ItemRarity|undefined>();
@@ -109,7 +109,7 @@ export default function CharacterScreen() {
     </View>
 
     {section==='EQUIPMENT' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
-      <Text style={cs.panelKicker}>INVENTORY // LOADOUT</Text>
+      <Text style={cs.panelKicker}>INVENTORY // LOADOUT</Text>{latestRaidVictory&&<Text style={cs.inventoryHint}>RAID VICTORY // NEW POWER UNLOCKED</Text>}
       {!!lastReward && <View style={cs.lootDrop}><Text style={cs.lootRarity}>{lastReward.newTitles.length?'RARE REWARD':'SYSTEM REWARD'}</Text><Text style={cs.lootTitle}>{lastReward.newTitles[0] ?? 'VERIFIED CORE SHARD'}</Text><Text style={cs.lootMeta}>+{lastReward.realXp} XP · +{lastReward.energy} ENERGY{lastReward.worldUnlocked?' · WORLD KEY':''}</Text></View>}
       <View style={cs.loadoutRow}>{(['WEAPON','ARMOR','RING','RELIC'] as const).map(slot=>{const item=inventory.find(i=>i.slot===slot&&i.equipped);return <GearSlot key={slot} glyph={slot==='WEAPON'?'⚔':slot==='ARMOR'?'⬡':slot==='RING'?'◉':'✦'} label={item?.name ?? slot} />;})}</View>
       <Text style={cs.inventoryHint}>LOOT // VERIFIED REWARDS · EQUIPMENT MODIFIES PRESENTED STATS</Text>
