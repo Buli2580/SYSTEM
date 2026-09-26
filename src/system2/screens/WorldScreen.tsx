@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   button: { minHeight: 48, justifyContent: 'center', backgroundColor: C.panelSoft, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12 },
   buttonDisabled: { opacity: 0.4 }, buttonPressed: { opacity: 0.75 },
   lockedWorldHero: { height: 250, alignItems: 'center', justifyContent: 'flex-end', position: 'relative', overflow:'hidden', backgroundColor:'#03070b' },
-  lockedSky:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(12,32,45,.32)'},
+  lockedSky:{...StyleSheet.absoluteFill,backgroundColor:'rgba(12,32,45,.32)'},
   lockedTower:{position:'absolute',bottom:0,width:48,backgroundColor:'#05090d',borderTopWidth:1,borderColor:'rgba(75,181,211,.12)'},
   lockedGate:{position:'absolute',bottom:38,width:88,height:150,borderWidth:1,borderColor:'rgba(75,215,255,.35)',backgroundColor:'rgba(18,87,111,.10)',alignItems:'center',justifyContent:'center'},
   lockedGateMark:{color:C.cyan,fontSize:42,fontWeight:'200',opacity:.55},
