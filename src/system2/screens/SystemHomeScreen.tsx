@@ -141,10 +141,11 @@ export default function SystemHomeScreen() {
   const { width, height } = useWindowDimensions();
   const {
     player, ready, completedQuestIds, awakeningCompleted, worldUnlocked,
-    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt,
+    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, settings,
   } = useSystem();
 
-  const performanceMode: 'LOW'|'MEDIUM'|'HIGH' = width < 370 || height < 700 ? 'LOW' : width < 430 || height < 800 ? 'MEDIUM' : 'HIGH';
+  const autoPerformanceMode: 'LOW'|'MEDIUM'|'HIGH' = width < 370 || height < 700 ? 'LOW' : width < 430 || height < 800 ? 'MEDIUM' : 'HIGH';
+  const performanceMode = settings.performanceMode ?? autoPerformanceMode;
   const reduced = performanceMode === 'LOW';
   const bossActive = !story?.bossComplete && awakeningCompleted;
   const sceneMode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' =
