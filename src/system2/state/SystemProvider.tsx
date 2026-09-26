@@ -21,6 +21,7 @@ type SystemContextValue = db.SystemSnapshot & {
   finishOnboarding: (name: string, gameMasterProfile?: { goal:string; path:'DISCIPLINE'|'MOTION'|'FOCUS' }) => Promise<void>;
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
   saveSettings: (settings: Settings) => Promise<void>;
+  setGuardianApproval: (status:'PENDING'|'APPROVED'|'REJECTED') => Promise<void>;
   resetData: (confirmed: true) => Promise<void>;
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
@@ -116,7 +117,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
     finishOnboarding: (name, gameMasterProfile) => apply(db.finishOnboarding(name, gameMasterProfile)), updateIdentity: patch => apply(db.updateIdentity(patch)),
-    saveSettings: settings => apply(db.saveSettings(settings)), resetData,
+    saveSettings: settings => apply(db.saveSettings(settings)),
+    setGuardianApproval: status => apply(db.setGuardianApproval(status)), resetData,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;
 }
