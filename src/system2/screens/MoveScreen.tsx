@@ -2,16 +2,21 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SystemPage from '../components/SystemPage';
 import { useSystem } from '../state/SystemProvider';
+import { getQuest } from '../quests/catalog';
 
 const skills=[['SPEED','Run / sprint'],['BALANCE','Control'],['COORDINATION','Move well'],['JUMP','Power'],['THROW','Accuracy'],['CATCH','Reaction'],['ENDURANCE','Keep moving']] as const;
 export default function MoveScreen(){
- const {player}=useSystem();
- const streak=Math.max(0,player.streakDays);
+ const {player,daily,completedQuestIds}=useSystem();
+ const streak=Math.max(0,player.streak);
+ const moveQuests=(daily?.questIds??[]).map(getQuest).filter(q=>q?.activityType==='WALK'||q?.activityType==='RUN'||q?.activityType==='BIKE');
+ const completedMove=moveQuests.filter(q=>q&&completedQuestIds.includes(q.id)).length;
+ const moveMinutes=moveQuests.reduce((sum,q)=>sum+(q&&completedQuestIds.includes(q.id)?Math.max(0,Math.round((q.verification.type==='TIMER'||q.verification.type==='MULTI'?q.verification.minimumDurationSeconds:0)/60)):0),0);
+ const targetMinutes=60;
  return <SystemPage title="MOVE" subtitle="REAL BODY // REAL PROGRESS">
-  <Animated.View entering={FadeInDown.duration(420)} style={s.hero}><Text style={s.code}>MOVE // ACTIVE MODE</Text><Text style={s.title}>60 MIN MISSION</Text><Text style={s.big}>0 / 60 MIN</Text><Text style={s.body}>Walk, run, bike, play or train. Verified movement builds your physical progression.</Text></Animated.View>
+  <Animated.View entering={FadeInDown.duration(420)} style={s.hero}><Text style={s.code}>MOVE // ACTIVE MODE</Text><Text style={s.title}>60 MIN MISSION</Text><Text style={s.big}>{Math.min(targetMinutes,moveMinutes)} / {targetMinutes} MIN</Text><Text style={s.body}>Walk, run, bike, play or train. Verified movement builds your physical progression.</Text></Animated.View>
   <View style={s.row}><Stat label="MOVE STREAK" value={streak+' DAYS'}/><Stat label="PLAYER LEVEL" value={String(player.realLevel)}/></View>
   <Text style={s.section}>MOVEMENT SKILLS</Text><View style={s.skills}>{skills.map(([a,b])=><View key={a} style={s.skill}><Text style={s.skillName}>{a}</Text><Text style={s.skillBody}>{b}</Text></View>)}</View>
-  <Text style={s.section}>DAILY MOVE QUESTS</Text><Mission title="WALK SIGNAL" body="Short outdoor movement mission · GPS / steps verification"/><Mission title="BALANCE PROTOCOL" body="5–10 minute coordination mission · approval-capable"/><Mission title="ENDURANCE RUN" body="Progressive movement mission · activity verification"/>
+  <Text style={s.section}>DAILY MOVE QUESTS · {completedMove}/{moveQuests.length}</Text>{moveQuests.length?moveQuests.map(q=><Mission key={q!.id} title={q!.title} body={(completedQuestIds.includes(q!.id)?'COMPLETE':'READY')+' · '+q!.activityType+' · '+q!.verification.type}/>):<Mission title="MOVE PROTOCOL" body="Daily movement mission will appear when the SYSTEM schedules one."/>}
   <Text style={s.note}>Verification adapters: GPS / steps / Health / Parent Approval. Final sensor wiring follows existing verification capabilities; unsupported signals are never faked.</Text>
  </SystemPage>;
 }
