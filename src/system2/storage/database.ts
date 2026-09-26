@@ -36,6 +36,7 @@ export type SystemSnapshot = {
   settings: Settings;
   titles: Title[];
   gameMasterProfile: { goal: string; path: 'DISCIPLINE'|'MOTION'|'FOCUS' } | null;
+  recentAttempt: { questId:string; result:string; reason:string|null } | null;
 };
 export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt; loot?: InventoryItem };
 
@@ -134,6 +135,7 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const settings = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'settings');
   const signal = await db.getFirstAsync('SELECT id FROM verified_events WHERE id = ?', 'first_world_signal_v1');
   const gm = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'game_master_profile');
+  const recentAttempt = await db.getFirstAsync<{quest_id:string;result:string;reason:string|null}>("SELECT quest_id,result,reason FROM quest_attempts WHERE result IS NOT NULL ORDER BY started_at DESC,attempt_id DESC LIMIT 1");
   const reconciled = await reconcileStory(db, chapter.player, ids);
   chapter.player = reconciled.player;
   const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
@@ -145,6 +147,7 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
     daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     gameMasterProfile: gm?.value ? JSON.parse(gm.value) : null,
+    recentAttempt: recentAttempt ? {questId:recentAttempt.quest_id,result:recentAttempt.result,reason:recentAttempt.reason} : null,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
     completedQuestIds: ids, worldUnlocked: chapter.awakeningCompleted,
     awakeningPending: chapter.awakeningCompleted && !seen,
