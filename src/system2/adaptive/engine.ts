@@ -1,0 +1,45 @@
+/** Offline, deterministic adaptive planning. No LLM or sensitive raw signals required. */
+export type LifeState='NORMAL'|'BUSY'|'TRAVEL'|'RECOVERY'|'VACATION';
+export type QuestOutcome='COMPLETE'|'PARTIAL'|'FAILED'|'REROLL'|'RECOVERY';
+export type Outcome={id:string;questType:string;difficulty:number;outcome:QuestOutcome;at:string;minutes?:number};
+export type UserModel={version:1;lifeState:LifeState;availableMinutes:number;preferredTypes:string[];preferredDifficulty:number;outcomes:Outcome[];updatedAt:string};
+export type Plan={lifeState:LifeState;readiness:number;effort:number;difficulty:number;dailyCount:number;weeklyCount:number;bossDifficulty:number;reasons:string[];suggestedState:LifeState|null};
+const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,Number.isFinite(n)?n:min));
+export function newUserModel(now=new Date().toISOString()):UserModel{return{version:1,lifeState:'NORMAL',availableMinutes:45,preferredTypes:[],preferredDifficulty:2,outcomes:[],updatedAt:now};}
+export function normalizeUserModel(value:unknown):UserModel{
+ const raw=value&&typeof value==='object'?value as Partial<UserModel>:{};
+ const base=newUserModel();
+ const states:LifeState[]=['NORMAL','BUSY','TRAVEL','RECOVERY','VACATION'];
+ return{...base,lifeState:states.includes(raw.lifeState as LifeState)?raw.lifeState!:base.lifeState,
+ availableMinutes:clamp(Number(raw.availableMinutes??45),2,240),
+ preferredTypes:Array.isArray(raw.preferredTypes)?raw.preferredTypes.filter((x):x is string=>typeof x==='string').slice(0,20):[],
+ preferredDifficulty:clamp(Number(raw.preferredDifficulty??2),1,5),
+ outcomes:Array.isArray(raw.outcomes)?raw.outcomes.filter((x):x is Outcome=>!!x&&typeof x.id==='string'&&typeof x.at==='string'&&['COMPLETE','PARTIAL','FAILED','REROLL','RECOVERY'].includes(x.outcome)).slice(-500):[],
+ updatedAt:typeof raw.updatedAt==='string'?raw.updatedAt:base.updatedAt};
+}
+export function recordOutcome(model:UserModel,event:Outcome):UserModel{
+ if(model.outcomes.some(x=>x.id===event.id))return model;
+ return{...model,outcomes:[...model.outcomes,event].slice(-500),updatedAt:event.at};
+}
+export function setLifeState(model:UserModel,state:LifeState,now=new Date().toISOString()):UserModel{return{...model,lifeState:state,updatedAt:now};}
+export function planAdaptiveDay(model:UserModel,now=new Date().toISOString()):Plan{
+ const m=normalizeUserModel(model),time=Date.parse(now),valid=Number.isFinite(time)?time:Date.now();
+ const recent=(days:number)=>m.outcomes.filter(x=>{const t=Date.parse(x.at);return Number.isFinite(t)&&t<=valid&&t>=valid-days*86400000;});
+ const week=recent(7),month=recent(30),yesterday=recent(1);
+ const complete=week.filter(x=>x.outcome==='COMPLETE'||x.outcome==='RECOVERY').length;
+ const failed=week.filter(x=>x.outcome==='FAILED').length;
+ const rerolls=week.filter(x=>x.outcome==='REROLL').length;
+ const attempts=complete+failed+week.filter(x=>x.outcome==='PARTIAL').length;
+ const completion=attempts?complete/attempts:0.65;
+ const overload=failed>=3||rerolls>=4||(attempts>=4&&completion<0.4);
+ const effortless=attempts>=5&&completion>=0.9&&failed===0;
+ const baseline:Record<LifeState,number>={NORMAL:3,BUSY:1,TRAVEL:1,RECOVERY:1,VACATION:1};
+ const capacity=Math.max(1,Math.floor(m.availableMinutes/12));
+ const dailyCount=Math.min(capacity,Math.max(1,baseline[m.lifeState]+(m.lifeState==='NORMAL'&&!overload&&effortless?1:0)-(overload?1:0)));
+ const readiness=clamp(Math.round(65+completion*25-failed*8-rerolls*3-(m.lifeState==='RECOVERY'?25:0)-(m.lifeState==='BUSY'?12:0)),0,100);
+ const effort=clamp(Math.round(30+complete*7+week.filter(x=>x.outcome==='PARTIAL').length*3),0,100);
+ const difficulty=clamp(m.preferredDifficulty+(effortless&&m.lifeState==='NORMAL'?1:0)-(overload?1:0)-(m.lifeState==='RECOVERY'?1:0),1,5);
+ const reasons=[m.lifeState!=='NORMAL'?'Dopasowano do trybu '+m.lifeState:'Standardowy tryb dnia',overload?'Zmniejszono obciążenie po trudnościach':effortless?'Delikatnie zwiększono wyzwanie':'Utrzymano stabilne tempo',yesterday.length===0?'Brak aktywności w ostatniej dobie':'Uwzględniono ostatnią dobę',month.length?'Uwzględniono historię 30 dni':'Brak historii 30 dni'];
+ return{lifeState:m.lifeState,readiness,effort,difficulty,dailyCount,weeklyCount:m.lifeState==='NORMAL'&&!overload?2:1,bossDifficulty:clamp(difficulty-(overload?1:0),1,5),reasons,suggestedState:overload&&m.lifeState==='NORMAL'?'RECOVERY':null};
+}
+export function explainAdaptivePlan(plan:Plan):string{return plan.reasons.join('. ')+'.';}
