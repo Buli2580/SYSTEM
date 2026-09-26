@@ -282,7 +282,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-        </View>}
+        </Animated.View>}
 
         {(renderStatus === 'CHECKING' || renderStatus === 'STARTING') && (
           <View style={styles.trackingBox}>
