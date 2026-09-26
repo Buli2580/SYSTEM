@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { addRealXp, type PlayerProfile, type VerifiedEvent } from '../core';
 import { dayKey, dayOrdinal, weekKey, nextStreak, DAILY_RULES } from '../daily/calendar';
 import { generateDaily, dailyQuest, DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
-import { loadAdaptivePlan } from '../adaptive/storage';
+import { loadAdaptivePlan, readAdaptiveModel } from '../adaptive/storage';
 export type DailyState = { dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
 async function state(db: SQLiteDatabase, key: string) { return (await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', key))?.value; }
 async function setState(db: SQLiteDatabase, key: string, value: string) { await db.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', key, value); }
@@ -19,7 +19,8 @@ export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlo
      await db.runAsync('INSERT INTO daily_sets(day_key, created_at) VALUES (?, ?)', day, new Date(now).toISOString());
      // Freeze the daily loadout on first creation; later state changes affect tomorrow, not today's rewards.
      const plan = await loadAdaptivePlan(db);
-     for (const quest of generateDaily(player.id, day, prefs, plan.dailyCount)) await db.runAsync('INSERT INTO daily_instances(id, template_id, day_key, week_key) VALUES (?, ?, ?, ?)', quest.id, quest.templateId!, day, week);
+     const model = await readAdaptiveModel(db);
+     for (const quest of generateDaily(player.id, day, prefs, plan.dailyCount, model.preferredTypes)) await db.runAsync('INSERT INTO daily_instances(id, template_id, day_key, week_key) VALUES (?, ?, ?, ?)', quest.id, quest.templateId!, day, week);
    }
  }
  const rows = await db.getAllAsync<{ id: string }>('SELECT id FROM daily_instances WHERE day_key = ? ORDER BY rowid', day);
@@ -39,8 +40,10 @@ export async function awardProtocols(db: SQLiteDatabase, player: PlayerProfile, 
  let next = player;
  const day = quest.dayKey!, week = weekKey(day);
  const count = async (column: 'day_key' | 'week_key', key: string) => (await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM daily_instances d JOIN quest_completions q ON q.quest_id=d.id WHERE d.${column}=?`, key))?.n ?? 0;
+ const dailyCompleted=await count('day_key',day);
+ const dailyAssigned=(await db.getFirstAsync<{n:number}>('SELECT COUNT(*) AS n FROM daily_instances WHERE day_key=?',day))?.n??0;
  for (const [kind, key, eligible, xp, energy] of [
-   ['daily_clear', day, await count('day_key', day) > 0 && await count('day_key', day) === (await db.getFirstAsync<{n:number}>('SELECT COUNT(*) AS n FROM daily_instances WHERE day_key=?',day))?.n, DAILY_RULES.clearXp, DAILY_RULES.clearEnergy],
+   ['daily_clear', day, dailyAssigned>0 && dailyCompleted===dailyAssigned, DAILY_RULES.clearXp, DAILY_RULES.clearEnergy],
    ['weekly_complete', week, await count('week_key', week) >= DAILY_RULES.weeklyTarget, DAILY_RULES.weeklyXp, DAILY_RULES.weeklyEnergy],
  ] as const) {
    if (!eligible) continue;
