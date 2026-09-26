@@ -421,7 +421,11 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    if(!Number.isFinite(duration)||duration<0||!Number.isFinite(distance)||distance<0) throw new Error('Nieprawidłowe dane próby.');
    const eligible=duration>0 && ((result==='INTERRUPTED'&&['BACKGROUND','LEFT_SCREEN'].includes(reason)) || (['FAILED','REJECTED'].includes(result)&&reason==='VERIFICATION_REJECTED'));
    const changed=await txn.runAsync('UPDATE quest_attempts SET ended_at=?,result=?,reason=?,duration=?,distance=?,eligible=? WHERE attempt_id=? AND result IS NULL',new Date(Date.now()).toISOString(),result,reason,duration,distance,eligible?1:0,attemptId);
-   if(changed.changes&&eligible) await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
+   if(changed.changes){
+     const attempt=await txn.getFirstAsync<{quest_id:string;kind:string}>('SELECT quest_id,kind FROM quest_attempts WHERE attempt_id=?',attemptId);
+     if(attempt)await recordAdaptiveOutcome(txn,{id:'attempt:'+attemptId,questType:attempt.kind,difficulty:2,outcome:result==='REJECTED'?'REROLL':'FAILED',at:new Date().toISOString(),minutes:duration/60});
+     if(eligible)await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
+   }
  });
 }
 export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
