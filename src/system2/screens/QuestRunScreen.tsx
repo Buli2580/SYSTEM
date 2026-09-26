@@ -68,7 +68,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     startInProgressRef.current = true;
     setStartInProgress(true);
     setQuestAccepted(true);
-    void startQuest()
+    return startQuest()
       .catch(() => undefined)
       .finally(() => {
         startInProgressRef.current = false;
