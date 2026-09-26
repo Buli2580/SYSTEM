@@ -16,7 +16,9 @@ export default function CharacterScreen() {
   const { player, titles, updateIdentity, lastReward, inventory, equipItem, unequipItem } = useSystem();
   const router = useRouter();
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
-  const [rarityFilter,setRarityFilter]=useState<ItemRarity|undefined>();\n  const [slotFilter,setSlotFilter]=useState<EquipmentSlot|undefined>();\n  const [section, setSection] = useState<'EQUIPMENT'|'SKILLS'|'TITLES'|'ACHIEVEMENTS'>('EQUIPMENT');
+  const [rarityFilter,setRarityFilter]=useState<ItemRarity|undefined>();
+  const [slotFilter,setSlotFilter]=useState<EquipmentSlot|undefined>();
+  const [section, setSection] = useState<'EQUIPMENT'|'SKILLS'|'TITLES'|'ACHIEVEMENTS'>('EQUIPMENT');
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const lock = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -66,7 +68,9 @@ export default function CharacterScreen() {
     await updateIdentity({ avatarUri: uri });
     removeOwnedAvatar(player.avatarUri);
   }
-  const gearStats=presentedCharacterStats(player,inventory);\n  const visibleInventory=filterInventory(inventory,{rarity:rarityFilter,slot:slotFilter,sort:'POWER'});\n  return <SystemPage title="POSTAĆ" subtitle="CHARACTER 3.0">
+  const gearStats=presentedCharacterStats(player,inventory);
+  const visibleInventory=filterInventory(inventory,{rarity:rarityFilter,slot:slotFilter,sort:'POWER'});
+  return <SystemPage title="POSTAĆ" subtitle="CHARACTER 3.0">
     <Animated.View entering={FadeIn.duration(450)} style={cs.hero}>
       {levelEvent && <Animated.View pointerEvents="none" style={[cs.levelEvent,levelPulseStyle]}><Text style={cs.levelEventText}>{levelEvent}</Text><Text style={cs.levelEventSub}>SYSTEM EVOLUTION CONFIRMED</Text></Animated.View>}
       <Animated.View pointerEvents="none" style={[cs.aura, auraStyle]} />
