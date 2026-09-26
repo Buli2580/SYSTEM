@@ -18,6 +18,7 @@ export default function CharacterScreen() {
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
   const [rarityFilter,setRarityFilter]=useState<ItemRarity|undefined>();
   const [slotFilter,setSlotFilter]=useState<EquipmentSlot|undefined>();
+  const [inventorySort,setInventorySort]=useState<'NEWEST'|'RARITY'|'LEVEL'|'POWER'|'NAME'>('POWER');
   const [section, setSection] = useState<'EQUIPMENT'|'SKILLS'|'TITLES'|'ACHIEVEMENTS'>('EQUIPMENT');
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const lock = useRef(false), mounted = useRef(true);
@@ -69,7 +70,7 @@ export default function CharacterScreen() {
     removeOwnedAvatar(player.avatarUri);
   }
   const gearStats=presentedCharacterStats(player,inventory);
-  const visibleInventory=filterInventory(inventory,{rarity:rarityFilter,slot:slotFilter,sort:'POWER'});
+  const visibleInventory=filterInventory(inventory,{rarity:rarityFilter,slot:slotFilter,sort:inventorySort});
   return <SystemPage title="POSTAĆ" subtitle="CHARACTER 3.0">
     <Animated.View entering={FadeIn.duration(450)} style={cs.hero}>
       {levelEvent && <Animated.View pointerEvents="none" style={[cs.levelEvent,levelPulseStyle]}><Text style={cs.levelEventText}>{levelEvent}</Text><Text style={cs.levelEventSub}>SYSTEM EVOLUTION CONFIRMED</Text></Animated.View>}
@@ -115,6 +116,7 @@ export default function CharacterScreen() {
       <Text style={cs.inventoryHint}>LOOT // VERIFIED REWARDS · EQUIPMENT MODIFIES PRESENTED STATS</Text>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:10}}>{(['COMMON','RARE','EPIC','LEGENDARY'] as ItemRarity[]).map(r=><Pressable key={r} onPress={()=>setRarityFilter(rarityFilter===r?undefined:r)} style={cs.titleRow}><Text style={cs.titleState}>{r}</Text></Pressable>)}</View>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:8}}>{(['WEAPON','ARMOR','RING','RELIC'] as EquipmentSlot[]).map(slot=><Pressable key={slot} onPress={()=>setSlotFilter(slotFilter===slot?undefined:slot)} style={[cs.titleRow,slotFilter===slot&&cs.titleRowActive]}><Text style={cs.titleState}>{slot}</Text></Pressable>)}</View>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:8}}>{(['NEWEST','RARITY','LEVEL','POWER','NAME'] as const).map(sort=><Pressable key={sort} onPress={()=>setInventorySort(sort)} style={[cs.titleRow,inventorySort===sort&&cs.titleRowActive]}><Text style={cs.titleState}>{sort}</Text></Pressable>)}</View>
       {(rarityFilter||slotFilter)&&<Pressable onPress={()=>{setRarityFilter(undefined);setSlotFilter(undefined);}} style={cs.titleRow}><Text style={cs.titleState}>CLEAR FILTERS</Text></Pressable>}
       {inventory.length===0?<Text style={cs.inventoryHint}>NO ITEMS YET // COMPLETE A VERIFIED QUEST</Text>:visibleInventory.map(item=>{const comparison=compareItem(inventory,item.id,player.realLevel);return <Pressable key={item.id} disabled={busy||(!item.equipped&&!comparison?.canEquip)} onPress={()=>{void run(()=>item.equipped?unequipItem(item.id):equipItem(item.id));}} style={[cs.titleRow,item.equipped&&cs.titleRowActive]}><Text style={cs.titleCrown}>{item.slot==='WEAPON'?'⚔':item.slot==='ARMOR'?'⬡':item.slot==='RING'?'◉':'✦'}</Text><View style={{flex:1}}><Text style={cs.titleName}>{item.name}</Text><Text style={cs.inventoryHint}>{item.rarity} · {item.source} · LV {item.requiredLevel} · {Object.entries(item.stats??{}).map(([k,v])=>'+'+v+' '+k).join(' · ')}{comparison&&comparison.current?' · Δ '+Math.round(comparison.powerDelta):''}</Text></View><Text style={cs.titleState}>{item.equipped?'UNEQUIP':comparison?.canEquip?'EQUIP':'LOCKED'}</Text></Pressable>})}
     </Animated.View>}
