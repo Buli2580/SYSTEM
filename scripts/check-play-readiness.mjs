@@ -7,7 +7,7 @@ const errors = [];
 const warnings = [];
 if (!config?.name || !config?.slug || !config?.version) errors.push('Expo name, slug and version are required');
 if (!config?.android?.package) errors.push('Android package identifier is missing');
-else if (!/^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$/.test(config.android.package)) errors.push('Invalid Android package identifier');
+else if (!/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/.test(config.android.package)) errors.push('Invalid Android package identifier');
 else if (config.android.package.startsWith('com.anonymous.')) warnings.push('Placeholder Android package: choose a permanent identifier before Google Play release');
 for (const key of ['icon', 'android.adaptiveIcon.foregroundImage']) {
   const file = key === 'icon' ? config.icon : config.android?.adaptiveIcon?.foregroundImage;
