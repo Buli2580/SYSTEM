@@ -33,10 +33,10 @@ export function planAdaptiveDay(model:UserModel,now=new Date().toISOString()):Pl
  const complete=week.filter(x=>x.outcome==='COMPLETE'||x.outcome==='RECOVERY').length;
  const failed=week.filter(x=>x.outcome==='FAILED').length;
  const rerolls=week.filter(x=>x.outcome==='REROLL').length;
- const attempts=complete+failed+week.filter(x=>x.outcome==='PARTIAL').length;
+ const attempts=complete+failed+rerolls+week.filter(x=>x.outcome==='PARTIAL').length;
  const completion=attempts?complete/attempts:0.65;
  const overload=failed>=3||rerolls>=4||(attempts>=4&&completion<0.4);
- const effortless=attempts>=5&&completion>=0.9&&failed===0;
+ const effortless=attempts>=5&&completion>=0.9&&failed===0&&rerolls===0;
  const baseline:Record<LifeState,number>={NORMAL:3,BUSY:1,TRAVEL:1,RECOVERY:1,VACATION:1};
  const capacity=Math.max(1,Math.floor(m.availableMinutes/12));
  const dailyCount=Math.min(capacity,Math.max(1,baseline[m.lifeState]+(m.lifeState==='NORMAL'&&!overload&&effortless?1:0)-(overload?1:0)));
