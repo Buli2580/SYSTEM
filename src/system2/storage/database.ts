@@ -12,8 +12,8 @@ import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
 import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
-import { rewardItem, equipItem, type InventoryItem } from '../core/inventory';
-import type { SocialMode, SocialSession } from '../core/social';
+import { createLoot, equipItem, unequipItem, type InventoryItem, type LootSource } from '../core/inventory';
+import { claimSocialReward, historyEntry, socialAchievements, type SocialHistoryEntry, type SocialMode, type SocialSession } from '../core/social';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -237,8 +237,9 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
         event.id, quest.id, JSON.stringify(event), now
       );
-      const loot = rewardItem(quest.id, next.realLevel, quest.category === 'BOSS');
-      await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING', loot.id, JSON.stringify(loot), now);
+      const lootSource:LootSource=quest.category==='BOSS'?'BOSS':quest.category==='WEEKLY'?'WEEKLY':quest.category==='WORLD'?'WORLD':quest.category==='DAILY'?'DAILY':'QUEST';
+      const loot=createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:(await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))?.value?JSON.parse((await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))!.value).path:undefined,now});
+      await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)', loot.id, JSON.stringify(loot), now);
       const snapshot = await snapshotInTransaction(txn);
       result = { awarded: true, ...snapshot, loot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
@@ -338,7 +339,7 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['inventory_items', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['social_history', 'reward_claims', 'inventory_items', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -434,6 +435,25 @@ export function startBossProtocol() {
 }
 
 export function loadInventory(): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); return rows.map(r=>JSON.parse(r.payload) as InventoryItem); }); }
-export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem); if(!items.some(i=>i.id===id)) throw new Error('Przedmiot nie istnieje.'); const next=equipItem(items,id); for(const item of next) await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id); return next; }); }
+export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const player=await readPlayer(txn);const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem); if(!items.some(i=>i.id===id)) throw new Error('Przedmiot nie istnieje.'); const next=equipItem(items,id,player.realLevel); for(const item of next) await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id); return next; }); }
+export function unequipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id');const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem);const next=unequipItem(items,id);for(const item of next)await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id);return next;});}
+export function loadLootHistory(limit=50):Promise<InventoryItem[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id LIMIT ?',Math.max(1,Math.min(200,limit)));return rows.map(r=>JSON.parse(r.payload) as InventoryItem);});}
+export function loadSocialHistory():Promise<SocialHistoryEntry[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history ORDER BY completed_at DESC,session_id LIMIT 100');return rows.map(r=>JSON.parse(r.payload) as SocialHistoryEntry);});}
+export function claimCompletedSocialSession(session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
+ return profileTransaction(async txn=>{
+   if(session.state!=='COMPLETE'||!session.reward)throw new Error('Sesja nie jest ukończona.');
+   const now=new Date().toISOString(),key=session.reward.id;
+   const claim=await txn.runAsync('INSERT INTO reward_claims(reward_key,payload,claimed_at) VALUES (?,?,?) ON CONFLICT(reward_key) DO NOTHING',key,JSON.stringify(session.reward),now);
+   if(claim.changes===0)return{session:claimSocialReward(session),loot:null,xpAwarded:0,achievements:socialAchievements((await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history')).map(r=>JSON.parse(r.payload)))};
+   const before=await readPlayer(txn);const next=addRealXp(before,session.reward.xp);await txn.runAsync('UPDATE app_state SET value=? WHERE key=?',JSON.stringify({...next,updatedAt:now}),'player');
+   const loot=createLoot({rewardKey:key,level:next.realLevel,source:session.reward.lootSource,now});
+   await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)',loot.id,JSON.stringify(loot),now);
+   const claimed=claimSocialReward(session),entry=historyEntry(claimed);
+   if(entry)await txn.runAsync('INSERT INTO social_history(session_id,mode,payload,completed_at) VALUES (?,?,?,?) ON CONFLICT(session_id) DO NOTHING',entry.sessionId,entry.mode,JSON.stringify(entry),entry.completedAt);
+   const row=await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='social_sessions'");let sessions:Partial<Record<SocialMode,SocialSession>>={};try{sessions=row?.value?JSON.parse(row.value):{};}catch{}sessions={...sessions,[claimed.mode]:claimed};await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('social_sessions',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(sessions));
+   const history=(await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history')).map(r=>JSON.parse(r.payload) as SocialHistoryEntry);
+   return{session:claimed,loot,xpAwarded:session.reward.xp,achievements:socialAchievements(history)};
+ });
+}
 
 export function setGuardianApproval(status:'PENDING'|'APPROVED'|'REJECTED') { return profileTransaction(async txn=>{ const value={status,updatedAt:new Date().toISOString()}; await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('guardian_approval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(value)); return snapshotInTransaction(txn); }); }
