@@ -210,11 +210,8 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         if (!Number.isFinite(elapsed) || elapsed < 0 || evidence.durationSeconds * 1000 > elapsed + 15000) {
           throw new Error('Czas aktywności nie zgadza się z rozpoczętą próbą.');
         }
-        const closed = await txn.runAsync(
-          "UPDATE quest_attempts SET ended_at=?,result='COMPLETED',duration=?,distance=?,eligible=0 WHERE attempt_id=? AND quest_id=? AND result IS NULL",
-          now,evidence.durationSeconds,evidence.distanceMeters??0,evidence.attemptId,quest.id
-        );
-        if (closed.changes !== 1) throw new Error('Nie udało się zamknąć próby misji.');
+        // completeStoryActivity closes the attempt after evaluating prior failures
+        // for Hidden/Rematch rewards, in the same SQLite transaction.
       }
       if (!prerequisitesCompleted(quest, await completedQuestIds(txn))) {
         throw new Error('Ta misja jest zablokowana. Ukończ poprzednie questy Awakening.');
