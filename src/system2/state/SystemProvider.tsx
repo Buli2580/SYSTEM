@@ -11,6 +11,7 @@ import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import type { InventoryItem } from '../core/inventory';
+import type { SocialMode, SocialSession } from '../core/social';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -25,7 +26,7 @@ type SystemContextValue = db.SystemSnapshot & {
   resetData: (confirmed: true) => Promise<void>;
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
-  lastReward: RewardReceipt | null; dismissLastReward: () => void; inventory: InventoryItem[]; refreshInventory: () => Promise<void>; equipItem: (id:string) => Promise<void>; notificationError: string | null;
+  lastReward: RewardReceipt | null; dismissLastReward: () => void; inventory: InventoryItem[]; refreshInventory: () => Promise<void>; equipItem: (id:string) => Promise<void>; notificationError: string | null; socialSessions: Partial<Record<SocialMode,SocialSession>>; saveSocialSession: (session:SocialSession) => Promise<void>;
 };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
@@ -41,6 +42,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [celebration, setCelebration] = useState<RewardReceipt | null>(null);
   const [lastReward, setLastReward] = useState<RewardReceipt | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [socialSessions, setSocialSessions] = useState<Partial<Record<SocialMode,SocialSession>>>({});
   const seenRewards = useRef(new Set<string>());
   const refreshRef = useRef<Promise<void> | null>(null);
   const generation = useRef(0);
@@ -66,7 +68,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
         }
         const next = await awaitWithTimeout(db.loadSystemState());
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setInventory(await awaitWithTimeout(db.loadInventory())); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setInventory(await awaitWithTimeout(db.loadInventory())); setSocialSessions(await awaitWithTimeout(db.loadSocialSessions())); setReady(true); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError('Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
@@ -109,13 +111,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       await awaitWithTimeout(db.resetSystemData(confirmed));
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());
-      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setInventory([]); setReady(true);
+      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setInventory([]); setSocialSessions({}); setReady(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
   }, []);
   const refreshInventory=useCallback(async()=>setInventory(await awaitWithTimeout(db.loadInventory())),[]);
   const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);
-  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem,
+  const saveSocialSession=useCallback(async(session:SocialSession)=>setSocialSessions(await awaitWithTimeout(db.saveSocialSession(session))),[]);
+  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, socialSessions, saveSocialSession,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
     finishOnboarding: (name, gameMasterProfile) => apply(db.finishOnboarding(name, gameMasterProfile)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)),
