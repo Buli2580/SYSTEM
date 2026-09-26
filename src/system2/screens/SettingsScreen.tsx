@@ -15,6 +15,7 @@ export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
   const [resetStep, setResetStep] = useState(0), [confirmation, setConfirmation] = useState('');
+  const [developerMode, setDeveloperMode] = useState(false);
   const guard = useRef(createResetConfirmation()), lock = useRef(false);
   async function run(task: () => Promise<void>) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
@@ -23,9 +24,8 @@ export default function SettingsScreen() {
   }
   function cancelReset() { guard.current.cancel(); setResetStep(0); setConfirmation(''); }
   return <SystemPage title="WIĘCEJ" subtitle="SYSTEM SETTINGS">
-    <View style={s.panel}><Text style={s.label}>SYSTEM ID // LOCAL IDENTITY</Text><Text style={s.title}>{player.displayName}</Text>
-      <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
-      <Action label="SYSTEM LOG →" onPress={() => router.push('/system-log')} /></View>
+    <View style={s.panel}><Text style={s.label}>PROFILE</Text><Text style={s.title}>{player.displayName}</Text>
+      <Text style={s.body}>LEVEL {player.realLevel} · RANK {player.rank} · {player.currentTitle}</Text></View>
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
       <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
@@ -39,11 +39,19 @@ export default function SettingsScreen() {
       }); }} />
       <Action label="USTAWIENIA SYSTEMOWE APLIKACJI" onPress={() => { void run(() => Linking.openSettings()); }} />
     </View>
-    <BetaSettings />
+    <View style={s.panel}><Text style={s.label}>DEVELOPER / ADMIN MODE</Text><Text style={s.body}>Narzędzia techniczne są ukryte podczas normalnej gry.</Text>
+      <Switch accessibilityLabel="Developer Admin Mode" value={developerMode} onValueChange={setDeveloperMode} />
+    </View>
+    {developerMode && <View style={s.panel}><Text style={s.label}>ADMIN // INTERNAL TOOLS</Text>
+      <Text style={s.body}>LOCAL ID // {player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
+      <Action label="SYSTEM LOG / DIAGNOSTICS →" onPress={() => router.push('/system-log')} />
+      <BetaSettings />
+      <Text style={s.body}>World map provider: MapLibre Demo Tiles — konfiguracja developerska.</Text>
+    </View>}
     <View style={s.panel}><Text style={s.label}>DATA</Text><Text style={s.body}>Profil, questy, World i preferencje są zapisane lokalnie w SQLite. Avatar pozostaje w katalogu aplikacji. Brak konta online i synchronizacji. Odinstalowanie aplikacji może usunąć progres.</Text>
       <Action label="RESET SYSTEM DATA" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />
     </View>
-    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM 2.0 // MVP BUILD</Text><Text style={s.body}>Wersja aplikacji: {Constants.expoConfig?.version ?? 'niedostępna'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
+    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM</Text><Text style={s.body}>Wersja {Constants.expoConfig?.version ?? 'niedostępna'}</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}
     <Modal visible={resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, backgroundColor: '#030709' }}>
