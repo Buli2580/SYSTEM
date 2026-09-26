@@ -9,6 +9,8 @@ import { DEFAULT_ACTIVITIES } from '../daily/templates';
 import { getQuest } from '../quests/catalog';
 import * as SQLite from 'expo-sqlite';
 import { migrateDatabase } from './migrations';
+import { readAdaptiveModel, recordAdaptiveOutcome, updateAdaptiveLifeState, updateAdaptiveAvailableMinutes, loadAdaptivePlan } from '../adaptive/storage';
+import type { LifeState } from '../adaptive/engine';
 import { normalizePlayer } from '../core/progression';
 import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
@@ -240,6 +242,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
       const lootSource:LootSource=quest.category==='BOSS'?'BOSS':quest.category==='WEEKLY'?'WEEKLY':quest.category==='WORLD'?'WORLD':quest.category==='DAILY'?'DAILY':'QUEST';
       const loot=createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:(await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))?.value?JSON.parse((await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))!.value).path:undefined,now});
       await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)', loot.id, JSON.stringify(loot), now);
+      await recordAdaptiveOutcome(txn,{id:event.id,questType:quest.category,difficulty:2,outcome:'COMPLETE',at:now,minutes:evidence.durationSeconds/60});
       const snapshot = await snapshotInTransaction(txn);
       result = { awarded: true, ...snapshot, loot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
@@ -463,3 +466,9 @@ export function claimCompletedSocialSession(session:SocialSession):Promise<{sess
 }
 
 export function setGuardianApproval(status:'PENDING'|'APPROVED'|'REJECTED') { return profileTransaction(async txn=>{ const value={status,updatedAt:new Date().toISOString()}; await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('guardian_approval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(value)); return snapshotInTransaction(txn); }); }
+
+// Adaptive data uses the same serialized SQLite transaction queue as quest rewards.
+export function loadAdaptiveUserModel(){return profileTransaction(txn=>readAdaptiveModel(txn));}
+export function getAdaptivePlan(){return profileTransaction(txn=>loadAdaptivePlan(txn));}
+export function changeAdaptiveLifeState(state:LifeState){return profileTransaction(txn=>updateAdaptiveLifeState(txn,state));}
+export function changeAdaptiveAvailableMinutes(minutes:number){return profileTransaction(txn=>updateAdaptiveAvailableMinutes(txn,minutes));}
