@@ -757,7 +757,7 @@ function uiHarness(context = {}) {
   const navigation = [];
   const jsx = (type, props) => typeof type === 'function' ? type(props) : ({ type, props });
   const load = loader({
-    'react': { useState: value => [value, () => {}] },
+    'react': { useState: value => [value, () => {}], useCallback: fn => fn, useMemo: fn => fn(), useRef: value => ({current:value}), useEffect: () => {} },
     '../components/world/WorldMap': { __esModule: true, default: 'WorldMap' },
     '../components/world/DiscoveryToast': { __esModule: true, default: 'DiscoveryToast' },
     '../world/useWorldTracking': { useWorldTracking: () => ({ status: 'PAUSED', sectorIds: [], signal: null, fix: null }) },
@@ -779,7 +779,7 @@ test('shared navigation connects all five real tabs without stacking pushes', ()
     if (button.props.disabled) assert.match(treeText(button), /WKRÓTCE/);
     else button.props.onPress();
   }
-  assert.deepEqual(navigation, ['/', '/quests', '/character', '/world', '/more']);
+  assert.deepEqual(navigation, ['/', '/quests', '/character', '/world', '/social']);
 });
 
 test('Quest list uses persisted completion IDs and locks subsequent cards', () => {
@@ -1613,7 +1613,7 @@ test('Extra Mile and base daily roll back together when story event fails',async
 });
 test('Hidden reward and attempt completion roll back together and retry cannot duplicate',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'fail');h.clock.now+=10000;await h.db.endQuestAttempt('fail','FAILED','VERIFICATION_REJECTED',10);h.clock.now+=1000;await h.db.beginQuestAttempt(id,'success');const before=await h.db.loadSystemState();
- h.faults.failWhen=(sql,args)=>sql.includes('INSERT INTO story_events')&&args[0]==='no_turning_back_v1';const e={...dailyEvidence(h,id),attemptId:'success'};await assert.rejects(h.db.completeVerifiedQuest(e));const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp,before.player.totalRealXp);assert.equal(after.story.hiddenComplete,false);assert.equal(h.sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get('success').result,null);
+ h.faults.failWhen=(sql,args)=>sql.includes('INSERT INTO story_events')&&args[0]==='no_turning_back_v1';const e={...dailyEvidence(h,id),attemptId:'success'};h.clock.now+=e.durationSeconds*1000;await assert.rejects(h.db.completeVerifiedQuest(e));const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp,before.player.totalRealXp);assert.equal(after.story.hiddenComplete,false);assert.equal(h.sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get('success').result,null);
  await h.db.completeVerifiedQuest(e);assert.equal((await h.db.loadSystemState()).story.hiddenComplete,true);
 });
 test('Boss final reward and Daily completion are one transaction on failure and retry',async t=>{
