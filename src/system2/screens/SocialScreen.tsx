@@ -14,7 +14,8 @@ export default function SocialScreen(){
   const next=synced.state==='LOBBY'?joinSession(synced):synced.state==='READY'?startSession(synced,player.verifiedQuestCount):synced.state==='ACTIVE'?completeSession(synced):synced;
   await saveSocialSession(next);
  }
- async function finish(session:SocialSession){if(session.reward&&!session.reward.claimed)await claimSocialSession(session);else await saveSocialSession(session.mode==='PVP'?rematchPvp(session,'pvp_'+player.id+'_'+Date.now()):resetSocialSession(session,session.mode.toLowerCase()+'_'+player.id+'_'+Date.now()));}\n useEffect(()=>{
+ async function finish(session:SocialSession){if(session.reward&&!session.reward.claimed)await claimSocialSession(session);else await saveSocialSession(session.mode==='PVP'?rematchPvp(session,'pvp_'+player.id+'_'+Date.now()):resetSocialSession(session,session.mode.toLowerCase()+'_'+player.id+'_'+Date.now()));}
+ useEffect(()=>{
   (['GUILD','PVP','RAID'] as SocialMode[]).forEach(mode=>{
    const session=sessions[mode]; if(!session||session.state!=='ACTIVE') return;
    const synced=syncSessionProgress(session,player.verifiedQuestCount);
