@@ -252,7 +252,16 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         event.id, quest.id, JSON.stringify(event), now
       );
       const lootSource:LootSource=quest.category==='BOSS'?'BOSS':quest.category==='WEEKLY'?'WEEKLY':quest.category==='WORLD'?'WORLD':quest.category==='DAILY'?'DAILY':'QUEST';
-      const loot=createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:(await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))?.value?JSON.parse((await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))!.value).path:undefined,now});
+      const lootPathRow = await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'");
+      const lootPath = lootPathRow?.value ? JSON.parse(lootPathRow.value).path : undefined;
+      // Replayed or repeatable quests may already have their first loot item.
+      // Allocate the next free instance inside the same reward transaction.
+      let lootInstance = 0;
+      let loot = createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:lootPath,now,instance:lootInstance});
+      while (await txn.getFirstAsync<{id:string}>('SELECT id FROM inventory_items WHERE id = ?',loot.id)) {
+        lootInstance++;
+        loot = createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:lootPath,now,instance:lootInstance});
+      }
       await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)', loot.id, JSON.stringify(loot), now);
       const snapshot = await snapshotInTransaction(txn);
       result = { awarded: true, ...snapshot, loot, receipt: rewardReceipt(event.id, player, snapshot.player,
