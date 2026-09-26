@@ -1325,6 +1325,12 @@ function dailyEvidence(h,id) {
  const activity=classify(q.activityType,features({distanceMeters:q.verification.minimumDistanceMeters,medianSpeedMps:1.5}));
  return {questId:id,verificationType:'GPS_DISTANCE',durationSeconds:activity.features.durationSeconds,distanceMeters:activity.features.distanceMeters,verificationScore:activity.verificationScore,activity};
 }
+async function completeTimedAttempt(h, id, attemptId) {
+ const proof = dailyEvidence(h, id);
+ // A verified attempt must actually remain active for its reported duration.
+ h.clock.now += proof.durationSeconds * 1000;
+ return h.db.completeVerifiedQuest({ ...proof, attemptId });
+}
 async function dailyHarness(t) {
  const clock={now:new Date(2026,8,18,10).getTime()}; const h=databaseHarness(t,clock); await unlockWorld(h); return {...h,clock};
 }
@@ -1551,21 +1557,21 @@ test('Hidden/Rematch require real prior failure; repeated interrupts do not stac
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('focus_')||id.includes('learn_')||id.includes('create')||id.includes('organize'));
  for(let n=0;n<3;n++){await h.db.beginQuestAttempt(id,'fail-'+n);h.clock.now+=10000;await h.db.endQuestAttempt('fail-'+n,'INTERRUPTED','BACKGROUND',10,0);h.clock.now+=1000;}
  let s=await h.db.loadSystemState();assert.ok(s.story.rematchQuestIds.includes(id));assert.equal(s.story.hiddenComplete,false);
- await h.db.beginQuestAttempt(id,'success');const before=s.player;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});
+ await h.db.beginQuestAttempt(id,'success');const before=s.player;await completeTimedAttempt(h,id,'success');
  s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,true);assert.ok(!s.story.rematchQuestIds.includes(id));
  const base=h.load('quests/catalog').getQuest(id).rewards.skillXp.WIL??0;assert.equal(s.player.stats.WIL.totalXp-before.stats.WIL.totalXp,base+50+15);
- const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
+ const xp=s.player.totalRealXp;await completeTimedAttempt(h,id,'success');assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,1);
 });
 for(const reason of ['PERMISSION_DENIED','TECHNICAL_ERROR']) test('technical failure has no story rematch or hidden: '+reason,async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'technical');h.clock.now+=10000;await h.db.endQuestAttempt('technical','FAILED',reason,10,0);h.clock.now+=1000;
- await h.db.beginQuestAttempt(id,'success');await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});const s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,false);assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,0);
+ await h.db.beginQuestAttempt(id,'success');await completeTimedAttempt(h,id,'success');const s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,false);assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,0);
 });
 test('no previous failure and failure after successful attempt start cannot trigger rewards',async t=>{
- const h=await dailyHarness(t);const ids=(await h.db.loadSystemState()).daily.questIds;await h.db.beginQuestAttempt(ids[0],'ok');await h.db.completeVerifiedQuest({...dailyEvidence(h,ids[0]),attemptId:'ok'});assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
+ const h=await dailyHarness(t);const ids=(await h.db.loadSystemState()).daily.questIds;await h.db.beginQuestAttempt(ids[0],'ok');await completeTimedAttempt(h,ids[0],'ok');assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
  await h.db.beginQuestAttempt(ids[1],'in-progress');
  h.sql.prepare('INSERT INTO quest_attempts(attempt_id,quest_id,kind,started_at,ended_at,result,eligible) VALUES (?,?,?,?,?,?,1)').run('late',ids[1],h.load('story/catalog').attemptKind(h.load('quests/catalog').getQuest(ids[1])),new Date(h.clock.now+1000).toISOString(),new Date(h.clock.now+2000).toISOString(),'INTERRUPTED');
- h.clock.now+=3000;await h.db.completeVerifiedQuest({...dailyEvidence(h,ids[1]),attemptId:'in-progress'});assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
+ h.clock.now+=3000;await completeTimedAttempt(h,ids[1],'in-progress');assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
 });
 test('abandoned attempt recovery has no XP and does not fabricate Rematch',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];const before=(await h.db.loadSystemState()).player.totalRealXp;await h.db.beginQuestAttempt(id,'killed');const db=h.reload();const s=await db.loadSystemState();
