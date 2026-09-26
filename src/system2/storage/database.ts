@@ -423,7 +423,7 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    const changed=await txn.runAsync('UPDATE quest_attempts SET ended_at=?,result=?,reason=?,duration=?,distance=?,eligible=? WHERE attempt_id=? AND result IS NULL',new Date(Date.now()).toISOString(),result,reason,duration,distance,eligible?1:0,attemptId);
    if(changed.changes){
      const attempt=await txn.getFirstAsync<{quest_id:string;kind:string}>('SELECT quest_id,kind FROM quest_attempts WHERE attempt_id=?',attemptId);
-     if(attempt)await recordAdaptiveOutcome(txn,{id:'attempt:'+attemptId,questType:getQuest(attempt.quest_id)?.templateId??attempt.quest_id,difficulty:2,outcome:result==='REJECTED'?'REROLL':'FAILED',at:new Date().toISOString(),minutes:duration/60});
+     if(attempt)await recordAdaptiveOutcome(txn,{id:'attempt:'+attemptId,questType:getQuest(attempt.quest_id)?.templateId??attempt.quest_id,difficulty:2,outcome:'FAILED',at:new Date().toISOString(),minutes:duration/60});
      if(eligible)await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
    }
  });
