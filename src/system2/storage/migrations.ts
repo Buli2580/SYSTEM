@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 7;
 const steps = [
   `CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS quest_completions (quest_id TEXT PRIMARY KEY NOT NULL, completed_at TEXT NOT NULL);
@@ -22,6 +22,10 @@ const steps = [
    CREATE TABLE IF NOT EXISTS story_events(id TEXT PRIMARY KEY NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, subtitle TEXT, created_at TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0);
    CREATE INDEX IF NOT EXISTS story_events_pending ON story_events(consumed,created_at);
    CREATE TABLE IF NOT EXISTS boss_progress(id TEXT PRIMARY KEY NOT NULL, started_at TEXT NOT NULL, start_day TEXT NOT NULL, focus_at TEXT, move_at TEXT, discipline_at TEXT);`,
+  `CREATE TABLE IF NOT EXISTS inventory_items(id TEXT PRIMARY KEY NOT NULL, payload TEXT NOT NULL, acquired_at TEXT NOT NULL);\n   CREATE INDEX IF NOT EXISTS inventory_acquired ON inventory_items(acquired_at DESC,id);`,
+  `CREATE TABLE IF NOT EXISTS reward_claims(reward_key TEXT PRIMARY KEY NOT NULL, payload TEXT NOT NULL, claimed_at TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS social_history(session_id TEXT PRIMARY KEY NOT NULL, mode TEXT NOT NULL, payload TEXT NOT NULL, completed_at TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS social_history_recent ON social_history(completed_at DESC,session_id);`,
 ];
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;');

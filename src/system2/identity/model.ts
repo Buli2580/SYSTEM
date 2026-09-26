@@ -2,8 +2,9 @@ import { DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates
 import type { PlayerProfile, SkillKey } from '../core/types';
 import { SKILL_KEYS } from '../core/progression';
 export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
-export type Settings = { haptics: boolean; audio: boolean; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
-export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false };
+export type PerformanceMode = 'LOW'|'MEDIUM'|'HIGH';
+export type Settings = { haptics: boolean; audio: boolean; performanceMode?: PerformanceMode; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
+export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false, performanceMode: 'MEDIUM' };
 export function earnedTitles(awakening: boolean, signal: boolean, worldLink = false, boss = false): Title[] {
   return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : []), ...(worldLink ? ['PATHFINDER' as const] : []), ...(boss ? ['WALLBREAKER' as const] : [])];
 }
@@ -26,7 +27,8 @@ export function parseSettings(value?: string): Settings {
   if (settings.activities && ['walking','running','cycling'].some(key => typeof settings.activities[key] !== 'boolean')) throw new Error('Nieprawidłowe preferencje aktywności.');
   if (settings.reminderTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.reminderTime)) throw new Error('Wpisz godzinę HH:MM.');
   if (settings.dailyReminder !== undefined && typeof settings.dailyReminder !== 'boolean') throw new Error('Nieprawidłowe ustawienie przypomnienia.');
-  return { haptics: settings.haptics, audio: settings.audio,
+  if (settings.performanceMode !== undefined && !['LOW','MEDIUM','HIGH'].includes(settings.performanceMode)) throw new Error('Nieprawidłowy tryb wydajności.');
+  return { haptics: settings.haptics, audio: settings.audio, performanceMode: settings.performanceMode ?? 'MEDIUM',
     ...(settings.activities ? { activities: { ...DEFAULT_ACTIVITIES, ...settings.activities } } : {}),
     ...(settings.dailyReminder !== undefined ? { dailyReminder: settings.dailyReminder } : {}),
     ...(settings.reminderTime !== undefined ? { reminderTime: settings.reminderTime } : {}) };

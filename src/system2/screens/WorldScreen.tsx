@@ -1,8 +1,9 @@
 import SystemScreen from '../components/SystemScreen';
 import RewardSummary from '../components/RewardSummary';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SystemPage, { pageStyles } from '../components/SystemPage';
 import BottomNavigation from '../components/BottomNavigation';
@@ -14,6 +15,7 @@ import { locationToSector } from '../world/sectors';
 import { signalDistance } from '../world/signals';
 import { SYSTEM_COLORS as C } from '../core';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import { playSceneMusic, stopMusic } from '../identity/audio';
 
 export default function WorldScreen() {
   const router = useRouter();
@@ -35,7 +37,7 @@ export default function WorldScreen() {
   return <OnlineWorld />;
 }
 function OnlineWorld() {
-  const { player, lastReward } = useSystem();
+  const { player, lastReward, latestRaidVictory } = useSystem();
   const world = useWorldTracking();
   const insets = useSafeAreaInsets();
   const [follow, setFollow] = useState(true);
@@ -45,7 +47,7 @@ function OnlineWorld() {
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
     <SystemAmbientBackground intensity="world" />
     <View style={styles.heading}>
-      <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD STATUS: ONLINE</Text>
+      <Text style={styles.title}>SYSTEM WORLD</Text>{latestRaidVictory&&<Text style={styles.label}>RAID VICTORY // BOSS DEFEATED // WORLD SIGNAL STABILIZED</Text>}<Text style={styles.label}>WORLD STATUS: ONLINE</Text>
       <Text style={styles.body}>WORLD EXPLORATION · SECTORS DISCOVERED {world.sectorIds.length}</Text>
       <Text style={styles.body}>TOTAL DISTANCE {(player.totalDistanceMeters / 1000).toFixed(2)} KM · VERIFIED QUESTS</Text>
     </View>
@@ -92,7 +94,16 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginVertical: 8 },
   button: { minHeight: 48, justifyContent: 'center', backgroundColor: C.panelSoft, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12 },
   buttonDisabled: { opacity: 0.4 }, buttonPressed: { opacity: 0.75 },
-  lockedWorldHero: { height: 250, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  lockedWorldHero: { height: 250, alignItems: 'center', justifyContent: 'flex-end', position: 'relative', overflow:'hidden', backgroundColor:'#03070b' },
+  lockedSky:{...StyleSheet.absoluteFill,backgroundColor:'rgba(12,32,45,.32)'},
+  lockedTower:{position:'absolute',bottom:0,width:48,backgroundColor:'#05090d',borderTopWidth:1,borderColor:'rgba(75,181,211,.12)'},
+  lockedGate:{position:'absolute',bottom:38,width:88,height:150,borderWidth:1,borderColor:'rgba(75,215,255,.35)',backgroundColor:'rgba(18,87,111,.10)',alignItems:'center',justifyContent:'center'},
+  lockedGateMark:{color:C.cyan,fontSize:42,fontWeight:'200',opacity:.55},
+  worldCode:{color:C.cyan,fontSize:8,fontWeight:'900',letterSpacing:2.2,marginBottom:5},
+  worldStats:{flexDirection:'row',justifyContent:'space-between',marginTop:12,borderTopWidth:1,borderColor:C.line,paddingTop:10},
+  statValue:{color:C.white,fontSize:15,fontWeight:'900'},
+  statLabel:{color:C.textMuted,fontSize:7,fontWeight:'900',letterSpacing:1.2,marginTop:2},
+  regionTitle:{color:C.white,fontSize:15,fontWeight:'900',letterSpacing:1,marginBottom:8},
   lockedWorldRingOuter: { position: 'absolute', width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: 'rgba(0,229,255,0.16)' },
   lockedWorldRingInner: { position: 'absolute', width: 142, height: 142, borderRadius: 71, borderWidth: 1, borderColor: 'rgba(0,229,255,0.28)', transform: [{ rotate: '45deg' }] },
   lockedWorldNode: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, borderColor: C.cyan, backgroundColor: 'rgba(3,7,9,0.86)', alignItems: 'center', justifyContent: 'center' },

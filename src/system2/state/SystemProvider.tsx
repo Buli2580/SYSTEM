@@ -1,5 +1,5 @@
 import { AppState } from 'react-native';
-import { configureAudio, playFeedback, rewardSound, stopAudio } from '../identity/audio';
+import { configureAudio, playFeedback, rewardSound, stopAudio, stopMusic } from '../identity/audio';
 import { syncReminders } from '../notifications/service';
 import { dayKey } from '../daily/calendar';
 import { createContext, type ReactNode, type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -10,6 +10,8 @@ import { DEFAULT_SETTINGS, type Settings } from '../identity/model';
 import { configureHaptics } from '../identity/feedback';
 import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
+import type { InventoryItem } from '../core/inventory';
+import type { SocialMode, SocialSession } from '../core/social';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
@@ -17,19 +19,21 @@ type SystemContextValue = db.SystemSnapshot & {
   acknowledgeAwakening: () => Promise<void>;
   completeVerifiedQuest: (input: db.CompleteQuestInput) => Promise<db.CompleteQuestResult>;
   refreshPlayer: () => Promise<void>;
-  finishOnboarding: (name: string) => Promise<void>;
+  finishOnboarding: (name: string, gameMasterProfile?: { goal:string; path:'DISCIPLINE'|'MOTION'|'FOCUS' }) => Promise<void>;
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
   saveSettings: (settings: Settings) => Promise<void>;
+  setGuardianApproval: (status:'PENDING'|'APPROVED'|'REJECTED') => Promise<void>;
   resetData: (confirmed: true) => Promise<void>;
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
-  lastReward: RewardReceipt | null; notificationError: string | null;
+  lastReward: RewardReceipt | null; dismissLastReward: () => void; inventory: InventoryItem[]; refreshInventory: () => Promise<void>; equipItem: (id:string) => Promise<void>; unequipItem: (id:string) => Promise<void>; claimSocialSession: (session:SocialSession) => Promise<void>; notificationError: string | null; latestRaidVictory: SocialSession | null; socialSignal: SocialSession | null; socialSessions: Partial<Record<SocialMode,SocialSession>>; saveSocialSession: (session:SocialSession) => Promise<void>;
 };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<db.SystemSnapshot>(() => ({
     story: null, daily: null, player: createNewPlayer(), completedQuestIds: [], awakeningCompleted: false, worldUnlocked: false,
     awakeningPending: false, onboardingComplete: false, settings: DEFAULT_SETTINGS, titles: ['UNAWAKENED'],
+    gameMasterProfile: null, recentAttempt: null, recentAttempts: [], guardianApproval: null,
   }));
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +41,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<RewardReceipt | null>(null);
   const [lastReward, setLastReward] = useState<RewardReceipt | null>(null);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [socialSessions, setSocialSessions] = useState<Partial<Record<SocialMode,SocialSession>>>({});
   const seenRewards = useRef(new Set<string>());
   const refreshRef = useRef<Promise<void> | null>(null);
   const generation = useRef(0);
@@ -62,7 +68,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
         }
         const next = await awaitWithTimeout(db.loadSystemState());
-        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true); }
+        if (epoch === generation.current) { configureHaptics(next.settings.haptics); setSnapshot(next); setInventory(await awaitWithTimeout(db.loadInventory())); setSocialSessions(await awaitWithTimeout(db.loadSocialSessions())); setReady(true); }
       } catch (cause) {
         if (epoch === generation.current) { setReady(false); setError('Nie można odczytać danych SYSTEMU. Spróbuj ponownie.'); if (__DEV__) console.error(cause); }
       } finally { if (epoch === generation.current) refreshRef.current = null; }
@@ -72,9 +78,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   useEffect(() => { void refreshPlayer(); }, [refreshPlayer]);
   useEffect(() => {
     let currentDay = dayKey();
-    const sub = AppState.addEventListener('change', state => { if (state === 'active') { currentDay = dayKey(); void refreshPlayer(); } else stopAudio(); });
+    const sub = AppState.addEventListener('change', state => { if (state === 'active') { currentDay = dayKey(); void refreshPlayer(); } else { stopAudio(); stopMusic(); } });
     const interval = setInterval(() => { const next = dayKey(); if (AppState.currentState === 'active' && next !== currentDay) { currentDay = next; void refreshPlayer(); } }, 30000);
-    return () => { sub.remove(); clearInterval(interval); stopAudio(); };
+    return () => { sub.remove(); clearInterval(interval); stopAudio(); stopMusic(); };
   }, [refreshPlayer]);
   const presentReward = useCallback((receipt: RewardReceipt) => {
     if (seenRewards.current.has(receipt.id)) return;
@@ -85,10 +91,11 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (receipt.afterLevel > receipt.beforeLevel || receipt.skillLevels.length) setCelebration(receipt);
   }, []);
   const dismissCelebration = useCallback(() => setCelebration(null), []);
+  const dismissLastReward = useCallback(() => setLastReward(null), []);
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     const epoch = generation.current;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); if (result.receipt) presentReward(result.receipt); }
+    if (epoch === generation.current) { setSnapshot(result); if (result.loot) setInventory(current => current.some(i=>i.id===result.loot!.id)?current:[result.loot!,...current]); if (result.receipt) presentReward(result.receipt); }
     return result;
   }, [presentReward]);
   const apply = useCallback(async (operation: Promise<db.SystemSnapshot>) => {
@@ -104,14 +111,22 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       await awaitWithTimeout(db.resetSystemData(confirmed));
       removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
       const next = await awaitWithTimeout(db.loadSystemState());
-      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setReady(true);
+      seenRewards.current.clear(); configureHaptics(next.settings.haptics); setSnapshot(next); setInventory([]); setSocialSessions({}); setReady(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
   }, []);
-  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
-    completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
-    finishOnboarding: name => apply(db.finishOnboarding(name)), updateIdentity: patch => apply(db.updateIdentity(patch)),
-    saveSettings: settings => apply(db.saveSettings(settings)), resetData,
+  const refreshInventory=useCallback(async()=>setInventory(await awaitWithTimeout(db.loadInventory())),[]);
+  const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);
+  const unequipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.unequipInventoryItem(id))),[]);
+  const claimSocialSession=useCallback(async(session:SocialSession)=>{const result=await awaitWithTimeout(db.claimCompletedSocialSession(session));setInventory(await awaitWithTimeout(db.loadInventory()));setSocialSessions(current=>({...current,[result.session.mode]:result.session}));await refreshPlayer();},[refreshPlayer]);
+  const latestRaidVictory = socialSessions.RAID?.state==='COMPLETE' && socialSessions.RAID.reward?.claimed && socialSessions.RAID.completedAt && Date.now()-new Date(socialSessions.RAID.completedAt).getTime()<300000 ? socialSessions.RAID : null;
+  const socialSignal = (['RAID','GUILD','PVP'] as SocialMode[]).map(mode=>socialSessions[mode]).filter((s):s is SocialSession=>Boolean(s?.completedAt)).sort((a,b)=>(b.completedAt??'').localeCompare(a.completedAt??''))[0]??null;
+  const saveSocialSession=useCallback(async(session:SocialSession)=>setSocialSessions(await awaitWithTimeout(db.saveSocialSession(session))),[]);
+  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, latestRaidVictory, socialSignal, socialSessions, saveSocialSession,
+    completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
+    finishOnboarding: (name, gameMasterProfile) => apply(db.finishOnboarding(name, gameMasterProfile)), updateIdentity: patch => apply(db.updateIdentity(patch)),
+    saveSettings: settings => apply(db.saveSettings(settings)),
+    setGuardianApproval: status => apply(db.setGuardianApproval(status)), resetData,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;
 }

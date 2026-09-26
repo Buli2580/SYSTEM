@@ -12,6 +12,8 @@ import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
 import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
+import { createLoot, equipItem, unequipItem, type InventoryItem, type LootSource } from '../core/inventory';
+import { type SocialHistoryEntry, type SocialMode, type SocialSession } from '../core/social';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -34,8 +36,12 @@ export type SystemSnapshot = {
   onboardingComplete: boolean;
   settings: Settings;
   titles: Title[];
+  gameMasterProfile: { goal: string; path: 'DISCIPLINE'|'MOTION'|'FOCUS' } | null;
+  recentAttempt: { questId:string; result:string; reason:string|null } | null;
+  recentAttempts: { questId:string; result:string; reason:string|null }[];
+  guardianApproval: { status:'PENDING'|'APPROVED'|'REJECTED'; updatedAt:string } | null;
 };
-export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt };
+export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt; loot?: InventoryItem };
 
 async function completedQuestIds(db: SQLite.SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ quest_id: string }>('SELECT quest_id FROM quest_completions');
@@ -131,6 +137,10 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const onboarding = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'onboarding_complete');
   const settings = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'settings');
   const signal = await db.getFirstAsync('SELECT id FROM verified_events WHERE id = ?', 'first_world_signal_v1');
+  const gm = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'game_master_profile');
+  const recentAttempt = await db.getFirstAsync<{quest_id:string;result:string;reason:string|null}>("SELECT quest_id,result,reason FROM quest_attempts WHERE result IS NOT NULL ORDER BY started_at DESC,attempt_id DESC LIMIT 1");
+  const recentAttempts = await db.getAllAsync<{quest_id:string;result:string;reason:string|null}>("SELECT quest_id,result,reason FROM quest_attempts WHERE result IS NOT NULL ORDER BY started_at DESC,attempt_id DESC LIMIT 5");
+  const guardian = await db.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='guardian_approval'");
   const reconciled = await reconcileStory(db, chapter.player, ids);
   chapter.player = reconciled.player;
   const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
@@ -141,6 +151,10 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   return {
     daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
+    gameMasterProfile: gm?.value ? JSON.parse(gm.value) : null,
+    recentAttempt: recentAttempt ? {questId:recentAttempt.quest_id,result:recentAttempt.result,reason:recentAttempt.reason} : null,
+    recentAttempts: recentAttempts.map(x=>({questId:x.quest_id,result:x.result,reason:x.reason})),
+    guardianApproval: guardian?.value ? JSON.parse(guardian.value) : null,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
     completedQuestIds: ids, worldUnlocked: chapter.awakeningCompleted,
     awakeningPending: chapter.awakeningCompleted && !seen,
@@ -185,6 +199,20 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         result = { awarded: false, ...await snapshotInTransaction(txn) };
         return;
       }
+      if (evidence.attemptId) {
+        const attempt = await txn.getFirstAsync<{quest_id:string;result:string|null;started_at:string}>(
+          'SELECT quest_id,result,started_at FROM quest_attempts WHERE attempt_id=?', evidence.attemptId
+        );
+        if (!attempt || attempt.quest_id !== quest.id || attempt.result !== null) {
+          throw new Error('Próba misji nie jest aktywna lub należy do innego questa.');
+        }
+        const elapsed = Date.now() - Date.parse(attempt.started_at);
+        if (!Number.isFinite(elapsed) || elapsed < 0 || evidence.durationSeconds * 1000 > elapsed + 15000) {
+          throw new Error('Czas aktywności nie zgadza się z rozpoczętą próbą.');
+        }
+        // completeStoryActivity closes the attempt after evaluating prior failures
+        // for Hidden/Rematch rewards, in the same SQLite transaction.
+      }
       if (!prerequisitesCompleted(quest, await completedQuestIds(txn))) {
         throw new Error('Ta misja jest zablokowana. Ukończ poprzednie questy Awakening.');
       }
@@ -223,8 +251,20 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
         event.id, quest.id, JSON.stringify(event), now
       );
+      const lootSource:LootSource=quest.category==='BOSS'?'BOSS':quest.category==='WEEKLY'?'WEEKLY':quest.category==='WORLD'?'WORLD':quest.category==='DAILY'?'DAILY':'QUEST';
+      const lootPathRow = await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'");
+      const lootPath = lootPathRow?.value ? JSON.parse(lootPathRow.value).path : undefined;
+      // Replayed or repeatable quests may already have their first loot item.
+      // Allocate the next free instance inside the same reward transaction.
+      let lootInstance = 0;
+      let loot = createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:lootPath,now,instance:lootInstance});
+      while (await txn.getFirstAsync<{id:string}>('SELECT id FROM inventory_items WHERE id = ?',loot.id)) {
+        lootInstance++;
+        loot = createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:lootPath,now,instance:lootInstance});
+      }
+      await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)', loot.id, JSON.stringify(loot), now);
       const snapshot = await snapshotInTransaction(txn);
-      result = { awarded: true, ...snapshot, receipt: rewardReceipt(event.id, player, snapshot.player,
+      result = { awarded: true, ...snapshot, loot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
     });
     if (!result) throw new Error('Nie udało się potwierdzić zapisu misji.');
@@ -278,13 +318,15 @@ export function profileTransaction<T>(task: (txn: SQLite.SQLiteDatabase) => Prom
     return result!;
   });
 }
-export function finishOnboarding(name: string) {
+export function finishOnboarding(name: string, gameMasterProfile?: { goal: string; path: 'DISCIPLINE'|'MOTION'|'FOCUS' }) {
   const displayName = systemName(name);
+  const safeProfile = gameMasterProfile ? { goal: gameMasterProfile.goal.trim().slice(0,120), path: gameMasterProfile.path } : null;
   return profileTransaction(async txn => {
     const marker = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'onboarding_complete');
     if (marker?.value === 'true') return snapshotInTransaction(txn);
     const player = await readPlayer(txn);
     await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify({ ...player, displayName }), 'player');
+    if (safeProfile) await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('game_master_profile',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", JSON.stringify(safeProfile));
     await txn.runAsync("INSERT INTO app_state(key, value) VALUES ('onboarding_complete', 'true') ON CONFLICT(key) DO UPDATE SET value = excluded.value");
     return snapshotInTransaction(txn);
   });
@@ -320,7 +362,7 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['social_history', 'reward_claims', 'inventory_items', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -336,6 +378,25 @@ export function hasAvatarCleanupPending() {
 }
 export function acknowledgeAvatarCleanup() {
   return profileTransaction(txn => txn.runAsync('DELETE FROM app_state WHERE key = ?', 'avatar_cleanup_pending'));
+}
+
+export function loadSocialSessions(): Promise<Partial<Record<SocialMode, SocialSession>>> {
+  return serialized(async () => {
+    await initSystemDatabase();
+    const row = await (await getDatabase()).getFirstAsync<{ value:string }>("SELECT value FROM app_state WHERE key='social_sessions'");
+    if (!row?.value) return {};
+    try { return JSON.parse(row.value) as Partial<Record<SocialMode, SocialSession>>; } catch { return {}; }
+  });
+}
+export function saveSocialSession(session: SocialSession): Promise<Partial<Record<SocialMode, SocialSession>>> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value:string }>("SELECT value FROM app_state WHERE key='social_sessions'");
+    let sessions: Partial<Record<SocialMode, SocialSession>> = {};
+    try { sessions = row?.value ? JSON.parse(row.value) : {}; } catch { sessions = {}; }
+    sessions = { ...sessions, [session.mode]: session };
+    await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('social_sessions',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", JSON.stringify(sessions));
+    return sessions;
+  });
 }
 
 export function systemDiagnostics() {
@@ -395,3 +456,16 @@ export function startBossProtocol() {
    return snapshotInTransaction(txn);
  });
 }
+
+export function loadInventory(): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); return rows.map(r=>JSON.parse(r.payload) as InventoryItem); }); }
+export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const player=await readPlayer(txn);const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem); if(!items.some(i=>i.id===id)) throw new Error('Przedmiot nie istnieje.'); const next=equipItem(items,id,player.realLevel); for(const item of next) await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id); return next; }); }
+export function unequipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id');const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem);const next=unequipItem(items,id);for(const item of next)await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id);return next;});}
+export function loadLootHistory(limit=50):Promise<InventoryItem[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id LIMIT ?',Math.max(1,Math.min(200,limit)));return rows.map(r=>JSON.parse(r.payload) as InventoryItem);});}
+export function loadSocialHistory():Promise<SocialHistoryEntry[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history ORDER BY completed_at DESC,session_id LIMIT 100');return rows.map(r=>JSON.parse(r.payload) as SocialHistoryEntry);});}
+export function claimCompletedSocialSession(_session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
+ // Client-side session state is not proof of a real multiplayer result.
+ // Fail closed until a server-issued, independently verified reward receipt exists.
+ return Promise.reject(new Error('Nagrody Social wymagają weryfikacji serwera online. Lokalna sesja nie przyznaje XP ani przedmiotów.'));
+}
+
+export function setGuardianApproval(status:'PENDING'|'APPROVED'|'REJECTED') { return profileTransaction(async txn=>{ const value={status,updatedAt:new Date().toISOString()}; await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('guardian_approval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(value)); return snapshotInTransaction(txn); }); }

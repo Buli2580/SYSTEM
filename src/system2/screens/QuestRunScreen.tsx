@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
 import { SYSTEM_COLORS } from '../core';
 import { FIRST_MOVEMENT_QUEST } from '../quests/firstMovement';
@@ -13,13 +13,17 @@ import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
 import { MissionBriefing } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import { playSceneMusic, stopMusic } from '../identity/audio';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
+  useFocusEffect(useCallback(()=>{ playSceneMusic(quest.category === 'BOSS' ? 'BOSS' : 'QUEST'); return stopMusic; },[quest.category]));
   const { story } = useSystem();
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
-  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
+  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, loot, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
   const [questAccepted, setQuestAccepted] = useState(false);
   const [startInProgress, setStartInProgress] = useState(false);
@@ -64,7 +68,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     startInProgressRef.current = true;
     setStartInProgress(true);
     setQuestAccepted(true);
-    void startQuest()
+    return startQuest()
       .catch(() => undefined)
       .finally(() => {
         startInProgressRef.current = false;
@@ -122,7 +126,12 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           <Text style={styles.description}>GPS {accuracy === null ? '—' : `±${Math.round(accuracy)} M`} · STEPS — · CADENCE —</Text>
           <Text style={styles.description}>GPS ONLY // STANDARD · maksymalna pewność 87/100</Text>
         </View>}
-        {showLiveTracker && <View style={styles.tracker}>
+        {showLiveTracker && <Animated.View entering={FadeInDown.duration(320)} style={styles.activeQuestStage}>
+          <Text style={styles.activeQuestCode}>ACTIVE QUEST // LIVE PROTOCOL</Text>
+          <Text numberOfLines={2} style={styles.activeQuestTitle}>{quest.title}</Text>
+          <View style={styles.activeQuestPulse}><View style={styles.activeQuestPulseCore}/></View>
+        </Animated.View>}
+        {showLiveTracker && <Animated.View entering={FadeIn.duration(260)} style={styles.tracker}>
           <Text
             style={styles.trackerLabel}
           >
@@ -273,7 +282,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-        </View>}
+        </Animated.View>}
 
         {(renderStatus === 'CHECKING' || renderStatus === 'STARTING') && (
           <View style={styles.trackingBox}>
@@ -315,6 +324,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           seconds={quest.verification.minimumDurationSeconds} />}
 
         {receipt && <RewardSummary receipt={receipt} />}
+        {loot && renderStatus==='COMPLETED' && <Animated.View entering={ZoomIn.duration(420)} style={styles.lootCard}><Text style={styles.lootCode}>LOOT ACQUIRED // {loot.rarity}</Text><Text style={styles.lootTitle}>{loot.name}</Text><Text style={styles.completeText}>{loot.slot} · {loot.source} · STORED IN INVENTORY</Text></Animated.View>}
         {renderStatus ===
           'COMPLETED' && (
           <View
@@ -361,7 +371,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.returnText
                 }
               >
-                WRÓĆ DO SYSTEMU
+                NEXT MISSION →
               </Text>
             </Pressable>
           </View>
@@ -376,7 +386,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
       )}
 
       {questCompleteVisible && (
-        <Animated.View pointerEvents="none" entering={FadeIn.duration(250)} exiting={FadeOut.duration(220)} style={styles.questCompleteOverlay}>
+        <Animated.View pointerEvents="none" entering={ZoomIn.duration(320)} exiting={FadeOut.duration(220)} style={styles.questCompleteOverlay}>
           <Text style={styles.questOverlayLabel}>QUEST COMPLETE</Text>
           <Text style={styles.questOverlayTitle}>VERIFIED</Text>
         </Animated.View>
@@ -391,6 +401,9 @@ function isLiveQuestStatus(status: string) {
 
 const styles =
   StyleSheet.create({
+    lootCard:{marginTop:16,padding:22,borderWidth:1,borderColor:'rgba(120,100,255,.55)',backgroundColor:'#0b0718',alignItems:'center'},
+    lootCode:{color:'#b79cff',fontSize:9,fontWeight:'900',letterSpacing:2},
+    lootTitle:{color:'#fff',fontSize:24,fontWeight:'900',marginTop:8},
     root: {
       flex: 1,
       position: 'relative',
@@ -522,6 +535,11 @@ const styles =
       marginLeft: 7,
     },
 
+    activeQuestStage: { padding: 16, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, borderRadius: 16, marginBottom: 14 },
+    activeQuestCode: { color: SYSTEM_COLORS.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 2 },
+    activeQuestTitle: { color: SYSTEM_COLORS.white, fontSize: 18, fontWeight: '900', marginTop: 8 },
+    activeQuestPulse: { position: 'absolute', right: 18, top: 18, width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: SYSTEM_COLORS.cyan, alignItems: 'center', justifyContent: 'center' },
+    activeQuestPulseCore: { width: 6, height: 6, borderRadius: 3, backgroundColor: SYSTEM_COLORS.cyan },
     progressTrack: {
       height: 8,
       backgroundColor:
