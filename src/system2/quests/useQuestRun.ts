@@ -3,6 +3,7 @@ import { createActivityWindow } from '../activity/features';
 import { classifyActivity, verdictMessage } from '../activity/classifier';
 import type { ActivityEvidence } from '../activity/types';
 import type { RewardReceipt } from '../core/rewards';
+import type { InventoryItem } from '../core/inventory';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
@@ -29,6 +30,7 @@ export function useQuestRun(quest: RunnableQuest) {
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [duration, setDuration] = useState(0);
   const [receipt, setReceipt] = useState<RewardReceipt | null>(null);
+  const [loot, setLoot] = useState<InventoryItem | null>(null);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const watcherRef = useRef<Location.LocationSubscription | null>(null);
   const trackingActiveRef = useRef(false);
@@ -168,6 +170,7 @@ export function useQuestRun(quest: RunnableQuest) {
       if (!focusedRef.current || session !== sessionRef.current) return;
       setAlreadyCompleted(!result.awarded);
       setReceipt(result.receipt ?? null);
+      setLoot(result.loot ?? null);
       transition('COMPLETED');
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch {
@@ -374,7 +377,7 @@ export function useQuestRun(quest: RunnableQuest) {
   }
 
   return {
-    status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
+    status, error, distance, accuracy, duration, alreadyCompleted, receipt, loot, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
     ready, databaseError, refreshPlayer, startQuest, retryQuest,
   };
 }
