@@ -945,7 +945,7 @@ test('world schema and reward events do not retain raw player GPS samples or hom
   const event = JSON.parse(h.sql.prepare('SELECT payload FROM verified_events WHERE id = ?').get(signal.id).payload);
   assert.equal(event.latitude, undefined); assert.equal(event.longitude, undefined);
   const tables = h.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(t => t.name);
-  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress'].sort());
+  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress', 'inventory_items', 'reward_claims', 'social_history'].sort());
 });
 function worldTrackingHarness(t, options = {}) {
   const load = loader({}); const { WorldTracking } = load('world/tracking');
