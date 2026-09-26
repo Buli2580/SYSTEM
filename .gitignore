@@ -44,3 +44,6 @@ example
 
 .env
 server/.env
+
+# Local build logs and dependency cache
+/.cache/
