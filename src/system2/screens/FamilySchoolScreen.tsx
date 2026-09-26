@@ -1,13 +1,16 @@
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SystemPage from '../components/SystemPage';
+import Action from '../components/Action';
+import { useSystem } from '../state/SystemProvider';
 
 export default function FamilySchoolScreen(){
+ const {guardianApproval,setGuardianApproval}=useSystem();
  return <SystemPage title="GUARDIAN" subtitle="FAMILY // SCHOOL">
   <Animated.View entering={FadeInDown.duration(380)} style={s.hero}><Text style={s.code}>ADULT CONTROL LAYER</Text><Text style={s.title}>SUPPORT, NOT GAMEPLAY</Text><Text style={s.body}>Parent and teacher controls stay separate from the player's RPG world. Adults see clear activity and approval states; children keep the game experience.</Text></Animated.View>
   <Panel code="FAMILY" title="PARENT PANEL" rows={['Movement mission approvals','Daily activity summary','Safety / privacy controls','Age-appropriate mission rules']}/>
   <Panel code="SCHOOL" title="TEACHER PANEL" rows={['Class movement challenges','Participation overview','Team goals without public body metrics','Teacher-approved activities']}/>
-  <Panel code="VERIFICATION" title="TRUST LAYER" rows={['GPS: supported by current quest verifier','Timer: supported by current quest verifier','Steps / Health: adapter pending','Parent approval: explicit guardian signal pending']}/>
+  <Panel code="VERIFICATION" title="TRUST LAYER" rows={['GPS: supported by current quest verifier','Timer: supported by current quest verifier','Steps / Health: adapter pending',`Parent approval: ${guardianApproval?.status ?? 'PENDING'}`]}/><View style={s.panel}><Text style={s.code}>PARENT APPROVAL</Text><Text style={s.panelTitle}>{guardianApproval?.status ?? 'PENDING'}</Text><Text style={s.row}>Explicit local guardian decision. No approval is inferred or fabricated.</Text><Action label="APPROVE" onPress={()=>{void setGuardianApproval('APPROVED')}}/><Action label="REJECT" onPress={()=>{void setGuardianApproval('REJECTED')}}/><Action label="RESET TO PENDING" onPress={()=>{void setGuardianApproval('PENDING')}}/></View>
   <Text style={s.note}>No child location, health data or approval is fabricated. Unsupported verification stays visibly pending until its adapter exists.</Text>
  </SystemPage>;
 }
