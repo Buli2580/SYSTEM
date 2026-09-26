@@ -19,7 +19,11 @@ export function normalizeUserModel(value:unknown):UserModel{
 }
 export function recordOutcome(model:UserModel,event:Outcome):UserModel{
  if(model.outcomes.some(x=>x.id===event.id))return model;
- return{...model,outcomes:[...model.outcomes,event].slice(-500),updatedAt:event.at};
+ const outcomes=[...model.outcomes,event].slice(-500);
+ const scores=new Map<string,number>();
+ for(const outcome of outcomes.slice(-60))if(outcome.questType){const weight=outcome.outcome==='COMPLETE'?2:outcome.outcome==='RECOVERY'?1:outcome.outcome==='FAILED'?-1:outcome.outcome==='REROLL'?-2:0;scores.set(outcome.questType,(scores.get(outcome.questType)??0)+weight);}
+ const preferredTypes=[...scores].filter(([,score])=>score>0).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,5).map(([type])=>type);
+ return{...model,outcomes,preferredTypes,updatedAt:event.at};
 }
 export function setLifeState(model:UserModel,state:LifeState,now=new Date().toISOString()):UserModel{return{...model,lifeState:state,updatedAt:now};}
 export function planAdaptiveDay(model:UserModel,now=new Date().toISOString()):Plan{
