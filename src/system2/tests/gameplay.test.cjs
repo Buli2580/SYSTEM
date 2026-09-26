@@ -773,6 +773,8 @@ function uiHarness(context = {}) {
     'expo-router': { usePathname: () => '/', useRouter: () => ({ push: value => navigation.push(value), replace: value => navigation.push(value) }) },
     '../state/SystemProvider': { useSystem: () => context },
     '../components/SystemAmbientBackground': { __esModule: true, default: () => null },
+    './SystemAmbientBackground': { __esModule: true, default: () => null },
+    'react-native-reanimated': { __esModule: true, default: { View: 'View' }, FadeInUp: { duration: () => ({ delay: () => null }) } },
     '../components/SystemPage': { __esModule: true, default: 'SystemPage', pageStyles: {} },
   });
   return { load, navigation };
