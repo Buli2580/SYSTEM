@@ -141,7 +141,7 @@ export default function SystemHomeScreen() {
   const { width, height } = useWindowDimensions();
   const {
     player, ready, completedQuestIds, awakeningCompleted, worldUnlocked,
-    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, recentAttempts, settings,
+    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, recentAttempts, settings, adaptivePlan, adaptiveModel,
   } = useSystem();
 
   const autoPerformanceMode: 'LOW'|'MEDIUM'|'HIGH' = width < 370 || height < 700 ? 'LOW' : width < 430 || height < 800 ? 'MEDIUM' : 'HIGH';
@@ -157,7 +157,7 @@ export default function SystemHomeScreen() {
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story, awakeningCompleted);
-  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts});
+  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts,adaptivePlan,adaptiveModel});
   const progress = awakeningCompleted ? objective.completed : awakening.completed;
   const total = awakeningCompleted ? objective.total : awakening.total;
   const percent = total ? Math.min(100, progress / total * 100) : 0;
