@@ -20,6 +20,8 @@ import { getPlayerProgressPercent, SYSTEM_COLORS } from '../core';
 import { AWAKENING_QUESTS, AWAKENING_REWARD_XP, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useSystem } from '../state/SystemProvider';
 import { mainStoryObjective } from '../story/selectors';
+import { directNextMission } from '../gameMaster/director';
+import { playSceneMusic, stopMusic } from '../identity/audio';
 
 const CYAN = '#6CEEFF';
 const SKY = '#071017';
@@ -154,6 +156,7 @@ export default function SystemHomeScreen() {
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story, awakeningCompleted);
+  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted});
   const progress = awakeningCompleted ? objective.completed : awakening.completed;
   const total = awakeningCompleted ? objective.total : awakening.total;
   const percent = total ? Math.min(100, progress / total * 100) : 0;
@@ -161,9 +164,11 @@ export default function SystemHomeScreen() {
     const s = getQuestStatus(q.id, completedQuestIds, activeQuestId);
     return s === 'ACTIVE' || s === 'AVAILABLE';
   });
-  const active = !awakeningCompleted && nextQuest
-    ? { title: nextQuest.title, subtitle: 'AWAKENING PROTOCOL', action: activeQuestId === nextQuest.id ? 'CONTINUE' : 'START', route: { pathname: '/quest' as const, params: { questId: nextQuest.id } } }
+  const directedQuest = gameMaster.quest ?? (!awakeningCompleted ? nextQuest : undefined);
+  const active = directedQuest
+    ? { title: directedQuest.title, subtitle: gameMaster.message, action: activeQuestId === directedQuest.id ? 'CONTINUE' : 'START', route: { pathname: '/quest' as const, params: { questId: directedQuest.id } } }
     : { title: objective.title, subtitle: objective.subtitle, action: 'CONTINUE', route: '/story' as const };
+  useFocusEffect(useCallback(() => { playSceneMusic(sceneMode); return stopMusic; }, [sceneMode]));
   useEffect(() => {
     if (!lastReward) return;
     const timer = setTimeout(dismissLastReward, 4200);
