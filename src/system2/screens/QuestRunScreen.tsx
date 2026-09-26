@@ -13,9 +13,13 @@ import MultiProgress, { formatQuestTime } from '../components/MultiProgress';
 import { AWAKENING_QUESTS } from '../quests/catalog';
 import { MissionBriefing } from '../components/QuestExperience';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import { playSceneMusic, stopMusic } from '../identity/audio';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
+  useFocusEffect(useCallback(()=>{ playSceneMusic(quest.category === 'BOSS' ? 'BOSS' : 'QUEST'); return stopMusic; },[quest.category]));
   const { story } = useSystem();
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
