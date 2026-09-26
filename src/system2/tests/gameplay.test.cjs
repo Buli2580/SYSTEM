@@ -237,6 +237,7 @@ function screenHarness(t, options = {}) {
       const index = cursor++;
       return slots[index] ??= { current: initial };
     },
+    useMemo(fn, deps) { return fn(); },
     useCallback(fn, deps) {
       const index = cursor++;
       if (!same(slots[index]?.deps, deps)) slots[index] = { fn, deps };
@@ -270,7 +271,10 @@ function screenHarness(t, options = {}) {
   const load = loader({
     react,
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
-    'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
+    'react/jsx-runtime': { jsx: (type, props) => typeof type === 'function' ? type(props) : ({ type, props }), jsxs: (type, props) => typeof type === 'function' ? type(props) : ({ type, props }) },
+    '../components/SystemAmbientBackground': { __esModule: true, default: () => null },
+    '../identity/audio': { playSceneMusic: () => {}, stopMusic: () => {} },
+    '../identity/feedback': { NotificationFeedbackType: { Success: 1, Error: 2 }, notificationAsync: async () => {} },
     'react-native': {
       AppState: appState,
       Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s },
