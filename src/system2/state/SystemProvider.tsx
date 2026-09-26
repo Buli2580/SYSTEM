@@ -32,6 +32,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<db.SystemSnapshot>(() => ({
     story: null, daily: null, player: createNewPlayer(), completedQuestIds: [], awakeningCompleted: false, worldUnlocked: false,
     awakeningPending: false, onboardingComplete: false, settings: DEFAULT_SETTINGS, titles: ['UNAWAKENED'],
+    gameMasterProfile: null, recentAttempt: null, recentAttempts: [], guardianApproval: null,
   }));
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
