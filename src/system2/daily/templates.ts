@@ -24,8 +24,10 @@ export function dailyQuest(id: string): RunnableQuest | undefined {
  const t = match && DAILY_TEMPLATES.find(q => q.id === match[2]);
  return t ? { ...t, id, templateId: t.id, dayKey: match![1] } : undefined;
 }
-export function generateDaily(playerId: string, day: string, prefs: ActivityPreferences) {
+export function generateDaily(playerId: string, day: string, prefs: ActivityPreferences, count = 3) {
  const movement = DAILY_TEMPLATES.filter(q => q.activityType && ({ WALK: prefs.walking, RUN: prefs.running, BIKE: prefs.cycling })[q.activityType as 'WALK' | 'RUN' | 'BIKE']);
- const selected = [...deterministicPick(movement, playerId + day, 1), ...deterministicPick(DAILY_TEMPLATES.filter(q => !q.activityType), day + playerId, movement.length ? 2 : 3)];
+ const slots = Math.max(1, Math.min(5, Math.floor(count)));
+ const movementCount = movement.length ? 1 : 0;
+ const selected = [...deterministicPick(movement, playerId + day, movementCount), ...deterministicPick(DAILY_TEMPLATES.filter(q => !q.activityType), day + playerId, slots - movementCount)];
  return selected.map(q => dailyQuest(`daily:${day}:${q.id}`)!);
 }
