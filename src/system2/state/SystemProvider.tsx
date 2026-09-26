@@ -1,3 +1,4 @@
+import type { LifeState } from '../adaptive/engine';
 import { resetTesterProfile } from '../tester/reset';
 import { AppState } from 'react-native';
 import { configureAudio, playFeedback, rewardSound, stopAudio } from '../identity/audio';
@@ -25,6 +26,8 @@ type SystemContextValue = db.SystemSnapshot & {
   acknowledgeAwakening: () => Promise<void>;
   completeVerifiedQuest: (input: db.CompleteQuestInput) => Promise<db.CompleteQuestResult>;
   refreshPlayer: () => Promise<void>;
+  changeLifeState: (state: LifeState) => Promise<void>;
+  changeAvailableMinutes: (minutes: number) => Promise<void>;
   finishOnboarding: (name: string, birthDate?: string) => Promise<void>;
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
   saveSettings: (settings: Settings) => Promise<void>;
@@ -215,6 +218,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(() => db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(() => db.updateIdentity(patch)),
+    changeLifeState: state => apply(() => db.changeAdaptiveLifeState(state)),
+    changeAvailableMinutes: minutes => apply(() => db.changeAdaptiveAvailableMinutes(minutes)),
     saveSettings: settings => apply(() => db.saveSettings(settings)),
     createPlayerGoal: input => apply(() => db.createPlayerGoal(input)),
     updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),

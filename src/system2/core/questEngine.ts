@@ -28,11 +28,11 @@ export type QuestCompletion = { player: PlayerProfile; quest: Quest; event: Veri
  * The adapter must resolve access inside its transaction and hold a unique completion claim.
  * Persist the returned profile/event/completion together. Streak changes only on Daily Clear.
  */
-export function completeQuest(player: PlayerProfile, input: QuestEvidence, status: Quest['status'], completedAt: string): QuestCompletion {
+export function completeQuest(player: PlayerProfile, input: QuestEvidence, status: Quest['status'], completedAt: string, bossDifficulty = 2): QuestCompletion {
   if (status !== 'ACTIVE' && status !== 'AVAILABLE') throw new Error('Quest cannot be completed in its current state.');
   // The existing validator normalizes activity evidence; keep caller-owned data immutable.
   const evidence: QuestEvidence = { ...input };
-  const definition = validateQuestEvidence(evidence);
+  const definition = validateQuestEvidence(evidence, bossDifficulty);
   const rewarded = applyQuestRewards(player, definition.rewards, completedAt);
   const distance = evidence.verificationType === 'TIMER' ? 0 : evidence.distanceMeters;
   const totalDistanceMeters = player.totalDistanceMeters + distance;

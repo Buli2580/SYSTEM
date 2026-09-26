@@ -1,6 +1,7 @@
 import type { Quest } from '../core';
 
 export type RunnableQuest = Omit<Quest, 'verification' | 'status'> & {
+  adaptiveDifficulty?: number;
   order: number;
   templateId?: string; dayKey?: string;
   activityType?: import('../activity/types').ActivityType;

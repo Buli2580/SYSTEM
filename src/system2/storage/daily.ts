@@ -1,3 +1,4 @@
+import { loadAdaptivePlan } from '../adaptive/storage';
 import { applyQuestRewards } from '../core/questEngine';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { type PlayerProfile, type VerifiedEvent } from '../core';
@@ -5,7 +6,7 @@ import { dayKey, dayOrdinal, weekKey, nextStreak, DAILY_RULES } from '../daily/c
 import { dailyQuest, DEFAULT_ACTIVITIES, type ActivityPreferences } from '../daily/templates';
 import { createGeneratedDaily } from './generation';
 import { applyMissedDailyConsequence } from './aiState';
-export type DailyState = { rerollsUsed?: number; attemptedQuestIds?: string[]; reasons?: Record<string,string>; dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
+export type DailyState = { rerollsUsed?: number; attemptedQuestIds?: string[]; reasons?: Record<string,string>; dayKey: string; weekKey: string; questIds: string[]; suspiciousQuestIds: string[]; completed: number; weeklyCompleted: number; weeklyTarget: number; clear: boolean; weeklyClear: boolean; clockAnomaly: boolean };
 async function state(db: SQLiteDatabase, key: string) { return (await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', key))?.value; }
 async function setState(db: SQLiteDatabase, key: string, value: string) { await db.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', key, value); }
 export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlocked: boolean, prefs: ActivityPreferences = DEFAULT_ACTIVITIES, now = Date.now()): Promise<DailyState | null> {
@@ -13,7 +14,14 @@ export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlo
  const today = dayKey(now), highClock = Number(await state(db, 'last_known_wall_clock') ?? 0), highDay = await state(db, 'last_daily_day');
  const anomaly = now < highClock - DAILY_RULES.clockToleranceMs || Boolean(highDay && today < highDay);
  const day = anomaly && highDay ? highDay : today, week = weekKey(day);
+ const weeklyKey='adaptive_weekly_target:'+week;
+ let weeklyTarget=Number(await state(db,weeklyKey))||DAILY_RULES.weeklyTarget;
  if (!anomaly) {
+   if(!await state(db,weeklyKey)){
+     const existing=await db.getFirstAsync('SELECT id FROM daily_instances WHERE week_key=? LIMIT 1',week);
+     weeklyTarget=existing?DAILY_RULES.weeklyTarget:(await loadAdaptivePlan(db,new Date(now).toISOString())).weeklyCount===1?3:5;
+     await setState(db,weeklyKey,String(weeklyTarget));
+   }
    await setState(db, 'last_known_wall_clock', String(Math.max(now, highClock)));
    await setState(db, 'last_daily_day', day);
    const exists = await db.getFirstAsync('SELECT day_key FROM daily_sets WHERE day_key = ?', day);
@@ -35,7 +43,7 @@ export async function dailyState(db: SQLiteDatabase, player: PlayerProfile, unlo
   const reasons = Object.fromEntries(
     generated.map(row => [row.quest_id, row.reason])
   );
-  return { rerollsUsed, reasons, suspiciousQuestIds: attempts.filter(row => JSON.parse(row.payload).activity?.verdict === 'SUSPICIOUS').map(row => row.quest_id), dayKey: day, weekKey: week, questIds: rows.map(r => r.id), completed: await count('day_key', day), weeklyCompleted: await count('week_key', week),
+  return { weeklyTarget, rerollsUsed, reasons, suspiciousQuestIds: attempts.filter(row => JSON.parse(row.payload).activity?.verdict === 'SUSPICIOUS').map(row => row.quest_id), dayKey: day, weekKey: week, questIds: rows.map(r => r.id), completed: await count('day_key', day), weeklyCompleted: await count('week_key', week),
  clear: Boolean(await db.getFirstAsync('SELECT bonus_key FROM protocol_bonuses WHERE bonus_key = ?', 'daily_clear:' + day)),
  weeklyClear: Boolean(await db.getFirstAsync('SELECT bonus_key FROM protocol_bonuses WHERE bonus_key = ?', 'weekly_complete:' + week)), clockAnomaly: anomaly };
 }
@@ -52,9 +60,10 @@ export async function awardProtocols(db: SQLiteDatabase, player: PlayerProfile, 
  let next = player;
  const day = instance.day_key, week = weekKey(day);
  const count = async (column: 'day_key' | 'week_key', key: string) => (await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM daily_instances d JOIN quest_completions q ON q.quest_id=d.id WHERE d.${column}=?`, key))?.n ?? 0;
+ const assigned=(await db.getFirstAsync<{n:number}>('SELECT COUNT(*) AS n FROM daily_instances WHERE day_key=?',day))?.n??0;
  for (const [kind, key, eligible, xp, energy] of [
-   ['daily_clear', day, await count('day_key', day) === DAILY_RULES.slots, DAILY_RULES.clearXp, DAILY_RULES.clearEnergy],
-   ['weekly_complete', week, await count('week_key', week) >= DAILY_RULES.weeklyTarget, DAILY_RULES.weeklyXp, DAILY_RULES.weeklyEnergy],
+   ['daily_clear', day, assigned>0 && await count('day_key', day) === assigned, DAILY_RULES.clearXp, DAILY_RULES.clearEnergy],
+   ['weekly_complete', week, await count('week_key', week) >= (Number(await state(db,'adaptive_weekly_target:'+week))||DAILY_RULES.weeklyTarget), DAILY_RULES.weeklyXp, DAILY_RULES.weeklyEnergy],
  ] as const) {
    if (!eligible) continue;
    const id = kind + ':' + key;

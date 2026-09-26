@@ -1,5 +1,5 @@
 import { dayOrdinal } from '../daily/calendar';
-import { adaptiveDifficulty, generateLoadout, type Candidate, type GenerationInput } from '../generation/engine';
+import { adaptiveDifficulty, generateLoadout, adaptCandidates, type Candidate, type GenerationInput } from '../generation/engine';
 import {
   DIFFICULTY,
   QUEST_TEMPLATES,
@@ -163,5 +163,5 @@ export function candidatesFromAI(
     picked.push(candidate);
   }
 
-  return picked.slice(0, count);
+  return adaptCandidates(input, picked.slice(0, count));
 }

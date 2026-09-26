@@ -1,3 +1,4 @@
+import { loadAdaptivePlan, readAdaptiveModel } from '../adaptive/storage';
 import { readJourneys } from './journeys';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { PlayerProfile } from '../core';
@@ -18,7 +19,9 @@ export async function generationInput(db:SQLiteDatabase,player:PlayerProfile,day
  const consequence=await readAIConsequenceState(db);
  const week=weekKey(day),weeklyCompleted=(await db.getFirstAsync<{n:number}>('SELECT COUNT(*) AS n FROM daily_instances d JOIN quest_completions c ON c.quest_id=d.id WHERE d.week_key=?',week))?.n??0;
  const weeklyClear=!!await db.getFirstAsync('SELECT bonus_key FROM protocol_bonuses WHERE bonus_key=?','weekly_complete:'+week);
- return {player,day,prefs,journeys:await readJourneys(db),goals:await readGoals(db),history,weeklyCompleted,weeklyClear,systemDebt:consequence.systemDebt};
+ const saved=await db.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?','adaptive_daily_plan:'+day);
+ const adaptive=saved?JSON.parse(saved.value) as NonNullable<GenerationInput['adaptive']>:undefined;
+ return {adaptive,player,day,prefs,journeys:await readJourneys(db),goals:await readGoals(db),history,weeklyCompleted,weeklyClear,systemDebt:consequence.systemDebt};
 }
 export async function persistCandidate(db:SQLiteDatabase,c:Candidate) {
  const q=c.quest;
@@ -27,8 +30,13 @@ export async function persistCandidate(db:SQLiteDatabase,c:Candidate) {
  if(c.recovery)await storyEvent(db,'recovery:'+q.dayKey,'RECOVERY_OFFERED','RETURN TO THE SYSTEM',c.reason);
 }
 export async function createGeneratedDaily(db:SQLiteDatabase,player:PlayerProfile,day:string,prefs:ActivityPreferences) {
- const candidates=generateLoadout(await generationInput(db,player,day,prefs));
- if(candidates.length!==3)throw new Error('Nie udało się przygotować pełnego zestawu Daily. Ponów odczyt.');
+ const plan=await loadAdaptivePlan(db),model=await readAdaptiveModel(db);
+ const adaptive={difficulty:plan.difficulty,availableMinutes:model.availableMinutes,dailyCount:plan.dailyCount,preferredTypes:model.preferredTypes};
+ await db.runAsync('INSERT INTO app_state(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING','adaptive_daily_plan:'+day,JSON.stringify(adaptive));
+ const input=await generationInput(db,player,day,prefs);
+ const count=input.adaptive!.dailyCount;
+ const candidates=generateLoadout(input,count);
+ if(candidates.length!==count)throw new Error('Nie udało się przygotować pełnego zestawu Daily. Ponów odczyt.');
  for(const c of candidates)await persistCandidate(db,c);
- await storyEvent(db,'daily_generated:'+day,'DAILY_GENERATED','DAILY LOADOUT READY','3 misje dobrane lokalnie do celów i historii.');
+ await storyEvent(db,'daily_generated:'+day,'DAILY_GENERATED','DAILY LOADOUT READY',`${count} misje dobrane lokalnie do celów i historii.`);
 }

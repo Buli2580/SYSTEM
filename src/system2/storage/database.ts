@@ -1,3 +1,5 @@
+import { readAdaptiveModel, recordAdaptiveOutcome, updateAdaptiveLifeState, updateAdaptiveAvailableMinutes, loadAdaptivePlan, readBossDifficulty } from '../adaptive/storage';
+import type { LifeState, Plan, UserModel } from '../adaptive/engine';
 import { ensureAchievementSchema } from '../achievements/schema';
 import { validateBirthDate } from '../identity/age';
 import { inspectLocalHealth, type LocalHealth } from './health';
@@ -81,6 +83,7 @@ export type AIDailyCache = {
 };
 
 export type SystemSnapshot = {
+  adaptiveModel?: UserModel; adaptivePlan?: Plan;
   systemDebt: 0 | 1 | 2 | 3;
   aiDaily?: AIDailyCache | null;
   goals: PlayerGoal[]; journeys: Journey[]; journeyQuestIds: Record<string,string>; recentActivity: readonly RecentActivity[]; progression: ProgressionState | null;
@@ -284,6 +287,7 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
   const failed = await db.getAllAsync<{ quest_id: string }>("SELECT DISTINCT quest_id FROM quest_attempts WHERE result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS') AND quest_id NOT IN (SELECT quest_id FROM quest_completions)");
   return {
+    adaptiveModel: await readAdaptiveModel(db), adaptivePlan: await loadAdaptivePlan(db),
     systemDebt: consequence.systemDebt, aiDaily, goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
     failedQuestIds: failed.map(row => row.quest_id), daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
@@ -328,6 +332,7 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
           bossAccessible: quest?.category === 'BOSS' ? await bossAccess(txn, id) : false });
       }, {
         async apply(player, quest, evidence, now) {
+          await recordAdaptiveOutcome(txn, { id: 'quest_' + quest.id, questType: templateFor(quest.id)?.id ?? quest.templateId ?? quest.id, difficulty: quest.adaptiveDifficulty ?? 2, outcome: 'COMPLETE', at: now, minutes: evidence.durationSeconds / 60 });
           const storyPlayer = await completeStoryActivity(txn, player, quest, evidence);
           const journeyPlayer = await advanceJourney(txn, storyPlayer, quest, now);
           const protocolPlayer = await awardProtocols(txn, journeyPlayer, quest.id, now);
@@ -510,7 +515,11 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    if(!Number.isFinite(duration)||duration<0||!Number.isFinite(distance)||distance<0) throw new Error('Nieprawidłowe dane próby.');
    const eligible=duration>0 && ((result==='INTERRUPTED'&&['BACKGROUND','LEFT_SCREEN'].includes(reason)) || (['FAILED','REJECTED'].includes(result)&&reason==='VERIFICATION_REJECTED'));
    const changed=await txn.runAsync('UPDATE quest_attempts SET ended_at=?,result=?,reason=?,duration=?,distance=?,eligible=? WHERE attempt_id=? AND result IS NULL',new Date(Date.now()).toISOString(),result,reason,duration,distance,eligible?1:0,attemptId);
-   if(changed.changes&&eligible) await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
+   if(changed.changes&&eligible) {
+     const attempt=await txn.getFirstAsync<{quest_id:string}>('SELECT quest_id FROM quest_attempts WHERE attempt_id=?',attemptId);
+     if(attempt) { const quest=getQuest(attempt.quest_id,await readBossDifficulty(txn)); await recordAdaptiveOutcome(txn,{id:'attempt:'+attemptId,questType:templateFor(attempt.quest_id)?.id??quest?.templateId??attempt.quest_id,difficulty:quest?.adaptiveDifficulty??2,outcome:result==='INTERRUPTED'?'PARTIAL':'FAILED',at:new Date(Date.now()).toISOString(),minutes:duration/60}); }
+     await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
+   }
  });
 }
 const BACKGROUND_QUEST_SESSION_KEY = 'background_quest_session';
@@ -680,7 +689,8 @@ export function startBossProtocol() {
  return profileTransaction(async txn=>{
    const snapshot=await snapshotInTransaction(txn);
    if(!snapshot.story.worldLinkComplete||snapshot.daily?.clockAnomaly) throw new Error('BOSS PROTOCOL jest zablokowany. Sprawdź WORLD LINK i datę telefonu.');
-   await txn.runAsync('INSERT INTO boss_progress(id,started_at,start_day) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING',BOSS_ID,new Date(Date.now()).toISOString(),dayKey());
+   const created=await txn.runAsync('INSERT INTO boss_progress(id,started_at,start_day) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING',BOSS_ID,new Date(Date.now()).toISOString(),dayKey());
+   if(created.changes)await txn.runAsync('INSERT INTO app_state(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value','adaptive_boss_difficulty_v1',String((await loadAdaptivePlan(txn)).bossDifficulty));
    await storyEvent(txn,'boss_started','BOSS_STARTED','THE FIRST WALL // BOSS STARTED');
    return snapshotInTransaction(txn);
  });
@@ -878,8 +888,8 @@ export function applyAIDailyPlan(plan: AIGameMasterResponse) {
      snapshot.settings.activities ?? DEFAULT_ACTIVITIES,
    );
    input.exclude = [];
-   const candidates = candidatesFromAI(input, plan, 3);
-   if (candidates.length !== 3) return snapshot;
+   const candidates = candidatesFromAI(input, plan, daily.questIds.length);
+   if (candidates.length !== daily.questIds.length) return snapshot;
 
    const old = await txn.getAllAsync<{id:string}>(
      'SELECT id FROM daily_instances WHERE day_key=?',
@@ -944,6 +954,12 @@ export function rerollDailyQuest(id:string) { return profileTransaction(async tx
  await txn.runAsync('INSERT INTO daily_rerolls(day_key,old_id,new_id) VALUES (?,?,?)',daily.dayKey,id,next.quest.id);
  await txn.runAsync('DELETE FROM daily_instances WHERE id=?',id);
  await persistCandidate(txn,next);
+ await recordAdaptiveOutcome(txn,{id:'reroll:'+daily.dayKey,questType:templateFor(id)?.id??old.templateId??id,difficulty:old.adaptiveDifficulty??2,outcome:'REROLL',at:new Date(Date.now()).toISOString()});
  await storyEvent(txn,'reroll:'+daily.dayKey,'QUEST_REROLLED','DAILY REPLACED',old.title+' → '+next.quest.title);
  return snapshotInTransaction(txn);
 }); }
+
+export function changeAdaptiveLifeState(state:LifeState){return profileTransaction(async txn=>{await updateAdaptiveLifeState(txn,state);return snapshotInTransaction(txn);});}
+export function loadAdaptiveUserModel(){return profileTransaction(txn=>readAdaptiveModel(txn));}
+export function loadAssignedQuest(id:string){return profileTransaction(async txn=>getQuest(id,await readBossDifficulty(txn)));}
+export function changeAdaptiveAvailableMinutes(minutes:number){return profileTransaction(async txn=>{await updateAdaptiveAvailableMinutes(txn,minutes);return snapshotInTransaction(txn);});}

@@ -606,7 +606,7 @@ export default function SystemHomeScreen() {
                 styles.questDescription
               }
             >
-              {awakeningCompleted ? `${objective.subtitle} Dziennie ${daily?.completed ?? 0}/3 · Tygodniowo ${Math.min(5,daily?.weeklyCompleted ?? 0)}/5` : 'Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.'}
+              {awakeningCompleted ? `${objective.subtitle} Dziennie ${daily?.completed ?? 0}/${daily?.questIds.length ?? 0} · Tygodniowo ${Math.min(daily?.weeklyTarget ?? 5,daily?.weeklyCompleted ?? 0)}/${daily?.weeklyTarget ?? 5}` : 'Ukończ wszystkie misje Awakening. Każda wymaga rzeczywistej weryfikacji i przyznaje nagrodę tylko raz.'}
             </Text>
 
             <View style={styles.questStats}>

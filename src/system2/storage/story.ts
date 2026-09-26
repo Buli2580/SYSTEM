@@ -1,3 +1,4 @@
+import { readBossDifficulty } from '../adaptive/storage';
 import { applyQuestRewards } from '../core/questEngine';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { type PlayerProfile, type QuestReward } from '../core';
@@ -44,6 +45,7 @@ export async function reconcileStory(db: SQLiteDatabase, player: PlayerProfile, 
    await storyEvent(db,'title_pathfinder','TITLE_UNLOCKED','ODKRYWCA');
  }
  const boss=await db.getFirstAsync<BossProgress>('SELECT * FROM boss_progress WHERE id=?',BOSS_ID);
+ if(boss)boss.difficulty=await readBossDifficulty(db);
  const supportRow=await db.getFirstAsync<{total:number}>(
    'SELECT COALESCE(SUM(damage),0) AS total FROM boss_contributions WHERE boss_id=?',
    BOSS_ID

@@ -23,6 +23,15 @@ function stage(id: string, order: number, activity?: 'WALK'|'RUN'): RunnableQues
  activityType:activity,verificationStrength:'STANDARD',rewards:{realXp:0},progress:0,progressTarget:activity?2000:900,createdAt:'2026-09-18T00:00:00.000Z'};
 }
 export const BOSS_QUESTS = [stage(BOSS_FOCUS,1),stage(BOSS_WALK,2,'WALK'),stage(BOSS_RUN,2,'RUN')];
+export function bossQuest(id:string,difficulty=2):RunnableQuest|undefined {
+ const quest=BOSS_QUESTS.find(q=>q.id===id);
+ if(!quest)return undefined;
+ const level=Number.isInteger(difficulty)&&difficulty>=1&&difficulty<=5?difficulty:2;
+ const target=quest.verification.type==='TIMER'?300+level*300:level*1000;
+ return {...quest,adaptiveDifficulty:level,difficulty:level===1?'EASY':level===2?'NORMAL':level===3?'HARD':'EXTREME',progressTarget:target,
+  description:quest.verification.type==='TIMER'?`${target/60} minut nieprzerwanej aktywnej sesji.`:`Potwierdź ${target/1000} km ruchu. Postęp pozostaje zapisany po restarcie.`,
+  verification:quest.verification.type==='TIMER'?{...quest.verification,minimumDurationSeconds:target}:{...quest.verification,minimumDistanceMeters:target}};
+}
 export function qualifiesExtraMile(target: number, distance: number) { return Number.isFinite(distance) && target > 0 && distance >= target * 1.25; }
 export function attemptKind(q: RunnableQuest) { return q.activityType ?? q.verification.type; }
 

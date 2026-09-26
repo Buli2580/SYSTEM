@@ -1,3 +1,4 @@
+import { readBossDifficulty } from '../adaptive/storage';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { PlayerProfile } from '../core/types';
 import type { CompletionTransaction, CompletionEffects } from '../repositories/contracts';
@@ -14,7 +15,7 @@ export function completionRepositories<T>(db: SQLiteDatabase, readPlayer: () => 
       async save(player) { await db.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(player), 'player'); },
     },
     quests: {
-      async get(id) { return getQuest(id); }, availability,
+      async get(id) { return getQuest(id, await readBossDifficulty(db)); }, availability,
       async claimCompletion(id, now) {
         const claim = await db.runAsync('INSERT INTO quest_completions (quest_id, completed_at) VALUES (?, ?) ON CONFLICT(quest_id) DO NOTHING', id, now);
         return claim.changes !== 0;

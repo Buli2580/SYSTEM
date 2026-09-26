@@ -13,7 +13,7 @@ import {
   type QuestCheckpoint,
   type StoredLocationPoint,
 } from '../storage/database';
-import { getQuest } from '../quests/catalog';
+import { loadAssignedQuest } from '../storage/database';
 import { buildEvidence } from '../verification/evidence';
 import { distanceBetween, verificationScoreForAccuracy, verifiedSegment } from '../verification/gps';
 import {
@@ -89,7 +89,7 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
     return;
   }
 
-  const quest = getQuest(session.questId);
+  const quest = await loadAssignedQuest(session.questId);
   if (!quest || quest.verification.type === 'TIMER') {
     await clearBackgroundQuestSession(session.questId);
     await stopOrphanedLocationTask();

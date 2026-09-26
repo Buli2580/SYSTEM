@@ -5,7 +5,7 @@ import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import Action from '../components/Action';
 import { useSystem } from '../state/SystemProvider';
 import { storyEventTypePl } from '../i18n/pl';
-import { BOSS_FOCUS, BOSS_WALK, BOSS_RUN, ARC, STORY_REWARDS } from '../story/catalog';
+import { bossQuest, BOSS_FOCUS, BOSS_WALK, BOSS_RUN, ARC, STORY_REWARDS } from '../story/catalog';
 import type { StoryEvent } from '../story/types';
 import { loadChronicle, startBossProtocol } from '../storage/database';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
@@ -16,6 +16,8 @@ export default function StoryScreen() {
  useFocusEffect(useCallback(()=>{const id=++epoch.current;void awaitWithTimeout(loadChronicle()).then(value=>{if(id===epoch.current)setEntries(value);}).catch(()=>{if(id===epoch.current)setError('Nie udało się odczytać kroniki. Otwórz ekran ponownie.');});return()=>{epoch.current++;};},[story]));
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
  const boss=story?.boss;
+ const focusMinutes=bossQuest(BOSS_FOCUS,boss?.difficulty)!.progressTarget/60;
+ const moveKm=bossQuest(BOSS_WALK,boss?.difficulty)!.progressTarget/1000;
  return <SystemPage title="HISTORIA / KRONIKA" subtitle={`AKT 01 // ${ARC.title}`}>
   <Text style={s.label}>POSTĘP AKTU · {story?.chapters.filter(c=>c.status==='COMPLETED').length??0}/2 UKOŃCZONE</Text>
   {story?.chapters.map(c=><View key={c.id} style={s.panel}><Text style={s.label}>ROZDZIAŁ {String(c.number).padStart(2,'0')} // {c.status === 'COMPLETED' ? 'UKOŃCZONY' : c.status === 'ACTIVE' ? 'AKTYWNY' : c.status === 'AVAILABLE' ? 'DOSTĘPNY' : 'ZABLOKOWANY'}</Text><Text style={s.title}>{c.title}</Text><Text style={s.body}>{c.description} · {c.completed}/{c.total}</Text>
@@ -29,10 +31,10 @@ export default function StoryScreen() {
    <Text style={s.body}>SKUPIENIE → RUCH → DYSCYPLINA. Postęp etapów jest zapisywany.</Text>
    {story?.worldLinkComplete&&!boss&&<Action label="ROZPOCZNIJ PROTOKÓŁ BOSSA" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(request===epoch.current)setBusy(false);});}}/>}
    {boss&&<>
-    <Text style={s.body}>ETAP 1 // {boss.focus_at?'UKOŃCZONE':'DOSTĘPNY'} · 15 MIN SKUPIENIA</Text>
+    <Text style={s.body}>ETAP 1 // {boss.focus_at?'UKOŃCZONE':'DOSTĘPNY'} · {focusMinutes} MIN SKUPIENIA</Text>
     {!boss.focus_at&&<Action label="ROZPOCZNIJ SKUPIENIE" onPress={()=>open(BOSS_FOCUS)}/>}
-    <Text style={s.body}>ETAP 2 // {boss.move_at?'UKOŃCZONE':boss.focus_at?'DOSTĘPNY':'ZABLOKOWANE'} · 2 KM RUCHU</Text>
-    {!!boss.focus_at&&!boss.move_at&&<><Action label="PRZEJDŹ 2 KM" onPress={()=>open(BOSS_WALK)}/><Action label="PRZEBIEGNIJ 2 KM" onPress={()=>open(BOSS_RUN)}/></>}
+    <Text style={s.body}>ETAP 2 // {boss.move_at?'UKOŃCZONE':boss.focus_at?'DOSTĘPNY':'ZABLOKOWANE'} · {moveKm} KM RUCHU</Text>
+    {!!boss.focus_at&&!boss.move_at&&<><Action label={`PRZEJDŹ ${moveKm} KM`} onPress={()=>open(BOSS_WALK)}/><Action label={`PRZEBIEGNIJ ${moveKm} KM`} onPress={()=>open(BOSS_RUN)}/></>}
     <Text style={s.body}>ETAP 3 // {boss.discipline_at?'UKOŃCZONE':boss.move_at?'DOSTĘPNY':'ZABLOKOWANE'}</Text>
     <Text style={s.body}>Ukończ misję dzienną po etapie 2, najwcześniej następnego dnia od rozpoczęcia Bossa ({boss.start_day}). Późniejszy dzień również się liczy.</Text>
     {!!boss.move_at&&!boss.discipline_at&&<Action label="MISJE DZIENNE →" onPress={()=>router.push('/quests')}/>}

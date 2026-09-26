@@ -11,7 +11,7 @@ export const localQuestVerification: VerificationProvider<QuestEvidence> = {
     try {
       if (request.questId !== request.evidence.questId || request.method !== request.evidence.verificationType) throw new Error('Niezgodna tożsamość dowodu.');
       const evidence = { ...request.evidence };
-      validateQuestEvidence(evidence);
+      validateQuestEvidence(evidence, 1);
       return { ...base, status: 'VERIFIED', code: 'LOCAL_EVIDENCE_VALID', evidence };
     } catch (cause) {
       return { ...base, status: 'REJECTED', code: 'INVALID_EVIDENCE', reason: cause instanceof Error ? cause.message : 'Nieprawidłowy dowód.' };

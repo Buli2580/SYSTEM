@@ -32,7 +32,7 @@ export function createQuestCompletion<T>(unit: CompletionUnitOfWork<T>, provider
       // Availability may reconcile existing chapter rewards. Never overwrite that fresh profile.
       player = await tx.players.get();
       const completedAt = now();
-      const completion = completeQuest(player, verified.evidence, access.status, completedAt);
+      const completion = completeQuest(player, verified.evidence, access.status, completedAt, quest.adaptiveDifficulty);
       if (!await tx.quests.claimCompletion(quest.id, completedAt)) return { status: 'DUPLICATE', operation, value: await tx.effects.result(false, player) };
       const next = await tx.effects.apply(completion.player, quest, verified.evidence, completedAt);
       await tx.players.save(next);

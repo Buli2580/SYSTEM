@@ -1,6 +1,7 @@
+import type { LifeState } from '../adaptive/engine';
 import Action from '../components/Action';
 import { DAILY_RULES } from '../daily/calendar';
-import { Text, View } from 'react-native';
+import { Text, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import SystemPage, { pageStyles as styles } from '../components/SystemPage';
 import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
@@ -12,12 +13,26 @@ export default function QuestsScreen() {
   const router = useRouter();
   const system = useSystem();
   const { completedQuestIds, activeQuestId, failedQuestIds = [], daily, awakeningCompleted, story } = system;
+  const { adaptivePlan, adaptiveModel, changeLifeState, changeAvailableMinutes } = system;
   const progress = getAwakeningProgress(completedQuestIds);
   const nextAction = getNextAction({ player: system.player, completedQuestIds, failedQuestIds, activeQuestId, awakeningCompleted, daily, story, achievements: system.achievementState });
   const openNextAction = () => nextAction.route === '/quest' && nextAction.questId
     ? router.push({ pathname: '/quest', params: { questId: nextAction.questId } })
     : router.push(nextAction.route);
   return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
+    {adaptivePlan && adaptiveModel && <View style={styles.panel}>
+      <Text style={styles.label}>ADAPTIVE LIFE ENGINE // TWÓJ PLAN</Text>
+      <Text style={styles.title}>{adaptivePlan.lifeState} · {adaptivePlan.dailyCount} DAILY / {adaptiveModel.availableMinutes} MIN</Text>
+      <Text style={styles.body}>{adaptivePlan.reasons.join(' · ')}</Text>
+      <Text style={styles.body}>Tryb dnia — zmiany liczby misji zaczną obowiązywać od następnego zestawu Daily.</Text>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        {(['NORMAL','BUSY','TRAVEL','RECOVERY','VACATION'] as LifeState[]).map(state=><Pressable key={state} accessibilityRole="button" accessibilityState={{selected:adaptiveModel.lifeState===state}} onPress={()=>{void changeLifeState(state);}} style={{padding:9,borderWidth:1,borderColor:adaptiveModel.lifeState===state?'#6CEEFF':'#555',borderRadius:8}}><Text style={styles.body}>{state}</Text></Pressable>)}
+      </View>
+      <Text style={styles.body}>Dostępny czas dziennie</Text>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        {[15,30,45,60,90].map(minutes=><Pressable key={minutes} accessibilityRole="button" accessibilityState={{selected:adaptiveModel.availableMinutes===minutes}} onPress={()=>{void changeAvailableMinutes(minutes);}} style={{padding:9,borderWidth:1,borderColor:adaptiveModel.availableMinutes===minutes?'#6CEEFF':'#555',borderRadius:8}}><Text style={styles.body}>{minutes} min</Text></Pressable>)}
+      </View>
+    </View>}
     <View style={styles.panel}>
       <Text style={styles.label}>SYSTEM // NEXT ACTION</Text>
       <Text style={styles.title}>{nextAction.title}</Text>
@@ -37,12 +52,12 @@ export default function QuestsScreen() {
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
     {awakeningCompleted && daily && <View style={styles.panel}>
-      <Text style={styles.title}>DAILY PROTOCOL · {daily.completed}/3</Text>
-      <Text style={styles.body}>{daily.dayKey} · {daily.clear ? 'DAILY COMPLETE' : `+${DAILY_RULES.clearXp} REAL XP / +${DAILY_RULES.clearEnergy} ENERGY za ${DAILY_RULES.slots}/${DAILY_RULES.slots}`}</Text>
+      <Text style={styles.title}>DAILY PROTOCOL · {daily.completed}/{daily.questIds.length}</Text>
+      <Text style={styles.body}>{daily.dayKey} · {daily.clear ? 'DAILY COMPLETE' : `+${DAILY_RULES.clearXp} REAL XP / +${DAILY_RULES.clearEnergy} ENERGY za ${daily.questIds.length}/${daily.questIds.length}`}</Text>
       {daily.clockAnomaly && <Text style={styles.body}>CLOCK_ANOMALY — sprawdź datę telefonu. Zachowaliśmy Twój postęp.</Text>}
       {[...new Set(daily.questIds)].map((id, index) => { const q = getQuest(id); if (!q) return null; const access = getQuestStatus(id, completedQuestIds, activeQuestId); const status = access === 'AVAILABLE' && failedQuestIds.includes(id) ? 'FAILED' : access; const reason = daily.reasons?.[id]; const contextLabel = story?.rematchQuestIds.includes(id) ? 'REMATCH AVAILABLE' : daily.suspiciousQuestIds.includes(id) ? 'VERIFICATION REVIEW REQUIRED' : reason?.startsWith('AI GAME MASTER') ? reason : undefined; return <QuestMissionCard key={id} quest={q} status={status} contextLabel={contextLabel} disabled={status === 'LOCKED'} progress={q.progress} progressTarget={q.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: id } })} />; })}
-      <Text style={styles.title}>WEEKLY PROTOCOL · {Math.min(5, daily.weeklyCompleted)}/5</Text>
-      <Text style={styles.body}>{daily.weeklyClear ? 'WEEKLY COMPLETE' : `${DAILY_RULES.weeklyTarget} Daily activities · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGY`} · {daily.weekKey}</Text>
+      <Text style={styles.title}>WEEKLY PROTOCOL · {Math.min(daily.weeklyTarget, daily.weeklyCompleted)}/{daily.weeklyTarget}</Text>
+      <Text style={styles.body}>{daily.weeklyClear ? 'WEEKLY COMPLETE' : `${daily.weeklyTarget} Daily activities · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGY`} · {daily.weekKey}</Text>
     </View>}
     {AWAKENING_QUESTS.map((quest, index) => {
       const access = getQuestStatus(quest.id, completedQuestIds, activeQuestId);
