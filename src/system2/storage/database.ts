@@ -12,6 +12,7 @@ import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
 import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
+import { rewardItem, equipItem, type InventoryItem } from '../core/inventory';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -35,7 +36,7 @@ export type SystemSnapshot = {
   settings: Settings;
   titles: Title[];
 };
-export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt };
+export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt; loot?: InventoryItem };
 
 async function completedQuestIds(db: SQLite.SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ quest_id: string }>('SELECT quest_id FROM quest_completions');
@@ -223,8 +224,10 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
         event.id, quest.id, JSON.stringify(event), now
       );
+      const loot = rewardItem(quest.id, next.realLevel, quest.category === 'BOSS');
+      await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING', loot.id, JSON.stringify(loot), now);
       const snapshot = await snapshotInTransaction(txn);
-      result = { awarded: true, ...snapshot, receipt: rewardReceipt(event.id, player, snapshot.player,
+      result = { awarded: true, ...snapshot, loot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
     });
     if (!result) throw new Error('Nie udało się potwierdzić zapisu misji.');
@@ -320,7 +323,7 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['inventory_items', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -395,3 +398,6 @@ export function startBossProtocol() {
    return snapshotInTransaction(txn);
  });
 }
+
+export function loadInventory(): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); return rows.map(r=>JSON.parse(r.payload) as InventoryItem); }); }
+export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem); if(!items.some(i=>i.id===id)) throw new Error('Przedmiot nie istnieje.'); const next=equipItem(items,id); for(const item of next) await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id); return next; }); }
