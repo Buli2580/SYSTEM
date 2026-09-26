@@ -18,7 +18,8 @@ export function directNextMission(input:{player:PlayerProfile;daily:DailyState|n
  if(!awakeningCompleted){const ids=['first_movement','focus_protocol','final_trial'];const quest=ids.map(getQuest).find((q):q is RunnableQuest=>Boolean(q)&&!completedQuestIds.includes(q!.id))??null;return{quest,difficulty:'STEADY',message:quest?'SYSTEM // AWAKENING PATH DETECTED':'SYSTEM // AWAKENING COMPLETE',reason:'STORY'};}
  const failureCount=recentAttempts.filter(a=>['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(a.result)).length;
  if(recentAttempt&&['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(recentAttempt.result)){const retry=available.find(q=>q.id===recentAttempt.questId);if(retry)return{quest:retry,difficulty:'RECOVERY',message:failureCount>=2?'SYSTEM // FAILURE PATTERN DETECTED // DIFFICULTY REDUCED':'SYSTEM // FAILURE ANALYZED // RECOVERY ROUTE',reason:'ATTEMPT_RECOVERY'};}
- if(!recovery&&socialSignal?.outcome==='SUCCESS'&&available.length){return{quest:available[0],difficulty:'PUSH',message:'SYSTEM // '+socialSignal.mode+' VICTORY CONFIRMED // CONTINUE MOMENTUM',reason:'SOCIAL'};}\n if(player.streak===0&&available.length){const quest=available.find(q=>q.verification.type==='TIMER')??available[0];return{quest,difficulty:'RECOVERY',message:'STREAK LOST // RECOVERY MISSION SELECTED',reason:'STREAK_RECOVERY'};}
+ if(!recovery&&socialSignal?.outcome==='SUCCESS'&&available.length){return{quest:available[0],difficulty:'PUSH',message:'SYSTEM // '+socialSignal.mode+' VICTORY CONFIRMED // CONTINUE MOMENTUM',reason:'SOCIAL'};}
+ if(player.streak===0&&available.length){const quest=available.find(q=>q.verification.type==='TIMER')??available[0];return{quest,difficulty:'RECOVERY',message:'STREAK LOST // RECOVERY MISSION SELECTED',reason:'STREAK_RECOVERY'};}
  const preferredSkill = gameMasterProfile?.path==='MOTION'?'VIT':gameMasterProfile?.path==='FOCUS'?'INT':gameMasterProfile?.path==='DISCIPLINE'?'WIL':null;
  const recentIds=recentAttempts.slice(0,2).map(a=>a.questId);
  const freshAvailable=available.filter(q=>!recentIds.includes(q.id));
@@ -31,6 +32,6 @@ export function directNextMission(input:{player:PlayerProfile;daily:DailyState|n
 
  const weak=weakestSkill(player);const targeted=pool.find(q=>q.primarySkill===weak);
  if(targeted)return{quest:targeted,difficulty:pace,message:'SYSTEM // '+weak+' REQUIRES DEVELOPMENT',reason:'WEAK_SKILL'};
- if(pool.length)return{quest:pool[0],difficulty:pace,message:player.streak>=7?'MOMENTUM HIGH // PRESS THE ADVANTAGE':'NEXT DAILY DIRECTIVE READY',reason:'DAILY'};
+ if(pool.length)return{quest:pool[0],difficulty:pace,message:pace==='PUSH'?'MOMENTUM HIGH // PRESS THE ADVANTAGE':'NEXT DAILY DIRECTIVE READY',reason:'DAILY'};
  return{quest:null,difficulty:'STEADY',message:story?.bossComplete?'CHAPTER COMPLETE // MAINTAIN DAILY PROTOCOL':'STORY PROTOCOL HAS PRIORITY',reason:'STANDBY'};
 }
