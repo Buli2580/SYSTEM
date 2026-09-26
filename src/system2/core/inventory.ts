@@ -40,7 +40,7 @@ export function createLoot(input:{rewardKey:string;level:number;source:LootSourc
  const stats:ItemStats={[primary]:statValue(seed,input.level,rarity,1)};stats[pathStat]=(stats[pathStat]??0)+statValue(seed,input.level,rarity,2);
  if(primary!==pathStat&&rarityIndex(rarity)>=2) stats[slot==='WEAPON'?'AGI':slot==='ARMOR'?'VIT':'STR']=statValue(seed,input.level,rarity,3);
  const templateId=(input.source+':'+slot).toLowerCase();
- return{id:'loot:'+hash(seed).toString(36)+':'+instance,templateId,name:template(slot,input.source),rarity,slot,source:input.source,equipped:false,requiredLevel:Math.max(1,Math.floor(input.level*.75)+sourceBoost[input.source]),stats,acquiredAt:input.now??new Date().toISOString(),rewardKey:input.rewardKey};
+ return{id:'loot:'+encodeURIComponent(input.rewardKey)+':'+input.source+':'+instance,templateId,name:template(slot,input.source),rarity,slot,source:input.source,equipped:false,requiredLevel:Math.max(1,Math.floor(input.level*.75)+sourceBoost[input.source]),stats,acquiredAt:input.now??new Date().toISOString(),rewardKey:input.rewardKey};
 }
 // Backwards-compatible quest helper. The reward key stays stable, while instance makes duplicate templates legal.
 export function rewardItem(seed:string,level:number,boss=false,instance=0):InventoryItem{return createLoot({rewardKey:seed,level,source:boss?'BOSS':'QUEST',instance});}
