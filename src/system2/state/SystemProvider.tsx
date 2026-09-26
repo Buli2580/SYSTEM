@@ -1,5 +1,5 @@
 import { AppState } from 'react-native';
-import { configureAudio, playFeedback, rewardSound, stopAudio } from '../identity/audio';
+import { configureAudio, playFeedback, rewardSound, stopAudio, stopMusic } from '../identity/audio';
 import { syncReminders } from '../notifications/service';
 import { dayKey } from '../daily/calendar';
 import { createContext, type ReactNode, type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -76,9 +76,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   useEffect(() => { void refreshPlayer(); }, [refreshPlayer]);
   useEffect(() => {
     let currentDay = dayKey();
-    const sub = AppState.addEventListener('change', state => { if (state === 'active') { currentDay = dayKey(); void refreshPlayer(); } else stopAudio(); });
+    const sub = AppState.addEventListener('change', state => { if (state === 'active') { currentDay = dayKey(); void refreshPlayer(); } else { stopAudio(); stopMusic(); } });
     const interval = setInterval(() => { const next = dayKey(); if (AppState.currentState === 'active' && next !== currentDay) { currentDay = next; void refreshPlayer(); } }, 30000);
-    return () => { sub.remove(); clearInterval(interval); stopAudio(); };
+    return () => { sub.remove(); clearInterval(interval); stopAudio(); stopMusic(); };
   }, [refreshPlayer]);
   const presentReward = useCallback((receipt: RewardReceipt) => {
     if (seenRewards.current.has(receipt.id)) return;
