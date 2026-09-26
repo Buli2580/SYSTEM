@@ -25,8 +25,10 @@ function loader(mocks, clock = { now: Date.now() }) {
       if (Object.hasOwn(mocks, name)) return mocks[name];
       if (name === 'react-native-reanimated') {
         const Animated = { View: 'Animated.View', Text: 'Animated.Text' };
+        const entrance = { duration() { return this; }, delay() { return this; }, springify() { return this; }, damping() { return this; } };
         return {
           __esModule: true, default: Animated,
+          FadeIn: entrance, FadeInDown: entrance, FadeOut: entrance, ZoomIn: entrance,
           useSharedValue: value => ({ value }),
           useAnimatedStyle: callback => callback(),
           withTiming: value => value,
