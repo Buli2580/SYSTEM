@@ -37,7 +37,7 @@ export default function WorldScreen() {
   return <OnlineWorld />;
 }
 function OnlineWorld() {
-  const { player, lastReward } = useSystem();
+  const { player, lastReward, latestRaidVictory } = useSystem();
   const world = useWorldTracking();
   const insets = useSafeAreaInsets();
   const [follow, setFollow] = useState(true);
@@ -47,7 +47,7 @@ function OnlineWorld() {
   return <SystemScreen style={[styles.root, { paddingTop: 10, paddingBottom: 110 + insets.bottom }]}>
     <SystemAmbientBackground intensity="world" />
     <View style={styles.heading}>
-      <Text style={styles.title}>SYSTEM WORLD</Text><Text style={styles.label}>WORLD STATUS: ONLINE</Text>
+      <Text style={styles.title}>SYSTEM WORLD</Text>{latestRaidVictory&&<Text style={styles.label}>RAID VICTORY // BOSS DEFEATED // WORLD SIGNAL STABILIZED</Text>}<Text style={styles.label}>WORLD STATUS: ONLINE</Text>
       <Text style={styles.body}>WORLD EXPLORATION · SECTORS DISCOVERED {world.sectorIds.length}</Text>
       <Text style={styles.body}>TOTAL DISTANCE {(player.totalDistanceMeters / 1000).toFixed(2)} KM · VERIFIED QUESTS</Text>
     </View>
