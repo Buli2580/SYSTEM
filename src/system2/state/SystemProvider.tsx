@@ -18,7 +18,7 @@ type SystemContextValue = db.SystemSnapshot & {
   acknowledgeAwakening: () => Promise<void>;
   completeVerifiedQuest: (input: db.CompleteQuestInput) => Promise<db.CompleteQuestResult>;
   refreshPlayer: () => Promise<void>;
-  finishOnboarding: (name: string) => Promise<void>;
+  finishOnboarding: (name: string, gameMasterProfile?: { goal:string; path:'DISCIPLINE'|'MOTION'|'FOCUS' }) => Promise<void>;
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
   saveSettings: (settings: Settings) => Promise<void>;
   resetData: (confirmed: true) => Promise<void>;
@@ -115,7 +115,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
-    finishOnboarding: name => apply(db.finishOnboarding(name)), updateIdentity: patch => apply(db.updateIdentity(patch)),
+    finishOnboarding: (name, gameMasterProfile) => apply(db.finishOnboarding(name, gameMasterProfile)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)), resetData,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;
