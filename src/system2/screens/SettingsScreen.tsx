@@ -30,6 +30,8 @@ export default function SettingsScreen() {
       <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
       <Text style={s.body}>Dźwięk ukończenia lub level-up. Jeden efekt dla jednej nagrody.</Text>
+      <Text style={s.label}>CINEMATIC QUALITY</Text><View style={{flexDirection:'row',gap:8,marginTop:8}}>{(['LOW','MEDIUM','HIGH'] as const).map(mode=><View key={mode} style={{flex:1}}><Action disabled={busy||settings.performanceMode===mode} label={(settings.performanceMode===mode?'✓ ':'')+mode} onPress={()=>{void run(()=>saveSettings({...settings,performanceMode:mode}));}} /></View>)}</View>
+      <Text style={s.body}>LOW ogranicza ciężkie efekty. MEDIUM równoważy płynność i klimat. HIGH uruchamia pełną scenę.</Text>
     </View>
     <View style={s.panel}><Text style={s.label}>PERMISSIONS</Text><Text style={s.body}>GPS działa tylko podczas aktywnego pomiaru na pierwszym planie.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
