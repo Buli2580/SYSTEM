@@ -8,7 +8,7 @@ import {
 } from '../storage/database';
 import { getValidSession } from './auth';
 import { CloudRequestError } from './http';
-import { submitSyncEvent } from './state';
+import { processPendingSyncEvents, submitSyncEvent } from './state';
 
 const INSTALL_ID_KEY = 'system.cloud.install.v1';
 
@@ -58,6 +58,16 @@ export async function flushCloudOutbox(limit = 25): Promise<CloudSyncResult> {
       await markCloudOutboxAttempt(row.event_key, message);
       if (cause instanceof CloudRequestError && (cause.status === 401 || cause.status === 403)) break;
     }
+  }
+
+  // Uploaded events may still be RECEIVED after a transient server error or
+  // out-of-order offline delivery. Retry them even when the local outbox is empty.
+  // This changes cloud state only; SQLite remains the offline gameplay source.
+  try {
+    await processPendingSyncEvents(limit);
+  } catch (cause) {
+    // Allow the mobile update to run against Online 0.3 during migration rollout.
+    if (!(cause instanceof CloudRequestError && cause.code === 'PGRST202')) throw cause;
   }
 
   const stats = await cloudOutboxStats();
