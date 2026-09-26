@@ -18,7 +18,7 @@ export default function SocialScreen(){
   (['GUILD','PVP','RAID'] as SocialMode[]).forEach(mode=>{
    const session=sessions[mode]; if(!session||session.state!=='ACTIVE') return;
    const synced=syncSessionProgress(session,player.verifiedQuestCount);
-   if(synced.verifiedProgress!==session.verifiedProgress||synced.outcome!==session.outcome) void saveSocialSession(synced);
+   if(synced.verifiedProgress!==session.verifiedProgress||synced.outcome!==session.outcome) void saveSocialSession(synced.outcome==='SUCCESS'?completeSession(synced):synced);
   });
  },[player.verifiedQuestCount,sessions,saveSocialSession]);
  return <SystemPage title="SOCIAL" subtitle="NETWORK // GUILD HALL">
