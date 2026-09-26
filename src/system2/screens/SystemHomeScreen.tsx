@@ -141,7 +141,7 @@ export default function SystemHomeScreen() {
   const { width, height } = useWindowDimensions();
   const {
     player, ready, completedQuestIds, awakeningCompleted, worldUnlocked,
-    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, recentAttempts, settings,
+    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, recentAttempts, settings, latestRaidVictory, socialSignal,
   } = useSystem();
 
   const autoPerformanceMode: 'LOW'|'MEDIUM'|'HIGH' = width < 370 || height < 700 ? 'LOW' : width < 430 || height < 800 ? 'MEDIUM' : 'HIGH';
@@ -149,7 +149,7 @@ export default function SystemHomeScreen() {
   const reduced = performanceMode === 'LOW';
   const bossActive = !story?.bossComplete && awakeningCompleted;
   const sceneMode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' =
-    lastReward ? 'VICTORY' :
+    lastReward || latestRaidVictory ? 'VICTORY' :
     activeQuestId ? 'QUEST' :
     bossActive ? 'BOSS' :
     !awakeningCompleted ? 'AWAKENING' : 'HOME';
@@ -157,7 +157,7 @@ export default function SystemHomeScreen() {
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story, awakeningCompleted);
-  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts});
+  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts,socialSignal});
   const progress = awakeningCompleted ? objective.completed : awakening.completed;
   const total = awakeningCompleted ? objective.total : awakening.total;
   const percent = total ? Math.min(100, progress / total * 100) : 0;
@@ -188,14 +188,14 @@ export default function SystemHomeScreen() {
   return <SystemScreen style={styles.root}>
     <View style={styles.scene}>
       <WorldScene reduced={reduced} bossActive={bossActive} mode={sceneMode} />
-      {sceneMode==='VICTORY' && lastReward && <View pointerEvents="none" style={styles.victoryBanner}>
-        <Text style={styles.victoryEyebrow}>QUEST COMPLETE // VERIFIED</Text>
+      {sceneMode==='VICTORY' && (lastReward || latestRaidVictory) && <View pointerEvents="none" style={styles.victoryBanner}>
+        <Text style={styles.victoryEyebrow}>{lastReward?'QUEST COMPLETE // VERIFIED':'RAID BOSS DEFEATED // VERIFIED'}</Text>
         <Text style={styles.victoryTitle}>VICTORY</Text>
-        <Text style={styles.victoryReward}>+{lastReward.realXp} XP{lastReward.skillLevels.length ? ` · ${lastReward.skillLevels.length} SKILL UP` : ''}</Text>
-        {lastReward.afterLevel>lastReward.beforeLevel && <Text style={styles.victoryEvolution}>LEVEL {lastReward.beforeLevel} → {lastReward.afterLevel}</Text>}
-        {lastReward.afterRank!==lastReward.beforeRank && <Text style={styles.victoryEvolution}>RANK {lastReward.beforeRank} → {lastReward.afterRank}</Text>}
-        {!!lastReward.newTitles.length && <Text style={styles.victoryEvolution}>NEW TITLE // {lastReward.newTitles[0]}</Text>}
-        {lastReward.worldUnlocked && <Text style={styles.victoryEvolution}>WORLD GATE // UNLOCKED</Text>}
+        <Text style={styles.victoryReward}>+{lastReward?.realXp ?? latestRaidVictory?.reward?.xp ?? 0} XP</Text>
+        {lastReward && lastReward.afterLevel>lastReward.beforeLevel && <Text style={styles.victoryEvolution}>LEVEL {lastReward.beforeLevel} → {lastReward.afterLevel}</Text>}
+        {lastReward && lastReward.afterRank!==lastReward.beforeRank && <Text style={styles.victoryEvolution}>RANK {lastReward.beforeRank} → {lastReward.afterRank}</Text>}
+        {lastReward && !!lastReward.newTitles.length && <Text style={styles.victoryEvolution}>NEW TITLE // {lastReward.newTitles[0]}</Text>}
+        {lastReward && lastReward.worldUnlocked && <Text style={styles.victoryEvolution}>WORLD GATE // UNLOCKED</Text>}
       </View>}
       <View pointerEvents="none" style={[styles.progressAtmosphere, worldTier >= 2 && styles.progressAtmosphereMid, worldTier >= 3 && styles.progressAtmosphereHigh]} />
       {streakTier > 0 && <View pointerEvents="none" style={[styles.streakAura, streakTier >= 2 && styles.streakAuraStrong, streakTier >= 3 && styles.streakAuraMax]} />}
