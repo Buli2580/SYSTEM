@@ -23,6 +23,18 @@ function loader(mocks, clock = { now: Date.now() }) {
     }).outputText;
     const requireMock = name => {
       if (Object.hasOwn(mocks, name)) return mocks[name];
+      if (name === 'react-native-reanimated') {
+        const Animated = { View: 'Animated.View', Text: 'Animated.Text' };
+        return {
+          __esModule: true, default: Animated,
+          useSharedValue: value => ({ value }),
+          useAnimatedStyle: callback => callback(),
+          withTiming: value => value,
+          withRepeat: value => value,
+          cancelAnimation: () => {},
+          Easing: { ease: x => x, linear: x => x, inOut: fn => fn },
+        };
+      }
       if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
       throw new Error('Unexpected dependency: ' + name);
     };
