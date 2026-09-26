@@ -11,10 +11,10 @@ import { directNextMission } from '../gameMaster/director';
 
 export default function QuestsScreen() {
   const router = useRouter();
-  const { player, completedQuestIds, activeQuestId, daily, awakeningCompleted, story } = useSystem();
+  const { player, completedQuestIds, activeQuestId, daily, awakeningCompleted, story, gameMasterProfile, recentAttempt } = useSystem();
   const progress = getAwakeningProgress(completedQuestIds);
   const directive = mainStoryObjective(story, awakeningCompleted);
-  const gm = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted});
+  const gm = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt});
   const gmState = gm.message;
   return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
