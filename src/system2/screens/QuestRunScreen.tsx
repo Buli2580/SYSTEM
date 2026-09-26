@@ -23,7 +23,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
   const { story } = useSystem();
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
-  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
+  const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, loot, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
     ready, databaseError, refreshPlayer, startQuest, retryQuest } = useQuestRun(quest);
   const [questAccepted, setQuestAccepted] = useState(false);
   const [startInProgress, setStartInProgress] = useState(false);
@@ -324,6 +324,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
           seconds={quest.verification.minimumDurationSeconds} />}
 
         {receipt && <RewardSummary receipt={receipt} />}
+        {loot && renderStatus==='COMPLETED' && <Animated.View entering={ZoomIn.duration(420)} style={styles.lootCard}><Text style={styles.lootCode}>LOOT ACQUIRED // {loot.rarity}</Text><Text style={styles.lootTitle}>{loot.name}</Text><Text style={styles.completeText}>{loot.slot} · {loot.source} · STORED IN INVENTORY</Text></Animated.View>}
         {renderStatus ===
           'COMPLETED' && (
           <View
@@ -370,7 +371,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
                   styles.returnText
                 }
               >
-                WRÓĆ DO SYSTEMU
+                NEXT MISSION →
               </Text>
             </Pressable>
           </View>
@@ -400,6 +401,9 @@ function isLiveQuestStatus(status: string) {
 
 const styles =
   StyleSheet.create({
+    lootCard:{marginTop:16,padding:22,borderWidth:1,borderColor:'rgba(120,100,255,.55)',backgroundColor:'#0b0718',alignItems:'center'},
+    lootCode:{color:'#b79cff',fontSize:9,fontWeight:'900',letterSpacing:2},
+    lootTitle:{color:'#fff',fontSize:24,fontWeight:'900',marginTop:8},
     root: {
       flex: 1,
       position: 'relative',
