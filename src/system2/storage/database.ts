@@ -35,6 +35,7 @@ export type SystemSnapshot = {
   onboardingComplete: boolean;
   settings: Settings;
   titles: Title[];
+  gameMasterProfile: { goal: string; path: 'DISCIPLINE'|'MOTION'|'FOCUS' } | null;
 };
 export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt; loot?: InventoryItem };
 
@@ -132,6 +133,7 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const onboarding = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'onboarding_complete');
   const settings = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'settings');
   const signal = await db.getFirstAsync('SELECT id FROM verified_events WHERE id = ?', 'first_world_signal_v1');
+  const gm = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'game_master_profile');
   const reconciled = await reconcileStory(db, chapter.player, ids);
   chapter.player = reconciled.player;
   const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
@@ -142,6 +144,7 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   return {
     daily, story: reconciled.story,
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
+    gameMasterProfile: gm?.value ? JSON.parse(gm.value) : null,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
     completedQuestIds: ids, worldUnlocked: chapter.awakeningCompleted,
     awakeningPending: chapter.awakeningCompleted && !seen,
@@ -281,13 +284,15 @@ export function profileTransaction<T>(task: (txn: SQLite.SQLiteDatabase) => Prom
     return result!;
   });
 }
-export function finishOnboarding(name: string) {
+export function finishOnboarding(name: string, gameMasterProfile?: { goal: string; path: 'DISCIPLINE'|'MOTION'|'FOCUS' }) {
   const displayName = systemName(name);
+  const safeProfile = gameMasterProfile ? { goal: gameMasterProfile.goal.trim().slice(0,120), path: gameMasterProfile.path } : null;
   return profileTransaction(async txn => {
     const marker = await txn.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'onboarding_complete');
     if (marker?.value === 'true') return snapshotInTransaction(txn);
     const player = await readPlayer(txn);
     await txn.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify({ ...player, displayName }), 'player');
+    if (safeProfile) await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('game_master_profile',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", JSON.stringify(safeProfile));
     await txn.runAsync("INSERT INTO app_state(key, value) VALUES ('onboarding_complete', 'true') ON CONFLICT(key) DO UPDATE SET value = excluded.value");
     return snapshotInTransaction(txn);
   });
