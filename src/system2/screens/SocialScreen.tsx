@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SystemPage from '../components/SystemPage';
@@ -6,16 +6,21 @@ import { useSystem } from '../state/SystemProvider';
 import { completeSession, createSocialSession, joinSession, startSession, syncSessionProgress, type SocialMode, type SocialSession } from '../core/social';
 
 export default function SocialScreen(){
- const { player }=useSystem();
- const [sessions,setSessions]=useState<Partial<Record<SocialMode,SocialSession>>>({});
- function ensure(mode:SocialMode){setSessions(current=>current[mode]?current:{...current,[mode]:createSocialSession(mode,mode.toLowerCase()+'_'+player.id)});}
- function advance(mode:SocialMode){
-  setSessions(current=>{const session=current[mode]??createSocialSession(mode,mode.toLowerCase()+'_'+player.id);
-   const synced=syncSessionProgress(session,player.verifiedQuestCount);
-   const next=synced.state==='LOBBY'?joinSession(synced):synced.state==='READY'?startSession(synced,player.verifiedQuestCount):synced.state==='ACTIVE'?completeSession(synced):synced;
-   return{...current,[mode]:next};
-  });
+ const { player, socialSessions:sessions, saveSocialSession }=useSystem();
+ async function ensure(mode:SocialMode){if(!sessions[mode]) await saveSocialSession(createSocialSession(mode,mode.toLowerCase()+'_'+player.id));}
+ async function advance(mode:SocialMode){
+  const session=sessions[mode]??createSocialSession(mode,mode.toLowerCase()+'_'+player.id);
+  const synced=syncSessionProgress(session,player.verifiedQuestCount);
+  const next=synced.state==='LOBBY'?joinSession(synced):synced.state==='READY'?startSession(synced,player.verifiedQuestCount):synced.state==='ACTIVE'?completeSession(synced):synced;
+  await saveSocialSession(next);
  }
+ useEffect(()=>{
+  (['GUILD','PVP','RAID'] as SocialMode[]).forEach(mode=>{
+   const session=sessions[mode]; if(!session||session.state!=='ACTIVE') return;
+   const synced=syncSessionProgress(session,player.verifiedQuestCount);
+   if(synced.verifiedProgress!==session.verifiedProgress||synced.outcome!==session.outcome) void saveSocialSession(synced);
+  });
+ },[player.verifiedQuestCount,sessions,saveSocialSession]);
  return <SystemPage title="SOCIAL" subtitle="NETWORK // GUILD HALL">
   <Animated.View entering={FadeInDown.duration(420)} style={s.hero}>
    <Text style={s.code}>PLAYER SIGNAL // LOCAL SESSION CORE</Text><Text style={s.title}>{player.displayName}</Text>
@@ -23,9 +28,9 @@ export default function SocialScreen(){
    <Text style={s.meta}>{player.currentTitle} · {player.verifiedQuestCount} VERIFIED QUESTS</Text>
   </Animated.View>
   <View style={s.grid}>
-   <SessionTile mode="GUILD" code="GUILD HALL" title="FORM A GUILD" body="Prepare a squad session and cooperative objectives." session={sessions.GUILD} onCreate={()=>ensure('GUILD')} onAdvance={()=>advance('GUILD')}/>
-   <SessionTile mode="PVP" code="PVP CHALLENGE" title="PLAYER VS PLAYER" body="Verified real actions decide the challenge — never purchased power." session={sessions.PVP} onCreate={()=>ensure('PVP')} onAdvance={()=>advance('PVP')}/>
-   <SessionTile mode="RAID" code="RAID LOBBY" title="CO-OP RAID" body="Four-player session core for shared verified objectives." session={sessions.RAID} onCreate={()=>ensure('RAID')} onAdvance={()=>advance('RAID')}/>
+   <SessionTile mode="GUILD" code="GUILD HALL" title="FORM A GUILD" body="Prepare a squad session and cooperative objectives." session={sessions.GUILD} onCreate={()=>{void ensure('GUILD')}} onAdvance={()=>{void advance('GUILD')}}/>
+   <SessionTile mode="PVP" code="PVP CHALLENGE" title="PLAYER VS PLAYER" body="Verified real actions decide the challenge — never purchased power." session={sessions.PVP} onCreate={()=>{void ensure('PVP')}} onAdvance={()=>{void advance('PVP')}}/>
+   <SessionTile mode="RAID" code="RAID LOBBY" title="CO-OP RAID" body="Four-player session core for shared verified objectives." session={sessions.RAID} onCreate={()=>{void ensure('RAID')}} onAdvance={()=>{void advance('RAID')}}/>
    <View style={s.tile}><Text style={s.code}>RANKING</Text><Text style={s.tileTitle}>WORLD SIGNAL</Text><Text style={s.body}>Rankings stay locked until a real online source exists. No fabricated players or positions.</Text><Text style={s.state}>ONLINE BACKEND REQUIRED</Text></View>
   </View>
   <Text style={s.note}>SOCIAL 3.0 // session state machine is live locally. Network matchmaking, remote members and global rankings remain intentionally unavailable until the online backend is connected.</Text>
