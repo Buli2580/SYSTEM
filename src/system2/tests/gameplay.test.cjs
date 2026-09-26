@@ -1617,3 +1617,33 @@ test('same-day completed attempt cannot be forged from a terminal failure record
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'closed');await h.db.endQuestAttempt('closed','INTERRUPTED','BACKGROUND',10);
  await assert.rejects(h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'closed'}));assert.equal((await h.db.loadSystemState()).daily.completed,0);
 });
+
+
+test('PACK1 inventory supports duplicate templates, stat scaling, equip replace, unequip, filters and comparison',()=>{
+ const inv=loader({})('core/inventory');
+ const a=inv.createLoot({rewardKey:'daily:a',level:12,source:'DAILY',instance:0,path:'MOTION',now:'2026-09-26T08:00:00Z'});
+ const b=inv.createLoot({rewardKey:'daily:b',level:12,source:'DAILY',instance:0,path:'MOTION',now:'2026-09-26T09:00:00Z'});
+ assert.notEqual(a.id,b.id);assert.ok(a.templateId);assert.ok(a.requiredLevel>=1);assert.ok(Object.keys(a.stats).length>=2);
+ const sameSlot={...b,slot:a.slot,requiredLevel:1};
+ let items=inv.equipItem([a,sameSlot],a.id,99);assert.equal(items.find(x=>x.id===a.id).equipped,true);
+ items=inv.equipItem(items,sameSlot.id,99);assert.equal(items.find(x=>x.id===a.id).equipped,false);assert.equal(items.find(x=>x.id===sameSlot.id).equipped,true);
+ const cmp=inv.compareItem(items,a.id,99);assert.equal(cmp.current.id,sameSlot.id);assert.equal(typeof cmp.powerDelta,'number');
+ items=inv.unequipItem(items,sameSlot.id);assert.equal(items.some(x=>x.equipped),false);
+ assert.equal(inv.filterInventory([a,sameSlot],{slot:a.slot}).length,2);
+ assert.throws(()=>inv.equipItem([{...a,requiredLevel:999}],a.id,1),/REAL LEVEL/);
+});
+test('PACK1 loot tables enforce boss raid weekly world rarity floors and path stats',()=>{
+ const inv=loader({})('core/inventory');
+ for(const source of ['WEEKLY','BOSS','RAID','WORLD']){const item=inv.createLoot({rewardKey:'floor:'+source,level:1,source,path:'DISCIPLINE'});assert.notEqual(item.rarity,'COMMON');assert.ok((item.stats.WIL??0)>0);}
+});
+test('PACK1 raid uses verified quest damage, phases, completion reward and reset',()=>{
+ const social=loader({})('core/social');let s=social.createSocialSession('RAID','raid-1');while(s.state==='LOBBY')s=social.joinSession(s);s=social.startSession(s,10);assert.equal(s.state,'ACTIVE');assert.equal(s.raid.phase,1);
+ for(let q=11;q<30&&s.outcome!=='SUCCESS';q++)s=social.syncSessionProgress(s,q,100);
+ assert.equal(s.outcome,'SUCCESS');assert.equal(s.raid.bossHp,0);assert.equal(s.raid.phase,3);s=social.completeSession(s,'2026-09-26T09:00:00Z');assert.equal(s.state,'COMPLETE');assert.ok(s.reward.xp>=350);
+ const claimed=social.claimSocialReward(s);assert.equal(claimed.reward.claimed,true);const fresh=social.resetSocialSession(claimed,'raid-2');assert.equal(fresh.state,'LOBBY');assert.equal(fresh.raid.bossHp,fresh.raid.bossMaxHp);
+});
+test('PACK1 guild pvp progression, achievements and rematch are deterministic',()=>{
+ const social=loader({})('core/social');let p=social.createSocialSession('PVP','pvp-1');p=social.joinSession(p);p=social.startSession(p,5);p=social.syncSessionProgress(p,7);p=social.completeSession(p,'2026-09-26T09:00:00Z');assert.equal(p.state,'COMPLETE');
+ const history=[social.historyEntry(p)];assert.ok(social.socialAchievements(history).includes('PVP_WIN'));const rematch=social.rematchPvp(p,'pvp-2');assert.equal(rematch.rematch,1);assert.equal(rematch.state,'LOBBY');
+ let g=social.createSocialSession('GUILD','guild-1');g=social.joinSession(g);g=social.startSession(g,0);g=social.syncSessionProgress(g,3);assert.equal(g.outcome,'SUCCESS');
+});
