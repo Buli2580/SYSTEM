@@ -1516,7 +1516,8 @@ test('safe viewport encloses scroll content, excludes bottom inset handled by na
  assert.equal(screen.type,'SafeAreaView');assert.equal(JSON.stringify(screen.props.edges),JSON.stringify(['top','left','right']));
  const page=load('components/SystemPage').default({title:'POSTAĆ',subtitle:'SYSTEM',children:'body'});
  assert.equal(page.type,'SafeAreaView');
- const scroll=page.props.children[0];assert.equal(scroll.props.contentContainerStyle[1].paddingTop,20);
+ const scroll=page.props.children.find(child=>child?.type==='ScrollView');
+ assert.ok(scroll,'SystemPage must contain a ScrollView');assert.equal(scroll.props.contentContainerStyle[1].paddingTop,20);
 });
 
 const storyFix=(h,...args)=>({...worldFix(...args),timestamp:h.clock.now});
