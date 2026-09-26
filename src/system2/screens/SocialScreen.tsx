@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SystemPage from '../components/SystemPage';
 import { useSystem } from '../state/SystemProvider';
-import { completeSession, createSocialSession, joinSession, startSession, type SocialMode, type SocialSession } from '../core/social';
+import { completeSession, createSocialSession, joinSession, startSession, syncSessionProgress, type SocialMode, type SocialSession } from '../core/social';
 
 export default function SocialScreen(){
  const { player }=useSystem();
@@ -11,7 +11,8 @@ export default function SocialScreen(){
  function ensure(mode:SocialMode){setSessions(current=>current[mode]?current:{...current,[mode]:createSocialSession(mode,mode.toLowerCase()+'_'+player.id)});}
  function advance(mode:SocialMode){
   setSessions(current=>{const session=current[mode]??createSocialSession(mode,mode.toLowerCase()+'_'+player.id);
-   const next=session.state==='LOBBY'?joinSession(session):session.state==='READY'?startSession(session):session.state==='ACTIVE'?completeSession(session):session;
+   const synced=syncSessionProgress(session,player.verifiedQuestCount);
+   const next=synced.state==='LOBBY'?joinSession(synced):synced.state==='READY'?startSession(synced,player.verifiedQuestCount):synced.state==='ACTIVE'?completeSession(synced):synced;
    return{...current,[mode]:next};
   });
  }
@@ -31,9 +32,9 @@ export default function SocialScreen(){
  </SystemPage>;
 }
 function SessionTile({mode,code,title,body,session,onCreate,onAdvance}:{mode:SocialMode;code:string;title:string;body:string;session?:SocialSession;onCreate:()=>void;onAdvance:()=>void}){
- const action=!session?'CREATE SESSION':session.state==='LOBBY'?'JOIN / FILL SLOT':session.state==='READY'?'START':session.state==='ACTIVE'?'COMPLETE':'COMPLETE';
+ const action=!session?'CREATE SESSION':session.state==='LOBBY'?'JOIN / FILL SLOT':session.state==='READY'?'START':session.state==='ACTIVE'?'SYNC / COMPLETE':'COMPLETE';
  return <View style={s.tile}><Text style={s.code}>{code}</Text><Text style={s.tileTitle}>{title}</Text><Text style={s.body}>{body}</Text>
-  <Text style={s.state}>{session?session.state+' · '+session.members+'/'+session.required:'SESSION NOT CREATED'}</Text>
+  <Text style={s.state}>{session?session.state+' · '+session.members+'/'+session.required:'SESSION NOT CREATED'}</Text>{session?.state==='ACTIVE'&&<Text style={s.body}>VERIFIED PROGRESS {session.verifiedProgress}/{session.target} · {session.outcome}</Text>}
   <Pressable accessibilityRole="button" disabled={session?.state==='COMPLETE'} onPress={!session?onCreate:onAdvance} style={({pressed})=>[s.action,pressed&&s.actionPressed,session?.state==='COMPLETE'&&s.actionDisabled]}><Text style={s.actionText}>{action} // {mode}</Text></Pressable>
  </View>;
 }
