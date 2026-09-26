@@ -1,4 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { loadSocialHistory } from '../storage/database';
+import type { SocialHistoryEntry } from '../core/social';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SystemPage from '../components/SystemPage';
@@ -7,6 +10,11 @@ import { completeSession, createSocialSession, joinSession, rematchPvp, resetSoc
 
 export default function SocialScreen(){
  const { player, socialSessions:sessions, saveSocialSession, claimSocialSession }=useSystem();
+ const router=useRouter();
+ const [history,setHistory]=useState<SocialHistoryEntry[]>([]);
+ const [error,setError]=useState<string|null>(null);
+ useEffect(()=>{let active=true;void loadSocialHistory().then(rows=>{if(active)setHistory(rows);}).catch(()=>{if(active)setError('Nie udało się odczytać historii Social.');});return()=>{active=false;};},[sessions.GUILD?.reward?.claimed,sessions.PVP?.reward?.claimed,sessions.RAID?.reward?.claimed]);
+ async function safely(action:()=>Promise<void>){try{setError(null);await action();}catch(e){setError(e instanceof Error?e.message:'Operacja Social nie powiodła się.');}}
  async function ensure(mode:SocialMode){if(!sessions[mode]) await saveSocialSession(createSocialSession(mode,mode.toLowerCase()+'_'+player.id));}
  async function advance(mode:SocialMode){
   const session=sessions[mode]??createSocialSession(mode,mode.toLowerCase()+'_'+player.id);
@@ -14,7 +22,7 @@ export default function SocialScreen(){
   const next=synced.state==='LOBBY'?joinSession(synced):synced.state==='READY'?startSession(synced,player.verifiedQuestCount):synced.state==='ACTIVE'?completeSession(synced):synced;
   await saveSocialSession(next);
  }
- async function finish(session:SocialSession){if(session.reward&&!session.reward.claimed)await claimSocialSession(session);else await saveSocialSession(session.mode==='PVP'?rematchPvp(session,'pvp_'+player.id+'_'+Date.now()):resetSocialSession(session,session.mode.toLowerCase()+'_'+player.id+'_'+Date.now()));}
+ async function finish(session:SocialSession){if(session.reward&&!session.reward.claimed){await claimSocialSession(session);router.push('/quests');}else await saveSocialSession(session.mode==='PVP'?rematchPvp(session,'pvp_'+player.id+'_'+Date.now()):resetSocialSession(session,session.mode.toLowerCase()+'_'+player.id+'_'+Date.now()));}
  useEffect(()=>{
   (['GUILD','PVP','RAID'] as SocialMode[]).forEach(mode=>{
    const session=sessions[mode]; if(!session||session.state!=='ACTIVE') return;
@@ -29,11 +37,13 @@ export default function SocialScreen(){
    <Text style={s.meta}>{player.currentTitle} · {player.verifiedQuestCount} VERIFIED QUESTS</Text>
   </Animated.View>
   <View style={s.grid}>
-   <SessionTile mode="GUILD" code="GUILD HALL" title="FORM A GUILD" body="Prepare a squad session and cooperative objectives." session={sessions.GUILD} onFinish={finish} onCreate={()=>{void ensure('GUILD')}} onAdvance={()=>{void advance('GUILD')}}/>
-   <SessionTile mode="PVP" code="PVP CHALLENGE" title="PLAYER VS PLAYER" body="Verified real actions decide the challenge — never purchased power." session={sessions.PVP} onFinish={finish} onCreate={()=>{void ensure('PVP')}} onAdvance={()=>{void advance('PVP')}}/>
-   <SessionTile mode="RAID" code="RAID LOBBY" title="CO-OP RAID" body="Four-player session core for shared verified objectives." session={sessions.RAID} onFinish={finish} onCreate={()=>{void ensure('RAID')}} onAdvance={()=>{void advance('RAID')}}/>
+   <SessionTile mode="GUILD" code="GUILD HALL" title="FORM A GUILD" body="Prepare a squad session and cooperative objectives." session={sessions.GUILD} onFinish={session=>{void safely(()=>finish(session));}} onCreate={()=>{void safely(()=>ensure('GUILD'));}} onAdvance={()=>{void safely(()=>advance('GUILD'));}}/>
+   <SessionTile mode="PVP" code="PVP CHALLENGE" title="PLAYER VS PLAYER" body="Verified real actions decide the challenge — never purchased power." session={sessions.PVP} onFinish={session=>{void safely(()=>finish(session));}} onCreate={()=>{void safely(()=>ensure('PVP'));}} onAdvance={()=>{void safely(()=>advance('PVP'));}}/>
+   <SessionTile mode="RAID" code="RAID LOBBY" title="CO-OP RAID" body="Four-player session core for shared verified objectives." session={sessions.RAID} onFinish={session=>{void safely(()=>finish(session));}} onCreate={()=>{void safely(()=>ensure('RAID'));}} onAdvance={()=>{void safely(()=>advance('RAID'));}}/>
    <View style={s.tile}><Text style={s.code}>RANKING</Text><Text style={s.tileTitle}>WORLD SIGNAL</Text><Text style={s.body}>Rankings stay locked until a real online source exists. No fabricated players or positions.</Text><Text style={s.state}>ONLINE BACKEND REQUIRED</Text></View>
   </View>
+  {error&&<Text style={s.body} accessibilityRole="alert">{error}</Text>}
+  <View style={s.tile}><Text style={s.code}>SOCIAL HISTORY // LAST 5</Text>{history.slice(0,5).map(entry=><Text key={entry.sessionId} style={s.body}>{entry.mode} · +{entry.xp} XP · {entry.completedAt.slice(0,10)}</Text>)}{!history.length&&<Text style={s.body}>No completed sessions yet.</Text>}</View>
   <Text style={s.note}>SOCIAL 3.0 // session state machine is live locally. Network matchmaking, remote members and global rankings remain intentionally unavailable until the online backend is connected.</Text>
  </SystemPage>;
 }
