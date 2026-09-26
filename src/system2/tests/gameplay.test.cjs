@@ -276,7 +276,7 @@ function screenHarness(t, options = {}) {
     'react/jsx-runtime': { jsx: (type, props) => typeof type === 'function' ? type(props) : ({ type, props }), jsxs: (type, props) => typeof type === 'function' ? type(props) : ({ type, props }) },
     '../components/SystemAmbientBackground': { __esModule: true, default: () => null },
     '../identity/audio': { playSceneMusic: () => {}, stopMusic: () => {} },
-    '../identity/feedback': { NotificationFeedbackType: { Success: 1, Error: 2 }, notificationAsync: async () => {} },
+    '../identity/feedback': { ImpactFeedbackStyle: { Medium: 1 }, NotificationFeedbackType: { Success: 1, Error: 2 }, impactAsync: async () => {}, notificationAsync: async () => {} },
     'react-native': {
       AppState: appState,
       Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s },
@@ -768,7 +768,7 @@ function uiHarness(context = {}) {
     '../components/world/DiscoveryToast': { __esModule: true, default: 'DiscoveryToast' },
     '../world/useWorldTracking': { useWorldTracking: () => ({ status: 'PAUSED', sectorIds: [], signal: null, fix: null }) },
     'react/jsx-runtime': { jsx, jsxs: jsx },
-    'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: s => s } },
+    'react-native': { Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ top: 24, bottom: 0 }) },
     'expo-router': { usePathname: () => '/', useRouter: () => ({ push: value => navigation.push(value), replace: value => navigation.push(value) }) },
     '../state/SystemProvider': { useSystem: () => context },
