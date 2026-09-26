@@ -12,11 +12,13 @@ import { removeAllAvatars } from '../identity/avatar';
 import type { RewardReceipt } from '../core/rewards';
 import type { InventoryItem } from '../core/inventory';
 import type { SocialMode, SocialSession } from '../core/social';
-import type { Plan, UserModel } from '../adaptive/engine';
+import type { LifeState, Plan, UserModel } from '../adaptive/engine';
 
 type SystemContextValue = db.SystemSnapshot & {
   ready: boolean; error: string | null; activeQuestId: string | null;
   adaptivePlan: Plan | null; adaptiveModel: UserModel | null;
+  changeLifeState: (state: LifeState) => Promise<void>;
+  changeAvailableMinutes: (minutes: number) => Promise<void>;
   setActiveQuestId: Dispatch<SetStateAction<string | null>>;
   acknowledgeAwakening: () => Promise<void>;
   completeVerifiedQuest: (input: db.CompleteQuestInput) => Promise<db.CompleteQuestResult>;
@@ -119,12 +121,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się zakończyć resetu. Ponów odczyt SYSTEMU.'); throw cause; }
     finally { resetting.current = false; }
   }, []);
+  const changeLifeState=useCallback(async(state:LifeState)=>{const epoch=generation.current;const model=await db.changeAdaptiveLifeState(state);const plan=await db.getAdaptivePlan();if(epoch===generation.current){setAdaptiveModel(model);setAdaptivePlan(plan);}},[]);
+  const changeAvailableMinutes=useCallback(async(minutes:number)=>{const epoch=generation.current;const model=await db.changeAdaptiveAvailableMinutes(minutes);const plan=await db.getAdaptivePlan();if(epoch===generation.current){setAdaptiveModel(model);setAdaptivePlan(plan);}},[]);
   const refreshInventory=useCallback(async()=>setInventory(await awaitWithTimeout(db.loadInventory())),[]);
   const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);
   const unequipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.unequipInventoryItem(id))),[]);
   const claimSocialSession=useCallback(async(session:SocialSession)=>{const result=await awaitWithTimeout(db.claimCompletedSocialSession(session));setInventory(await awaitWithTimeout(db.loadInventory()));setSocialSessions(current=>({...current,[result.session.mode]:result.session}));await refreshPlayer();},[refreshPlayer]);
   const saveSocialSession=useCallback(async(session:SocialSession)=>setSocialSessions(await awaitWithTimeout(db.saveSocialSession(session))),[]);
-  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, socialSessions, saveSocialSession, adaptivePlan, adaptiveModel,
+  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, socialSessions, saveSocialSession, adaptivePlan, adaptiveModel, changeLifeState, changeAvailableMinutes,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
     finishOnboarding: (name, gameMasterProfile) => apply(db.finishOnboarding(name, gameMasterProfile)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)),
