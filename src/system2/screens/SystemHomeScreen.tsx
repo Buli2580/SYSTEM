@@ -205,8 +205,8 @@ export default function SystemHomeScreen() {
         <Text style={styles.portalLabel}>{worldUnlocked ? 'WORLD GATE' : 'WORLD LOCKED'}</Text>
       </Pressable>
 
-      <WorldNode label="DAILY" sub={`${dailyDone}/3 · SIGNAL` style={styles.dailyNode} onPress={() => router.push('/quests')} />
-      <WorldNode label="WEEKLY" sub={`${weekly}/5 · PROTOCOL` style={styles.weeklyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="DAILY" sub={`${dailyDone}/3 · SIGNAL`} style={styles.dailyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="WEEKLY" sub={`${weekly}/5 · PROTOCOL`} style={styles.weeklyNode} onPress={() => router.push('/quests')} />
       <WorldNode label="BOSS" sub={story?.bossComplete ? 'CLEARED' : bossActive ? 'ANOMALY' : 'DORMANT'} style={styles.bossNode} onPress={() => router.push('/story')} locked={!awakeningCompleted} />
 
       <PlayerHero />
