@@ -9,6 +9,7 @@ import { BOSS_FOCUS, BOSS_WALK, BOSS_RUN, ARC, STORY_REWARDS } from '../story/ca
 import type { StoryEvent } from '../story/types';
 import { loadChronicle, startBossProtocol } from '../storage/database';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
+import { playSceneMusic, stopMusic } from '../identity/audio';
 export default function StoryScreen() {
  const {story,refreshPlayer}=useSystem(),router=useRouter();
  const [entries,setEntries]=useState<StoryEvent[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -16,6 +17,7 @@ export default function StoryScreen() {
  useFocusEffect(useCallback(()=>{const id=++epoch.current;void awaitWithTimeout(loadChronicle()).then(value=>{if(id===epoch.current)setEntries(value);}).catch(()=>{if(id===epoch.current)setError('Nie udało się odczytać Chronicle. Otwórz ekran ponownie.');});return()=>{epoch.current++;};},[story]));
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
  const boss=story?.boss;
+ useFocusEffect(useCallback(()=>{ playSceneMusic(story?.worldLinkComplete&&!story?.bossComplete?'BOSS':'HOME'); return stopMusic; },[story?.worldLinkComplete,story?.bossComplete]));
  return <SystemPage title="STORY / CHRONICLE" subtitle={`ARC 01 // ${ARC.title}`}>
   <Text style={s.label}>ARC PROGRESS · {story?.chapters.filter(c=>c.status==='COMPLETED').length??0}/2 COMPLETE</Text>
   {story?.chapters.map(c=><View key={c.id} style={s.panel}><Text style={s.label}>CHAPTER {String(c.number).padStart(2,'0')} // {c.status}</Text><Text style={s.title}>{c.title}</Text><Text style={s.body}>{c.description} · {c.completed}/{c.total}</Text>
