@@ -13,7 +13,7 @@ import { dominantSkill } from '../identity/model';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 
 export default function CharacterScreen() {
-  const { player, titles, updateIdentity, lastReward } = useSystem();
+  const { player, titles, updateIdentity, lastReward, inventory, equipItem } = useSystem();
   const router = useRouter();
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
   const [section, setSection] = useState<'EQUIPMENT'|'SKILLS'|'TITLES'|'ACHIEVEMENTS'>('EQUIPMENT');
@@ -107,8 +107,9 @@ export default function CharacterScreen() {
     {section==='EQUIPMENT' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
       <Text style={cs.panelKicker}>INVENTORY // LOADOUT</Text>
       {!!lastReward && <View style={cs.lootDrop}><Text style={cs.lootRarity}>{lastReward.newTitles.length?'RARE REWARD':'SYSTEM REWARD'}</Text><Text style={cs.lootTitle}>{lastReward.newTitles[0] ?? 'VERIFIED CORE SHARD'}</Text><Text style={cs.lootMeta}>+{lastReward.realXp} XP · +{lastReward.energy} ENERGY{lastReward.worldUnlocked?' · WORLD KEY':''}</Text></View>}
-      <View style={cs.loadoutRow}><GearSlot glyph="⚔" label="WEAPON" /><GearSlot glyph="⬡" label="ARMOR" /><GearSlot glyph="◉" label="RING" /><GearSlot glyph="✦" label="RELIC" /></View>
-      <Text style={cs.inventoryHint}>LOOT SLOTS // Equipment persistence unlocks with item drops. Rewards never increase power through payment.</Text>
+      <View style={cs.loadoutRow}>{(['WEAPON','ARMOR','RING','RELIC'] as const).map(slot=>{const item=inventory.find(i=>i.slot===slot&&i.equipped);return <GearSlot key={slot} glyph={slot==='WEAPON'?'⚔':slot==='ARMOR'?'⬡':slot==='RING'?'◉':'✦'} label={item?.name ?? slot} />;})}</View>
+      <Text style={cs.inventoryHint}>LOOT // VERIFIED QUEST REWARDS · NO PAY-TO-WIN</Text>
+      {inventory.length===0?<Text style={cs.inventoryHint}>NO ITEMS YET // COMPLETE A VERIFIED QUEST</Text>:inventory.map(item=><Pressable key={item.id} disabled={busy||item.equipped} onPress={()=>{void run(()=>equipItem(item.id));}} style={[cs.titleRow,item.equipped&&cs.titleRowActive]}><Text style={cs.titleCrown}>{item.slot==='WEAPON'?'⚔':item.slot==='ARMOR'?'⬡':item.slot==='RING'?'◉':'✦'}</Text><View style={{flex:1}}><Text style={cs.titleName}>{item.name}</Text><Text style={cs.inventoryHint}>{item.rarity} · {item.source}</Text></View><Text style={cs.titleState}>{item.equipped?'EQUIPPED':'EQUIP'}</Text></Pressable>)}
     </Animated.View>}
     {section==='SKILLS' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
       <Text style={cs.panelKicker}>SKILL TREE // CORE</Text>
