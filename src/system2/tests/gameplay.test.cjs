@@ -318,10 +318,13 @@ function screenHarness(t, options = {}) {
     return typeof node === 'string' || typeof node === 'number' ? String(node) : '';
   }
   function button(label, node = tree) {
-    if (Array.isArray(node)) return node.map(n => button(label, n)).find(Boolean);
-    if (!node || typeof node !== 'object') return undefined;
-    if (node.type === 'Pressable' && text(node).includes(label)) return node;
-    return button(label, node.props?.children ?? null);
+    function find(current) {
+      if (Array.isArray(current)) return current.map(find).find(Boolean);
+      if (!current || typeof current !== 'object') return undefined;
+      if (current.type === 'Pressable' && text(current).includes(label)) return current;
+      return find(current.props?.children);
+    }
+    return find(node);
   }
   t.after(() => slots.forEach(slot => slot?.cleanup?.()));
   render();
