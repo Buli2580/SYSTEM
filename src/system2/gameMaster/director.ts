@@ -23,7 +23,8 @@ export function directNextMission(input:{player:PlayerProfile;daily:DailyState|n
  const recentIds=recentAttempts.slice(0,2).map(a=>a.questId);
  const freshAvailable=available.filter(q=>!recentIds.includes(q.id));
  const pool=freshAvailable.length?freshAvailable:available;
- const favorite=adaptiveModel?.preferredTypes?.length?pool.find(q=>adaptiveModel.preferredTypes.includes(q.templateId??q.id)):undefined;
+ const preferredTypes=adaptiveModel?.preferredTypes??[];
+ const favorite=preferredTypes.length?pool.find(q=>preferredTypes.includes(q.templateId??q.id)):undefined;
  if(favorite)return{quest:favorite,difficulty:pace,message:'SYSTEM // PERSONAL PREFERENCE // '+(adaptivePlan?.reasons[0]??'DAILY'),reason:'DAILY'};
  const preferred=preferredSkill?pool.find(q=>q.primarySkill===preferredSkill):undefined;
  if(preferred)return{quest:preferred,difficulty:pace,message:'SYSTEM // '+gameMasterProfile!.path+' PATH DIRECTIVE',reason:'WEAK_SKILL'};
