@@ -442,6 +442,9 @@ export function loadSocialHistory():Promise<SocialHistoryEntry[]>{return profile
 export function claimCompletedSocialSession(session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
  return profileTransaction(async txn=>{
    if(session.state!=='COMPLETE'||!session.reward)throw new Error('Sesja nie jest ukończona.');
+   // Local app_state is writable by the client and cannot authorize multiplayer payouts.
+   // Enable only after a backend verifies participants, quest proofs and a signed reward claim.
+   throw new Error('Nagrody Social wymagają weryfikacji serwera online. Lokalna sesja nie przyznaje XP ani przedmiotów.');
    const persisted=await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='social_sessions'");
    const saved:Partial<Record<SocialMode,SocialSession>>=persisted?.value?JSON.parse(persisted.value):{};
    const authoritative=saved[session.mode];
