@@ -19,7 +19,7 @@ const pages=[
 export default function OnboardingScreen(){
  const [step,setStep]=useState(0),[name,setName]=useState(''),[goal,setGoal]=useState(''),[path,setPath]=useState(0),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false);
  const busyRef=useRef(false),insets=useSafeAreaInsets(),router=useRouter(); const {finishOnboarding}=useSystem();
- async function enter(){if(busyRef.current)return;busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name);router.replace('/quests');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
+ async function enter(){if(busyRef.current)return;busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name,{goal,path:PATHS[path][0]});router.replace('/quests');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
  return <KeyboardAvoidingView style={s.root} behavior={Platform.OS==='ios'?'padding':'height'}>
   <View pointerEvents="none" style={s.energy}><View style={s.ring}/><View style={s.core}/></View>
   <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content,{paddingTop:insets.top+32,paddingBottom:insets.bottom+32}]}>
