@@ -37,6 +37,8 @@ export type SystemSnapshot = {
   titles: Title[];
   gameMasterProfile: { goal: string; path: 'DISCIPLINE'|'MOTION'|'FOCUS' } | null;
   recentAttempt: { questId:string; result:string; reason:string|null } | null;
+  recentAttempts: { questId:string; result:string; reason:string|null }[];
+  guardianApproval: { status:'PENDING'|'APPROVED'|'REJECTED'; updatedAt:string } | null;
 };
 export type CompleteQuestResult = SystemSnapshot & { awarded: boolean; awakeningAwarded: boolean; receipt?: RewardReceipt; loot?: InventoryItem };
 
@@ -136,6 +138,8 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const signal = await db.getFirstAsync('SELECT id FROM verified_events WHERE id = ?', 'first_world_signal_v1');
   const gm = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'game_master_profile');
   const recentAttempt = await db.getFirstAsync<{quest_id:string;result:string;reason:string|null}>("SELECT quest_id,result,reason FROM quest_attempts WHERE result IS NOT NULL ORDER BY started_at DESC,attempt_id DESC LIMIT 1");
+  const recentAttempts = await db.getAllAsync<{quest_id:string;result:string;reason:string|null}>("SELECT quest_id,result,reason FROM quest_attempts WHERE result IS NOT NULL ORDER BY started_at DESC,attempt_id DESC LIMIT 5");
+  const guardian = await db.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='guardian_approval'");
   const reconciled = await reconcileStory(db, chapter.player, ids);
   chapter.player = reconciled.player;
   const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
@@ -148,6 +152,8 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
     onboardingComplete: onboarding?.value === 'true', settings: parseSettings(settings?.value), titles,
     gameMasterProfile: gm?.value ? JSON.parse(gm.value) : null,
     recentAttempt: recentAttempt ? {questId:recentAttempt.quest_id,result:recentAttempt.result,reason:recentAttempt.reason} : null,
+    recentAttempts: recentAttempts.map(x=>({questId:x.quest_id,result:x.result,reason:x.reason})),
+    guardianApproval: guardian?.value ? JSON.parse(guardian.value) : null,
     ...chapter, player: { ...chapter.player, currentTitle: selected, discoveredSectors: sectors?.count ?? 0 },
     completedQuestIds: ids, worldUnlocked: chapter.awakeningCompleted,
     awakeningPending: chapter.awakeningCompleted && !seen,
@@ -409,3 +415,5 @@ export function startBossProtocol() {
 
 export function loadInventory(): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); return rows.map(r=>JSON.parse(r.payload) as InventoryItem); }); }
 export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem); if(!items.some(i=>i.id===id)) throw new Error('Przedmiot nie istnieje.'); const next=equipItem(items,id); for(const item of next) await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id); return next; }); }
+
+export function setGuardianApproval(status:'PENDING'|'APPROVED'|'REJECTED') { return profileTransaction(async txn=>{ const value={status,updatedAt:new Date().toISOString()}; await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('guardian_approval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(value)); return snapshotInTransaction(txn); }); }
