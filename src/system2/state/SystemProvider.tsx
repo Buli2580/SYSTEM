@@ -99,7 +99,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     const epoch = generation.current;
     const result = await db.completeVerifiedQuest(input);
-    if (epoch === generation.current) { setSnapshot(result); if (result.loot) setInventory(current => current.some(i=>i.id===result.loot!.id)?current:[result.loot!,...current]); if (result.receipt) presentReward(result.receipt); void db.loadAdaptiveUserModel().then(setAdaptiveModel).catch(()=>{}); void db.getAdaptivePlan().then(setAdaptivePlan).catch(()=>{}); }
+    if (epoch === generation.current) { setSnapshot(result); if (result.loot) setInventory(current => current.some(i=>i.id===result.loot!.id)?current:[result.loot!,...current]); if (result.receipt) presentReward(result.receipt); void Promise.all([db.loadAdaptiveUserModel(),db.getAdaptivePlan()]).then(([model,plan])=>{if(epoch===generation.current){setAdaptiveModel(model);setAdaptivePlan(plan);}}).catch(()=>{}); }
     return result;
   }, [presentReward]);
   const apply = useCallback(async (operation: Promise<db.SystemSnapshot>) => {
