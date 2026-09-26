@@ -7,15 +7,18 @@ import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus } from
 import { useSystem } from '../state/SystemProvider';
 import { QuestMissionCard } from '../components/QuestExperience';
 import { mainStoryObjective } from '../story/selectors';
+import { directNextMission } from '../gameMaster/director';
 
 export default function QuestsScreen() {
   const router = useRouter();
-  const { completedQuestIds, activeQuestId, daily, awakeningCompleted, story } = useSystem();
+  const { player, completedQuestIds, activeQuestId, daily, awakeningCompleted, story } = useSystem();
   const progress = getAwakeningProgress(completedQuestIds);
   const directive = mainStoryObjective(story, awakeningCompleted);
-  const gmState = activeQuestId ? 'MISSION IN PROGRESS' : directive.total > 0 ? 'NEXT DIRECTIVE READY' : 'STANDBY';
+  const gm = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted});
+  const gmState = gm.message;
   return <SystemPage title="QUESTY" subtitle="MAIN STORY // PROTOCOLS">
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
+    <View style={styles.panel}><Text style={styles.label}>SYSTEM // GAME MASTER</Text><Text style={styles.title}>{gmState}</Text><Text style={styles.body}>{gm.quest ? `${gm.difficulty} // ${gm.quest.title}` : `${gm.difficulty} // ${directive.title}`}</Text>{gm.quest && <Action label={`NEXT MISSION // ${gm.quest.title} →`} onPress={()=>router.push({pathname:'/quest',params:{questId:gm.quest!.id}})}/>}</View>
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
     {awakeningCompleted && daily && <View style={styles.panel}>
       <Text style={styles.title}>DAILY PROTOCOL · {daily.completed}/3</Text>
