@@ -1,9 +1,9 @@
 import SystemScreen from '../components/SystemScreen';
 import RewardSummary from '../components/RewardSummary';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SystemPage, { pageStyles } from '../components/SystemPage';
 import BottomNavigation from '../components/BottomNavigation';
@@ -15,6 +15,7 @@ import { locationToSector } from '../world/sectors';
 import { signalDistance } from '../world/signals';
 import { SYSTEM_COLORS as C } from '../core';
 import SystemAmbientBackground from '../components/SystemAmbientBackground';
+import { playSceneMusic, stopMusic } from '../identity/audio';
 
 export default function WorldScreen() {
   const router = useRouter();
