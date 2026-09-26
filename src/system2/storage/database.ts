@@ -441,7 +441,13 @@ export function loadLootHistory(limit=50):Promise<InventoryItem[]>{return profil
 export function loadSocialHistory():Promise<SocialHistoryEntry[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history ORDER BY completed_at DESC,session_id LIMIT 100');return rows.map(r=>JSON.parse(r.payload) as SocialHistoryEntry);});}
 export function claimCompletedSocialSession(session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
  return profileTransaction(async txn=>{
-   if(session.state!=='COMPLETE'||!session.reward)throw new Error('Sesja nie jest ukończona.');
+   const savedRow=await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='social_sessions'");
+   let savedSessions:Partial<Record<SocialMode,SocialSession>>={};
+   try{savedSessions=savedRow?.value?JSON.parse(savedRow.value):{};}catch{}
+   const saved=savedSessions[session.mode];
+   if(!saved||saved.id!==session.id||saved.state!=='COMPLETE'||!saved.reward||saved.reward.claimed||saved.reward.sessionId!==saved.id||saved.reward.mode!==saved.mode||saved.reward.id!=='social:'+saved.id+':reward')throw new Error('Brak zapisanej, nieodebranej nagrody Social.');
+   // Never trust the caller-supplied reward amount or loot source.
+   session=saved;
    const now=new Date().toISOString(),key=session.reward.id;
    const claim=await txn.runAsync('INSERT INTO reward_claims(reward_key,payload,claimed_at) VALUES (?,?,?) ON CONFLICT(reward_key) DO NOTHING',key,JSON.stringify(session.reward),now);
    if(claim.changes===0)return{session:claimSocialReward(session),loot:null,xpAwarded:0,achievements:socialAchievements((await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history')).map(r=>JSON.parse(r.payload)))};
