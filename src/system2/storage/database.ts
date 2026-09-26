@@ -13,7 +13,7 @@ import { normalizePlayer } from '../core/progression';
 import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
 import { createLoot, equipItem, unequipItem, type InventoryItem, type LootSource } from '../core/inventory';
-import { claimSocialReward, historyEntry, socialAchievements, type SocialHistoryEntry, type SocialMode, type SocialSession } from '../core/social';
+import { type SocialHistoryEntry, type SocialMode, type SocialSession } from '../core/social';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -439,29 +439,10 @@ export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return
 export function unequipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id');const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem);const next=unequipItem(items,id);for(const item of next)await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id);return next;});}
 export function loadLootHistory(limit=50):Promise<InventoryItem[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id LIMIT ?',Math.max(1,Math.min(200,limit)));return rows.map(r=>JSON.parse(r.payload) as InventoryItem);});}
 export function loadSocialHistory():Promise<SocialHistoryEntry[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history ORDER BY completed_at DESC,session_id LIMIT 100');return rows.map(r=>JSON.parse(r.payload) as SocialHistoryEntry);});}
-export function claimCompletedSocialSession(session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
- return profileTransaction(async txn=>{
-   if(session.state!=='COMPLETE'||!session.reward)throw new Error('Sesja nie jest ukończona.');
-   // Local app_state is writable by the client and cannot authorize multiplayer payouts.
-   // Enable only after a backend verifies participants, quest proofs and a signed reward claim.
-   throw new Error('Nagrody Social wymagają weryfikacji serwera online. Lokalna sesja nie przyznaje XP ani przedmiotów.');
-   const persisted=await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='social_sessions'");
-   const saved:Partial<Record<SocialMode,SocialSession>>=persisted?.value?JSON.parse(persisted.value):{};
-   const authoritative=saved[session.mode];
-   if(!authoritative||authoritative.id!==session.id||authoritative.state!=='COMPLETE'||authoritative.reward?.id!==session.reward.id||authoritative.reward.xp!==session.reward.xp)throw new Error('Nagroda nie zgadza się z zapisaną sesją. Odśwież Social.');
-   session=authoritative;
-   const now=new Date().toISOString(),key=session.reward.id;
-   const claim=await txn.runAsync('INSERT INTO reward_claims(reward_key,payload,claimed_at) VALUES (?,?,?) ON CONFLICT(reward_key) DO NOTHING',key,JSON.stringify(session.reward),now);
-   if(claim.changes===0)return{session:claimSocialReward(session),loot:null,xpAwarded:0,achievements:socialAchievements((await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history')).map(r=>JSON.parse(r.payload)))};
-   const before=await readPlayer(txn);const next=addRealXp(before,session.reward.xp);await txn.runAsync('UPDATE app_state SET value=? WHERE key=?',JSON.stringify({...next,updatedAt:now}),'player');
-   const loot=createLoot({rewardKey:key,level:next.realLevel,source:session.reward.lootSource,now});
-   await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)',loot.id,JSON.stringify(loot),now);
-   const claimed=claimSocialReward(session),entry=historyEntry(claimed);
-   if(entry)await txn.runAsync('INSERT INTO social_history(session_id,mode,payload,completed_at) VALUES (?,?,?,?) ON CONFLICT(session_id) DO NOTHING',entry.sessionId,entry.mode,JSON.stringify(entry),entry.completedAt);
-   const row=await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='social_sessions'");let sessions:Partial<Record<SocialMode,SocialSession>>={};try{sessions=row?.value?JSON.parse(row.value):{};}catch{}sessions={...sessions,[claimed.mode]:claimed};await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('social_sessions',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(sessions));
-   const history=(await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history')).map(r=>JSON.parse(r.payload) as SocialHistoryEntry);
-   return{session:claimed,loot,xpAwarded:session.reward.xp,achievements:socialAchievements(history)};
- });
+export function claimCompletedSocialSession(_session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
+ // Client-side session state is not proof of a real multiplayer result.
+ // Fail closed until a server-issued, independently verified reward receipt exists.
+ return Promise.reject(new Error('Nagrody Social wymagają weryfikacji serwera online. Lokalna sesja nie przyznaje XP ani przedmiotów.'));
 }
 
 export function setGuardianApproval(status:'PENDING'|'APPROVED'|'REJECTED') { return profileTransaction(async txn=>{ const value={status,updatedAt:new Date().toISOString()}; await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('guardian_approval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(value)); return snapshotInTransaction(txn); }); }
