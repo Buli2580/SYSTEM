@@ -26,7 +26,7 @@ type SystemContextValue = db.SystemSnapshot & {
   resetData: (confirmed: true) => Promise<void>;
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
-  lastReward: RewardReceipt | null; dismissLastReward: () => void; inventory: InventoryItem[]; refreshInventory: () => Promise<void>; equipItem: (id:string) => Promise<void>; notificationError: string | null; socialSessions: Partial<Record<SocialMode,SocialSession>>; saveSocialSession: (session:SocialSession) => Promise<void>;
+  lastReward: RewardReceipt | null; dismissLastReward: () => void; inventory: InventoryItem[]; refreshInventory: () => Promise<void>; equipItem: (id:string) => Promise<void>; unequipItem: (id:string) => Promise<void>; claimSocialSession: (session:SocialSession) => Promise<void>; notificationError: string | null; socialSessions: Partial<Record<SocialMode,SocialSession>>; saveSocialSession: (session:SocialSession) => Promise<void>;
 };
 const SystemContext = createContext<SystemContextValue | null>(null);
 export function SystemProvider({ children }: { children: ReactNode }) {
@@ -116,9 +116,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     finally { resetting.current = false; }
   }, []);
   const refreshInventory=useCallback(async()=>setInventory(await awaitWithTimeout(db.loadInventory())),[]);
-  const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);
+  const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);\n  const unequipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.unequipInventoryItem(id))),[]);\n  const claimSocialSession=useCallback(async(session:SocialSession)=>{const result=await awaitWithTimeout(db.claimCompletedSocialSession(session));setInventory(await awaitWithTimeout(db.loadInventory()));setSocialSessions(current=>({...current,[result.session.mode]:result.session}));await refreshPlayer();},[refreshPlayer]);
   const saveSocialSession=useCallback(async(session:SocialSession)=>setSocialSessions(await awaitWithTimeout(db.saveSocialSession(session))),[]);
-  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, socialSessions, saveSocialSession,
+  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, socialSessions, saveSocialSession,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration, dismissLastReward,
     finishOnboarding: (name, gameMasterProfile) => apply(db.finishOnboarding(name, gameMasterProfile)), updateIdentity: patch => apply(db.updateIdentity(patch)),
     saveSettings: settings => apply(db.saveSettings(settings)),
