@@ -1,0 +1,39 @@
+name: SYSTEM Pack Validation
+
+on:
+  push:
+    branches:
+      - "feature/pack1-inventory-social-loop"
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: TypeScript and gameplay
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit --incremental false
+      - name: Gameplay tests
+        run: node --test src/system2/tests/gameplay.test.cjs
+      - name: Expo configuration
+        run: npx expo config --type public > /tmp/expo-config.txt
+      - name: Google Play readiness
+        run: node scripts/check-play-readiness.mjs
+      - name: Server syntax
+        run: node --check server/server.js
+      - name: Diff check
+        run: git diff --check
