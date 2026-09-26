@@ -17,6 +17,9 @@ export default function StoryScreen() {
  useFocusEffect(useCallback(()=>{const id=++epoch.current;void awaitWithTimeout(loadChronicle()).then(value=>{if(id===epoch.current)setEntries(value);}).catch(()=>{if(id===epoch.current)setError('Nie udało się odczytać Chronicle. Otwórz ekran ponownie.');});return()=>{epoch.current++;};},[story]));
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
  const boss=story?.boss;
+ const bossStages=boss?[boss.focus_at,boss.move_at,boss.discipline_at].filter(Boolean).length:0;
+ const bossHp=Math.max(0,100-Math.round(bossStages*100/3));
+ const bossPhase=bossHp<=0?'VICTORY':bossHp<=34?'FINAL PHASE':bossHp<=67?'RAGE PHASE':'PHASE I';
  useFocusEffect(useCallback(()=>{ playSceneMusic(story?.worldLinkComplete&&!story?.bossComplete?'BOSS':'HOME'); return stopMusic; },[story?.worldLinkComplete,story?.bossComplete]));
  return <SystemPage title="STORY / CHRONICLE" subtitle={`ARC 01 // ${ARC.title}`}>
   <Text style={s.label}>ARC PROGRESS · {story?.chapters.filter(c=>c.status==='COMPLETED').length??0}/2 COMPLETE</Text>
@@ -27,6 +30,7 @@ export default function StoryScreen() {
     <Action label="SYSTEM WORLD →" disabled={c.status==='LOCKED'} onPress={()=>router.push('/world')}/><Action label="DAILY PROTOCOL →" disabled={c.status==='LOCKED'} onPress={()=>router.push('/quests')}/>
    </>}
   </View>)}
+  <View style={bossStyles.arena}><View style={bossStyles.threatGlow}/><Text style={bossStyles.code}>BOSS PROTOCOL // {bossPhase}</Text><Text style={bossStyles.name}>THE FIRST WALL</Text><View style={bossStyles.silhouette}><View style={bossStyles.head}/><View style={bossStyles.body}/></View><View style={bossStyles.hpTrack}><View style={[bossStyles.hpFill,{width:`${bossHp}%`}]}/></View><Text style={bossStyles.hpLabel}>HP {bossHp}/100 · DAMAGE FROM VERIFIED REAL TASKS</Text></View>
   <View style={s.panel}><Text style={s.label}>BOSS PROTOCOL // {story?.bossComplete?'DEFEATED':story?.worldLinkComplete?'AVAILABLE':'LOCKED'}</Text><Text style={s.title}>THE FIRST WALL</Text>
    <Text style={s.body}>FOCUS → MOVE → DISCIPLINE. Postęp etapów zostaje zapisany.</Text>
    {story?.worldLinkComplete&&!boss&&<Action label="BEGIN BOSS PROTOCOL" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(request===epoch.current)setBusy(false);});}}/>}
@@ -39,6 +43,7 @@ export default function StoryScreen() {
     <Text style={s.body}>Ukończ Daily po Stage 2, najwcześniej następnego dnia od startu Bossa ({boss.start_day}). Późniejszy dzień również się liczy.</Text>
     {!!boss.move_at&&!boss.discipline_at&&<Action label="DAILY QUESTS →" onPress={()=>router.push('/quests')}/>}
    </>}
+   {story?.bossComplete&&<Text style={s.title}>VICTORY // BOSS DEFEATED // LOOT STORED</Text>}
    <Text style={s.label}>+{STORY_REWARDS.boss.realXp} REAL XP · +{STORY_REWARDS.boss.skillXp.WIL} WIL XP · +{STORY_REWARDS.boss.skillXp.VIT} VIT XP · +{STORY_REWARDS.boss.gameEnergy} ENERGY · WALLBREAKER</Text>
   </View>
   <View style={s.panel}><Text style={s.label}>CHAPTER 03 // UNKNOWN // LOCKED</Text></View>
