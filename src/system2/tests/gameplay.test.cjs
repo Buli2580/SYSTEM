@@ -226,10 +226,12 @@ function screenHarness(t, options = {}) {
   let removals = 0;
   let starts = 0;
   let awards = 0;
+  let runStatusIndex = -1;
   const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
   const react = {
     useState(initial) {
       const index = cursor++;
+      if (initial === 'CHECKING' && runStatusIndex === -1) runStatusIndex = index;
       if (!slots[index]) slots[index] = { value: typeof initial === 'function' ? initial() : initial };
       return [slots[index].value, value => { slots[index].value = value; }];
     },
@@ -323,8 +325,8 @@ function screenHarness(t, options = {}) {
   render();
   return {
     render, button,
-    status: () => slots[0].value,
-    distance: () => slots[2].value,
+    status: () => slots[runStatusIndex]?.value,
+    distance: () => slots[runStatusIndex + 2]?.value,
     starts: () => starts, removals: () => removals, awards: () => awards,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
