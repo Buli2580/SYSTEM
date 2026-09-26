@@ -13,6 +13,7 @@ import { normalizePlayer } from '../core/progression';
 import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
 import { rewardItem, equipItem, type InventoryItem } from '../core/inventory';
+import type { SocialMode, SocialSession } from '../core/social';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -353,6 +354,25 @@ export function hasAvatarCleanupPending() {
 }
 export function acknowledgeAvatarCleanup() {
   return profileTransaction(txn => txn.runAsync('DELETE FROM app_state WHERE key = ?', 'avatar_cleanup_pending'));
+}
+
+export function loadSocialSessions(): Promise<Partial<Record<SocialMode, SocialSession>>> {
+  return serialized(async () => {
+    await initSystemDatabase();
+    const row = await (await getDatabase()).getFirstAsync<{ value:string }>("SELECT value FROM app_state WHERE key='social_sessions'");
+    if (!row?.value) return {};
+    try { return JSON.parse(row.value) as Partial<Record<SocialMode, SocialSession>>; } catch { return {}; }
+  });
+}
+export function saveSocialSession(session: SocialSession): Promise<Partial<Record<SocialMode, SocialSession>>> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{ value:string }>("SELECT value FROM app_state WHERE key='social_sessions'");
+    let sessions: Partial<Record<SocialMode, SocialSession>> = {};
+    try { sessions = row?.value ? JSON.parse(row.value) : {}; } catch { sessions = {}; }
+    sessions = { ...sessions, [session.mode]: session };
+    await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('social_sessions',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", JSON.stringify(sessions));
+    return sessions;
+  });
 }
 
 export function systemDiagnostics() {
