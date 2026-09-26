@@ -119,7 +119,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const equipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.equipInventoryItem(id))),[]);
   const unequipItem=useCallback(async(id:string)=>setInventory(await awaitWithTimeout(db.unequipInventoryItem(id))),[]);
   const claimSocialSession=useCallback(async(session:SocialSession)=>{const result=await awaitWithTimeout(db.claimCompletedSocialSession(session));setInventory(await awaitWithTimeout(db.loadInventory()));setSocialSessions(current=>({...current,[result.session.mode]:result.session}));await refreshPlayer();},[refreshPlayer]);
-  const latestRaidVictory = socialSessions.RAID?.state==='COMPLETE' && socialSessions.RAID.reward?.claimed ? socialSessions.RAID : null;
+  const latestRaidVictory = socialSessions.RAID?.state==='COMPLETE' && socialSessions.RAID.reward?.claimed && socialSessions.RAID.completedAt && Date.now()-new Date(socialSessions.RAID.completedAt).getTime()<300000 ? socialSessions.RAID : null;
   const socialSignal = (['RAID','GUILD','PVP'] as SocialMode[]).map(mode=>socialSessions[mode]).filter((s):s is SocialSession=>Boolean(s?.completedAt)).sort((a,b)=>(b.completedAt??'').localeCompare(a.completedAt??''))[0]??null;
   const saveSocialSession=useCallback(async(session:SocialSession)=>setSocialSessions(await awaitWithTimeout(db.saveSocialSession(session))),[]);
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer, inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, latestRaidVictory, socialSignal, socialSessions, saveSocialSession,
