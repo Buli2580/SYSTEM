@@ -1094,10 +1094,10 @@ test('legacy unversioned profile and verified history migrate without onboarding
   assert.equal(migrated.onboardingComplete, true); assert.equal(migrated.player.totalRealXp, 320);
   assert.equal(migrated.player.id, player.id); assert.equal(migrated.player.displayName, 'EXISTING');
   assert.ok(migrated.completedQuestIds.includes(evidence.questId));
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 5);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 7);
   assert.equal((await h.reload().loadSystemState()).player.totalRealXp, 320);
 });
-for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrades to 5 preserving World and profile', async t => {
+for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrades to 7 preserving World and profile', async t => {
   const h = databaseHarness(t); const w = await unlockWorld(h); await w.discoverSector(worldFix()); await w.scanSignal(worldFix());
   const before = await h.db.loadSystemState(); h.sql.exec('PRAGMA user_version = ' + version);
   if (version < 3) h.sql.prepare("DELETE FROM app_state WHERE key = 'onboarding_complete'").run();
@@ -1105,7 +1105,7 @@ for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrade
   const after = await h.reload().loadSystemState();
   assert.equal(after.onboardingComplete, true); assert.equal(after.player.totalRealXp, before.player.totalRealXp);
   assert.equal(after.player.discoveredSectors, 1); assert.ok((await h.reloadWorld().loadWorld()).signal);
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 5);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 7);
 });
 test('failed migration rolls back version and retries; future schema is not downgraded', async t => {
   const h = databaseHarness(t); h.faults.commit = true;
@@ -1428,7 +1428,7 @@ test('genuine v3 migration adds tables without resetting profile or onboarding',
  h.sql.exec('DROP TABLE daily_instances; DROP TABLE daily_sets; DROP TABLE protocol_bonuses; PRAGMA user_version=3;');
  const before=h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value;
  const state=await h.reload().loadSystemState();assert.equal(state.player.displayName,'BETA');assert.equal(state.onboardingComplete,true);
- assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,5);
+ assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,7);
 });
 test('settings notification and preferences persist with backward compatible defaults',async t=>{
  const h=databaseHarness(t);await h.db.loadSystemState();await h.db.saveSettings({haptics:false,audio:true,activities:{walking:true,running:true,cycling:false},dailyReminder:true,reminderTime:'20:30'});
@@ -1597,7 +1597,7 @@ test('v4 migration preserves all existing data and recognizes old milestones wit
  const player=JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value);player.totalRealXp-=400;player.stats.RES.totalXp-=100;player.gameEnergy-=25;
  h.sql.prepare("UPDATE app_state SET value=? WHERE key='player'").run(JSON.stringify(player));h.sql.prepare('DELETE FROM chapter_completions WHERE chapter_id=?').run('world_link_chapter_2');
  const migrated=await h.reload().loadSystemState();assert.equal(migrated.player.totalRealXp,before.player.totalRealXp);assert.equal(migrated.player.totalDistanceMeters,before.player.totalDistanceMeters);assert.equal(migrated.story.chapters[0].status,'COMPLETED');assert.equal(migrated.story.worldLinkComplete,true);
- assert.equal((await h.reload().loadSystemState()).player.totalRealXp,before.player.totalRealXp);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,5);
+ assert.equal((await h.reload().loadSystemState()).player.totalRealXp,before.player.totalRealXp);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,7);
 });
 
 test('Extra Mile and base daily roll back together when story event fails',async t=>{
