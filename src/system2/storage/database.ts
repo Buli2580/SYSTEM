@@ -442,6 +442,11 @@ export function loadSocialHistory():Promise<SocialHistoryEntry[]>{return profile
 export function claimCompletedSocialSession(session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
  return profileTransaction(async txn=>{
    if(session.state!=='COMPLETE'||!session.reward)throw new Error('Sesja nie jest ukończona.');
+   const persisted=await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='social_sessions'");
+   const saved:Partial<Record<SocialMode,SocialSession>>=persisted?.value?JSON.parse(persisted.value):{};
+   const authoritative=saved[session.mode];
+   if(!authoritative||authoritative.id!==session.id||authoritative.state!=='COMPLETE'||authoritative.reward?.id!==session.reward.id||authoritative.reward.xp!==session.reward.xp)throw new Error('Nagroda nie zgadza się z zapisaną sesją. Odśwież Social.');
+   session=authoritative;
    const now=new Date().toISOString(),key=session.reward.id;
    const claim=await txn.runAsync('INSERT INTO reward_claims(reward_key,payload,claimed_at) VALUES (?,?,?) ON CONFLICT(reward_key) DO NOTHING',key,JSON.stringify(session.reward),now);
    if(claim.changes===0)return{session:claimSocialReward(session),loot:null,xpAwarded:0,achievements:socialAchievements((await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history')).map(r=>JSON.parse(r.payload)))};
