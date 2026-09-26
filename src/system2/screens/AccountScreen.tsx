@@ -13,7 +13,7 @@ import {
   type CloudSession,
 } from '../cloud/auth';
 import { fetchCloudState } from '../cloud/state';
-import { flushCloudOutbox, getLocalCloudSyncStatus } from '../cloud/sync';
+
 import {
   getMySocialProfile,
   updateMySocialProfile,
@@ -34,7 +34,7 @@ const inputStyle = {
   marginTop: 10,
 } as const;
 
-type SyncStats = { pending: number; synced: number; failed: number };
+
 
 export default function AccountScreen() {
   const router = useRouter();

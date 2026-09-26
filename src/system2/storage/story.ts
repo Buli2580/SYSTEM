@@ -5,6 +5,7 @@ import type { RunnableQuest, QuestEvidence } from '../quests/types';
 import { BOSS_ID, BOSS_FOCUS, BOSS_WALK, BOSS_RUN, CHAPTERS, STORY_REWARDS, WORLD_LINK_ID, qualifiesExtraMile, EXTRA_MILE, NO_TURNING_BACK } from '../story/catalog';
 import type { BossProgress, QuestAttempt, StoryEvent, StoryEventType, StoryState } from '../story/types';
 import { dayKey, dayOrdinal } from '../daily/calendar';
+import { dailyBossDamage, bossHealth } from '../story/damage';
 const nowISO = () => new Date(Date.now()).toISOString();
 export async function storyEvent(db: SQLiteDatabase, id: string, type: StoryEventType, title: string, subtitle: string | null = null) {
  await db.runAsync('INSERT INTO story_events(id,type,title,subtitle,created_at,consumed) VALUES (?,?,?,?,?,0) ON CONFLICT(id) DO NOTHING',id,type,title,subtitle,nowISO());
@@ -43,6 +44,11 @@ export async function reconcileStory(db: SQLiteDatabase, player: PlayerProfile, 
    await storyEvent(db,'title_pathfinder','TITLE_UNLOCKED','ODKRYWCA');
  }
  const boss=await db.getFirstAsync<BossProgress>('SELECT * FROM boss_progress WHERE id=?',BOSS_ID);
+ const supportRow=await db.getFirstAsync<{total:number}>(
+   'SELECT COALESCE(SUM(damage),0) AS total FROM boss_contributions WHERE boss_id=?',
+   BOSS_ID
+ );
+ const bossSupportDamage=Math.min(20,Math.max(0,supportRow?.total??0));
  if(boss?.focus_at&&boss.move_at&&boss.discipline_at) {
    next=await award(db,next,BOSS_ID,STORY_REWARDS.boss,'BOSS_DEFEATED','PIERWSZY MUR // BOSS POKONANY');
    await storyEvent(db,'title_wallbreaker','TITLE_UNLOCKED','POGROMCA MURU');
@@ -50,7 +56,7 @@ export async function reconcileStory(db: SQLiteDatabase, player: PlayerProfile, 
  const has=async(id:string)=>Boolean(await db.getFirstAsync('SELECT id FROM story_progress WHERE id=?',id));
  const worldLinkComplete=await has(WORLD_LINK_ID),bossComplete=await has(BOSS_ID);
  const rematches=await db.getAllAsync<{quest_id:string}>(`SELECT DISTINCT a.quest_id FROM quest_attempts a WHERE a.eligible=1 AND NOT EXISTS (SELECT 1 FROM quest_completions c WHERE c.quest_id=a.quest_id) ORDER BY a.started_at DESC LIMIT 50`);
- return {player:next,story:{ milestones,worldLinkComplete,bossComplete,boss,sideComplete:await has('extra_mile_v1'),hiddenComplete:await has('no_turning_back_v1'),
+ return {player:next,story:{ milestones,worldLinkComplete,bossComplete,boss,bossSupportDamage,bossHp:bossHealth(boss,bossSupportDamage),sideComplete:await has('extra_mile_v1'),hiddenComplete:await has('no_turning_back_v1'),
  rematchQuestIds:rematches.map(r=>r.quest_id),pendingEvents:await db.getAllAsync<StoryEvent>('SELECT * FROM story_events WHERE consumed=0 ORDER BY created_at,id LIMIT 20'),
  chapters:CHAPTERS.map((c,index)=>({...c,completed:index===0?c.questIds.filter(id=>completedIds.includes(id)).length:progress,total:3,
  status:index===0?(chapter1?'COMPLETED':completedIds.some(id=>c.questIds.includes(id))?'ACTIVE':'AVAILABLE'):worldLinkComplete?'COMPLETED':!chapter1?'LOCKED':progress?'ACTIVE':'AVAILABLE'}))}};
@@ -76,6 +82,13 @@ export async function completeStoryActivity(db:SQLiteDatabase,player:PlayerProfi
  }
  if(quest.category==='DAILY') {
    const boss=await db.getFirstAsync<BossProgress>('SELECT * FROM boss_progress WHERE id=?',BOSS_ID);
+   if(boss&&!boss.discipline_at) {
+     const damage=dailyBossDamage(quest,player);
+     if(damage>0) await db.runAsync(
+       'INSERT INTO boss_contributions(quest_id,boss_id,damage,created_at) VALUES (?,?,?,?) ON CONFLICT(quest_id) DO NOTHING',
+       quest.id,BOSS_ID,damage,nowISO()
+     );
+   }
    // At least the following local day: a missed day must not permanently lock a multi-day boss.
    if(boss?.move_at&&!boss.discipline_at&&quest.dayKey&&dayOrdinal(quest.dayKey)>dayOrdinal(boss.start_day)) {
      await db.runAsync('UPDATE boss_progress SET discipline_at=? WHERE id=?',nowISO(),BOSS_ID);

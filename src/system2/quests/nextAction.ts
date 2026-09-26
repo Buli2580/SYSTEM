@@ -25,13 +25,14 @@ type NextActionInput = {
 };
 
 export function getNextAction(input: NextActionInput): NextAction {
+  const completedQuestIds = input.completedQuestIds ?? [];
   const active = input.activeQuestId ? getQuest(input.activeQuestId) : undefined;
-  if (active && !input.completedQuestIds.includes(active.id)) {
+  if (active && !completedQuestIds.includes(active.id)) {
     return { kind: 'RESUME', title: 'CONTINUE MISSION', detail: active.title, route: '/quest', questId: active.id, priority: 100 };
   }
 
   if (!input.awakeningCompleted) {
-    const next = AWAKENING_QUESTS.find(q => !input.completedQuestIds.includes(q.id));
+    const next = AWAKENING_QUESTS.find(q => !completedQuestIds.includes(q.id));
     if (next) {
       const rematch = input.failedQuestIds?.includes(next.id);
       return {
@@ -50,7 +51,7 @@ export function getNextAction(input: NextActionInput): NextAction {
   }
 
   if (input.daily && !input.daily.clockAnomaly && !input.daily.clear) {
-    const nextDaily = input.daily.questIds.map(getQuest).find(q => q && !input.completedQuestIds.includes(q.id));
+    const nextDaily = input.daily.questIds.map(getQuest).find(q => q && !completedQuestIds.includes(q.id));
     if (nextDaily) {
       return {
         kind: 'DAILY',

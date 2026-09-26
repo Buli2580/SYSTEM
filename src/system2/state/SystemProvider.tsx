@@ -28,6 +28,11 @@ type SystemContextValue = db.SystemSnapshot & {
   finishOnboarding: (name: string, birthDate?: string) => Promise<void>;
   updateIdentity: (patch: Parameters<typeof db.updateIdentity>[0]) => Promise<void>;
   saveSettings: (settings: Settings) => Promise<void>;
+  createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<void>;
+  updateGoalStatus: (
+    id: Parameters<typeof db.updateGoalStatus>[0],
+    status: Parameters<typeof db.updateGoalStatus>[1]
+  ) => Promise<void>;
   resetData: (confirmed: true) => Promise<void>;
   presentReward: (receipt: RewardReceipt) => void;
   celebration: RewardReceipt | null; dismissCelebration: () => void;
@@ -210,7 +215,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     completeVerifiedQuest, presentReward, celebration, lastReward, notificationError, dismissCelebration,
     finishOnboarding: (name, birthDate) => apply(() => db.finishOnboarding(name, birthDate)), updateIdentity: patch => apply(() => db.updateIdentity(patch)),
-    saveSettings: settings => apply(() => db.saveSettings(settings)), resetData, achievementState, achievementError, refreshAchievements,
+    saveSettings: settings => apply(() => db.saveSettings(settings)),
+    createPlayerGoal: input => apply(() => db.createPlayerGoal(input)),
+    updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
+    resetData, achievementState, achievementError, refreshAchievements,
     aiGameMaster, aiLoading, aiError, refreshAIGameMaster,
     acknowledgeAwakening: async () => { await awaitWithTimeout(db.acknowledgeAwakening()); setSnapshot(current => ({ ...current, awakeningPending: false })); },
   }}>{children}</SystemContext.Provider>;

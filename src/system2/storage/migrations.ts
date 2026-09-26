@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-export const SCHEMA_VERSION = 6;
+import { PROGRESSION_SCHEMA_SQL } from './progression';
+export const SCHEMA_VERSION = 9;
 const steps = [
   `CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS quest_completions (quest_id TEXT PRIMARY KEY NOT NULL, completed_at TEXT NOT NULL);
@@ -36,8 +37,6 @@ const steps = [
    );
    CREATE INDEX IF NOT EXISTS cloud_outbox_pending ON cloud_outbox(synced_at, client_created_at, event_key);`,
 ];
-<<<<<<< HEAD
-=======
 
 const CANONICAL_GOALS_SQL = `
 CREATE TABLE IF NOT EXISTS player_goals(id INTEGER PRIMARY KEY AUTOINCREMENT,payload TEXT NOT NULL);
@@ -52,13 +51,13 @@ CREATE INDEX IF NOT EXISTS journey_activity_stage ON journey_activity(journey_id
 CREATE TABLE IF NOT EXISTS journey_milestones(journey_id TEXT,stage INTEGER,created_at TEXT,PRIMARY KEY(journey_id,stage));
 CREATE TABLE IF NOT EXISTS legacy_goal_imports(legacy_id TEXT PRIMARY KEY,canonical_id INTEGER NOT NULL);
 `;
-// Historical branches reused versions 6–8 for different table families.
+// Historical branches reused versions 6â€“8 for different table families.
 // Inspect their actual shape, preserve legacy rows, and add every canonical family atomically.
 async function reconcileBranchSchemas(txn: SQLiteDatabase) {
  const columns = await txn.getAllAsync<{name:string}>('PRAGMA table_info(player_goals)');
  if (columns.length && !columns.some(c => c.name === 'payload')) {
    if (await txn.getFirstAsync("SELECT name FROM sqlite_master WHERE type='table' AND name='legacy_player_goals_v8'"))
-     throw new Error('Konflikt archiwum celów: zachowano dane, migracja wymaga sprawdzenia.');
+     throw new Error('Konflikt archiwum celĂłw: zachowano dane, migracja wymaga sprawdzenia.');
    await txn.execAsync('ALTER TABLE player_goals RENAME TO legacy_player_goals_v8;');
  }
  await txn.execAsync(CANONICAL_GOALS_SQL);
@@ -68,7 +67,13 @@ async function reconcileBranchSchemas(txn: SQLiteDatabase) {
      const legacyId = String(row.id);
      if(await txn.getFirstAsync('SELECT legacy_id FROM legacy_goal_imports WHERE legacy_id=?',legacyId)) continue;
      const result = await txn.runAsync("INSERT INTO player_goals(payload) VALUES('{}')");
-     const canonicalId = Number(result.lastInsertRowId);\n     const id = String(canonicalId);
+     const canonicalId = Number(
+        result.lastInsertRowId ?? (result as typeof result & { lastInsertRowid?: number | bigint }).lastInsertRowid
+      );
+      if (!Number.isSafeInteger(canonicalId) || canonicalId <= 0) {
+        throw new Error('Nieprawidłowy identyfikator importowanego celu.');
+      }
+     const id = String(canonicalId);
      const categories = ['FITNESS','STRENGTH','DISCIPLINE','PRODUCTIVITY','LEARNING','SOCIAL','LIFESTYLE','GENERAL'];
      const goal = {id,category:categories.includes(String(row.type))?String(row.type):'GENERAL',
        title:String(row.title??'Cel'),description:String(row.description??''),
@@ -78,14 +83,14 @@ async function reconcileBranchSchemas(txn: SQLiteDatabase) {
        ...(row.target_date?{targetDate:String(row.target_date)}:{}),
        ...(row.progress_target!=null?{target:String(row.progress_target)+(row.unit?' '+String(row.unit):'')}:{}),
        legacySource:{table:'legacy_player_goals_v8',id:legacyId}};
-     await txn.runAsync('UPDATE player_goals SET payload=? WHERE id=?',JSON.stringify(goal),result.lastInsertRowId);
-     await txn.runAsync('INSERT INTO legacy_goal_imports(legacy_id,canonical_id) VALUES(?,?)',legacyId,result.lastInsertRowId);
+     await txn.runAsync('UPDATE player_goals SET payload=? WHERE id=?',JSON.stringify(goal),canonicalId);
+     await txn.runAsync('INSERT INTO legacy_goal_imports(legacy_id,canonical_id) VALUES(?,?)',legacyId,canonicalId);
    }
  }
  await txn.execAsync(PROGRESSION_SCHEMA_SQL);
 }
 
->>>>>>> a3f56d5a (fix(core): normalize SQLite migration row ids before binding)
+
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;');
   await db.withExclusiveTransactionAsync(async txn => {
@@ -95,9 +100,18 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     const row = await txn.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
     const version = row?.user_version ?? 0;
     if (version > SCHEMA_VERSION) throw new Error('Ta baza wymaga nowszej wersji SYSTEMU.');
-    for (let next = version + 1; next <= SCHEMA_VERSION; next++) {
+
+    for (let next = version + 1; next <= Math.min(SCHEMA_VERSION, steps.length); next++) {
       await txn.execAsync(steps[next - 1]);
-      await txn.execAsync(`PRAGMA user_version = ${next};`);
     }
+
+    // Przywróć brakujące tabele z historycznych gałęzi.
+    // IF NOT EXISTS nie usuwa ani nie nadpisuje istniejących danych.
+    for (const sql of steps) {
+      await txn.execAsync(sql);
+    }
+
+    await reconcileBranchSchemas(txn);
+    await txn.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   });
 }

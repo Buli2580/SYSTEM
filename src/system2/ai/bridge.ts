@@ -73,6 +73,7 @@ function chooseTemplate(
   const themes = THEMES[proposal.category];
   const candidates = QUEST_TEMPLATES
     .filter(template => !used.has(template.id))
+    .filter(template => !input.exclude?.includes(template.id))
     .filter(template => enabled(template, input))
     .filter(template => offCooldown(template, input))
     .filter(template => input.player.realLevel >= template.minimumLevel)

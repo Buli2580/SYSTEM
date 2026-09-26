@@ -16,6 +16,16 @@ import { DEFAULT_ACTIVITIES } from '../daily/templates';
 import { getQuest } from '../quests/catalog';
 import * as SQLite from 'expo-sqlite';
 import { migrateDatabase } from './migrations';
+import { generationInput, persistCandidate } from './generation';
+import { readGoals, insertGoal, changeGoalStatus } from './goals';
+import { readJourneys, ensureJourneys, bindJourneyQuests, journeyBindings, advanceJourney } from './journeys';
+import { readProgression, applyProgression } from './progression';
+import { generateLoadout } from '../generation/engine';
+import { templateFor } from '../generation/templates';
+import type { PlayerGoal, GoalInput, GoalStatus } from '../goals/model';
+import type { Journey } from '../journeys/model';
+import type { RecentActivity } from '../generation/engine';
+import type { ProgressionState } from './progression';
 import { normalizePlayer } from '../core/progression';
 import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
@@ -263,6 +273,8 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   const titles = earnedTitles(chapter.awakeningCompleted, Boolean(signal), reconciled.story.worldLinkComplete, reconciled.story.bossComplete);
   const selected = titles.includes(chapter.player.currentTitle as Title) ? chapter.player.currentTitle : titles[titles.length - 1];
   const preferences = parseSettings(settings?.value);
+  const goals = await readGoals(db);
+  const journeys = await ensureJourneys(db, goals);
   const daily = await dailyState(db, chapter.player, chapter.awakeningCompleted, preferences.activities ?? DEFAULT_ACTIVITIES);
   if (daily) await bindJourneyQuests(db, daily.questIds, goals, journeys);
   const recentActivity = (await generationInput(db, chapter.player, daily?.dayKey ?? dayKey(), preferences.activities ?? DEFAULT_ACTIVITIES)).history;
@@ -432,7 +444,13 @@ export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
     await ensureAchievementSchema(txn);
-    for (const table of ['cloud_outbox', 'achievement_events', 'player_titles', 'achievements', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['legacy_player_goals_v8', 'legacy_goal_imports', 'journey_milestones', 'journey_activity', 'journey_quests', 'journeys', 'boss_contributions', 'daily_rerolls', 'daily_generation', 'player_goals', 'progression_claims', 'progression_contributions', 'cloud_outbox', 'achievement_events', 'player_titles', 'achievements', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) {
+      const exists = await txn.getFirstAsync(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        table
+      );
+      if (exists) await txn.runAsync(`DELETE FROM ${table}`);
+    }
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.

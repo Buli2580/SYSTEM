@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const root = process.env.SYSTEM_PROJECT_ROOT ?? path.resolve(__dirname, '../../..');
 const ts = require(require.resolve('typescript', { paths: [root, process.cwd()] }));
 
-function loader() {
+function loader(globals = {}) {
   const cache = new Map();
   function load(file) {
     const resolved = [file, file + '.ts', path.join(file, 'index.ts')]
@@ -27,7 +27,7 @@ function loader() {
     };
     vm.runInNewContext(source, {
       module, exports: module.exports, require: requireMock, console, Date, Set, Math, JSON, Intl,
-      AbortController, Headers, fetch,
+      AbortController, Headers, fetch, setTimeout, clearTimeout, ...globals,
     }, { filename: resolved });
     return module.exports;
   }
@@ -255,7 +255,7 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   const input = {
     day: '2026-09-21', player,
     prefs: { walking: true, running: true, cycling: true },
-    history: [], recentActivity: [], exclude: [], systemDebt: 0,
+    history: [], goals: [], weeklyCompleted: 0, weeklyClear: false, exclude: [], systemDebt: 0,
   };
   const response = validResponse();
   response.quests[0].target = { kind: 'minutes', value: 999999 };
@@ -265,6 +265,39 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   assert.equal(candidates.length, 1);
   const quest = candidates[0].quest;
   assert.ok(!Object.hasOwn(quest, 'xp'));
-  assert.ok(!Object.hasOwn(quest, 'rewards'));
-  assert.notEqual(quest.verification.minimumDurationSeconds, 999999 * 60);
+  const canonical = load('generation/templates').generatedQuest(quest.id);
+  assert.deepEqual(quest.rewards, canonical.rewards);
+  assert.deepEqual(quest.verification, canonical.verification);
+});
+
+test('AI bridge respects local exclusions when selecting proposals and filling the loadout', () => {
+  const load = loader();
+  const input = {day:'2026-09-21', player:load('core').createNewPlayer('Tester'),
+    prefs:{walking:true,running:true,cycling:true}, goals:[], history:[],
+    weeklyCompleted:0,weeklyClear:false,exclude:['focus_priority'],systemDebt:0};
+  const candidates = load('ai/bridge').candidatesFromAI(input,validResponse(),3);
+  assert.equal(candidates.length,3);
+  assert.ok(candidates.every(c => c.templateId !== 'focus_priority'));
+  assert.equal(new Set(candidates.map(c => c.templateId)).size,3);
+});
+
+for (const outcome of ['success','offline','timeout']) test('AI request cancels its timer after '+outcome, async () => {
+  const timers = new Map(); let signal, cancelled = 0;
+  const load = loader({
+    setTimeout(callback,ms){assert.equal(ms,25);timers.set(1,callback);return 1;},
+    clearTimeout(id){assert.equal(id,1);assert.ok(timers.delete(id));cancelled++;},
+    fetch:async (_,options)=>{
+      signal=options.signal;
+      if(outcome==='offline')throw new Error('offline');
+      if(outcome==='timeout')return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}));
+      return {ok:true,json:async()=>validResponse()};
+    },
+  });
+  const context={player:{level:3,rank:'E',streak:4,completionRate7d:0.7,systemDebt:0},goals:[],recentQuests:[],nowIso:'2026-09-21T08:00:00.000Z'};
+  const pending=load('ai/client').requestAIGameMaster(context,{endpoint:'https://invalid.local',timeoutMs:25});
+  if(outcome==='timeout')timers.get(1)();
+  const response=await pending;
+  assert.equal(response.source,outcome==='success'?'ai':'fallback');
+  assert.equal(signal.aborted,outcome==='timeout');
+  assert.equal(timers.size,0);assert.equal(cancelled,1);
 });

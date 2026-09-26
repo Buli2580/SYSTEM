@@ -44,7 +44,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       setInterval: clock.intervals ? fn => { const id = {}; clock.intervals.set(id, fn); return id; } : setInterval,
       clearInterval: clock.intervals ? id => clock.intervals.delete(id) : clearInterval,
       performance: { now: () => clock.monotonic ?? clock.now },
-      Date: class extends Date { static now() { return clock.now; } },
+      Date: class extends Date { constructor(...args) { super(...(args.length ? args : [clock.now])); } static now() { return clock.now; } },
     }, { filename: resolved });
     return module.exports;
   }

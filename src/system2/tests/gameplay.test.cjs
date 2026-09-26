@@ -437,7 +437,7 @@ for (const saveError of [false, true]) {
 test('background location disclosure is shown before the first background permission request', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await h.button('START MISSION').props.onPress();
   await flush();
   assert.equal(h.disclosureCount(), 1);
   assert.equal(h.backgroundPermissionRequests(), 1);
@@ -446,7 +446,7 @@ test('background location disclosure is shown before the first background permis
 test('already granted background location skips repeated disclosure', async t => {
   const h = screenHarness(t, { backgroundAlreadyGranted: true });
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await h.button('START MISSION').props.onPress();
   await flush();
   assert.equal(h.disclosureCount(), 0);
   assert.equal(h.backgroundPermissionRequests(), 1);
@@ -492,7 +492,8 @@ test('real background hands GPS off without failing and foreground can resume wi
   h.appState('active');
   await flush(); h.render();
   assert.equal(h.status(), 'READY');
-  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await h.button('START MISSION').props.onPress();
+  await flush();
   assert.equal(h.starts(), 2);
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
@@ -521,7 +522,7 @@ test('a second GPS quest cannot replace an active background quest after restart
   };
   const h = screenHarness(t, { backgroundSession: owner });
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await h.button('START MISSION').props.onPress();
   await flush(); h.render();
   assert.equal(h.status(), 'ERROR');
   assert.equal(h.starts(), 0);
@@ -532,7 +533,9 @@ test('a second GPS quest cannot replace an active background quest after restart
 test('GPS distance checkpoint survives background and returns with the same meters', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await h.button('START MISSION').props.onPress();
+  await flush();
+  assert.equal(h.starts(), 1);
   h.fix(0);
   for (let meters = 10; meters <= 220; meters += 10) h.fix(meters);
   await flush();
@@ -547,7 +550,7 @@ test('GPS distance checkpoint survives background and returns with the same mete
   await flush(); h.render();
   assert.equal(h.status(), 'READY');
   assert.equal(Math.round(h.distance()), Math.round(savedBefore));
-  assert.ok(h.button('WZNÓW MISJĘ'));
+  assert.ok(h.button('START MISSION'));
 });
 
 
@@ -874,10 +877,10 @@ test('shared navigation connects all five real tabs without stacking pushes', ()
 test('Quest list uses persisted completion IDs and locks subsequent cards', () => {
   const { load, navigation } = uiHarness({ completedQuestIds: ['first_movement_v1'], activeQuestId: null });
   const tree = load('screens/QuestsScreen').default();
-  const buttons = findButtons(tree);
+  const buttons = findButtons(tree).filter(b => / — (COMPLETED|AVAILABLE|LOCKED)$/.test(b.props.accessibilityLabel ?? ''));
   assert.equal(buttons.length, 3);
-  assert.match(treeText(buttons[0]), /UKOŃCZONA/);
-  assert.match(treeText(buttons[1]), /DOSTĘPNA/);
+  assert.match(treeText(buttons[0]), /COMPLETED/);
+  assert.match(treeText(buttons[1]), /AVAILABLE/);
   assert.equal(buttons[2].props.disabled, true);
   buttons[1].props.onPress();
   assert.equal(navigation[0].params.questId, 'focus_protocol_v1');
@@ -1034,7 +1037,12 @@ test('world schema and reward events do not retain raw player GPS samples or hom
   const event = JSON.parse(h.sql.prepare('SELECT payload FROM verified_events WHERE id = ?').get(signal.id).payload);
   assert.equal(event.latitude, undefined); assert.equal(event.longitude, undefined);
   const tables = h.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(t => t.name);
-  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress', 'cloud_outbox'].sort());
+  assert.ok(['discovered_sectors', 'world_signals', 'verified_events'].every(name => tables.includes(name)));
+  for (const name of tables.filter(name => !['sqlite_sequence', 'world_signals'].includes(name))) {
+    const fields = h.sql.prepare(`PRAGMA table_info("${name}")`).all().map(column => column.name);
+    assert.ok(!fields.some(field => /^(latitude|longitude|lat|lon|gps_samples|raw_gps)$/i.test(field)),
+      `Raw GPS column in ${name}`);
+  }
 });
 function worldTrackingHarness(t, options = {}) {
   const load = loader({}); const { WorldTracking } = load('world/tracking');
@@ -1183,10 +1191,10 @@ test('legacy unversioned profile and verified history migrate without onboarding
   assert.equal(migrated.onboardingComplete, true); assert.equal(migrated.player.totalRealXp, 320);
   assert.equal(migrated.player.id, player.id); assert.equal(migrated.player.displayName, 'EXISTING');
   assert.ok(migrated.completedQuestIds.includes(evidence.questId));
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 6);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 9);
   assert.equal((await h.reload().loadSystemState()).player.totalRealXp, 320);
 });
-for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrades to 6 preserving World and profile', async t => {
+for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrades to 9 preserving World and profile', async t => {
   const h = databaseHarness(t); const w = await unlockWorld(h); await w.discoverSector(worldFix()); await w.scanSignal(worldFix());
   const before = await h.db.loadSystemState(); h.sql.exec('PRAGMA user_version = ' + version);
   if (version < 3) h.sql.prepare("DELETE FROM app_state WHERE key = 'onboarding_complete'").run();
@@ -1194,7 +1202,7 @@ for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrade
   const after = await h.reload().loadSystemState();
   assert.equal(after.onboardingComplete, true); assert.equal(after.player.totalRealXp, before.player.totalRealXp);
   assert.equal(after.player.discoveredSectors, 1); assert.ok((await h.reloadWorld().loadWorld()).signal);
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 6);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 9);
 });
 test('failed migration rolls back version and retries; future schema is not downgraded', async t => {
   const h = databaseHarness(t); h.faults.commit = true;
@@ -1427,7 +1435,19 @@ test('daily parallel claims + clear atomic once, restart stable, next day + stre
  let s=await h.db.loadSystemState(); assert.equal(s.daily.completed,3); assert.equal(s.daily.clear,true);assert.equal(s.player.streak,1);
  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM protocol_bonuses WHERE kind='daily_clear'").get().n,1);
  const total=first.player.totalRealXp+ids.reduce((n,id)=>n+h.load('quests/catalog').getQuest(id).rewards.realXp,0)+75;
- assert.equal(s.player.totalRealXp,total);
+ const progressionRewards = h.sql.prepare(
+   'SELECT claim_key,kind,reward_xp FROM progression_claims ORDER BY claim_key'
+ ).all();
+ console.log('XP DIAGNOSTICS', {
+   actual: s.player.totalRealXp,
+   expectedWithoutProgression: total,
+   difference: s.player.totalRealXp - total,
+   progressionRewards
+ });
+ assert.equal(
+   s.player.totalRealXp,
+   total + progressionRewards.reduce((sum, reward) => sum + reward.reward_xp, 0)
+ );
  await h.db.completeVerifiedQuest(dailyEvidence(h,ids[0]));assert.equal((await h.db.loadSystemState()).player.streak,1);
  h.clock.now+=86400000;s=await h.db.loadSystemState();assert.ok(s.daily.questIds.every(id=>!ids.includes(id)));
  for(const id of s.daily.questIds) await h.db.completeVerifiedQuest(dailyEvidence(h,id));
@@ -1466,9 +1486,11 @@ test('unassigned/stale daily and fabricated movement verdict cannot award',async
 });
 test('activity daily session shares watcher, keeps checkpoint in background and resumes to completion',async t=>{
  const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();await h.button('START MISSION').props.onPress();
+ await flush();assert.equal(h.starts(),1);assert.equal(h.status(),'STARTING');
  h.fix(0);h.render();h.fix(10);h.appState('background');h.render();assert.equal(h.removals(),1);assert.equal(h.awards(),0);
  await flush();assert.ok(h.checkpoint()?.distanceMeters>0);assert.equal(h.backgroundSession()?.mode,'BACKGROUND');
- h.appState('active');await flush();h.render();assert.equal(h.status(),'READY');await h.button('START MISSION').props.onPress();await flush();h.fix(10);h.render();
+ const savedDistance=h.checkpoint().distanceMeters;
+ h.appState('active');await flush();h.render();assert.equal(h.status(),'READY');assert.equal(h.distance(),savedDistance);await h.button('START MISSION').props.onPress();await flush();assert.equal(h.starts(),2);h.fix(10);h.render();assert.equal(h.status(),'TRACKING');
  for(let meters=17;meters<=1522;meters+=7) h.fix(meters);
  await flush();assert.equal(h.awards(),1, `status=${h.status()} distance=${h.distance()}`);assert.equal(h.removals(),2);
 });
@@ -1518,7 +1540,7 @@ test('genuine v3 migration adds tables without resetting profile or onboarding',
  h.sql.exec('DROP TABLE daily_instances; DROP TABLE daily_sets; DROP TABLE protocol_bonuses; PRAGMA user_version=3;');
  const before=h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value;
  const state=await h.reload().loadSystemState();assert.equal(state.player.displayName,'BETA');assert.equal(state.onboardingComplete,true);
- assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,6);
+ assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,9);
 });
 test('settings notification and preferences persist with backward compatible defaults',async t=>{
  const h=databaseHarness(t);await h.db.loadSystemState();await h.db.saveSettings({haptics:false,audio:true,activities:{walking:true,running:true,cycling:false},dailyReminder:true,reminderTime:'20:30'});
@@ -1710,7 +1732,7 @@ test('v4 migration preserves all existing data and recognizes old milestones wit
  const player=JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value);player.totalRealXp-=400;player.stats.RES.totalXp-=100;player.gameEnergy-=25;
  h.sql.prepare("UPDATE app_state SET value=? WHERE key='player'").run(JSON.stringify(player));h.sql.prepare('DELETE FROM chapter_completions WHERE chapter_id=?').run('world_link_chapter_2');
  const migrated=await h.reload().loadSystemState();assert.equal(migrated.player.totalRealXp,before.player.totalRealXp);assert.equal(migrated.player.totalDistanceMeters,before.player.totalDistanceMeters);assert.equal(migrated.story.chapters[0].status,'COMPLETED');assert.equal(migrated.story.worldLinkComplete,true);
- assert.equal((await h.reload().loadSystemState()).player.totalRealXp,before.player.totalRealXp);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,6);
+ assert.equal((await h.reload().loadSystemState()).player.totalRealXp,before.player.totalRealXp);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,9);
 });
 
 test('Extra Mile and base daily roll back together when story event fails',async t=>{
@@ -2013,6 +2035,8 @@ function integrationUI(context,extra={}) {
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0',android:{versionCode:1}}}},
   'expo-location':{},'expo-image-picker':{},
   '../identity/avatar':{persistAvatar:async()=>'',removeOwnedAvatar:()=>{}},
+  '../background/locationService':{requestBackgroundLocationAccess:async()=>true},
+  '../background/disclosure':{confirmBackgroundLocationDisclosure:async()=>true},
   '../state/SystemProvider':{useSystem:()=>context},...extra,
  });
  return {navigation,render(file){cursor=0;return load(file).default();},load};
@@ -2023,11 +2047,12 @@ test('real onboarding UI validates date, persists identity and skips onboarding 
  const ui=integrationUI({finishOnboarding:(name,birth)=>h.db.finishOnboarding(name,birth)});
  let tree;for(let i=0;i<3;i++){tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='DALEJ →').props.onPress();}
  tree=ui.render('screens/OnboardingScreen');const inputs=nodesOfType(tree,'TextInput');inputs[0].props.onChangeText('TESTER');inputs[1].props.onChangeText('2001-02-29');
- tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='ENTER SYSTEM').props.onPress();await flush();
+ tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='WEJDŹ DO SYSTEMU').props.onPress();await flush();
  assert.equal((await h.db.loadSystemState()).onboardingComplete,false);assert.equal(ui.navigation.length,0);
  tree=ui.render('screens/OnboardingScreen');assert.match(treeText(tree),/prawidłową datę/);
- nodesOfType(tree,'TextInput')[1].props.onChangeText('2000-09-18');tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='ENTER SYSTEM').props.onPress();await flush();await flush();
+ nodesOfType(tree,'TextInput')[1].props.onChangeText('2000-09-18');tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='WEJDŹ DO SYSTEMU').props.onPress();await flush();await flush();
  const saved=await h.reload().loadSystemState();assert.equal(saved.onboardingComplete,true);assert.equal(saved.player.displayName,'TESTER');assert.equal(saved.player.birthDate,'2000-09-18');
+ const restartedUI=integrationUI({...saved,ready:true});assert.equal(treeText(restartedUI.load('components/GameplayGate').default({children:'GAMEPLAY'})),'GAMEPLAY');assert.equal(restartedUI.navigation.length,0);
  assert.equal(ui.navigation[0],'/');assert.equal((await h.db.testerHealthCheck()).ok,true);
  await h.db.completeVerifiedQuest(evidence);await h.db.completeVerifiedQuest(focusEvidence);const restored=await h.reload().loadSystemState();
  assert.equal(restored.onboardingComplete,true);assert.equal(restored.player.birthDate,'2000-09-18');assert.equal(restored.player.totalRealXp,180);assert.equal(restored.player.realLevel,2);
@@ -2069,13 +2094,15 @@ test('quest list shows persisted FAILED, offers retry and de-duplicates Daily ca
  const ctx={...state,activeQuestId:null,daily:{...state.daily,questIds:[...state.daily.questIds,id]},refreshPlayer:async()=>{}};
  const ui=uiHarness(ctx),tree=ui.load('screens/QuestsScreen').default();assert.match(treeText(tree),/FAILED/);
  const q=h.load('quests/catalog').getQuest(id);assert.equal(findButtons(tree).filter(b=>treeText(b).includes(q.description)).length,1);
+ const retry=findButtons(tree).find(b=>b.props.accessibilityLabel===q.title+' — FAILED');assert.ok(retry);assert.equal(retry.props.disabled,false);retry.props.onPress();assert.equal(ui.navigation.at(-1).params.questId,id);
  assert.equal(await h.db.getQuestAccess(id),'AVAILABLE');
+ await h.db.beginQuestAttempt(id,'ui-retry');assert.equal((await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'ui-retry'})).awarded,true);
 });
-test('Android config has correct identity and foreground-only location plugin',()=>{
+test('Android config preserves published identity and active mission background location',()=>{
  const config=JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8')).expo;
- assert.equal(config.name,'SYSTEM');assert.equal(config.android.package,'com.system2.app');assert.ok(config.android.versionCode>=1);
- const location=config.plugins.find(p=>Array.isArray(p)&&p[0]==='expo-location')[1];assert.equal(location.isAndroidBackgroundLocationEnabled,false);assert.equal(location.isAndroidForegroundServiceEnabled,false);
- assert.ok(config.android.permissions.includes('android.permission.ACCESS_FINE_LOCATION'));assert.ok(!config.android.permissions.includes('android.permission.ACCESS_BACKGROUND_LOCATION'));
+ assert.equal(config.name,'SYSTEM');assert.equal(config.android.package,'pl.systemworld.app');assert.ok(config.android.versionCode>=1);
+ const location=config.plugins.find(p=>Array.isArray(p)&&p[0]==='expo-location')[1];assert.equal(location.isAndroidBackgroundLocationEnabled,true);assert.equal(location.isAndroidForegroundServiceEnabled,true);
+ for(const permission of ['ACCESS_FINE_LOCATION','ACCESS_BACKGROUND_LOCATION','FOREGROUND_SERVICE','FOREGROUND_SERVICE_LOCATION'])assert.ok(config.android.permissions.includes('android.permission.'+permission));
 });
 
 

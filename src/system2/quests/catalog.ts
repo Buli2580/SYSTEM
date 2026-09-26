@@ -8,13 +8,15 @@ import { FINAL_TRIAL_QUEST } from './finalTrial';
 import type { RunnableQuest, QuestEvidence, QuestAvailability } from './types';
 import { applyAIQuestPresentation } from '../ai/registry';
 
+import { generatedQuest } from '../generation/templates';
+
 export const AWAKENING_CHAPTER_ID = 'awakening_chapter_1';
 export const AWAKENING_REWARD_XP = 300;
 export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PROTOCOL_QUEST, FINAL_TRIAL_QUEST, ...BOSS_QUESTS];
 export const AWAKENING_QUESTS = QUESTS.filter(quest => quest.arc === 'AWAKENING' && quest.chapter === 1)
   .sort((a, b) => a.order - b.order);
 export function getQuest(id: string) {
-  const quest = QUESTS.find(candidate => candidate.id === id) ?? dailyQuest(id);
+  const quest = QUESTS.find(candidate => candidate.id === id) ?? generatedQuest(id) ?? dailyQuest(id);
   return quest ? applyAIQuestPresentation(quest) : undefined;
 }
 

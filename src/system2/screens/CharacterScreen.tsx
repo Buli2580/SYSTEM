@@ -7,6 +7,7 @@ import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import type { SkillKey } from '../core';
+import { titlePl } from '../i18n/pl';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 import CharacterProgressPanel from '../components/CharacterProgressPanel';
 
