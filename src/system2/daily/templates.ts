@@ -24,10 +24,14 @@ export function dailyQuest(id: string): RunnableQuest | undefined {
  const t = match && DAILY_TEMPLATES.find(q => q.id === match[2]);
  return t ? { ...t, id, templateId: t.id, dayKey: match![1] } : undefined;
 }
-export function generateDaily(playerId: string, day: string, prefs: ActivityPreferences, count = 3) {
+export function generateDaily(playerId: string, day: string, prefs: ActivityPreferences, count = 3, preferredTypes: readonly string[] = []) {
  const movement = DAILY_TEMPLATES.filter(q => q.activityType && ({ WALK: prefs.walking, RUN: prefs.running, BIKE: prefs.cycling })[q.activityType as 'WALK' | 'RUN' | 'BIKE']);
  const slots = Math.max(1, Math.min(5, Math.floor(count)));
  const movementCount = movement.length ? 1 : 0;
- const selected = [...deterministicPick(movement, playerId + day, movementCount), ...deterministicPick(DAILY_TEMPLATES.filter(q => !q.activityType), day + playerId, slots - movementCount)];
+ const ordered = (quests: RunnableQuest[]) => [...quests].sort((a,b) => {
+  const ai=preferredTypes.indexOf(a.id), bi=preferredTypes.indexOf(b.id);
+  return (ai<0?Number.MAX_SAFE_INTEGER:ai)-(bi<0?Number.MAX_SAFE_INTEGER:bi);
+ });
+ const selected = [...deterministicPick(ordered(movement), playerId + day, movementCount), ...deterministicPick(ordered(DAILY_TEMPLATES.filter(q => !q.activityType)), day + playerId, slots - movementCount)];
  return selected.map(q => dailyQuest(`daily:${day}:${q.id}`)!);
 }
