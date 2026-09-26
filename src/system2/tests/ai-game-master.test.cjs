@@ -103,6 +103,7 @@ test('difficulty only considers the four most recent quest outcomes', () => {
 test('AI context prioritizes active goals and preserves planning metadata', () => {
   const { buildAIGameMasterContext } = loader()('ai/runtime');
   const snapshot = {
+    settings: {},
     player: { realLevel: 4, rank: 'E', streak: 2 }, systemDebt: 0, recentActivity: [],
     goals: [
       { id: 'low', title: 'Czytaj', description: 'Czytaj regularnie', target: '12 książek', targetDate: '2026-12-31', priority: 1, status: 'ACTIVE' },
@@ -147,6 +148,7 @@ test('AI context minimizes personal data and local identifiers', () => {
   player.realXp = 777;
   player.gameEnergy = 555;
   const snapshot = {
+    settings: {},
     player,
     systemDebt: 1,
     goals: [{

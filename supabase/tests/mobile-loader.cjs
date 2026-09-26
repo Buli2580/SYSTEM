@@ -6,6 +6,7 @@ const ts = require('typescript');
 // Execute actual mobile logic; mock only native/network boundaries.
 module.exports = function mobileLoader(mocks = {}) {
   const cache = new Map();
+  const storage = new Map();
   function load(file) {
     const resolved = [file, file + '.ts', path.join(file, 'index.ts')]
       .find(p => fs.existsSync(p) && fs.statSync(p).isFile());
@@ -18,6 +19,11 @@ module.exports = function mobileLoader(mocks = {}) {
     vm.runInNewContext(code, { module, exports: module.exports, console,
       require(name) {
         if (Object.hasOwn(mocks, name)) return mocks[name];
+        if (name === '@react-native-async-storage/async-storage') return {
+          getItem: async key => storage.get(key) ?? null,
+          setItem: async (key, value) => { storage.set(key, value); },
+          removeItem: async key => { storage.delete(key); },
+        };
         if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
         throw new Error('Unexpected dependency: ' + name);
       },

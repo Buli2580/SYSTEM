@@ -25,16 +25,22 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText;
     const requireMock = name => {
+      if (name === 'react' && mocks.react) return {
+        createContext: value => ({ value }), useContext: context => context.value,
+        useMemo: fn => fn(), useRef: value => ({ current: value }), ...mocks.react,
+      };
       if (Object.hasOwn(mocks, name)) return mocks[name];
       if (name === 'react-native-reanimated') {
         const transition = { duration() { return this; }, delay() { return this; }, springify() { return this; } };
         return { default: { View: 'View', Text: 'Text' }, View: 'View', Text: 'Text',
-          FadeInUp: transition, FadeIn: transition, FadeOut: transition,
+          FadeInUp: transition, FadeIn: transition, FadeOut: transition, ZoomIn: transition, ZoomOut: transition,
           Easing: { inOut: x => x, ease: x => x, linear: x => x },
           useSharedValue: value => ({ value }), useAnimatedStyle: fn => fn(),
           withTiming: value => value, withRepeat: value => value, withSequence: (...v) => v.at(-1),
           cancelAnimation() {}, interpolate: (v, input, output) => output[0] };
       }
+      if (/\.(?:mp3|wav)$/i.test(name)) return name;
+      if (name === 'expo-audio') return {createAudioPlayer:()=>({volume:0,loop:false,play(){},remove(){}})};
       if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
       throw new Error('Unexpected dependency: ' + name);
     };
@@ -306,9 +312,10 @@ test('recommendation respects Awakening, active quest, goals, weekly and complet
 test('goal form creates and completes a persisted goal through the real provider API boundary',async t=>{
  const h=databaseHarness(t);const ctx=await h.db.loadSystemState();
  ctx.createPlayerGoal=async input=>Object.assign(ctx,await h.db.createPlayerGoal(input));ctx.updateGoalStatus=async(id,status)=>Object.assign(ctx,await h.db.updateGoalStatus(id,status));
+ ctx.createFirstGoalAndPrepareAwakening=ctx.createPlayerGoal;
  const ui=integrationUI(ctx);let tree=ui.render('screens/GoalsScreen');
  nodesOfType(tree,'TextInput').find(n=>n.props.accessibilityLabel==='Tytuł celu').props.onChangeText('Mały cel');
- tree=ui.render('screens/GoalsScreen');findButtons(tree).find(b=>treeText(b)==='DODAJ CEL').props.onPress();await flush();
+ tree=ui.render('screens/GoalsScreen');findButtons(tree).find(b=>treeText(b)==='UTWÓRZ ŚCIEŻKĘ →').props.onPress();await flush();
  tree=ui.render('screens/GoalsScreen');assert.match(treeText(tree),/Mały cel/);assert.equal(ctx.goals.length,1);
  findButtons(tree).find(b=>treeText(b)==='CEL OSIĄGNIĘTY · BEZ XP').props.onPress();await flush();
  assert.equal((await h.reload().loadSystemState()).goals[0].status,'COMPLETED');assert.equal(ctx.player.totalRealXp,0);

@@ -12,6 +12,7 @@ const ts = require(require.resolve('typescript', { paths: [root, process.cwd()] 
 // Live GPS fixtures use wall time; freeze time only when a test explicitly injects a clock.
 function loader(mocks, clock = { get now() { return Date.now(); } }) {
   const cache = new Map();
+  const asyncStorage = new Map();
   function load(file) {
     const resolved = [file, file + '.ts', file + '.tsx', path.join(file, 'index.ts')]
       .find(p => fs.existsSync(p) && fs.statSync(p).isFile());
@@ -23,12 +24,26 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText;
     const requireMock = name => {
+      if (name === 'react' && mocks.react) return {
+        createContext: value => ({ value }), useContext: context => context.value,
+        useMemo: fn => fn(), useRef: value => ({ current: value }), ...mocks.react,
+      };
       if (Object.hasOwn(mocks, name)) return mocks[name];
+      if (name === 'expo-image-picker') return {};
+      if (name === '@react-native-async-storage/async-storage') return {
+        getItem: async key => asyncStorage.get(key) ?? null,
+        setItem: async (key, value) => { asyncStorage.set(key, value); },
+        removeItem: async key => { asyncStorage.delete(key); },
+      };
+      if (name === 'expo-file-system') return {
+        Paths: { cache: 'file:///cache/' },
+        Directory: class { constructor() { this.uri = 'file:///cache/system2-private-quest-photos'; this.exists = false; } },
+      };
       // Native scheduling is outside Node; keep rendering the real components.
       if (name === 'react-native-reanimated') {
         const transition = { duration() { return this; }, delay() { return this; }, springify() { return this; } };
         return { default: { View: 'View', Text: 'Text' }, View: 'View', Text: 'Text',
-          FadeInUp: transition, FadeIn: transition, FadeOut: transition, ZoomIn: transition, ZoomOut: transition,
+          FadeInUp: transition, FadeInDown: transition, FadeIn: transition, FadeOut: transition, ZoomIn: transition, ZoomOut: transition,
           Easing: { inOut: x => x, ease: x => x, linear: x => x },
           useSharedValue: value => ({ value }), useAnimatedStyle: fn => fn(),
           withTiming: value => value, withRepeat: value => value, withSequence: (...v) => v.at(-1),
@@ -41,7 +56,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       throw new Error('Unexpected dependency: ' + name);
     };
     vm.runInNewContext(source, {
-      module, exports: module.exports, require: requireMock, console, Error, __DEV__: mocks.__DEV__ ?? false,
+      module, exports: module.exports, require: requireMock, console, Error, process: { env: {} }, __DEV__: mocks.__DEV__ ?? false,
       setTimeout, clearTimeout,
       setInterval: clock.intervals ? fn => { const id = {}; clock.intervals.set(id, fn); return id; } : setInterval,
       clearInterval: clock.intervals ? id => clock.intervals.delete(id) : clearInterval,
@@ -289,7 +304,7 @@ function screenHarness(t, options = {}) {
   let cursor = 0;
   let pending = [];
   let tree;
-  let focusCleanup;
+  const focusCleanups = new Set();
   let callback;
   let gpsError;
   let appStateListener;
@@ -360,8 +375,21 @@ function screenHarness(t, options = {}) {
       Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s },
     },
     'expo-router': {
-      useRouter: () => ({ back() { focusCleanup?.(); } }),
-      useFocusEffect(fn) { react.useEffect(() => { focusCleanup = fn(); return focusCleanup; }, [fn]); },
+      useRouter: () => ({ back() { [...focusCleanups].forEach(cleanup => cleanup()); } }),
+      useFocusEffect(fn) {
+        react.useEffect(() => {
+          const dispose = fn();
+          let active = true;
+          const cleanup = () => {
+            if (!active) return;
+            active = false;
+            focusCleanups.delete(cleanup);
+            dispose?.();
+          };
+          focusCleanups.add(cleanup);
+          return cleanup;
+        }, [fn]);
+      },
     },
     'expo-haptics': {
       ImpactFeedbackStyle: { Medium: 1 }, NotificationFeedbackType: { Success: 1 },
@@ -428,7 +456,7 @@ function screenHarness(t, options = {}) {
     if (arguments.length < 2) node = tree;
     if (Array.isArray(node)) return node.map(n => button(label, n)).find(Boolean);
     if (!node || typeof node !== 'object') return undefined;
-    if (typeof node.type === 'function' && node.type.name === 'MissionBriefing') return button(label, node.type(node.props));
+    if (typeof node.type === 'function' && ['MissionBriefing', 'QuestRecoveryPanel'].includes(node.type.name)) return button(label, node.type(node.props));
     if (node.type === 'Pressable' && text(node).includes(label)) return node;
     return button(label, node.props?.children ?? null);
   }
@@ -440,7 +468,7 @@ function screenHarness(t, options = {}) {
     distance: () => slots[2].value,
     starts: () => starts, removals: () => removals, awards: () => awards, endedAttempts: () => endedAttempts, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
     disclosureCount: () => disclosureCount, backgroundPermissionRequests: () => backgroundPermissionRequests,
-    leave: () => focusCleanup?.(),
+    leave: () => [...focusCleanups].forEach(cleanup => cleanup()),
     error: () => gpsError('GPS failed'),
     appState: state => { appState.currentState = state; appStateListener?.(state); },
     advance(seconds) {
@@ -556,7 +584,7 @@ test('already granted background location skips repeated disclosure', async t =>
   assert.equal(h.backgroundPermissionRequests(), 1);
 });
 
-test('permission dialog and transient AppState before GPS subscription do not stop STARTING', async t => {
+test('permission dialog preserves startup; backgrounding after session creation safely hands off', async t => {
   const permission = deferred();
   const watch = deferred();
   const h = screenHarness(t, { permission, watch });
@@ -578,6 +606,15 @@ test('permission dialog and transient AppState before GPS subscription do not st
   h.appState('active');
   watch.resolve();
   await start; await flush();
+  assert.equal(h.status(), 'READY');
+  assert.equal(h.removals(), 1, 'the late foreground watcher is released after background handoff');
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
+  h.render();
+  const resume = h.button('ROZPOCZNIJ MISJĘ');
+  assert.ok(resume, 'a mission with no recorded distance can be started again after returning');
+  await resume.props.onPress();
+  await flush();
+  h.fix(0);
   assert.equal(h.status(), 'TRACKING');
   assert.equal(h.awards(), 0);
 });
@@ -1023,7 +1060,7 @@ function uiHarness(context = {}) {
   const navigation = [];
   const jsx = (type, props) => typeof type === 'function' ? type(props) : ({ type, props });
   const load = loader({
-    'react': { useState: value => [value, () => {}], useCallback: fn => fn, useEffect: () => {} },
+    'react': { useState: value => [typeof value === 'function' ? value() : value, () => {}], useCallback: fn => fn, useEffect: () => {} },
     '../components/world/WorldMap': { __esModule: true, default: 'WorldMap' },
     '../components/world/DiscoveryToast': { __esModule: true, default: 'DiscoveryToast' },
     '../world/useWorldTracking': { useWorldTracking: () => ({ status: 'PAUSED', sectorIds: [], signal: null, fix: null }) },
@@ -1538,7 +1575,7 @@ for (const [name, expected, patch, sensors, verdict, detected] of [
  ['bike 15 kmh as run','RUN',{ medianSpeedMps:15/3.6,speedVariance:.01 },{},'SUSPICIOUS','UNKNOWN'],
  ['slow car','RUN',{ medianSpeedMps:4,speedVariance:.02 },{},'SUSPICIOUS','UNKNOWN'],
  ['stationary phone fake GPS','RUN',{}, {motion:'STILL'},'REJECTED','RUN'],
- ['run single spike','RUN',{teleportCount:1,rejectedSamples:1},{},'VERIFIED','RUN'],
+ ['run single spike requires review','RUN',{teleportCount:1,rejectedSamples:1},{},'SUSPICIOUS','RUN'],
  ['run short stop','RUN',{stops:1,stationarySeconds:10},{},'VERIFIED','RUN'],
  ['run walk intervals','RUN',{stops:3,speedVariance:1.2,medianSpeedMps:2.8},{steps:1400,cadence:140},'VERIFIED','RUN'],
 ]) test('activity classifier: ' + name, () => {
@@ -2207,6 +2244,7 @@ for(const [label,birth,today,expected] of [
  if(expected===null)assert.throws(()=>age.validateBirthDate(birth,new Date(...today)));
 });
 function integrationUI(context,extra={}) {
+ Object.assign(context,{...startupFixture(),achievementState:{achievements:{},titles:{titles:{},activeTitleId:null}},...context});
  const slots=[];let cursor=0;const navigation=[];
  const react={useState(initial){const i=cursor++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return [slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v;}];},
  useRef(initial){const i=cursor++;return slots[i]??(slots[i]={current:initial});},useCallback:fn=>fn,useMemo:fn=>fn(),useEffect:()=>{}};
@@ -2219,6 +2257,7 @@ function integrationUI(context,extra={}) {
   '../components/SystemPage':{__esModule:true,default:'SystemPage',pageStyles:{}},
   '../background/locationService':{requestBackgroundLocationAccess:async()=>true},
   '../components/BetaSettings':{__esModule:true,default:'BetaSettings'},
+  '../components/SystemBootSequence':{__esModule:true,default:'SystemBootSequence'},
   '../components/IdentityAvatar':{__esModule:true,default:'IdentityAvatar'},
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0',android:{versionCode:1}}}},
   'expo-location':{},'expo-image-picker':{},
@@ -2230,15 +2269,16 @@ function integrationUI(context,extra={}) {
 function nodesOfType(tree,type){if(Array.isArray(tree))return tree.flatMap(n=>nodesOfType(n,type));if(!tree||typeof tree!=='object')return [];return [...(tree.type===type?[tree]:[]),...nodesOfType(tree.props?.children,type)];}
 test('real onboarding UI validates date, persists identity and skips onboarding after restart',async t=>{
  const clock={now:new Date(2026,8,18,10).getTime()},h=databaseHarness(t,clock);await h.db.loadSystemState();
- const ui=integrationUI({finishOnboarding:(name,birth)=>h.db.finishOnboarding(name,birth)});
- let tree;for(let i=0;i<3;i++){tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='DALEJ →').props.onPress();}
+ const ui=integrationUI({finishOnboarding:(name,birth)=>h.db.finishOnboarding(name,birth),saveSettings:patch=>h.db.saveSettings(patch)});
+ let tree=ui.render('screens/OnboardingScreen');nodesOfType(tree,'SystemBootSequence')[0].props.onComplete();
+ for(let i=0;i<5;i++){tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='DALEJ →').props.onPress();}
  tree=ui.render('screens/OnboardingScreen');const inputs=nodesOfType(tree,'TextInput');inputs[0].props.onChangeText('TESTER');inputs[1].props.onChangeText('2001-02-29');
- tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='WEJDŹ DO SYSTEMU').props.onPress();await flush();
+ tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='UTWÓRZ POSTAĆ →').props.onPress();await flush();
  assert.equal((await h.db.loadSystemState()).onboardingComplete,false);assert.equal(ui.navigation.length,0);
  tree=ui.render('screens/OnboardingScreen');assert.match(treeText(tree),/prawidłową datę/);
- nodesOfType(tree,'TextInput')[1].props.onChangeText('2000-09-18');tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='WEJDŹ DO SYSTEMU').props.onPress();await flush();await flush();
+ nodesOfType(tree,'TextInput')[1].props.onChangeText('2000-09-18');tree=ui.render('screens/OnboardingScreen');findButtons(tree).find(b=>treeText(b)==='UTWÓRZ POSTAĆ →').props.onPress();await flush();await flush();
  const saved=await h.reload().loadSystemState();assert.equal(saved.onboardingComplete,true);assert.equal(saved.player.displayName,'TESTER');assert.equal(saved.player.birthDate,'2000-09-18');
- assert.equal(ui.navigation[0],'/');assert.equal((await h.db.testerHealthCheck()).ok,true);
+ assert.equal(ui.navigation[0],'/goals');assert.equal((await h.db.testerHealthCheck()).ok,true);
  await h.db.completeVerifiedQuest(evidence);await h.db.completeVerifiedQuest(focusEvidence);const restored=await h.reload().loadSystemState();
  assert.equal(restored.onboardingComplete,true);assert.equal(restored.player.birthDate,'2000-09-18');assert.equal(restored.player.totalRealXp,180);assert.equal(restored.player.realLevel,2);
  const log=await h.db.loadSystemLog();assert.ok(log.some(e=>e.levelAfter>e.levelBefore));assert.ok(log.every(e=>!('birthDate' in e)));

@@ -12,7 +12,13 @@ function load(relative) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(source, { module, exports: module.exports, require, console, Set, Math, JSON });
+  const requireModule = name => {
+    if (/\.(mp3|wav)$/.test(name)) return name;
+    if (name === 'expo-audio') return { createAudioPlayer() { throw new Error('Audio should remain disabled'); } };
+    if (name.startsWith('.')) return load(path.relative(path.join(root, 'src/system2'), path.resolve(path.dirname(file), name)));
+    return require(name);
+  };
+  vm.runInNewContext(source, { module, exports: module.exports, require: requireModule, console, Set, Math, JSON, setTimeout, clearTimeout, setInterval, clearInterval });
   return module.exports;
 }
 

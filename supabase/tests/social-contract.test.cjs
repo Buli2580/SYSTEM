@@ -32,9 +32,10 @@ test('guild rows map snake_case database columns into the mobile domain', async 
 });
 
 test('raid and season rows map database timestamps and boss fields correctly', async () => {
-  const raid = api([{ id:'r1', title:'Wall', boss_hp:'1000', damage:'125', starts_at:'2026-09-22T00:00:00Z', ends_at:'2026-09-23T00:00:00Z', status:'ACTIVE' }]);
+  const raid = api([{ id:'r1', title:'Wall', boss_hp:'1000', damage:'125', starts_at:'2026-09-22T00:00:00Z', ends_at:'2026-09-23T00:00:00Z', status:'ACTIVE', participant_count:'2', my_damage:'25', my_event_count:'1', my_rank:'2' }]);
   const raids = await raid.load('cloud/raids').getActiveRaids();
   assert.equal(raids[0].bossHp,1000); assert.equal(raids[0].damage,125); assert.equal(raids[0].startsAt,'2026-09-22T00:00:00Z');
+  assert.equal(raids[0].participantCount,2); assert.equal(raids[0].myDamage,25); assert.equal(raids[0].myEventCount,1); assert.equal(raids[0].myRank,2);
 
   const season = api([{ id:'s1', name:'Origin', starts_at:'2026-09-01T00:00:00Z', ends_at:'2026-10-01T00:00:00Z' }]);
   const current = await season.load('cloud/seasons').getCurrentSeason();
