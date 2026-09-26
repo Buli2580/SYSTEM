@@ -39,3 +39,14 @@ test('short available time caps load and malformed model is normalized',()=>{
  assert.equal(model.lifeState,'NORMAL');
  assert.equal(plan.dailyCount,1);
 });
+
+test('rerolls prevent premature difficulty escalation',()=>{
+ let model=newUserModel(now);
+ for(let i=0;i<5;i++)model=recordOutcome(model,{id:'c'+i,questType:'focus_session',difficulty:2,outcome:'COMPLETE',at:now});
+ model=recordOutcome(model,{id:'r1',questType:'focus_session',difficulty:2,outcome:'REROLL',at:now});
+ assert.equal(planAdaptiveDay(model,now).difficulty,2);
+});
+test('same day loadout does not exceed available minutes',()=>{
+ const model=normalizeUserModel({availableMinutes:12,lifeState:'NORMAL'});
+ assert.equal(planAdaptiveDay(model,now).dailyCount,1);
+});
