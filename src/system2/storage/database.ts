@@ -242,7 +242,7 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
       const lootSource:LootSource=quest.category==='BOSS'?'BOSS':quest.category==='WEEKLY'?'WEEKLY':quest.category==='WORLD'?'WORLD':quest.category==='DAILY'?'DAILY':'QUEST';
       const loot=createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:(await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))?.value?JSON.parse((await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'"))!.value).path:undefined,now});
       await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)', loot.id, JSON.stringify(loot), now);
-      await recordAdaptiveOutcome(txn,{id:event.id,questType:quest.category,difficulty:2,outcome:'COMPLETE',at:now,minutes:evidence.durationSeconds/60});
+      await recordAdaptiveOutcome(txn,{id:event.id,questType:quest.templateId??quest.id,difficulty:2,outcome:'COMPLETE',at:now,minutes:evidence.durationSeconds/60});
       const snapshot = await snapshotInTransaction(txn);
       result = { awarded: true, ...snapshot, loot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
@@ -423,7 +423,7 @@ export function endQuestAttempt(attemptId:string,result:Exclude<AttemptResult,'C
    const changed=await txn.runAsync('UPDATE quest_attempts SET ended_at=?,result=?,reason=?,duration=?,distance=?,eligible=? WHERE attempt_id=? AND result IS NULL',new Date(Date.now()).toISOString(),result,reason,duration,distance,eligible?1:0,attemptId);
    if(changed.changes){
      const attempt=await txn.getFirstAsync<{quest_id:string;kind:string}>('SELECT quest_id,kind FROM quest_attempts WHERE attempt_id=?',attemptId);
-     if(attempt)await recordAdaptiveOutcome(txn,{id:'attempt:'+attemptId,questType:attempt.kind,difficulty:2,outcome:result==='REJECTED'?'REROLL':'FAILED',at:new Date().toISOString(),minutes:duration/60});
+     if(attempt)await recordAdaptiveOutcome(txn,{id:'attempt:'+attemptId,questType:getQuest(attempt.quest_id)?.templateId??attempt.quest_id,difficulty:2,outcome:result==='REJECTED'?'REROLL':'FAILED',at:new Date().toISOString(),minutes:duration/60});
      if(eligible)await storyEvent(txn,'rematch_available:'+attemptId,'REMATCH_AVAILABLE','REMATCH AVAILABLE');
    }
  });
