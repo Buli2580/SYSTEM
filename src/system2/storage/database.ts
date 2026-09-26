@@ -12,8 +12,8 @@ import { migrateDatabase } from './migrations';
 import { normalizePlayer } from '../core/progression';
 import { earnedTitles, systemName, parseSettings, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
-import { rewardItem, equipItem, type InventoryItem } from '../core/inventory';
-import type { SocialMode, SocialSession } from '../core/social';
+import { createLoot, equipItem, unequipItem, type InventoryItem, type LootSource } from '../core/inventory';
+import { type SocialHistoryEntry, type SocialMode, type SocialSession } from '../core/social';
 import { parseEvent } from '../identity/history';
 
 import {
@@ -199,6 +199,20 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         result = { awarded: false, ...await snapshotInTransaction(txn) };
         return;
       }
+      if (evidence.attemptId) {
+        const attempt = await txn.getFirstAsync<{quest_id:string;result:string|null;started_at:string}>(
+          'SELECT quest_id,result,started_at FROM quest_attempts WHERE attempt_id=?', evidence.attemptId
+        );
+        if (!attempt || attempt.quest_id !== quest.id || attempt.result !== null) {
+          throw new Error('Próba misji nie jest aktywna lub należy do innego questa.');
+        }
+        const elapsed = Date.now() - Date.parse(attempt.started_at);
+        if (!Number.isFinite(elapsed) || elapsed < 0 || evidence.durationSeconds * 1000 > elapsed + 15000) {
+          throw new Error('Czas aktywności nie zgadza się z rozpoczętą próbą.');
+        }
+        // completeStoryActivity closes the attempt after evaluating prior failures
+        // for Hidden/Rematch rewards, in the same SQLite transaction.
+      }
       if (!prerequisitesCompleted(quest, await completedQuestIds(txn))) {
         throw new Error('Ta misja jest zablokowana. Ukończ poprzednie questy Awakening.');
       }
@@ -237,8 +251,18 @@ export function completeVerifiedQuest(input: CompleteQuestInput): Promise<Comple
         'INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?)',
         event.id, quest.id, JSON.stringify(event), now
       );
-      const loot = rewardItem(quest.id, next.realLevel, quest.category === 'BOSS');
-      await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?) ON CONFLICT(id) DO NOTHING', loot.id, JSON.stringify(loot), now);
+      const lootSource:LootSource=quest.category==='BOSS'?'BOSS':quest.category==='WEEKLY'?'WEEKLY':quest.category==='WORLD'?'WORLD':quest.category==='DAILY'?'DAILY':'QUEST';
+      const lootPathRow = await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'");
+      const lootPath = lootPathRow?.value ? JSON.parse(lootPathRow.value).path : undefined;
+      // Replayed or repeatable quests may already have their first loot item.
+      // Allocate the next free instance inside the same reward transaction.
+      let lootInstance = 0;
+      let loot = createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:lootPath,now,instance:lootInstance});
+      while (await txn.getFirstAsync<{id:string}>('SELECT id FROM inventory_items WHERE id = ?',loot.id)) {
+        lootInstance++;
+        loot = createLoot({rewardKey:'quest:'+quest.id,level:next.realLevel,source:lootSource,path:lootPath,now,instance:lootInstance});
+      }
+      await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)', loot.id, JSON.stringify(loot), now);
       const snapshot = await snapshotInTransaction(txn);
       result = { awarded: true, ...snapshot, loot, receipt: rewardReceipt(event.id, player, snapshot.player,
         snapshot.awakeningAwarded ? ['AWAKENED'] : [], snapshot.awakeningAwarded) };
@@ -338,7 +362,7 @@ export function loadSystemLog(): Promise<VerifiedEvent[]> {
 export function resetSystemData(confirmed: true) {
   if (confirmed !== true) return Promise.reject(new Error('Reset wymaga potwierdzenia.'));
   return profileTransaction(async txn => {
-    for (const table of ['inventory_items', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['social_history', 'reward_claims', 'inventory_items', 'quest_attempts', 'story_events', 'story_progress', 'boss_progress', 'daily_instances', 'daily_sets', 'protocol_bonuses', 'verified_events', 'quest_completions', 'chapter_completions', 'discovered_sectors', 'world_signals', 'app_state']) await txn.runAsync(`DELETE FROM ${table}`);
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'player', JSON.stringify(createNewPlayer()));
     await txn.runAsync('INSERT INTO app_state(key, value) VALUES (?, ?)', 'onboarding_complete', 'false');
     // A durable cleanup marker lets a failed file deletion resume on next startup.
@@ -434,6 +458,14 @@ export function startBossProtocol() {
 }
 
 export function loadInventory(): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); return rows.map(r=>JSON.parse(r.payload) as InventoryItem); }); }
-export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem); if(!items.some(i=>i.id===id)) throw new Error('Przedmiot nie istnieje.'); const next=equipItem(items,id); for(const item of next) await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id); return next; }); }
+export function equipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const player=await readPlayer(txn);const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id'); const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem); if(!items.some(i=>i.id===id)) throw new Error('Przedmiot nie istnieje.'); const next=equipItem(items,id,player.realLevel); for(const item of next) await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id); return next; }); }
+export function unequipInventoryItem(id:string): Promise<InventoryItem[]> { return profileTransaction(async txn => { const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id');const items=rows.map(r=>JSON.parse(r.payload) as InventoryItem);const next=unequipItem(items,id);for(const item of next)await txn.runAsync('UPDATE inventory_items SET payload=? WHERE id=?',JSON.stringify(item),item.id);return next;});}
+export function loadLootHistory(limit=50):Promise<InventoryItem[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id LIMIT ?',Math.max(1,Math.min(200,limit)));return rows.map(r=>JSON.parse(r.payload) as InventoryItem);});}
+export function loadSocialHistory():Promise<SocialHistoryEntry[]>{return profileTransaction(async txn=>{const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM social_history ORDER BY completed_at DESC,session_id LIMIT 100');return rows.map(r=>JSON.parse(r.payload) as SocialHistoryEntry);});}
+export function claimCompletedSocialSession(_session:SocialSession):Promise<{session:SocialSession;loot:InventoryItem|null;xpAwarded:number;achievements:string[]}>{
+ // Client-side session state is not proof of a real multiplayer result.
+ // Fail closed until a server-issued, independently verified reward receipt exists.
+ return Promise.reject(new Error('Nagrody Social wymagają weryfikacji serwera online. Lokalna sesja nie przyznaje XP ani przedmiotów.'));
+}
 
 export function setGuardianApproval(status:'PENDING'|'APPROVED'|'REJECTED') { return profileTransaction(async txn=>{ const value={status,updatedAt:new Date().toISOString()}; await txn.runAsync("INSERT INTO app_state(key,value) VALUES ('guardian_approval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(value)); return snapshotInTransaction(txn); }); }

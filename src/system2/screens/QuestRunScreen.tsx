@@ -68,7 +68,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     startInProgressRef.current = true;
     setStartInProgress(true);
     setQuestAccepted(true);
-    void startQuest()
+    return startQuest()
       .catch(() => undefined)
       .finally(() => {
         startInProgressRef.current = false;
@@ -282,7 +282,7 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
             </View>
           )}
 
-        </View>}
+        </Animated.View>}
 
         {(renderStatus === 'CHECKING' || renderStatus === 'STARTING') && (
           <View style={styles.trackingBox}>
@@ -535,6 +535,11 @@ const styles =
       marginLeft: 7,
     },
 
+    activeQuestStage: { padding: 16, borderWidth: 1, borderColor: SYSTEM_COLORS.lineBright, borderRadius: 16, marginBottom: 14 },
+    activeQuestCode: { color: SYSTEM_COLORS.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 2 },
+    activeQuestTitle: { color: SYSTEM_COLORS.white, fontSize: 18, fontWeight: '900', marginTop: 8 },
+    activeQuestPulse: { position: 'absolute', right: 18, top: 18, width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: SYSTEM_COLORS.cyan, alignItems: 'center', justifyContent: 'center' },
+    activeQuestPulseCore: { width: 6, height: 6, borderRadius: 3, backgroundColor: SYSTEM_COLORS.cyan },
     progressTrack: {
       height: 8,
       backgroundColor:

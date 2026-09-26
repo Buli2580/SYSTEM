@@ -141,7 +141,7 @@ export default function SystemHomeScreen() {
   const { width, height } = useWindowDimensions();
   const {
     player, ready, completedQuestIds, awakeningCompleted, worldUnlocked,
-    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, recentAttempts, settings,
+    activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, recentAttempts, settings, latestRaidVictory, socialSignal,
   } = useSystem();
 
   const autoPerformanceMode: 'LOW'|'MEDIUM'|'HIGH' = width < 370 || height < 700 ? 'LOW' : width < 430 || height < 800 ? 'MEDIUM' : 'HIGH';
@@ -149,7 +149,7 @@ export default function SystemHomeScreen() {
   const reduced = performanceMode === 'LOW';
   const bossActive = !story?.bossComplete && awakeningCompleted;
   const sceneMode: 'HOME' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY' =
-    lastReward ? 'VICTORY' :
+    lastReward || latestRaidVictory ? 'VICTORY' :
     activeQuestId ? 'QUEST' :
     bossActive ? 'BOSS' :
     !awakeningCompleted ? 'AWAKENING' : 'HOME';
@@ -157,7 +157,7 @@ export default function SystemHomeScreen() {
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story, awakeningCompleted);
-  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts});
+  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts,socialSignal});
   const progress = awakeningCompleted ? objective.completed : awakening.completed;
   const total = awakeningCompleted ? objective.total : awakening.total;
   const percent = total ? Math.min(100, progress / total * 100) : 0;
@@ -188,14 +188,14 @@ export default function SystemHomeScreen() {
   return <SystemScreen style={styles.root}>
     <View style={styles.scene}>
       <WorldScene reduced={reduced} bossActive={bossActive} mode={sceneMode} />
-      {sceneMode==='VICTORY' && lastReward && <View pointerEvents="none" style={styles.victoryBanner}>
-        <Text style={styles.victoryEyebrow}>QUEST COMPLETE // VERIFIED</Text>
+      {sceneMode==='VICTORY' && (lastReward || latestRaidVictory) && <View pointerEvents="none" style={styles.victoryBanner}>
+        <Text style={styles.victoryEyebrow}>{lastReward?'QUEST COMPLETE // VERIFIED':'RAID BOSS DEFEATED // VERIFIED'}</Text>
         <Text style={styles.victoryTitle}>VICTORY</Text>
-        <Text style={styles.victoryReward}>+{lastReward.realXp} XP{lastReward.skillLevels.length ? ` · ${lastReward.skillLevels.length} SKILL UP` : ''}</Text>
-        {lastReward.afterLevel>lastReward.beforeLevel && <Text style={styles.victoryEvolution}>LEVEL {lastReward.beforeLevel} → {lastReward.afterLevel}</Text>}
-        {lastReward.afterRank!==lastReward.beforeRank && <Text style={styles.victoryEvolution}>RANK {lastReward.beforeRank} → {lastReward.afterRank}</Text>}
-        {!!lastReward.newTitles.length && <Text style={styles.victoryEvolution}>NEW TITLE // {lastReward.newTitles[0]}</Text>}
-        {lastReward.worldUnlocked && <Text style={styles.victoryEvolution}>WORLD GATE // UNLOCKED</Text>}
+        <Text style={styles.victoryReward}>+{lastReward?.realXp ?? latestRaidVictory?.reward?.xp ?? 0} XP</Text>
+        {lastReward && lastReward.afterLevel>lastReward.beforeLevel && <Text style={styles.victoryEvolution}>LEVEL {lastReward.beforeLevel} → {lastReward.afterLevel}</Text>}
+        {lastReward && lastReward.afterRank!==lastReward.beforeRank && <Text style={styles.victoryEvolution}>RANK {lastReward.beforeRank} → {lastReward.afterRank}</Text>}
+        {lastReward && !!lastReward.newTitles.length && <Text style={styles.victoryEvolution}>NEW TITLE // {lastReward.newTitles[0]}</Text>}
+        {lastReward && lastReward.worldUnlocked && <Text style={styles.victoryEvolution}>WORLD GATE // UNLOCKED</Text>}
       </View>}
       <View pointerEvents="none" style={[styles.progressAtmosphere, worldTier >= 2 && styles.progressAtmosphereMid, worldTier >= 3 && styles.progressAtmosphereHigh]} />
       {streakTier > 0 && <View pointerEvents="none" style={[styles.streakAura, streakTier >= 2 && styles.streakAuraStrong, streakTier >= 3 && styles.streakAuraMax]} />}
@@ -205,8 +205,8 @@ export default function SystemHomeScreen() {
         <Text style={styles.portalLabel}>{worldUnlocked ? 'WORLD GATE' : 'WORLD LOCKED'}</Text>
       </Pressable>
 
-      <WorldNode label="DAILY" sub={`${dailyDone}/3 · SIGNAL` style={styles.dailyNode} onPress={() => router.push('/quests')} />
-      <WorldNode label="WEEKLY" sub={`${weekly}/5 · PROTOCOL` style={styles.weeklyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="DAILY" sub={`${dailyDone}/3 · SIGNAL`} style={styles.dailyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="WEEKLY" sub={`${weekly}/5 · PROTOCOL`} style={styles.weeklyNode} onPress={() => router.push('/quests')} />
       <WorldNode label="BOSS" sub={story?.bossComplete ? 'CLEARED' : bossActive ? 'ANOMALY' : 'DORMANT'} style={styles.bossNode} onPress={() => router.push('/story')} locked={!awakeningCompleted} />
 
       <PlayerHero />
@@ -247,6 +247,13 @@ export default function SystemHomeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#020508' },
   scene: { flex: 1, overflow: 'hidden', backgroundColor: SKY },
+  sceneBoss: { backgroundColor: '#14090D' },
+  sceneAwakening: { backgroundColor: '#08101A' },
+  sceneVictory: { backgroundColor: '#0B1714' },
+  sceneQuest: { backgroundColor: '#06131A' },
+  modernBlock: { position: 'absolute', backgroundColor: '#09141D', borderTopWidth: 1, borderColor: '#17323D' },
+  streetLight: { position: 'absolute', width: 4, backgroundColor: '#13252D' },
+  streetLamp: { position: 'absolute', top: 0, width: 16, height: 3, backgroundColor: '#6CEEFF' },
   performanceText:{color:'rgba(108,238,255,.38)',fontSize:6,fontWeight:'900',letterSpacing:1.2,marginTop:2},
   sky: { backgroundColor: '#050A10' },
   cityGlow: { position: 'absolute', width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(62,76,180,.10)', top: -140, right: -110 },
@@ -254,7 +261,7 @@ const styles = StyleSheet.create({
   farTower: { position: 'absolute', bottom: 0, width: 38, backgroundColor: '#091219', borderTopWidth: 1, borderColor: '#17323D', overflow: 'hidden' },
   windowBand: { position: 'absolute', left: 6, right: 6, height: 2, backgroundColor: 'rgba(108,238,255,.18)' },
   depthVeil:{position:'absolute',left:-30,right:-30,top:'18%',bottom:'22%',borderTopWidth:1,borderBottomWidth:1,borderColor:'rgba(98,239,255,.035)',backgroundColor:'rgba(4,12,20,.10)'},
-  lightningWash:{position:'absolute',inset:0,backgroundColor:'rgba(190,220,255,.55)'},rainField:{position:'absolute',inset:-40,overflow:'hidden'},rainDrop:{position:'absolute',width:1,height:24,backgroundColor:'rgba(180,220,240,.42)',transform:[{rotate:'12deg'}]},
+  lightningWash:{position:'absolute',inset:0,backgroundColor:'rgba(190,220,255,.55)'},rainField:{position:'absolute',inset:-40,overflow:'hidden'},
   smokeBank:{position:'absolute',left:-40,right:-40,bottom:'29%',height:100},smokeCloud:{position:'absolute',left:10,top:10,width:150,height:65,borderRadius:80,backgroundColor:'rgba(100,125,145,.18)'},backgroundCreature:{position:'absolute',right:'13%',bottom:'32%',width:46,height:90,opacity:.34},creatureHead:{position:'absolute',top:0,left:11,width:25,height:25,borderRadius:13,backgroundColor:'#020609'},creatureBody:{position:'absolute',top:20,left:4,width:38,height:70,borderTopLeftRadius:18,borderTopRightRadius:18,backgroundColor:'#020609'},creatureEye:{position:'absolute',top:10,left:21,width:4,height:3,borderRadius:2,backgroundColor:'#765CFF',shadowColor:'#765CFF',shadowOpacity:1,shadowRadius:7},
   horizonFog: { position: 'absolute', left: 0, right: 0, top: '34%', height: 150, backgroundColor: 'rgba(79,116,125,.08)' },
   midCity: { position: 'absolute', left: 0, right: 0, top: '25%', height: 320 },
@@ -267,7 +274,7 @@ const styles = StyleSheet.create({
   portalCore: { position: 'absolute', width: 82, height: 148, borderRadius: 44, backgroundColor: 'rgba(5,72,92,.48)' },
   portalTouch: { position: 'absolute', right: 15, top: '29%', width: 155, height: 220, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 },
   portalLabel: { color: CYAN, fontSize: 8, fontWeight: '900', letterSpacing: 2.2, backgroundColor: 'rgba(2,7,10,.72)', paddingHorizontal: 9, paddingVertical: 5 },
-  progressAtmosphere: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,40,65,.015)' },
+  progressAtmosphere: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(20,40,65,.015)' },
   progressAtmosphereMid: { backgroundColor: 'rgba(56,72,150,.025)' },
   progressAtmosphereHigh: { backgroundColor: 'rgba(80,52,180,.035)' },
   streakAura: { position: 'absolute', alignSelf: 'center', top: '22%', width: 260, height: 410, borderRadius: 140, borderWidth: 1, borderColor: 'rgba(108,238,255,.08)' },

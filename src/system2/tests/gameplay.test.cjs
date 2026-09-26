@@ -23,6 +23,18 @@ function loader(mocks, clock = { now: Date.now() }) {
     }).outputText;
     const requireMock = name => {
       if (Object.hasOwn(mocks, name)) return mocks[name];
+      if (name === 'react-native-reanimated') {
+        const Animated = { View: 'Animated.View', Text: 'Animated.Text' };
+        return {
+          __esModule: true, default: Animated,
+          useSharedValue: value => ({ value }),
+          useAnimatedStyle: callback => callback(),
+          withTiming: value => value,
+          withRepeat: value => value,
+          cancelAnimation: () => {},
+          Easing: { ease: x => x, linear: x => x, inOut: fn => fn },
+        };
+      }
       if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
       throw new Error('Unexpected dependency: ' + name);
     };
@@ -214,10 +226,12 @@ function screenHarness(t, options = {}) {
   let removals = 0;
   let starts = 0;
   let awards = 0;
+  let runStatusIndex = -1;
   const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
   const react = {
     useState(initial) {
       const index = cursor++;
+      if (initial === 'CHECKING' && runStatusIndex === -1) runStatusIndex = index;
       if (!slots[index]) slots[index] = { value: typeof initial === 'function' ? initial() : initial };
       return [slots[index].value, value => { slots[index].value = value; }];
     },
@@ -225,6 +239,7 @@ function screenHarness(t, options = {}) {
       const index = cursor++;
       return slots[index] ??= { current: initial };
     },
+    useMemo(fn, deps) { return fn(); },
     useCallback(fn, deps) {
       const index = cursor++;
       if (!same(slots[index]?.deps, deps)) slots[index] = { fn, deps };
@@ -258,7 +273,10 @@ function screenHarness(t, options = {}) {
   const load = loader({
     react,
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
-    'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
+    'react/jsx-runtime': { jsx: (type, props) => typeof type === 'function' ? type(props) : ({ type, props }), jsxs: (type, props) => typeof type === 'function' ? type(props) : ({ type, props }) },
+    '../components/SystemAmbientBackground': { __esModule: true, default: () => null },
+    '../identity/audio': { playSceneMusic: () => {}, stopMusic: () => {} },
+    '../identity/feedback': { ImpactFeedbackStyle: { Medium: 1 }, NotificationFeedbackType: { Success: 1, Error: 2 }, impactAsync: async () => {}, notificationAsync: async () => {} },
     'react-native': {
       AppState: appState,
       Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s },
@@ -307,8 +325,8 @@ function screenHarness(t, options = {}) {
   render();
   return {
     render, button,
-    status: () => slots[0].value,
-    distance: () => slots[2].value,
+    status: () => slots[runStatusIndex]?.value,
+    distance: () => slots[runStatusIndex + 2]?.value,
     starts: () => starts, removals: () => removals, awards: () => awards,
     leave: () => focusCleanup?.(),
     error: () => gpsError('GPS failed'),
@@ -327,7 +345,7 @@ test('double start is blocked while awaiting the first GPS fix', async t => {
   const permission = deferred();
   const h = screenHarness(t, { permission });
   await flush(); h.render();
-  const start = h.button('ROZPOCZNIJ QUEST').props.onPress;
+  const start = h.button('START MISSION').props.onPress;
   const first = start();
   await start();
   assert.equal(h.status(), 'STARTING');
@@ -343,7 +361,7 @@ test('late GPS subscription is removed after leaving; stale callbacks are ignore
   const watch = deferred();
   const h = screenHarness(t, { watch });
   await flush(); h.render();
-  const start = h.button('ROZPOCZNIJ QUEST').props.onPress();
+  const start = h.button('START MISSION').props.onPress();
   await flush();
   assert.equal(h.starts(), 1);
   h.leave();
@@ -357,7 +375,7 @@ test('late GPS subscription is removed after leaving; stale callbacks are ignore
 test('GPS error removes the subscription and exits tracking', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   h.fix(0); h.error();
   assert.equal(h.status(), 'ERROR');
   assert.equal(h.removals(), 1);
@@ -369,7 +387,7 @@ for (const saveError of [false, true]) {
   test('500 GPS meters automatically ' + (saveError ? 'surface SQLite failure' : 'complete once'), async t => {
     const h = screenHarness(t, { saveError });
     await flush(); h.render();
-    await h.button('ROZPOCZNIJ QUEST').props.onPress();
+    await h.button('START MISSION').props.onPress();
     for (let meters = 0; meters <= 520; meters += 10) h.fix(meters);
     await flush();
     assert.equal(h.status(), saveError ? 'ERROR' : 'COMPLETED');
@@ -385,7 +403,7 @@ test('permission dialog and transient AppState before GPS subscription do not st
   const watch = deferred();
   const h = screenHarness(t, { permission, watch });
   await flush(); h.render();
-  const start = h.button('ROZPOCZNIJ QUEST').props.onPress();
+  const start = h.button('START MISSION').props.onPress();
   await flush();
   assert.equal(h.starts(), 0);
   h.appState('inactive');
@@ -409,7 +427,7 @@ test('permission dialog and transient AppState before GPS subscription do not st
 test('real background removes an established GPS watcher and retry starts without remounting', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
   h.appState('background');
@@ -434,7 +452,7 @@ test('real background removes an established GPS watcher and retry starts withou
 test('background with a watcher but before the first fix removes the watcher', async t => {
   const h = screenHarness(t);
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   assert.equal(h.status(), 'STARTING');
   h.appState('background');
   assert.equal(h.status(), 'ERROR');
@@ -503,7 +521,7 @@ test('focus event failure rolls back reward and completion together', async t =>
 test('FOCUS PROTOCOL verifies automatically at 600 monotonic seconds, never at 599', async t => {
   const h = screenHarness(t, { questId: 'focus_protocol_v1' });
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   h.render();
   assert.equal(h.status(), 'TRACKING');
   assert.equal(h.starts(), 0); // No GPS or permission required.
@@ -524,7 +542,7 @@ test('FOCUS PROTOCOL verifies automatically at 600 monotonic seconds, never at 5
 test('focus background invalidates progress and retry requires a fresh full ten minutes', async t => {
   const h = screenHarness(t, { questId: 'focus_protocol_v1' });
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   h.render(); h.advance(599);
   h.appState('background');
   assert.equal(h.status(), 'ERROR');
@@ -545,7 +563,7 @@ test('focus background invalidates progress and retry requires a fresh full ten 
 test('leaving focus screen cancels the timer without an award', async t => {
   const h = screenHarness(t, { questId: 'focus_protocol_v1' });
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   h.render(); h.advance(599); h.leave(); h.advance(10);
   await flush();
   assert.equal(h.awards(), 0);
@@ -554,7 +572,7 @@ test('leaving focus screen cancels the timer without an award', async t => {
 test('background during focus STARTING prevents a delayed start', async t => {
   const h = screenHarness(t, { questId: 'focus_protocol_v1' });
   await flush(); h.render();
-  const start = h.button('ROZPOCZNIJ QUEST').props.onPress();
+  const start = h.button('START MISSION').props.onPress();
   h.appState('background');
   await start;
   assert.equal(h.status(), 'ERROR');
@@ -670,7 +688,7 @@ test('completed or locked quests never start GPS or TIMER when entered directly'
     const h = screenHarness(t, { questId: 'final_trial_v1', access });
     await flush(); h.render();
     assert.equal(h.status(), access);
-    assert.equal(h.button('ROZPOCZNIJ QUEST'), undefined);
+    assert.equal(h.button('START MISSION'), undefined);
     assert.equal(h.starts(), 0);
     assert.equal(h.awards(), 0);
   }
@@ -679,7 +697,7 @@ test('completed or locked quests never start GPS or TIMER when entered directly'
 test('double click on focus START creates only one timer and one reward', async t => {
   const h = screenHarness(t, { questId: 'focus_protocol_v1' });
   await flush(); h.render();
-  const start = h.button('ROZPOCZNIJ QUEST').props.onPress;
+  const start = h.button('START MISSION').props.onPress;
   await Promise.all([start(), start()]);
   h.render(); h.advance(600); await flush();
   assert.equal(h.awards(), 1);
@@ -688,7 +706,7 @@ test('double click on focus START creates only one timer and one reward', async 
 test('MULTI waits for ten minutes after reaching 600 meters early', async t => {
   const h = screenHarness(t, { questId: 'final_trial_v1' });
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   h.fix(0); h.render();
   for (let meters = 10; meters <= 610; meters += 10) h.fix(meters);
   assert.equal(h.awards(), 0);
@@ -704,7 +722,7 @@ test('MULTI waits for ten minutes after reaching 600 meters early', async t => {
 test('MULTI waits for 600 meters after time is satisfied with only 450 meters', async t => {
   const h = screenHarness(t, { questId: 'final_trial_v1' });
   await flush(); h.render();
-  await h.button('ROZPOCZNIJ QUEST').props.onPress();
+  await h.button('START MISSION').props.onPress();
   h.fix(0); h.render();
   for (let meters = 10; meters <= 450; meters += 10) h.fix(meters);
   for (let i = 0; i < 75; i++) { h.fix(450); h.advance(0); }
@@ -722,7 +740,7 @@ test('MULTI background or leaving the screen cancels both measurements', async t
   for (const interrupt of ['background', 'leave']) {
     const h = screenHarness(t, { questId: 'final_trial_v1' });
     await flush(); h.render();
-    await h.button('ROZPOCZNIJ QUEST').props.onPress();
+    await h.button('START MISSION').props.onPress();
     h.fix(0); h.render(); h.fix(10);
     if (interrupt === 'leave') h.leave(); else h.appState('background');
     h.advance(1000); h.fix(610); await flush();
@@ -745,15 +763,18 @@ function uiHarness(context = {}) {
   const navigation = [];
   const jsx = (type, props) => typeof type === 'function' ? type(props) : ({ type, props });
   const load = loader({
-    'react': { useState: value => [value, () => {}] },
+    'react': { useState: value => [value, () => {}], useCallback: fn => fn, useMemo: fn => fn(), useRef: value => ({current:value}), useEffect: () => {} },
     '../components/world/WorldMap': { __esModule: true, default: 'WorldMap' },
     '../components/world/DiscoveryToast': { __esModule: true, default: 'DiscoveryToast' },
     '../world/useWorldTracking': { useWorldTracking: () => ({ status: 'PAUSED', sectorIds: [], signal: null, fix: null }) },
     'react/jsx-runtime': { jsx, jsxs: jsx },
-    'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: s => s } },
+    'react-native': { Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View', StyleSheet: { create: s => s } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ top: 24, bottom: 0 }) },
     'expo-router': { usePathname: () => '/', useRouter: () => ({ push: value => navigation.push(value), replace: value => navigation.push(value) }) },
     '../state/SystemProvider': { useSystem: () => context },
+    '../components/SystemAmbientBackground': { __esModule: true, default: () => null },
+    './SystemAmbientBackground': { __esModule: true, default: () => null },
+    'react-native-reanimated': { __esModule: true, default: { View: 'View' }, FadeInUp: { duration: () => ({ delay: () => null }) } },
     '../components/SystemPage': { __esModule: true, default: 'SystemPage', pageStyles: {} },
   });
   return { load, navigation };
@@ -767,7 +788,7 @@ test('shared navigation connects all five real tabs without stacking pushes', ()
     if (button.props.disabled) assert.match(treeText(button), /WKRÓTCE/);
     else button.props.onPress();
   }
-  assert.deepEqual(navigation, ['/', '/quests', '/character', '/world', '/more']);
+  assert.deepEqual(navigation, ['/', '/quests', '/character', '/world', '/social']);
 });
 
 test('Quest list uses persisted completion IDs and locks subsequent cards', () => {
@@ -933,7 +954,7 @@ test('world schema and reward events do not retain raw player GPS samples or hom
   const event = JSON.parse(h.sql.prepare('SELECT payload FROM verified_events WHERE id = ?').get(signal.id).payload);
   assert.equal(event.latitude, undefined); assert.equal(event.longitude, undefined);
   const tables = h.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(t => t.name);
-  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress'].sort());
+  assert.deepEqual(tables.sort(), ['app_state', 'chapter_completions', 'discovered_sectors', 'quest_completions', 'verified_events', 'world_signals', 'daily_sets', 'daily_instances', 'protocol_bonuses', 'story_progress', 'quest_attempts', 'story_events', 'boss_progress', 'inventory_items', 'reward_claims', 'social_history'].sort());
 });
 function worldTrackingHarness(t, options = {}) {
   const load = loader({}); const { WorldTracking } = load('world/tracking');
@@ -1082,10 +1103,10 @@ test('legacy unversioned profile and verified history migrate without onboarding
   assert.equal(migrated.onboardingComplete, true); assert.equal(migrated.player.totalRealXp, 320);
   assert.equal(migrated.player.id, player.id); assert.equal(migrated.player.displayName, 'EXISTING');
   assert.ok(migrated.completedQuestIds.includes(evidence.questId));
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 5);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 7);
   assert.equal((await h.reload().loadSystemState()).player.totalRealXp, 320);
 });
-for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrades to 5 preserving World and profile', async t => {
+for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrades to 7 preserving World and profile', async t => {
   const h = databaseHarness(t); const w = await unlockWorld(h); await w.discoverSector(worldFix()); await w.scanSignal(worldFix());
   const before = await h.db.loadSystemState(); h.sql.exec('PRAGMA user_version = ' + version);
   if (version < 3) h.sql.prepare("DELETE FROM app_state WHERE key = 'onboarding_complete'").run();
@@ -1093,7 +1114,7 @@ for (const version of [1, 2, 3, 4]) test('schema version ' + version + ' upgrade
   const after = await h.reload().loadSystemState();
   assert.equal(after.onboardingComplete, true); assert.equal(after.player.totalRealXp, before.player.totalRealXp);
   assert.equal(after.player.discoveredSectors, 1); assert.ok((await h.reloadWorld().loadWorld()).signal);
-  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 5);
+  assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version, 7);
 });
 test('failed migration rolls back version and retries; future schema is not downgraded', async t => {
   const h = databaseHarness(t); h.faults.commit = true;
@@ -1313,6 +1334,12 @@ function dailyEvidence(h,id) {
  const activity=classify(q.activityType,features({distanceMeters:q.verification.minimumDistanceMeters,medianSpeedMps:1.5}));
  return {questId:id,verificationType:'GPS_DISTANCE',durationSeconds:activity.features.durationSeconds,distanceMeters:activity.features.distanceMeters,verificationScore:activity.verificationScore,activity};
 }
+async function completeTimedAttempt(h, id, attemptId) {
+ const proof = dailyEvidence(h, id);
+ // A verified attempt must actually remain active for its reported duration.
+ h.clock.now += proof.durationSeconds * 1000;
+ return h.db.completeVerifiedQuest({ ...proof, attemptId });
+}
 async function dailyHarness(t) {
  const clock={now:new Date(2026,8,18,10).getTime()}; const h=databaseHarness(t,clock); await unlockWorld(h); return {...h,clock};
 }
@@ -1364,7 +1391,7 @@ test('unassigned/stale daily and fabricated movement verdict cannot award',async
  await assert.rejects(h.db.completeVerifiedQuest(e));assert.equal((await h.db.loadSystemState()).daily.completed,0);
 });
 test('activity daily session shares watcher and auto-completes; interruption requires fresh retry',async t=>{
- const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();await h.button('ROZPOCZNIJ QUEST').props.onPress();
+ const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();await h.button('START MISSION').props.onPress();
  h.fix(0);h.render();h.fix(10);h.appState('background');h.render();assert.equal(h.removals(),1);assert.equal(h.awards(),0);
  h.appState('active');await h.button('SPRÓBUJ PONOWNIE').props.onPress();await flush();h.fix(0);h.render();
  for(let meters=7;meters<=1512;meters+=7) h.fix(meters);
@@ -1416,7 +1443,7 @@ test('genuine v3 migration adds tables without resetting profile or onboarding',
  h.sql.exec('DROP TABLE daily_instances; DROP TABLE daily_sets; DROP TABLE protocol_bonuses; PRAGMA user_version=3;');
  const before=h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value;
  const state=await h.reload().loadSystemState();assert.equal(state.player.displayName,'BETA');assert.equal(state.onboardingComplete,true);
- assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,5);
+ assert.equal(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value,before);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,7);
 });
 test('settings notification and preferences persist with backward compatible defaults',async t=>{
  const h=databaseHarness(t);await h.db.loadSystemState();await h.db.saveSettings({haptics:false,audio:true,activities:{walking:true,running:true,cycling:false},dailyReminder:true,reminderTime:'20:30'});
@@ -1445,12 +1472,12 @@ test('activity with fabricated unsupported native sensors cannot claim enhanced 
 });
 
 test('ambiguous run ends without XP, removes GPS and can retry',async t=>{
- const h=screenHarness(t,{questId:'daily:2026-09-18:run_protocol_1'});await flush();h.render();await h.button('ROZPOCZNIJ QUEST').props.onPress();
+ const h=screenHarness(t,{questId:'daily:2026-09-18:run_protocol_1'});await flush();h.render();await h.button('START MISSION').props.onPress();
  h.fix(0);h.render();for(let m=15;m<=1020;m+=15) h.fix(m);await flush();h.render();
  assert.equal(h.status(),'ERROR');assert.equal(h.awards(),0);assert.equal(h.removals(),1);assert.ok(h.button('SPRÓBUJ PONOWNIE'));
 });
 test('repeatable daily timer verifies only full foreground duration and never starts GPS',async t=>{
- const h=screenHarness(t,{questId:'daily:2026-09-18:focus_session'});await flush();h.render();await h.button('ROZPOCZNIJ QUEST').props.onPress();h.render();
+ const h=screenHarness(t,{questId:'daily:2026-09-18:focus_session'});await flush();h.render();await h.button('START MISSION').props.onPress();h.render();
  h.advance(899);await flush();assert.equal(h.awards(),0);h.advance(1);await flush();assert.equal(h.awards(),1);assert.equal(h.starts(),0);
 });
 
@@ -1489,7 +1516,8 @@ test('safe viewport encloses scroll content, excludes bottom inset handled by na
  assert.equal(screen.type,'SafeAreaView');assert.equal(JSON.stringify(screen.props.edges),JSON.stringify(['top','left','right']));
  const page=load('components/SystemPage').default({title:'POSTAĆ',subtitle:'SYSTEM',children:'body'});
  assert.equal(page.type,'SafeAreaView');
- const scroll=page.props.children[0];assert.equal(scroll.props.contentContainerStyle[1].paddingTop,20);
+ const scroll=page.props.children.find(child=>child?.type==='ScrollView');
+ assert.ok(scroll,'SystemPage must contain a ScrollView');assert.equal(scroll.props.contentContainerStyle[1].paddingTop,20);
 });
 
 const storyFix=(h,...args)=>({...worldFix(...args),timestamp:h.clock.now});
@@ -1539,21 +1567,21 @@ test('Hidden/Rematch require real prior failure; repeated interrupts do not stac
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds.find(id=>id.includes('focus_')||id.includes('learn_')||id.includes('create')||id.includes('organize'));
  for(let n=0;n<3;n++){await h.db.beginQuestAttempt(id,'fail-'+n);h.clock.now+=10000;await h.db.endQuestAttempt('fail-'+n,'INTERRUPTED','BACKGROUND',10,0);h.clock.now+=1000;}
  let s=await h.db.loadSystemState();assert.ok(s.story.rematchQuestIds.includes(id));assert.equal(s.story.hiddenComplete,false);
- await h.db.beginQuestAttempt(id,'success');const before=s.player;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});
+ await h.db.beginQuestAttempt(id,'success');const before=s.player;await completeTimedAttempt(h,id,'success');
  s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,true);assert.ok(!s.story.rematchQuestIds.includes(id));
  const base=h.load('quests/catalog').getQuest(id).rewards.skillXp.WIL??0;assert.equal(s.player.stats.WIL.totalXp-before.stats.WIL.totalXp,base+50+15);
- const xp=s.player.totalRealXp;await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
+ const xp=s.player.totalRealXp;await completeTimedAttempt(h,id,'success');assert.equal((await h.db.loadSystemState()).player.totalRealXp,xp);
  assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,1);
 });
 for(const reason of ['PERMISSION_DENIED','TECHNICAL_ERROR']) test('technical failure has no story rematch or hidden: '+reason,async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'technical');h.clock.now+=10000;await h.db.endQuestAttempt('technical','FAILED',reason,10,0);h.clock.now+=1000;
- await h.db.beginQuestAttempt(id,'success');await h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'success'});const s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,false);assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,0);
+ await h.db.beginQuestAttempt(id,'success');await completeTimedAttempt(h,id,'success');const s=await h.db.loadSystemState();assert.equal(s.story.hiddenComplete,false);assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_progress WHERE id LIKE 'rematch:%'").get().n,0);
 });
 test('no previous failure and failure after successful attempt start cannot trigger rewards',async t=>{
- const h=await dailyHarness(t);const ids=(await h.db.loadSystemState()).daily.questIds;await h.db.beginQuestAttempt(ids[0],'ok');await h.db.completeVerifiedQuest({...dailyEvidence(h,ids[0]),attemptId:'ok'});assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
+ const h=await dailyHarness(t);const ids=(await h.db.loadSystemState()).daily.questIds;await h.db.beginQuestAttempt(ids[0],'ok');await completeTimedAttempt(h,ids[0],'ok');assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
  await h.db.beginQuestAttempt(ids[1],'in-progress');
  h.sql.prepare('INSERT INTO quest_attempts(attempt_id,quest_id,kind,started_at,ended_at,result,eligible) VALUES (?,?,?,?,?,?,1)').run('late',ids[1],h.load('story/catalog').attemptKind(h.load('quests/catalog').getQuest(ids[1])),new Date(h.clock.now+1000).toISOString(),new Date(h.clock.now+2000).toISOString(),'INTERRUPTED');
- h.clock.now+=3000;await h.db.completeVerifiedQuest({...dailyEvidence(h,ids[1]),attemptId:'in-progress'});assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
+ h.clock.now+=3000;await completeTimedAttempt(h,ids[1],'in-progress');assert.equal((await h.db.loadSystemState()).story.hiddenComplete,false);
 });
 test('abandoned attempt recovery has no XP and does not fabricate Rematch',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];const before=(await h.db.loadSystemState()).player.totalRealXp;await h.db.beginQuestAttempt(id,'killed');const db=h.reload();const s=await db.loadSystemState();
@@ -1585,7 +1613,7 @@ test('v4 migration preserves all existing data and recognizes old milestones wit
  const player=JSON.parse(h.sql.prepare("SELECT value FROM app_state WHERE key='player'").get().value);player.totalRealXp-=400;player.stats.RES.totalXp-=100;player.gameEnergy-=25;
  h.sql.prepare("UPDATE app_state SET value=? WHERE key='player'").run(JSON.stringify(player));h.sql.prepare('DELETE FROM chapter_completions WHERE chapter_id=?').run('world_link_chapter_2');
  const migrated=await h.reload().loadSystemState();assert.equal(migrated.player.totalRealXp,before.player.totalRealXp);assert.equal(migrated.player.totalDistanceMeters,before.player.totalDistanceMeters);assert.equal(migrated.story.chapters[0].status,'COMPLETED');assert.equal(migrated.story.worldLinkComplete,true);
- assert.equal((await h.reload().loadSystemState()).player.totalRealXp,before.player.totalRealXp);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,5);
+ assert.equal((await h.reload().loadSystemState()).player.totalRealXp,before.player.totalRealXp);assert.equal(h.sql.prepare('PRAGMA user_version').get().user_version,7);
 });
 
 test('Extra Mile and base daily roll back together when story event fails',async t=>{
@@ -1595,7 +1623,7 @@ test('Extra Mile and base daily roll back together when story event fails',async
 });
 test('Hidden reward and attempt completion roll back together and retry cannot duplicate',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'fail');h.clock.now+=10000;await h.db.endQuestAttempt('fail','FAILED','VERIFICATION_REJECTED',10);h.clock.now+=1000;await h.db.beginQuestAttempt(id,'success');const before=await h.db.loadSystemState();
- h.faults.failWhen=(sql,args)=>sql.includes('INSERT INTO story_events')&&args[0]==='no_turning_back_v1';const e={...dailyEvidence(h,id),attemptId:'success'};await assert.rejects(h.db.completeVerifiedQuest(e));const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp,before.player.totalRealXp);assert.equal(after.story.hiddenComplete,false);assert.equal(h.sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get('success').result,null);
+ h.faults.failWhen=(sql,args)=>sql.includes('INSERT INTO story_events')&&args[0]==='no_turning_back_v1';const e={...dailyEvidence(h,id),attemptId:'success'};h.clock.now+=e.durationSeconds*1000;await assert.rejects(h.db.completeVerifiedQuest(e));const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp,before.player.totalRealXp);assert.equal(after.story.hiddenComplete,false);assert.equal(h.sql.prepare('SELECT result FROM quest_attempts WHERE attempt_id=?').get('success').result,null);
  await h.db.completeVerifiedQuest(e);assert.equal((await h.db.loadSystemState()).story.hiddenComplete,true);
 });
 test('Boss final reward and Daily completion are one transaction on failure and retry',async t=>{
@@ -1604,7 +1632,7 @@ test('Boss final reward and Daily completion are one transaction on failure and 
  await h.db.completeVerifiedQuest(dailyEvidence(h,id));after=await h.db.loadSystemState();assert.equal(after.story.bossComplete,true);assert.ok(after.titles.includes('WALLBREAKER'));
 });
 test('extended Daily keeps the shared GPS running past base target until 125 percent',async t=>{
- const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();h.button('CEL ROZSZERZONY 125%').props.onPress();h.render();await h.button('ROZPOCZNIJ QUEST').props.onPress();h.fix(0);h.render();
+ const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();h.button('CEL ROZSZERZONY 125%').props.onPress();h.render();await h.button('START MISSION').props.onPress();h.fix(0);h.render();
  for(let m=7;m<=1512;m+=7)h.fix(m);await flush();assert.equal(h.awards(),0);assert.equal(h.removals(),0);
  for(let m=1519;m<=1890;m+=7)h.fix(m);await flush();assert.equal(h.awards(),1);assert.equal(h.removals(),1);
 });
@@ -1616,4 +1644,34 @@ test('main objective follows real story and ends with unknown chapter, not fake 
 test('same-day completed attempt cannot be forged from a terminal failure record',async t=>{
  const h=await dailyHarness(t);const id=(await h.db.loadSystemState()).daily.questIds[0];await h.db.beginQuestAttempt(id,'closed');await h.db.endQuestAttempt('closed','INTERRUPTED','BACKGROUND',10);
  await assert.rejects(h.db.completeVerifiedQuest({...dailyEvidence(h,id),attemptId:'closed'}));assert.equal((await h.db.loadSystemState()).daily.completed,0);
+});
+
+
+test('PACK1 inventory supports duplicate templates, stat scaling, equip replace, unequip, filters and comparison',()=>{
+ const inv=loader({})('core/inventory');
+ const a=inv.createLoot({rewardKey:'daily:a',level:12,source:'DAILY',instance:0,path:'MOTION',now:'2026-09-26T08:00:00Z'});
+ const b=inv.createLoot({rewardKey:'daily:b',level:12,source:'DAILY',instance:0,path:'MOTION',now:'2026-09-26T09:00:00Z'});
+ assert.notEqual(a.id,b.id);assert.ok(a.templateId);assert.ok(a.requiredLevel>=1);assert.ok(Object.keys(a.stats).length>=2);
+ const sameSlot={...b,slot:a.slot,requiredLevel:1};
+ let items=inv.equipItem([a,sameSlot],a.id,99);assert.equal(items.find(x=>x.id===a.id).equipped,true);
+ items=inv.equipItem(items,sameSlot.id,99);assert.equal(items.find(x=>x.id===a.id).equipped,false);assert.equal(items.find(x=>x.id===sameSlot.id).equipped,true);
+ const cmp=inv.compareItem(items,a.id,99);assert.equal(cmp.current.id,sameSlot.id);assert.equal(typeof cmp.powerDelta,'number');
+ items=inv.unequipItem(items,sameSlot.id);assert.equal(items.some(x=>x.equipped),false);
+ assert.equal(inv.filterInventory([a,sameSlot],{slot:a.slot}).length,2);
+ assert.throws(()=>inv.equipItem([{...a,requiredLevel:999}],a.id,1),/REAL LEVEL/);
+});
+test('PACK1 loot tables enforce boss raid weekly world rarity floors and path stats',()=>{
+ const inv=loader({})('core/inventory');
+ for(const source of ['WEEKLY','BOSS','RAID','WORLD']){const item=inv.createLoot({rewardKey:'floor:'+source,level:1,source,path:'DISCIPLINE'});assert.notEqual(item.rarity,'COMMON');assert.ok((item.stats.WIL??0)>0);}
+});
+test('PACK1 raid uses verified quest damage, phases, completion reward and reset',()=>{
+ const social=loader({})('core/social');let s=social.createSocialSession('RAID','raid-1');while(s.state==='LOBBY')s=social.joinSession(s);s=social.startSession(s,10);assert.equal(s.state,'ACTIVE');assert.equal(s.raid.phase,1);
+ for(let q=11;q<30&&s.outcome!=='SUCCESS';q++)s=social.syncSessionProgress(s,q,100);
+ assert.equal(s.outcome,'SUCCESS');assert.equal(s.raid.bossHp,0);assert.equal(s.raid.phase,3);s=social.completeSession(s,'2026-09-26T09:00:00Z');assert.equal(s.state,'COMPLETE');assert.ok(s.reward.xp>=350);
+ const claimed=social.claimSocialReward(s);assert.equal(claimed.reward.claimed,true);const fresh=social.resetSocialSession(claimed,'raid-2');assert.equal(fresh.state,'LOBBY');assert.equal(fresh.raid.bossHp,fresh.raid.bossMaxHp);
+});
+test('PACK1 guild pvp progression, achievements and rematch are deterministic',()=>{
+ const social=loader({})('core/social');let p=social.createSocialSession('PVP','pvp-1');p=social.joinSession(p);p=social.startSession(p,5);p=social.syncSessionProgress(p,7);p=social.completeSession(p,'2026-09-26T09:00:00Z');assert.equal(p.state,'COMPLETE');
+ const history=[social.historyEntry(p)];assert.ok(social.socialAchievements(history).includes('PVP_WIN'));const rematch=social.rematchPvp(p,'pvp-2');assert.equal(rematch.rematch,1);assert.equal(rematch.state,'LOBBY');
+ let g=social.createSocialSession('GUILD','guild-1');g=social.joinSession(g);g=social.startSession(g,0);g=social.syncSessionProgress(g,3);assert.equal(g.outcome,'SUCCESS');
 });

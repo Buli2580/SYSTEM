@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/home-3-world-scene
+      - feature/pack1-inventory-social-loop
   pull_request:
     branches:
       - agent/release

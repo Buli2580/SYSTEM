@@ -44,7 +44,7 @@ export function validateQuestEvidence(evidence: QuestEvidence): RunnableQuest {
   }
   if (quest.verification.type !== 'TIMER') {
     if (evidence.verificationType === 'TIMER' || !Number.isFinite(evidence.distanceMeters) ||
-        evidence.distanceMeters < quest.verification.minimumDistanceMeters) {
+        evidence.distanceMeters < quest.verification.minimumDistanceMeters || evidence.distanceMeters < 0) {
       throw new Error('GPS nie potwierdził wymaganego dystansu.');
     }
   }
