@@ -13,7 +13,7 @@ export const DEMO_SPONSOR_CHALLENGES: SponsorChallenge[] = [
     verification: 'steps',
     target: 50000,
     unit: 'steps',
-    rewards: [{ kind: 'xp', label: '+500 XP', value: 500 }]
+    rewards: [{ kind: 'cosmetic', label: 'LIMITED SYSTEM WALKER BADGE' }]
   },
   {
     id: 'demo-premium-workout',

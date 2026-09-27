@@ -1,0 +1,2 @@
+export const SYSTEM_LOADING_MESSAGES=['SYNCING IDENTITY','READING PROGRESS','CALIBRATING WORLD','CONNECTING NETWORK'] as const;
+export function loadingMessage(step:number){return SYSTEM_LOADING_MESSAGES[Math.abs(step)%SYSTEM_LOADING_MESSAGES.length];}

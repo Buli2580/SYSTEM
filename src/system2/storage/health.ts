@@ -51,6 +51,10 @@ export async function inspectLocalHealth(db: SQLiteDatabase): Promise<LocalHealt
     } catch { add('COMPLETION_EVENT_INVALID',row.quest_id); }
     if (quest?.category === 'DAILY' && !await db.getFirstAsync('SELECT id FROM daily_instances WHERE id=?',row.quest_id)) add('DAILY_REFERENCE',row.quest_id);
   }
+  const orphanGoalOperations = await db.getAllAsync<{ operation_key: string }>(
+    'SELECT o.operation_key FROM goal_operations o LEFT JOIN player_goals g ON g.id=o.goal_id WHERE g.id IS NULL'
+  );
+  for (const row of orphanGoalOperations) add('GOAL_OPERATION_ORPHAN', row.operation_key);
   const duplicates = await db.getAllAsync<{ quest_id: string }>("SELECT quest_id FROM verified_events WHERE id LIKE 'quest_%' GROUP BY quest_id HAVING COUNT(*)>1");
   for (const row of duplicates) add('DUPLICATE_COMPLETION_EVENT',row.quest_id);
   const orphans = await db.getAllAsync<{ quest_id: string }>("SELECT e.quest_id FROM verified_events e LEFT JOIN quest_completions c ON c.quest_id=e.quest_id WHERE e.id LIKE 'quest_%' AND c.quest_id IS NULL");

@@ -17,7 +17,7 @@ import { pageStyles as s } from './SystemPage';
 import Action from './Action';
 function permissionLabel(p: { granted: boolean; status: string }) { return p.granted ? 'PRZYZNANE' : p.status === 'undetermined' ? 'NIEPYTANO' : 'ODRZUCONE'; }
 export default function BetaSettings() {
- const { player, settings, saveSettings, daily, awakeningCompleted, refreshPlayer, notificationError } = useSystem();
+ const { player, settings, saveSettings, refreshPlayer, notificationError } = useSystem();
  const [time, setTime] = useState(settings.reminderTime ?? '19:00'), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
  const [permissions, setPermissions] = useState('Sprawdzanie uprawnień…'), [diagnostics, setDiagnostics] = useState('');
  const lock = useRef(false), mounted = useRef(false);
@@ -36,19 +36,20 @@ export default function BetaSettings() {
  const prefs = settings.activities ?? DEFAULT_ACTIVITIES;
  return <>
    <View style={s.panel}><Text style={s.label}>DOSTĘPNE AKTYWNOŚCI</Text>
-     {(['walking','running','cycling'] as const).map(key => <View key={key}><Text style={s.body}>{{ walking: 'MARSZ', running: 'BIEG', cycling: 'ROWER' }[key]}</Text><Switch accessibilityLabel={key} value={prefs[key]} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, activities: { ...prefs, [key]: value } })); }} /></View>)}
+     {(['walking','running','cycling'] as const).map(key => <View key={key}><Text style={s.body}>{{ walking: 'MARSZ', running: 'BIEG', cycling: 'ROWER' }[key]}</Text><Switch accessibilityLabel={key} value={prefs[key]} disabled={busy} onValueChange={value => { void run(() => saveSettings({ activities: { [key]: value } })); }} /></View>)}
      <Text style={s.body}>Zmiana wpływa na następny zestaw Daily. Dzisiejsze misje pozostają zapisane.</Text>
    </View>
    <View style={s.panel}><Text style={s.label}>CODZIENNE PRZYPOMNIENIE</Text>
      <Switch accessibilityLabel="Codzienne przypomnienie" value={settings.dailyReminder ?? false} disabled={busy} onValueChange={value => { void run(async () => {
-       if (value && !await requestReminderPermission()) { if (mounted.current) setMessage('Powiadomienia są wyłączone — możesz zmienić zgodę w ustawieniach Androida.'); return; }
-       const next = { ...settings, dailyReminder: value, reminderTime: time };
-       await saveSettings(next);
+       if (!value) { await saveSettings({ dailyReminder: false }); return; }
+       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) { if (mounted.current) setMessage('Wpisz poprawną godzinę HH:MM przed włączeniem przypomnienia.'); return; }
+       if (!await requestReminderPermission()) { if (mounted.current) setMessage('Powiadomienia są wyłączone — możesz zmienić zgodę w ustawieniach Androida.'); return; }
+       await saveSettings({ dailyReminder: true, reminderTime: time });
      }); }} />
      <TextInput accessibilityLabel="Godzina przypomnienia HH:MM" value={time} onChangeText={setTime} maxLength={5} placeholder="19:00" placeholderTextColor="#758c93" style={{ color: '#fff', minHeight: 48 }} />
      <Action label="ZAPISZ GODZINĘ" disabled={busy} onPress={() => { void run(async () => {
        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) { setMessage('Wpisz godzinę HH:MM, np. 19:00.'); return; }
-       await saveSettings({ ...settings, reminderTime: time });
+       await saveSettings({ reminderTime: time });
      }); }} />
      <Text style={s.body}>Lokalne przypomnienia na 7 dni, odnawiane po otwarciu SYSTEMU. Android może opóźnić dostarczenie.</Text>
    </View>

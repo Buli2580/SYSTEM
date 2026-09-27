@@ -179,6 +179,58 @@ const RECOVERY: Omit<AIQuestProposal, 'key'> = {
   tags: ['recovery', 'return'],
 };
 
+function goalText(context: AIGameMasterContext) {
+  return context.goals.map(goal => `${goal.title} ${goal.description ?? ''}`).join(' ').toLowerCase();
+}
+
+function preferredCategories(context: AIGameMasterContext): string[] {
+  const goal = goalText(context);
+  const completed = context.recentQuests.filter(q => q.completed).map(q => q.category).filter(Boolean) as string[];
+  const failed = new Set(context.recentQuests.filter(q => q.failed).map(q => q.category).filter(Boolean) as string[]);
+  const inferred: string[] = [];
+  if (/naucz|język|kurs|książ|egzamin|wied|certyf|programow|kod|learn|study/.test(goal)) inferred.push('learning');
+  if (/prac|projekt|firma|biznes|klient|sprzeda|marketing|aplikac|produkt|startup|career/.test(goal)) inferred.push('productivity');
+  if (/bieg|spacer|rower|trening|ruch|fitness|kondyc|sił|run|walk|bike/.test(goal)) inferred.push('fitness');
+  if (/poznaj|miejsce|zwiedz|odkry|explor/.test(goal)) inferred.push('exploration');
+  if (/relac|rozmow|kontakt|znajom|social/.test(goal)) inferred.push('social');
+  const result = [...inferred, ...completed.filter(x => !failed.has(x))];
+  return [...new Set(result)];
+}
+
+function goalAwareScore(quest: Omit<AIQuestProposal, 'key'>, context: AIGameMasterContext) {
+  const preferred = preferredCategories(context);
+  const goal = goalText(context);
+  let score = preferred.indexOf(quest.category) >= 0 ? 80 - preferred.indexOf(quest.category) * 8 : 0;
+  if (quest.category === 'fitness') {
+    if (quest.templateHint?.startsWith('run_') && context.player.activities?.running === false) score -= 500;
+    if (quest.templateHint?.startsWith('ride_') && context.player.activities?.cycling === false) score -= 500;
+    if (quest.templateHint?.startsWith('walk_') && context.player.activities?.walking === false) score -= 500;
+  }
+  if (/naucz|learn|study|język|kurs/.test(goal) && quest.tags.includes('learning')) score += 35;
+  if (/projekt|biznes|aplikac|produkt|prac/.test(goal) && (quest.tags.includes('goal') || quest.tags.includes('focus'))) score += 35;
+  return score;
+}
+
+function personalizeFallbackQuest(quest: Omit<AIQuestProposal, 'key'>, context: AIGameMasterContext) {
+  const goal = context.goals[0]?.title?.trim();
+  if (!goal || quest.category === 'recovery' || quest.category === 'fitness') return quest;
+  if (quest.category === 'productivity') return {
+    ...quest,
+    title: `Krok do celu: ${goal}`.slice(0, 80),
+    description: `Wybierz jeden konkretny, mierzalny krok związany z celem „${goal}” i pracuj wyłącznie nad nim przez ten blok.`.slice(0, 280),
+    reason: `Ta misja wynika bezpośrednio z aktywnego celu „${goal}”.`.slice(0, 180),
+    tags: [...new Set([...quest.tags, 'personalized', 'goal'])].slice(0, 8),
+  };
+  if (quest.category === 'learning') return {
+    ...quest,
+    title: `Research: ${goal}`.slice(0, 80),
+    description: `Przeanalizuj jeden wiarygodny materiał związany z celem „${goal}” i zapisz jeden wniosek, który wykorzystasz w następnym działaniu.`.slice(0, 280),
+    reason: `Buduje wiedzę potrzebną do realizacji celu „${goal}”.`.slice(0, 180),
+    tags: [...new Set([...quest.tags, 'personalized', 'goal'])].slice(0, 8),
+  };
+  return quest;
+}
+
 function hash(text: string) {
   let value = 2166136261;
   for (let i = 0; i < text.length; i += 1) {
@@ -229,15 +281,20 @@ export function buildFallback(
     context.player.streak,
     ...context.goals.map(goal => goal.title),
   ].join('|');
-  const ordered = rotate(pool, hash(seed));
+  const ordered = rotate(pool, hash(seed))
+    .filter(quest => goalAwareScore(quest, context) > -400)
+    .sort((a, b) => goalAwareScore(b, context) - goalAwareScore(a, context));
   const recovery = context.player.systemDebt > 0;
   const normalCount = recovery ? Math.max(0, safeCount - 1) : safeCount;
-  const chosen = diversified(ordered, normalCount);
+  const chosen = diversified(ordered.length ? ordered : pool, normalCount);
   const selected = recovery ? [RECOVERY, ...chosen] : chosen;
-  const quests = selected.slice(0, safeCount).map((quest, index) => ({
-    ...quest,
-    key: `fallback-${day}-${index}-${quest.templateHint ?? quest.category}`,
-  }));
+  const quests = selected.slice(0, safeCount).map((raw, index) => {
+    const quest = personalizeFallbackQuest(raw, context);
+    return {
+      ...quest,
+      key: `fallback-${day}-${index}-${quest.templateHint ?? quest.category}`,
+    };
+  });
 
   const bias = difficultyBias(context);
   return {
@@ -248,7 +305,9 @@ export function buildFallback(
       headline: recovery ? 'RECOVERY PROTOCOL' : 'DAILY DIRECTIVE',
       message: recovery
         ? 'SYSTEM obniżył presję. Najpierw odzyskaj rytm jednym małym krokiem.'
-        : 'SYSTEM przygotował zróżnicowany zestaw bez połączenia z AI.',
+        : context.goals[0]?.title
+          ? `SYSTEM przygotował lokalny zestaw pod cel: ${context.goals[0].title}. Research WWW jest niedostępny w trybie fallback.`
+          : 'SYSTEM przygotował zróżnicowany zestaw bez połączenia z AI.',
     },
     briefing: `Streak ${context.player.streak}. Skuteczność 7 dni: ${Math.round(
       context.player.completionRate7d * 100,

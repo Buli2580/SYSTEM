@@ -1,4 +1,4 @@
-import { getValidSession } from '../cloud/auth';
+import { getAICloudSession } from './guestAuth';
 import { cloudRequest } from '../cloud/http';
 import type { SystemSnapshot } from '../storage/database';
 import { allowedDifficulties, difficultyBias } from './difficulty';
@@ -10,13 +10,15 @@ import { validateAIGameMasterResponse } from './validate';
 async function requestContextAIGameMaster(
   context: AIGameMasterContext,
 ): Promise<AIGameMasterResponse> {
-  const session = await getValidSession();
+  const session = await getAICloudSession();
   if (!session) return buildFallback(context, 3);
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
     const payload = await cloudRequest<unknown>(
       '/functions/v1/ai-game-master',
-      { method: 'POST', body: JSON.stringify({ action: 'generate_daily', context }) },
+      { method: 'POST', body: JSON.stringify({ action: 'generate_daily', context }), signal: controller.signal },
       session.accessToken,
     );
     const allowed = allowedDifficulties(difficultyBias(context));
@@ -28,6 +30,8 @@ async function requestContextAIGameMaster(
     return validated ?? buildFallback(context, 3);
   } catch {
     return buildFallback(context, 3);
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

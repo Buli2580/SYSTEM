@@ -3,7 +3,8 @@
     "device-test": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "latest"
       }
     },
     "play-internal": {

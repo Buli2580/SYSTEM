@@ -1,6 +1,6 @@
 {
   "name": "system-cloud-processor-tests",
   "private": true,
-  "scripts": { "test": "node --test processor.test.cjs mobile-sync.test.cjs" },
+  "scripts": { "test": "node --test processor.test.cjs mobile-sync.test.cjs social-contract.test.cjs" },
   "devDependencies": { "@electric-sql/pglite": "0.5.8" }
 }

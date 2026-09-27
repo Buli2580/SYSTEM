@@ -35,6 +35,8 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
           withTiming: value => value, withRepeat: value => value, withSequence: (...v) => v.at(-1),
           cancelAnimation() {}, interpolate: (v, input, output) => output[0] };
       }
+      if (/\.(?:mp3|wav)$/i.test(name)) return name;
+      if (name === 'expo-audio') return {createAudioPlayer:()=>({play(){},remove(){}})};
       if (name.startsWith('.')) return load(path.resolve(path.dirname(resolved), name));
       throw new Error('Unexpected dependency: ' + name);
     };
@@ -44,7 +46,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       setInterval: clock.intervals ? fn => { const id = {}; clock.intervals.set(id, fn); return id; } : setInterval,
       clearInterval: clock.intervals ? id => clock.intervals.delete(id) : clearInterval,
       performance: { now: () => clock.monotonic ?? clock.now },
-      Date: class extends Date { constructor(...args) { super(...(args.length ? args : [clock.now])); } static now() { return clock.now; } },
+      Date: class extends Date { static now() { return clock.now; } },
     }, { filename: resolved });
     return module.exports;
   }
@@ -219,6 +221,28 @@ test('goals persist lifecycle without XP, reject invalid input and do not reroll
  s=await h.db.updateGoalStatus(id,'COMPLETED');assert.equal(s.goals[0].status,'COMPLETED');await assert.rejects(h.db.updateGoalStatus(id,'ACTIVE'));
  assert.equal(s.player.totalRealXp,before.player.totalRealXp);assert.ok((await h.db.loadChronicle()).some(e=>e.type==='GOAL_COMPLETED'));
 });
+test('goal creation is idempotent across ambiguous retry',async t=>{
+ const h=await dailyHarness(t),input={category:'LEARNING',priority:3,title:'Angielski',description:'Powtórki',target:'Czytać opowiadania'};
+ const first=await h.db.createPlayerGoal(input,'goal:test-retry');
+ const second=await h.db.createPlayerGoal(input,'goal:test-retry');
+ assert.equal(first.goals.length,1);assert.equal(second.goals.length,1);
+ assert.equal(first.goals[0].id,second.goals[0].id);
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM player_goals').get().n,1);
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,1);
+ assert.equal(h.sql.prepare("SELECT COUNT(*) AS n FROM story_events WHERE type='GOAL_CREATED'").get().n,1);
+});
+
+test('reset clears goal idempotency journal so first-goal key can be reused',async t=>{
+ const h=await dailyHarness(t),input={category:'DISCIPLINE',priority:3,title:'Dyscyplina',description:''};
+ await h.db.createPlayerGoal(input,'awakening:first-goal:v1');
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,1);
+ await h.db.resetSystemData(true);
+ assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM goal_operations').get().n,0);
+ const next=await h.db.createPlayerGoal(input,'awakening:first-goal:v1');
+ assert.equal(next.goals.length,1);
+ assert.equal((await h.db.testerHealthCheck()).ok,true);
+});
+
 test('goal changes affect next local day only; generation event and loadout persist once',async t=>{
  const h=await dailyHarness(t),first=await h.db.loadSystemState();await h.db.createPlayerGoal({category:'LEARNING',title:'Angielski',description:'',priority:3});
  await Promise.all(Array.from({length:4},()=>h.db.loadSystemState()));
@@ -283,10 +307,10 @@ test('recommendation respects Awakening, active quest, goals, weekly and complet
 
 test('goal form creates and completes a persisted goal through the real provider API boundary',async t=>{
  const h=databaseHarness(t);const ctx=await h.db.loadSystemState();
- ctx.createPlayerGoal=async input=>Object.assign(ctx,await h.db.createPlayerGoal(input));ctx.updateGoalStatus=async(id,status)=>Object.assign(ctx,await h.db.updateGoalStatus(id,status));
+ ctx.createFirstGoalAndPrepareAwakening=async input=>Object.assign(ctx,await h.db.createPlayerGoal(input,'awakening:first-goal:v1'));ctx.createPlayerGoal=async input=>Object.assign(ctx,await h.db.createPlayerGoal(input));ctx.updateGoalStatus=async(id,status)=>Object.assign(ctx,await h.db.updateGoalStatus(id,status));
  const ui=integrationUI(ctx);let tree=ui.render('screens/GoalsScreen');
  nodesOfType(tree,'TextInput').find(n=>n.props.accessibilityLabel==='Tytuł celu').props.onChangeText('Mały cel');
- tree=ui.render('screens/GoalsScreen');findButtons(tree).find(b=>treeText(b)==='DODAJ CEL').props.onPress();await flush();
+ tree=ui.render('screens/GoalsScreen');findButtons(tree).find(b=>treeText(b)==='UTWÓRZ ŚCIEŻKĘ →').props.onPress();await flush();
  tree=ui.render('screens/GoalsScreen');assert.match(treeText(tree),/Mały cel/);assert.equal(ctx.goals.length,1);
  findButtons(tree).find(b=>treeText(b)==='CEL OSIĄGNIĘTY · BEZ XP').props.onPress();await flush();
  assert.equal((await h.reload().loadSystemState()).goals[0].status,'COMPLETED');assert.equal(ctx.player.totalRealXp,0);

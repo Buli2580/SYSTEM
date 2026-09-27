@@ -1,32 +1,74 @@
 import type { RewardReceipt } from '../core/rewards';
-export type FeedbackEvent = 'QUEST_START' | 'QUEST_COMPLETE' | 'LEVEL_UP' | 'ERROR';
-export type MusicScene = 'HOME' | 'WORLD' | 'QUEST' | 'BOSS' | 'AWAKENING' | 'VICTORY';
+import {
+  configureAudioEngine,
+  playMusic,
+  playSfx,
+  stopAllAudio,
+  stopMusic,
+  type MusicCue,
+  type SfxCue,
+} from '../audio/engine';
+
+export type FeedbackEvent =
+  | 'UI_TAP'
+  | 'SCAN'
+  | 'QUEST_START'
+  | 'VERIFY'
+  | 'QUEST_COMPLETE'
+  | 'XP'
+  | 'LEVEL_UP'
+  | 'RANK_UP'
+  | 'PORTAL'
+  | 'BOSS_HIT'
+  | 'ERROR';
+
+type AudioConfig = {
+  enabled:boolean;
+  musicVolume?:number;
+  ambientVolume?:number;
+  sfxVolume?:number;
+};
+
 export function rewardSound(receipt: RewardReceipt): FeedbackEvent {
- return receipt.afterLevel > receipt.beforeLevel || receipt.skillLevels.length > 0 ? 'LEVEL_UP' : 'QUEST_COMPLETE';
+  const before=(receipt as RewardReceipt & {beforeRank?:string}).beforeRank;
+  const after=(receipt as RewardReceipt & {afterRank?:string}).afterRank;
+  if(before&&after&&before!==after)return'RANK_UP';
+  return receipt.afterLevel > receipt.beforeLevel || receipt.skillLevels.length > 0 ? 'LEVEL_UP' : 'QUEST_COMPLETE';
 }
-let enabled=false;
-let player: import('expo-audio').AudioPlayer|null=null;
-let music: import('expo-audio').AudioPlayer|null=null;
-let cleanup: ReturnType<typeof setTimeout>|null=null;
-let activeScene: MusicScene|null=null;
-export function stopAudio(){if(cleanup)clearTimeout(cleanup);cleanup=null;try{player?.remove();}catch{} player=null;}
-export function stopMusic(){try{music?.remove();}catch{} music=null;activeScene=null;}
-export function configureAudio(value:boolean){enabled=value;if(!value){stopAudio();stopMusic();}}
-function musicSource(scene:MusicScene){
- switch(scene){
-  case 'WORLD': return require('../../../assets/audio/music/world.mp3');
-  case 'BOSS': return require('../../../assets/audio/boss_theme.mp3');
-  case 'QUEST': return require('../../../assets/audio/dashboard_ambient.mp3');
-  case 'HOME': case 'AWAKENING': case 'VICTORY': default: return require('../../../assets/audio/music/home.wav');
- }
+
+export function configureAudio(value:boolean|AudioConfig){
+  if(typeof value==='boolean') configureAudioEngine({enabled:value});
+  else configureAudioEngine({
+    enabled:value.enabled,
+    music:value.musicVolume ?? 0.8,
+    ambient:value.ambientVolume ?? 0.55,
+    sfx:value.sfxVolume ?? 0.9,
+  });
 }
-export function playSceneMusic(scene:MusicScene){
- if(!enabled||activeScene===scene)return;
- stopMusic();
- try{const {createAudioPlayer}=require('expo-audio') as typeof import('expo-audio');music=createAudioPlayer(musicSource(scene));music.loop=true;music.volume=scene==='BOSS'?.55:scene==='QUEST'?.42:.32;music.play();activeScene=scene;}catch{stopMusic();}
-}
+
 export function playFeedback(event:FeedbackEvent){
- if(!enabled||event==='QUEST_START'||event==='ERROR')return;
- stopAudio();
- try{const {createAudioPlayer}=require('expo-audio') as typeof import('expo-audio');const source=event==='LEVEL_UP'?require('../../../assets/audio/level_up.mp3'):require('../../../assets/audio/quest_complete.mp3');player=createAudioPlayer(source);player.play();cleanup=setTimeout(stopAudio,5000);}catch{stopAudio();}
+  const map:Partial<Record<FeedbackEvent,SfxCue>>={
+    UI_TAP:'UI_TAP',
+    SCAN:'SCAN',
+    QUEST_START:'QUEST_START',
+    VERIFY:'VERIFY',
+    QUEST_COMPLETE:'REWARD',
+    XP:'XP',
+    LEVEL_UP:'LEVEL_UP',
+    RANK_UP:'RANK_UP',
+    PORTAL:'PORTAL',
+    BOSS_HIT:'BOSS_HIT',
+    ERROR:'ERROR',
+  };
+  const cue=map[event];
+  if(cue)playSfx(cue);
 }
+
+export function playAudioTheme(cue:MusicCue){playMusic(cue)}
+export function stopAudioTheme(){stopMusic()}
+export function stopAudio(){stopAllAudio()}
+
+// HOME 3.0 scene API shares the expanded audio engine.
+export type MusicScene = MusicCue;
+export function playSceneMusic(scene:MusicScene){playMusic(scene)}
+export {stopMusic};

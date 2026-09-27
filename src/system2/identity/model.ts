@@ -3,8 +3,10 @@ import type { PlayerProfile, SkillKey } from '../core/types';
 import { SKILL_KEYS } from '../core/progression';
 export type Title = 'UNAWAKENED' | 'AWAKENED' | 'SIGNAL HUNTER' | 'PATHFINDER' | 'WALLBREAKER';
 export type PerformanceMode = 'LOW'|'MEDIUM'|'HIGH';
-export type Settings = { haptics: boolean; audio: boolean; performanceMode?: PerformanceMode; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
-export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false, performanceMode: 'MEDIUM' };
+export type AvatarStyle = 'DARK' | 'CYBER' | 'WARLORD';
+export type Settings = { haptics: boolean; audio: boolean; performanceMode?: PerformanceMode; avatarStyle?: AvatarStyle; musicVolume?: number; ambientVolume?: number; sfxVolume?: number; activities?: ActivityPreferences; dailyReminder?: boolean; reminderTime?: string };
+export type SettingsPatch = Omit<Partial<Settings>, 'activities'> & { activities?: Partial<ActivityPreferences> };
+export const DEFAULT_SETTINGS: Settings = { haptics: true, audio: false, performanceMode: 'MEDIUM', avatarStyle: 'CYBER', musicVolume: 0.8, ambientVolume: 0.55, sfxVolume: 0.9 };
 export function earnedTitles(awakening: boolean, signal: boolean, worldLink = false, boss = false): Title[] {
   return ['UNAWAKENED', ...(awakening ? ['AWAKENED' as const] : []), ...(awakening && signal ? ['SIGNAL HUNTER' as const] : []), ...(worldLink ? ['PATHFINDER' as const] : []), ...(boss ? ['WALLBREAKER' as const] : [])];
 }
@@ -28,8 +30,25 @@ export function parseSettings(value?: string): Settings {
   if (settings.reminderTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.reminderTime)) throw new Error('Wpisz godzinę HH:MM.');
   if (settings.dailyReminder !== undefined && typeof settings.dailyReminder !== 'boolean') throw new Error('Nieprawidłowe ustawienie przypomnienia.');
   if (settings.performanceMode !== undefined && !['LOW','MEDIUM','HIGH'].includes(settings.performanceMode)) throw new Error('Nieprawidłowy tryb wydajności.');
-  return { haptics: settings.haptics, audio: settings.audio, performanceMode: settings.performanceMode ?? 'MEDIUM',
+  const clamp = (value: unknown, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+  const avatarStyle: AvatarStyle = ['DARK','CYBER','WARLORD'].includes(settings.avatarStyle) ? settings.avatarStyle : 'CYBER';
+  return { haptics: settings.haptics, audio: settings.audio, performanceMode: settings.performanceMode ?? 'MEDIUM', avatarStyle,
+    musicVolume: clamp(settings.musicVolume, DEFAULT_SETTINGS.musicVolume ?? 0.8),
+    ambientVolume: clamp(settings.ambientVolume, DEFAULT_SETTINGS.ambientVolume ?? 0.55),
+    sfxVolume: clamp(settings.sfxVolume, DEFAULT_SETTINGS.sfxVolume ?? 0.9),
     ...(settings.activities ? { activities: { ...DEFAULT_ACTIVITIES, ...settings.activities } } : {}),
     ...(settings.dailyReminder !== undefined ? { dailyReminder: settings.dailyReminder } : {}),
     ...(settings.reminderTime !== undefined ? { reminderTime: settings.reminderTime } : {}) };
+}
+
+export function mergeSettings(current: Settings, patch: SettingsPatch): Settings {
+  const { activities, ...rest } = patch;
+  const next: Settings = {
+    ...current,
+    ...rest,
+    ...(activities
+      ? { activities: { ...DEFAULT_ACTIVITIES, ...(current.activities ?? {}), ...activities } }
+      : current.activities ? { activities: current.activities } : {}),
+  };
+  return parseSettings(JSON.stringify(next));
 }

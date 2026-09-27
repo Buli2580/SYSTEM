@@ -1,6 +1,6 @@
 import BetaSettings from '../components/BetaSettings';
 import { useRef, useState } from 'react';
-import { Linking, Modal, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -28,7 +28,7 @@ export default function SettingsScreen() {
   return <SystemPage title="WIĘCEJ" subtitle="SYSTEM SETTINGS">
     <View style={s.panel}><Text style={s.label}>PROFILE</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>LEVEL {player.realLevel} · RANK {player.rank} · {player.currentTitle}</Text></View>
-    <View style={s.panel}><Action label="AI GAME MASTER →" onPress={() => router.push('/game-master')} /><Action label="CELE →" onPress={() => router.push('/goals')} /><Action label="SYSTEM ONLINE →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI →" onPress={() => router.push('/leaderboard')} /><Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /></View>
+    <View style={s.panel}><Action label="EXPANSION →" onPress={() => router.push('/expansion')} /><Action label="BATTLE NETWORK →" onPress={() => router.push('/battle-network')} /><Action label="AI GAME MASTER →" onPress={() => router.push('/game-master')} /><Action label="CELE →" onPress={() => router.push('/goals')} /><Action label="SYSTEM ONLINE →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI →" onPress={() => router.push('/leaderboard')} /><Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /></View>
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
       <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
@@ -66,7 +66,10 @@ export default function SettingsScreen() {
     {developerMode && <View style={s.panel}><Text style={s.label}>ADMIN // INTERNAL TOOLS</Text>
       <Text style={s.body}>LOCAL ID // {player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
       <Action label="SYSTEM LOG / DIAGNOSTICS →" onPress={() => router.push('/system-log')} />
-      <BetaSettings />
+        <MixControl label="MUZYKA" value={settings.musicVolume ?? 0.8} disabled={busy} onChange={value => { void run(() => saveSettings({ musicVolume: value })); }} />
+      <MixControl label="AMBIENT ŚWIATA" value={settings.ambientVolume ?? 0.55} disabled={busy} onChange={value => { void run(() => saveSettings({ ambientVolume: value })); }} />
+      <MixControl label="SFX" value={settings.sfxVolume ?? 0.9} disabled={busy} onChange={value => { void run(() => saveSettings({ sfxVolume: value })); }} />
+    <BetaSettings />
       <Text style={s.body}>World map provider: MapLibre Demo Tiles — konfiguracja developerska.</Text>
     </View>}
     <View style={s.panel}><Text style={s.label}>DATA</Text><Text style={s.body}>Profil, questy, World i preferencje są zapisane lokalnie w SQLite. Avatar pozostaje w katalogu aplikacji. Funkcje SYSTEM ONLINE są oddzielone od lokalnego progresu i wymagają zalogowania. Odinstalowanie aplikacji może usunąć lokalny progres.</Text>
@@ -94,4 +97,15 @@ export default function SettingsScreen() {
       </ScrollView>
     </Modal>
   </SystemPage>;
+}
+
+function MixControl({label,value,onChange,disabled}:{label:string;value:number;onChange:(value:number)=>void;disabled:boolean}) {
+  const steps=[0,0.25,0.5,0.75,1];
+  return <View style={{marginTop:14}}>
+    <View style={{flexDirection:'row',justifyContent:'space-between'}}><Text style={s.label}>{label}</Text><Text style={s.body}>{Math.round(value*100)}%</Text></View>
+    <View style={{flexDirection:'row',gap:6,marginTop:8}}>
+      {steps.map(step=><Pressable key={step} disabled={disabled} accessibilityRole="button" accessibilityLabel={label+' '+Math.round(step*100)+'%'} onPress={()=>onChange(step)}
+        style={{flex:1,height:12,borderRadius:6,borderWidth:1,borderColor:'#315b66',backgroundColor:step<=value?'#25dff3':'rgba(49,91,102,.18)',opacity:disabled?.45:1}} />)}
+    </View>
+  </View>;
 }

@@ -1,0 +1,4 @@
+export type PvpMetric='QUESTS'|'MOVE_MINUTES'|'STREAK';
+export type PvpChallenge={id:string;creatorId:string;opponentId?:string;metric:PvpMetric;target:number;startsAt:string;endsAt:string;status:'OPEN'|'ACTIVE'|'COMPLETE'|'EXPIRED';creatorScore:number;opponentScore:number};
+export function pvpProgress(c:PvpChallenge){const a=Math.min(100,Math.round(c.creatorScore/c.target*100)),b=Math.min(100,Math.round(c.opponentScore/c.target*100));return{creator:a,opponent:b,complete:c.creatorScore>=c.target||c.opponentScore>=c.target};}
+export function safePvpTarget(metric:PvpMetric,target:number){const cap=metric==='STREAK'?30:metric==='MOVE_MINUTES'?600:100;return Math.max(1,Math.min(cap,Math.floor(target)));}

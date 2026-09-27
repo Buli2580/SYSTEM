@@ -1,0 +1,2 @@
+export type HomePriority='ACTIVE_QUEST'|'DAILY'|'WEEKLY'|'BOSS'|'WORLD'|'SOCIAL';
+export function homePriorities(i:{activeQuest:boolean;daily:number;weekly:boolean;boss:boolean;world:boolean}):HomePriority[]{const out:HomePriority[]=[];if(i.activeQuest)out.push('ACTIVE_QUEST');if(i.daily>0)out.push('DAILY');if(i.weekly)out.push('WEEKLY');if(i.boss)out.push('BOSS');if(i.world)out.push('WORLD');out.push('SOCIAL');return out;}

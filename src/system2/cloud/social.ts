@@ -110,7 +110,7 @@ export async function followPlayer(userId: string): Promise<void> {
 
 export async function searchPlayers(query: string, limit = 20): Promise<SocialProfile[]> {
   const session = await requireSession();
-  const term = query.trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24);
+  const term = query.trim().replace(/\s+/g, ' ').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 40);
   if (term.length < 2) return [];
   return cloudRequest<SocialProfile[]>('/rest/v1/rpc/search_players', {
     method: 'POST',

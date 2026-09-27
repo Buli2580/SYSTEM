@@ -688,6 +688,27 @@ export const TITLES: readonly TitleDefinition[] = [
     order: 13,
   },
   {
+    id: 'night_runner',
+    name: 'NIGHT RUNNER',
+    description: 'Reached level 5 and entered the active SYSTEM path',
+    unlockedByAchievement: 'level_5',
+    order: 11,
+  },
+  {
+    id: 'ash_king',
+    name: 'ASH KING',
+    description: 'Reached level 50 and forged an advanced identity',
+    unlockedByAchievement: 'level_50',
+    order: 12,
+  },
+  {
+    id: 'system_ascendant',
+    name: 'SYSTEM ASCENDANT',
+    description: 'Reached level 100',
+    unlockedByAchievement: 'level_100',
+    order: 13,
+  },
+  {
     id: 'completionist',
     name: 'COMPLETIONIST',
     description: 'Unlocked all non-hidden achievements',

@@ -5,6 +5,7 @@ import { useSystem } from '../state/SystemProvider';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../achievements/catalog';
 import { achievementPercent, evaluateAchievementState } from '../achievements/engine';
+import {achievementMastery,achievementMomentum} from '../achievements/v2';
 
 export default function AchievementsScreen() {
   const { player, achievementState, achievementError, refreshAchievements } = useSystem();
@@ -12,8 +13,10 @@ export default function AchievementsScreen() {
   const visible=ACHIEVEMENTS.filter(def => !def.hideUntilUnlock || ['UNLOCKED','CLAIMED'].includes(evaluated[def.id].state));
   const categories = Object.keys(ACHIEVEMENT_CATEGORIES).sort((a,b) => ACHIEVEMENT_CATEGORIES[a].order - ACHIEVEMENT_CATEGORIES[b].order);
   const unlocked = Object.values(evaluated).filter(item => item.state === 'UNLOCKED' || item.state === 'CLAIMED').length;
-  return <SystemPage title="OSIĄGNIĘCIA" subtitle="SYSTEM ACHIEVEMENTS">
+  const mastery=achievementMastery(player,unlocked,ACHIEVEMENTS.length),momentum=achievementMomentum(unlocked,ACHIEVEMENTS.length,player.streak);
+  return <SystemPage title="OSIĄGNIĘCIA" subtitle="SYSTEM ACHIEVEMENTS 2.0">
     {achievementError && <SystemError message={achievementError} retry={() => { void refreshAchievements(); }} />}
+    <View style={s.panel}><Text style={s.label}>MASTERY // {momentum.signal}</Text><Text style={s.title}>{mastery.tier} // {mastery.score}</Text><Text style={s.body}>{momentum.percent}% katalogu · następny mastery threshold {mastery.nextScore}</Text></View>
     <View style={s.panel}><Text style={s.label}>PROGRESS</Text><Text style={s.title}>{unlocked} / {ACHIEVEMENTS.length}</Text>
       <Text style={s.body}>Postęp jest wyliczany z kanonicznych danych gracza. Sam ekran nie przyznaje XP ani nie zmienia questów.</Text></View>
     {categories.map(category => { const items=visible.filter(def => def.category === category); if(!items.length) return null; const meta=ACHIEVEMENT_CATEGORIES[category]; const categoryUnlocked=items.filter(def => ['UNLOCKED','CLAIMED'].includes(evaluated[def.id].state)).length; return <View key={category}>

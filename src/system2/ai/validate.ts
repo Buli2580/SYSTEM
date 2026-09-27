@@ -1,8 +1,10 @@
 import type {
   AIGameMasterResponse,
+  AIPlayerMemory,
   AIQuestCategory,
   AIQuestDifficulty,
   AIQuestVerification,
+  AIResearchSummary,
 } from './types';
 import { isTooSimilar } from './repetition';
 
@@ -29,6 +31,45 @@ const BLOCKED = [
   /odwodn|bez wody/i,
   /prowadź.*samoch|drive.*while/i,
 ];
+
+function cleanStringArray(value: unknown, maxItems: number, maxLength: number) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value
+    .filter(item => typeof item === 'string')
+    .map(item => item.replace(/\s+/g, ' ').trim().slice(0, maxLength))
+    .filter(item => item && !seen.has(item) && !!seen.add(item))
+    .slice(0, maxItems);
+}
+
+function validResearch(value: unknown): AIResearchSummary | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const row = value as Record<string, unknown>;
+  const sources = Array.isArray(row.sources) ? row.sources
+    .filter(item => item && typeof item === 'object')
+    .map(item => item as Record<string, unknown>)
+    .filter(item => typeof item.title === 'string' && typeof item.url === 'string' && /^https:\/\//i.test(item.url))
+    .map(item => ({ title: String(item.title).replace(/\s+/g, ' ').trim().slice(0, 120), url: String(item.url).trim().slice(0, 500) }))
+    .filter(item => item.title && item.url)
+    .slice(0, 8) : [];
+  const topics = cleanStringArray(row.topics, 8, 80);
+  return { usedWeb: Boolean(row.usedWeb) && sources.length > 0, topics, sources };
+}
+
+function validMemory(value: unknown): AIPlayerMemory | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const row = value as Record<string, unknown>;
+  const summary = typeof row.summary === 'string' ? row.summary.replace(/\s+/g, ' ').trim().slice(0, 600) : '';
+  const categories = (input: unknown) => cleanStringArray(input, 7, 24).filter(item => CATEGORIES.has(item as AIQuestCategory)) as AIQuestCategory[];
+  return {
+    summary,
+    interests: cleanStringArray(row.interests, 12, 80),
+    preferredQuestStyles: cleanStringArray(row.preferredQuestStyles, 10, 80),
+    successfulCategories: categories(row.successfulCategories),
+    recentFailureCategories: categories(row.recentFailureCategories),
+    researchTopics: cleanStringArray(row.researchTopics, 12, 100),
+  };
+}
 
 function validTarget(
   target: unknown,
@@ -87,8 +128,12 @@ export function validateAIGameMasterResponse(
     seen.push(full);
   }
 
+  const research = validResearch(r.research);
+  const memory = validMemory(r.memory);
   return {
     ...r,
+    ...(research ? { research } : {}),
+    ...(memory ? { memory } : {}),
     briefing: r.briefing.trim().slice(0, 180),
     director: {
       ...r.director,

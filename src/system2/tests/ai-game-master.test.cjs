@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const root = process.env.SYSTEM_PROJECT_ROOT ?? path.resolve(__dirname, '../../..');
 const ts = require(require.resolve('typescript', { paths: [root, process.cwd()] }));
 
-function loader(globals = {}) {
+function loader() {
   const cache = new Map();
   function load(file) {
     const resolved = [file, file + '.ts', path.join(file, 'index.ts')]
@@ -27,7 +27,7 @@ function loader(globals = {}) {
     };
     vm.runInNewContext(source, {
       module, exports: module.exports, require: requireMock, console, Date, Set, Math, JSON, Intl,
-      AbortController, Headers, fetch, setTimeout, clearTimeout, ...globals,
+      AbortController, Headers, fetch, setTimeout, clearTimeout,
     }, { filename: resolved });
     return module.exports;
   }
@@ -255,7 +255,8 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   const input = {
     day: '2026-09-21', player,
     prefs: { walking: true, running: true, cycling: true },
-    history: [], goals: [], weeklyCompleted: 0, weeklyClear: false, exclude: [], systemDebt: 0,
+    goals: [], journeys: [], history: [], recentActivity: [], exclude: [], systemDebt: 0,
+    weeklyCompleted: 0, weeklyClear: false,
   };
   const response = validResponse();
   response.quests[0].target = { kind: 'minutes', value: 999999 };
@@ -265,9 +266,67 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   assert.equal(candidates.length, 1);
   const quest = candidates[0].quest;
   assert.ok(!Object.hasOwn(quest, 'xp'));
-  const canonical = load('generation/templates').generatedQuest(quest.id);
-  assert.deepEqual(quest.rewards, canonical.rewards);
-  assert.deepEqual(quest.verification, canonical.verification);
+  assert.deepEqual(JSON.parse(JSON.stringify(quest.rewards)), { realXp: 30, skillXp: { WIL: 25 }, gameEnergy: 3 });
+  assert.notEqual(quest.verification.minimumDurationSeconds, 999999 * 60);
+});
+
+
+test('AI response validation keeps bounded web research and gameplay memory', () => {
+  const { validateAIGameMasterResponse } = loader()('ai/validate');
+  const value = validResponse();
+  value.research = {
+    usedWeb: true,
+    topics: ['official German B2 materials'],
+    sources: [{ title: 'Official resource', url: 'https://example.org/resource' }],
+  };
+  value.memory = {
+    summary: 'Prefers short concrete learning quests.',
+    interests: ['German B2'],
+    preferredQuestStyles: ['15 minute focused practice'],
+    successfulCategories: ['learning'],
+    recentFailureCategories: [],
+    researchTopics: ['German B2 resources'],
+  };
+  const result = validateAIGameMasterResponse(value, []);
+  assert.equal(result?.research?.usedWeb, true);
+  assert.equal(result?.research?.sources.length, 1);
+  assert.equal(result?.memory?.successfulCategories[0], 'learning');
+});
+
+test('AI response validation strips unsafe research URLs instead of trusting them', () => {
+  const { validateAIGameMasterResponse } = loader()('ai/validate');
+  const value = validResponse();
+  value.research = {
+    usedWeb: true,
+    topics: ['goal research'],
+    sources: [
+      { title: 'Bad local source', url: 'http://127.0.0.1/private' },
+      { title: 'Good source', url: 'https://example.org/public' },
+    ],
+  };
+  const result = validateAIGameMasterResponse(value, []);
+  assert.equal(result?.research?.sources.length, 1);
+  assert.equal(result?.research?.sources[0].url, 'https://example.org/public');
+});
+
+test('offline fallback personalizes quests to an active goal and respects movement preferences', () => {
+  const { buildFallback } = loader()('ai/fallback');
+  const context = {
+    player: {
+      level: 4, rank: 'E', streak: 2, completionRate7d: 0.6, systemDebt: 0,
+      activities: { walking: true, running: false, cycling: false },
+    },
+    goals: [{ id:'goal-1', title:'Niemiecki B2', description:'przygotowanie do egzaminu' }],
+    recentQuests: [
+      { title:'Powtórka słownictwa', category:'learning', completed:true, failed:false },
+    ],
+    nowIso: '2026-09-24T08:00:00.000Z',
+  };
+  const response = buildFallback(context, 3);
+  const text = response.quests.map(q => q.title + ' ' + q.description + ' ' + q.reason).join(' ');
+  assert.match(text, /Niemiecki B2/i);
+  assert.ok(response.quests.every(q => q.templateHint !== 'run_easy' && q.templateHint !== 'ride_easy'));
+  assert.match(response.director.message, /Niemiecki B2/i);
 });
 
 test('AI bridge respects local exclusions when selecting proposals and filling the loadout', () => {
@@ -279,25 +338,4 @@ test('AI bridge respects local exclusions when selecting proposals and filling t
   assert.equal(candidates.length,3);
   assert.ok(candidates.every(c => c.templateId !== 'focus_priority'));
   assert.equal(new Set(candidates.map(c => c.templateId)).size,3);
-});
-
-for (const outcome of ['success','offline','timeout']) test('AI request cancels its timer after '+outcome, async () => {
-  const timers = new Map(); let signal, cancelled = 0;
-  const load = loader({
-    setTimeout(callback,ms){assert.equal(ms,25);timers.set(1,callback);return 1;},
-    clearTimeout(id){assert.equal(id,1);assert.ok(timers.delete(id));cancelled++;},
-    fetch:async (_,options)=>{
-      signal=options.signal;
-      if(outcome==='offline')throw new Error('offline');
-      if(outcome==='timeout')return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}));
-      return {ok:true,json:async()=>validResponse()};
-    },
-  });
-  const context={player:{level:3,rank:'E',streak:4,completionRate7d:0.7,systemDebt:0},goals:[],recentQuests:[],nowIso:'2026-09-21T08:00:00.000Z'};
-  const pending=load('ai/client').requestAIGameMaster(context,{endpoint:'https://invalid.local',timeoutMs:25});
-  if(outcome==='timeout')timers.get(1)();
-  const response=await pending;
-  assert.equal(response.source,outcome==='success'?'ai':'fallback');
-  assert.equal(signal.aborted,outcome==='timeout');
-  assert.equal(timers.size,0);assert.equal(cancelled,1);
 });

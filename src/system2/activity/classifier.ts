@@ -1,4 +1,5 @@
 import type { ActivityEvidence, ActivityFeatures, ActivityType, ReasonCode, SensorSummary, Verdict } from './types';
+import {antiCheat2Decision,type AntiCheat2Signal} from '../verification/antiCheat2';
 export const WALK_PROFILE = 'WALK', RUN_PROFILE = 'RUN', BIKE_PROFILE = 'BIKE', EXPLORATION_PROFILE = 'UNKNOWN';
 export function classifyActivity(expected: ActivityType, f: ActivityFeatures, sensors: SensorSummary = {}): ActivityEvidence {
  // Explicit projection prevents raw locations/streams from entering persisted evidence.
@@ -37,7 +38,30 @@ export function classifyActivity(expected: ActivityType, f: ActivityFeatures, se
    if ((expected === 'RUN' || expected === 'WALK') && sensors.cadence !== undefined && (sensors.cadence < 50 || sensors.cadence > 250)) suspect('STEP_RATE_MISMATCH');
    if (sensors.motion === 'STILL' && f.distanceMeters > 100) reject('SPEED_PATTERN_MISMATCH');
  }
- const cap = stepsAvailable && motionAvailable ? 98 : stepsAvailable || motionAvailable ? 93 : 87;
+
+ // Anti-Cheat 2.0 aggregates the same bounded sensor summary used by the
+ // classifier. It never sees raw GPS routes, photos or historic health data.
+ const antiSignals:AntiCheat2Signal[]=[];
+ if(f.mocked)antiSignals.push({kind:'MOCKED_LOCATION',severity:3});
+ if(f.teleportCount>0)antiSignals.push({kind:'TELEPORT',severity:f.teleportCount>2?3:2});
+ if(f.maxSpeedMps>35)antiSignals.push({kind:'IMPOSSIBLE_SPEED',severity:3});
+ const gapLimit=Math.max(2,f.durationSeconds/120);
+ if(f.gpsGaps>gapLimit)antiSignals.push({kind:'SENSOR_GAP',severity:f.gpsGaps>gapLimit*2?3:2});
+ const anti=antiCheat2Decision(antiSignals);
+ if(anti.action==='REJECT'&&state.verdict!=='REJECTED'){
+   if(f.mocked)reject('MOCK_LOCATION');
+   else if(f.teleportCount>0)reject('GPS_TELEPORT');
+   else if(f.maxSpeedMps>35)reject('IMPOSSIBLE_SPEED');
+   else reject('SENSOR_DATA_INSUFFICIENT');
+ }else if(anti.action==='REVIEW'&&state.verdict==='VERIFIED'){
+   if(f.teleportCount>0)suspect('GPS_TELEPORT');
+   else if(f.gpsGaps>gapLimit)suspect('TOO_MANY_GPS_GAPS');
+   else suspect('SENSOR_DATA_INSUFFICIENT');
+ }
+
+ const baseCap = stepsAvailable && motionAvailable ? 98 : stepsAvailable || motionAvailable ? 93 : 87;
+ const antiCap=anti.action==='REJECT'?0:anti.action==='REVIEW'?60:anti.action==='DOWNGRADE'?75:baseCap;
+ const cap=Math.min(baseCap,antiCap||baseCap);
  const penalty = Math.min(25, f.teleportCount * 3 + f.gpsGaps * 2 + Math.max(0, f.meanAccuracy - 10) * .3);
  const score = state.verdict === 'REJECTED' ? 0 : Math.round(Math.max(0, Math.min(state.verdict === 'SUSPICIOUS' ? 60 : cap, cap - penalty)));
  if (state.verdict === 'VERIFIED' && score < 70) suspect('SENSOR_DATA_INSUFFICIENT');

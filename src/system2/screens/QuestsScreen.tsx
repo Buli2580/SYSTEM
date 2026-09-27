@@ -1,3 +1,6 @@
+import {questAvailability} from '../quests/availability';
+import AIDirectorPanel from '../components/AIDirectorPanel';
+import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
 import type { LifeState } from '../adaptive/engine';
 import Action from '../components/Action';
 import { DAILY_RULES } from '../daily/calendar';
@@ -15,7 +18,7 @@ export default function QuestsScreen() {
   const { completedQuestIds, activeQuestId, failedQuestIds = [], daily, awakeningCompleted, story } = system;
   const { adaptivePlan, adaptiveModel, changeLifeState, changeAvailableMinutes } = system;
   const progress = getAwakeningProgress(completedQuestIds);
-  const nextAction = getNextAction({ player: system.player, completedQuestIds, failedQuestIds, activeQuestId, awakeningCompleted, daily, story, achievements: system.achievementState });
+  const nextAction = getNextAction({ ...system, player: system.player, completedQuestIds, failedQuestIds, activeQuestId, awakeningCompleted, daily, story, achievements: system.achievementState });
   const openNextAction = () => nextAction.route === '/quest' && nextAction.questId
     ? router.push({ pathname: '/quest', params: { questId: nextAction.questId } })
     : router.push(nextAction.route);
@@ -39,15 +42,7 @@ export default function QuestsScreen() {
       <Text style={styles.body}>{nextAction.detail}</Text>
       <Action label="CONTINUE →" onPress={openNextAction}/>
     </View>
-    <View style={styles.panel}>
-      <Text style={styles.label}>AI GAME MASTER // {system.aiGameMaster?.source === 'ai' ? 'ONLINE' : 'SAFE FALLBACK'}</Text>
-      <Text style={styles.title}>{system.aiLoading ? 'ANALIZA GRACZA...' : system.aiGameMaster?.director.headline ?? 'DAILY DIRECTOR'}</Text>
-      <Text style={styles.body}>{system.aiGameMaster?.director.message ?? 'SYSTEM analizuje cele, serię i ostatnie wyniki bez zmiany zasad nagród.'}</Text>
-      {!!system.aiGameMaster?.briefing && <Text style={styles.body}>{system.aiGameMaster.briefing}</Text>}
-      {system.systemDebt > 0 && <Text style={styles.body}>SYSTEM DEBT {system.systemDebt} aktywny — poprzedni Daily Protocol nie został domknięty. Recovery Protocol ma priorytet; zdobyte wcześniej XP pozostaje bez zmian.</Text>}
-      {!!system.aiError && <Text style={styles.body}>{system.aiError}</Text>}
-      <Action label={system.aiLoading ? 'AI ANALIZUJE...' : 'ODŚWIEŻ AI DIRECTOR →'} onPress={() => { if (!system.aiLoading) void system.refreshAIGameMaster(); }} />
-    </View>
+    <AIDirectorPanel response={system.aiGameMaster} loading={system.aiLoading} error={system.aiError} systemDebt={system.systemDebt} onRefresh={()=>{if(!system.aiLoading)void system.refreshAIGameMaster();}} />
     <Action label="CELE →" onPress={() => router.push('/goals')} />
     {!!story && <Action label="MAIN STORY / CHRONICLE →" onPress={()=>router.push('/story')}/>}
     <Text style={styles.body}>PIERWSZE PRZEBUDZENIE · {progress.completed}/{progress.total}</Text>
@@ -55,7 +50,7 @@ export default function QuestsScreen() {
       <Text style={styles.title}>DAILY PROTOCOL · {daily.completed}/{daily.questIds.length}</Text>
       <Text style={styles.body}>{daily.dayKey} · {daily.clear ? 'DAILY COMPLETE' : `+${DAILY_RULES.clearXp} REAL XP / +${DAILY_RULES.clearEnergy} ENERGY za ${daily.questIds.length}/${daily.questIds.length}`}</Text>
       {daily.clockAnomaly && <Text style={styles.body}>CLOCK_ANOMALY — sprawdź datę telefonu. Zachowaliśmy Twój postęp.</Text>}
-      {[...new Set(daily.questIds)].map((id, index) => { const q = getQuest(id); if (!q) return null; const access = getQuestStatus(id, completedQuestIds, activeQuestId); const status = access === 'AVAILABLE' && failedQuestIds.includes(id) ? 'FAILED' : access; const reason = daily.reasons?.[id]; const contextLabel = story?.rematchQuestIds.includes(id) ? 'REMATCH AVAILABLE' : daily.suspiciousQuestIds.includes(id) ? 'VERIFICATION REVIEW REQUIRED' : reason?.startsWith('AI GAME MASTER') ? reason : undefined; return <QuestMissionCard key={id} quest={q} status={status} contextLabel={contextLabel} disabled={status === 'LOCKED'} progress={q.progress} progressTarget={q.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: id } })} />; })}
+      {[...new Set(daily.questIds)].map((id, index) => { const q = getQuest(id); if (!q) return null; const access = questAvailability(id,{completedQuestIds,activeQuestId,daily}).status; const status = access === 'AVAILABLE' && failedQuestIds.includes(id) ? 'FAILED' : access; const reason = daily.reasons?.[id]; const contextLabel = story?.rematchQuestIds.includes(id) ? 'REMATCH AVAILABLE' : daily.suspiciousQuestIds.includes(id) ? 'VERIFICATION REVIEW REQUIRED' : reason?.startsWith('AI GAME MASTER') ? reason : undefined; return <QuestMissionCard key={id} quest={q} status={status} contextLabel={contextLabel} disabled={status === 'LOCKED'} progress={q.progress} progressTarget={q.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: id } })} />; })}
       <Text style={styles.title}>WEEKLY PROTOCOL · {Math.min(daily.weeklyTarget, daily.weeklyCompleted)}/{daily.weeklyTarget}</Text>
       <Text style={styles.body}>{daily.weeklyClear ? 'WEEKLY COMPLETE' : `${daily.weeklyTarget} Daily activities · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGY`} · {daily.weekKey}</Text>
     </View>}
@@ -65,6 +60,7 @@ export default function QuestsScreen() {
       const locked = status === 'LOCKED';
       return <QuestMissionCard key={quest.id} quest={quest} status={status} disabled={locked} progress={quest.progress} progressTarget={quest.progressTarget} index={index} onPress={() => router.push({ pathname: '/quest', params: { questId: quest.id } })} />;
     })}
+    {system.progression?.weeklyChallenges.map(challenge => <WeeklyChallengeCard key={challenge.id} title={challenge.title} progress={challenge.progress} target={challenge.target} completed={challenge.rewardClaimed} />)}
     {progress.completed === progress.total && <View style={styles.panel}><Text style={styles.label}>ROZDZIAŁ 01 // UKOŃCZONY</Text><Text style={styles.body}>POŁĄCZENIE ZE ŚWIATEM // {story?.chapters[1]?.completed??0}/3</Text></View>}
     {!!story && <View style={styles.panel}><Text style={styles.label}>MISJE POBOCZNE</Text><Text style={styles.title}>DODATKOWY WYSIŁEK // {story.sideComplete?'UKOŃCZONA':'DOSTĘPNA'}</Text><Text style={styles.body}>Dzienna misja ruchowa z dystansem co najmniej 125% celu. +50 REAL XP · +40 WIL XP. Jednorazowo.</Text></View>}
     {!!story?.hiddenComplete && <View style={styles.panel}><Text style={styles.label}>UKRYTA // UKOŃCZONA</Text><Text style={styles.title}>BEZ ODWROTU</Text></View>}

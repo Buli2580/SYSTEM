@@ -6,8 +6,9 @@ import type { LocationObject } from 'expo-location';
 import { type VerifiedEvent } from '../core';
 import { isUsableLocation } from '../verification/gps';
 import { locationToSector } from '../world/sectors';
+import { WORLD_LINK_ID } from '../story/catalog';
 import { generateSignal, signalReached, SIGNAL_ID, validSignal, type WorldSignal } from '../world/signals';
-import { worldTransaction } from './database';
+import { enqueuePendingRewardPresentation, worldTransaction } from './database';
 
 export type WorldSave = { sectorIds: string[]; signal: WorldSignal | null; signalError: boolean };
 async function readSignal(db: SQLiteDatabase) {
@@ -26,13 +27,23 @@ function requireFix(fix: LocationObject, active: () => boolean) {
 }
 export function discoverSector(location: LocationObject, active: () => boolean = () => true) {
   const fix = { ...location, coords: { ...location.coords } };
-  return worldTransaction(async db => {
+  return worldTransaction(async (db, player) => {
     requireFix(fix, active);
     const sectorId = locationToSector(fix.coords);
+    const worldLinkBefore = Boolean(await db.getFirstAsync('SELECT id FROM story_progress WHERE id=?', WORLD_LINK_ID));
     // Privacy: only the coarse sector and its first discovery time are stored.
     // Never persist GPS samples, an origin/home, or a route history.
     const result = await db.runAsync('INSERT INTO discovered_sectors (sector_id, first_discovered_at) VALUES (?, ?) ON CONFLICT(sector_id) DO NOTHING', sectorId, new Date().toISOString());
-    return { sectorId, discovered: result.changes === 1 };
+    if (result.changes !== 1) return { sectorId, discovered: false, receipt: undefined };
+
+    const ids = await db.getAllAsync<{quest_id:string}>('SELECT quest_id FROM quest_completions');
+    const reconciled = await reconcileStory(db, player, ids.map(row => row.quest_id));
+    const worldLinkAfter = Boolean(await db.getFirstAsync('SELECT id FROM story_progress WHERE id=?', WORLD_LINK_ID));
+    const receipt = !worldLinkBefore && worldLinkAfter
+      ? rewardReceipt(WORLD_LINK_ID, player, reconciled.player, ['PATHFINDER'])
+      : undefined;
+    if (receipt) await enqueuePendingRewardPresentation(db, receipt);
+    return { sectorId, discovered: true, receipt };
   });
 }
 export function scanSignal(location: LocationObject, relocate = false, expectedRevision?: number, active: () => boolean = () => true) {
@@ -77,9 +88,20 @@ export function locateSignal(location: LocationObject, revision: number, active:
       next = applyQuestRewards(player, { realXp: 50, skillXp: { RES: 40 }, gameEnergy: 5 }, now);
       await db.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(next), 'player');
     }
+    const worldLinkBefore = Boolean(await db.getFirstAsync('SELECT id FROM story_progress WHERE id=?', WORLD_LINK_ID));
     await db.runAsync('UPDATE world_signals SET status = ?, located_at = ? WHERE id = ?', 'LOCATED', now, SIGNAL_ID);
     const ids = await db.getAllAsync<{quest_id:string}>('SELECT quest_id FROM quest_completions');
     next = (await reconcileStory(db,next,ids.map(r=>r.quest_id))).player;
-    return { awarded: claim.changes === 1, receipt: claim.changes === 1 ? rewardReceipt(SIGNAL_ID, player, next, ['SIGNAL HUNTER']) : undefined, signal: { ...signal, status: 'LOCATED' as const } };
+    const worldLinkAfter = Boolean(await db.getFirstAsync('SELECT id FROM story_progress WHERE id=?', WORLD_LINK_ID));
+    const receipt = claim.changes === 1
+      ? rewardReceipt(
+          SIGNAL_ID,
+          player,
+          next,
+          worldLinkAfter && !worldLinkBefore ? ['SIGNAL HUNTER','PATHFINDER'] : ['SIGNAL HUNTER'],
+        )
+      : undefined;
+    if (receipt) await enqueuePendingRewardPresentation(db, receipt);
+    return { awarded: claim.changes === 1, receipt, signal: { ...signal, status: 'LOCATED' as const } };
   });
 }

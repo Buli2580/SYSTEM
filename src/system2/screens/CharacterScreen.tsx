@@ -1,7 +1,21 @@
+import StreakMilestoneCard from '../components/StreakMilestoneCard';
+import CharacterCard from '../components/CharacterCard';
+import { titlePl } from '../i18n/pl';
+import {CHARACTER_SECTIONS,characterCompletion} from '../beta/character';
+import SystemPlayerCard from '../cards/SystemPlayerCard';
+import HeroCardCollection from '../cards/HeroCardCollection';
+import SystemAudioScene from '../components/SystemAudioScene';
+import { archetypeForPlayer, playerPerks } from '../progression/perks';
+import {loadEquippedInventory,type EquippedInventory} from '../inventory/storage';
+import {INVENTORY_ITEMS} from '../inventory/catalog';
+import {loadActiveSkillNodes,type ActiveSkillNodes} from '../progression/skillTreeStorage';
+import {loadActiveCompanion} from '../companions/storage';
+import {COMPANIONS} from '../companions/catalog';
+import {TITLES} from '../achievements/catalog';
 import CharacterProgressPanel from '../components/CharacterProgressPanel';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View, Pressable, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
@@ -10,12 +24,12 @@ import IdentityAvatar from '../components/IdentityAvatar';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import { SKILL_KEYS, SKILL_META, compareItem, filterInventory, presentedCharacterStats, type EquipmentSlot, type ItemRarity, type SkillKey } from '../core';
-import { dominantSkill } from '../identity/model';
+import { dominantSkill, type AvatarStyle } from '../identity/model';
 import { calculateAge, validateBirthDate } from '../identity/age';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 
 export default function CharacterScreen() {
-  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, lastReward, inventory, equipItem, unequipItem, latestRaidVictory } = useSystem();
+  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, lastReward, inventory, equipItem, unequipItem, latestRaidVictory, progression, achievementState, settings, saveSettings } = useSystem();
   const router = useRouter();
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
   const [birthDate, setBirthDate] = useState(player.birthDate ?? '');
@@ -24,10 +38,15 @@ export default function CharacterScreen() {
   const [inventorySort,setInventorySort]=useState<'NEWEST'|'RARITY'|'LEVEL'|'POWER'|'NAME'>('POWER');
   const [section, setSection] = useState<'EQUIPMENT'|'SKILLS'|'TITLES'|'ACHIEVEMENTS'>('EQUIPMENT');
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
+  const [equipped,setEquipped]=useState<EquippedInventory>({});
+  const [activeNodes,setActiveNodes]=useState<ActiveSkillNodes>({});
+  const [activeCompanion,setActiveCompanion]=useState<string|null>(null);
   const lock = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => setName(player.displayName), [player.id, player.displayName]);
   useEffect(() => setBirthDate(player.birthDate ?? ''), [player.id, player.birthDate]);
+  const refreshLoadout=useCallback(()=>{void Promise.all([loadEquippedInventory(),loadActiveSkillNodes(),loadActiveCompanion()]).then(([items,nodes,companion])=>{if(!mounted.current)return;setEquipped(items);setActiveNodes(nodes);setActiveCompanion(companion);}).catch(()=>undefined)},[]);
+  useFocusEffect(useCallback(()=>{refreshLoadout();},[refreshLoadout]));
   const aura = useSharedValue(0.72);
   const levelPulse = useSharedValue(0);
   const previousLevel = useRef(player.realLevel);
@@ -73,6 +92,11 @@ export default function CharacterScreen() {
     await updateIdentity({ avatarUri: uri });
     removeOwnedAvatar(player.avatarUri);
   }
+  const profileCompletion=characterCompletion({avatar:!!player.avatarUri,title:!!player.currentTitle&&player.currentTitle!=='UNAWAKENED',skills:Object.values(player.stats).some(skill=>skill.level>1),achievement:Object.values(achievementState.achievements).some(a=>!!a.unlockedAt)});
+  const forgeStyle:AvatarStyle=settings.avatarStyle??'CYBER';
+  const archetype=archetypeForPlayer(player);
+  const perks=playerPerks(player);
+  const activeTitle2=TITLES.find(t=>t.id===achievementState.titles.activeTitleId)?.name??null;
   const gearStats=presentedCharacterStats(player,inventory);
   const visibleInventory=filterInventory(inventory,{rarity:rarityFilter,slot:slotFilter,sort:inventorySort});
   return <SystemPage title="POSTAĆ" subtitle="CHARACTER 3.0">
@@ -107,6 +131,38 @@ export default function CharacterScreen() {
       </Pressable>; })}
     </Animated.View>
 
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER LOADOUT 2.0 // TITLE {activeTitle2??'DEFAULT'}</Text>
+      <Text style={s.title}>{activeCompanion ? (COMPANIONS.find(c=>c.id===activeCompanion)?.name ?? activeCompanion).toUpperCase() : 'NO COMPANION'} // {Object.keys(equipped).length} ITEMS // {Object.keys(activeNodes).length} NODES</Text>
+      {activeTitle2&&<Text style={s.body}>ACTIVE TITLE 2.0 // {activeTitle2}</Text>}
+      {Object.entries(equipped).map(([kind,id])=>{const item=INVENTORY_ITEMS.find(x=>x.id===id);return <Text key={kind} style={s.body}>{kind} // {item?.name??id}</Text>})}
+      {Object.entries(activeNodes).map(([skill,id])=><Text key={skill} style={s.body}>{skill} NODE // {id}</Text>)}
+      <Action label="INVENTORY →" onPress={()=>router.push('/inventory')} />
+      <Action label="COMPANIONS →" onPress={()=>router.push('/companions')} />
+      <Action label="PROGRESSION 2.0 →" onPress={()=>router.push('/progression-2')} />
+    </View>
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER BUILD // ARCHETYPE</Text>
+      <Text style={s.title}>{archetype}</Text>
+      <Text style={s.body}>Archetyp jest wyliczany z dominujących statystyk STR/VIT/INT/WIL/CHA/CRE/RES i wpływa na dalsze systemy ACTION 3.0.</Text>
+      {perks.map(perk=><View key={perk.id} style={{marginTop:12,paddingTop:10,borderTopWidth:1,borderTopColor:'#17333e'}}>
+        <Text style={[s.label,{color:perk.unlocked?'#6ceeff':'#657b85'}]}>{perk.unlocked?'UNLOCKED':'LOCKED'} // {perk.title}</Text>
+        <Text style={s.body}>{perk.description} · {perk.unlockReason}</Text>
+      </View>)}
+    </View>
+    <View style={s.panel}>
+      <Text style={s.label}>CHARACTER FORGE // EVOLUTION</Text>
+      <Text style={s.body}>Styl zmienia wyłącznie wygląd postaci. Ranga i XP wynikają z rzeczywistego postępu.</Text>
+      <CharacterCard player={player} style={forgeStyle} archetype={archetype} compact />
+      {(['DARK','CYBER','WARLORD'] as const).map(style=>
+        <Action key={style} label={forgeStyle===style?'✓ '+style:style} disabled={busy}
+          onPress={()=>{void run(()=>saveSettings({avatarStyle:style}));}} />
+      )}
+      <Text style={s.body}>Możesz zmienić styl w dowolnym momencie, bez resetowania osiągnięć.</Text>
+    </View>
+
+    <HeroCardCollection player={player} />
+    <SystemPlayerCard player={player} activeTitle2={activeTitle2} companionName={activeCompanion ? COMPANIONS.find(c=>c.id===activeCompanion)?.name ?? activeCompanion : null} />
     <View style={cs.rpgNav}>
       <Pressable onPress={()=>setSection('EQUIPMENT')} style={[cs.rpgNavItem,section==='EQUIPMENT'&&cs.rpgNavActive]}><Text style={cs.navGlyph}>⌘</Text><Text style={cs.navText}>EKWIPUNEK</Text></Pressable>
       <Pressable onPress={()=>setSection('SKILLS')} style={[cs.rpgNavItem,section==='SKILLS'&&cs.rpgNavActive]}><Text style={cs.navGlyph}>✦</Text><Text style={cs.navText}>SKILL TREE</Text></Pressable>

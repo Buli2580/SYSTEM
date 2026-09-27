@@ -7,10 +7,10 @@ export type Chapter = { id: string; arcId: string; number: number; title: string
 export type ChapterState = Chapter & { status: ChapterStatus; completed: number; total: number };
 export type Arc = { id: string; title: string; chapterIds: string[] };
 export type AttemptResult = 'COMPLETED' | 'INTERRUPTED' | 'FAILED' | 'SUSPICIOUS' | 'REJECTED' | 'ABANDONED';
-export type AttemptReason = 'BACKGROUND' | 'LEFT_SCREEN' | 'VERIFICATION_REJECTED' | 'LOW_CONFIDENCE' | 'PERMISSION_DENIED' | 'TECHNICAL_ERROR' | 'PROCESS_ENDED';
+export type AttemptReason = 'BACKGROUND' | 'LEFT_SCREEN' | 'DAY_ROLLOVER' | 'VERIFICATION_REJECTED' | 'LOW_CONFIDENCE' | 'PERMISSION_DENIED' | 'TECHNICAL_ERROR' | 'PROCESS_ENDED';
 export type QuestAttempt = { attempt_id: string; quest_id: string; kind: string; started_at: string; ended_at: string | null;
  result: AttemptResult | null; duration: number; distance: number; reason: AttemptReason | null; eligible: number };
-export type StoryEventType = 'CHAPTER_UNLOCKED' | 'CHAPTER_COMPLETED' | 'HIDDEN_QUEST_DISCOVERED' | 'SIDE_QUEST_COMPLETED' | 'REMATCH_AVAILABLE' | 'REMATCH_COMPLETED' | 'BOSS_STARTED' | 'BOSS_STAGE_COMPLETED' | 'BOSS_DEFEATED' | 'TITLE_UNLOCKED' | 'FIRST_SIGNAL_LOCATED' | 'DAILY_GENERATED' | 'QUEST_REROLLED' | 'RECOVERY_OFFERED' | 'GOAL_CREATED' | 'GOAL_COMPLETED' | 'JOURNEY_CREATED' | 'JOURNEY_MILESTONE' | 'JOURNEY_COMPLETED' | 'JOURNEY_STAGE_ADVANCED';
+export type StoryEventType = 'WEEKLY_COMPLETED' | 'CHAPTER_UNLOCKED' | 'CHAPTER_COMPLETED' | 'HIDDEN_QUEST_DISCOVERED' | 'SIDE_QUEST_COMPLETED' | 'REMATCH_AVAILABLE' | 'REMATCH_COMPLETED' | 'BOSS_STARTED' | 'BOSS_STAGE_COMPLETED' | 'BOSS_DEFEATED' | 'TITLE_UNLOCKED' | 'FIRST_SIGNAL_LOCATED' | 'DAILY_GENERATED' | 'QUEST_REROLLED' | 'RECOVERY_OFFERED' | 'GOAL_CREATED' | 'GOAL_COMPLETED' | 'JOURNEY_CREATED' | 'JOURNEY_MILESTONE' | 'JOURNEY_COMPLETED' | 'JOURNEY_STAGE_ADVANCED';
 export type StoryEvent = { id: string; type: StoryEventType; title: string; subtitle: string | null; created_at: string; consumed: number };
 export type BossProgress = { id: string; started_at: string; start_day: string; difficulty?: number; focus_at: string | null; move_at: string | null; discipline_at: string | null };
 export type StoryState = { chapters: ChapterState[]; milestones: { sectors: boolean; signal: boolean; dailyClear: boolean };

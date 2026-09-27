@@ -314,3 +314,340 @@ test('awakening accepts mobile GPS speed ceiling of 8.5 metres per second',async
   const key=await submit(id,{...movement,distance_meters:510,duration_seconds:60});
   assert.equal((await event(key)).processing_status,'PROCESSED');
 });
+
+const generated = loadMobile('generation/templates');
+function generatedEvidence(template,tier='easy',day='2026-09-18') {
+ const q=generated.generatedQuest('daily:'+day+':g1_'+template+'_'+tier);
+ return {quest_id:q.id,verification_type:q.verification.type,verification_score:100,
+ distance_meters:q.verification.minimumDistanceMeters??0,duration_seconds:q.verification.minimumDurationSeconds??1200,
+ ...(q.activityType?{activity:{expected:q.activityType,detected:q.activityType,verdict:'VERIFIED'}}:{})};
+}
+function progressionClaim(suffix,local='local_player_A') {return {quest_id:'progression:'+local+':'+suffix,verification_type:'MULTI',verification_score:100,real_xp:999999};}
+
+test('all105 generated rules match immutable mobile targets and server-owned rewards',async()=>{
+ for(const template of generated.QUEST_TEMPLATES) for(const tier of ['easy','normal','hard']) {
+  const q=generated.generatedQuest('daily:2026-09-18:g1_'+template.id+'_'+tier);
+  const row=(await db.query('SELECT r.*,c.real_xp,c.energy,c.skill_rewards FROM private.sync_quest_rules r JOIN public.reward_catalog c USING(reward_code) WHERE r.rule_key=$1',['daily:'+q.templateId])).rows[0];
+  assert.ok(row,q.id);assert.equal(row.real_xp,q.rewards.realXp);assert.equal(row.energy,q.rewards.gameEnergy);
+  assert.deepEqual(row.skill_rewards,{...q.rewards.skillXp});assert.equal(row.verification_type,q.verification.type);
+  assert.equal(Number(row.minimum_distance),q.verification.minimumDistanceMeters??0);
+  assert.equal(Number(row.minimum_duration),q.verification.minimumDurationSeconds??1);
+  assert.equal(row.minimum_level,generated.DIFFICULTY[tier.toUpperCase()].minLevel);
+ }
+});
+for(const tier of ['easy','normal','hard']) test('generated '+tier+' rewards commit once and reject replay',async()=>{
+ const id=await user();await awakening(id);let xp=0;for(let l=1;l<8;l++)xp+=progression.xpNeededForRealLevel(l);
+ await db.query('UPDATE public.player_progress SET real_level=8,real_total_xp=$2 WHERE user_id=$1',[id,xp]);
+ const payload=generatedEvidence('learn_read',tier),key=await submit(id,{...payload,real_xp:999999},'generated:'+tier);
+ assert.equal((await event(key)).processing_status,'PROCESSED');
+ assert.equal(Number((await state(id)).real_total_xp),xp+generated.DIFFICULTY[tier.toUpperCase()].xp);
+ const again=await submit(id,payload,'replay:'+tier);assert.equal((await event(again)).rejection_reason,'DUPLICATE');
+});
+test('generated movement loadout accepts3 verified movements and rejects fourth slot',async()=>{
+ const id=await user();await awakening(id);
+ for(const name of ['walk_fresh','run_easy','ride_easy']){const key=await submit(id,generatedEvidence(name),'loadout:'+name);assert.equal((await event(key)).processing_status,'PROCESSED');}
+ const fourth=await submit(id,generatedEvidence('learn_read'),'loadout:fourth');assert.equal((await event(fourth)).rejection_reason,'DAILY_LIMIT');
+ const unknown=await submit(id,{...generatedEvidence('learn_read'),quest_id:'daily:2026-09-18:g2_learn_read_easy'},'unknown:g2');assert.equal((await event(unknown)).rejection_reason,'UNKNOWN_QUEST');
+});
+test('generated difficulty waits for server progression and pending retry grants once',async()=>{
+ const id=await user();await awakening(id);const key=await submit(id,generatedEvidence('learn_read','hard'),'difficulty:hard');
+ assert.equal((await event(key)).processing_status,'RECEIVED');
+ let xp=0;for(let l=1;l<8;l++)xp+=progression.xpNeededForRealLevel(l);
+ await db.query('UPDATE public.player_progress SET real_level=8,real_total_xp=$2 WHERE user_id=$1',[id,xp]);
+ await asUser(id,'SELECT public.process_pending_sync_events()');await asUser(id,'SELECT public.process_pending_sync_events()');
+ assert.equal((await event(key)).processing_status,'PROCESSED');assert.equal(Number((await state(id)).real_total_xp),xp+75);
+});
+test('weekly progression uses direct evidence and normalizes local profile replay',async()=>{
+ const id=await user();await awakening(id);
+ const claim=progressionClaim('weekly:2026-W38:weekly_quest_master');const key=await submit(id,claim,'progression:early');
+ assert.equal((await event(key)).processing_status,'RECEIVED','Awakening derived claim must not count as4th quest');
+ await submit(id,generatedEvidence('learn_read'),'weekly:one');await asUser(id,'SELECT public.process_pending_sync_events()');assert.equal((await event(key)).processing_status,'RECEIVED');
+ await submit(id,generatedEvidence('focus_begin'),'weekly:two');await asUser(id,'SELECT public.process_pending_sync_events()');
+ assert.equal((await event(key)).processing_status,'PROCESSED');assert.equal(Number((await state(id)).real_total_xp),600+60+200);
+ const replay=await submit(id,progressionClaim('weekly:2026-W38:weekly_quest_master','another_install'),'progression:replay');assert.equal((await event(replay)).rejection_reason,'DUPLICATE');
+ const outsider=await user();const stolen=await submit(outsider,claim,'progression:stolen');assert.equal((await event(stolen)).processing_status,'RECEIVED');assert.equal(await count('reward_ledger',outsider),0);
+});
+test('weekly distinct-day and verified-distance rewards are independently derived',async()=>{
+ const id=await user();await awakening(id);
+ for(const day of ['2026-09-18','2026-09-19','2026-09-20']) {
+  const p=generatedEvidence('ride_easy','easy',day);p.distance_meters=3500;await submit(id,p,'distance:'+day);
+ }
+ for(const [kind,xp,en] of [['weekly_daily_consistency',150,15],['weekly_pathfinder',180,18]]){
+  const key=await submit(id,progressionClaim('weekly:2026-W38:'+kind),'progression:'+kind);assert.equal((await event(key)).processing_status,'PROCESSED');
+  const row=(await db.query('SELECT real_xp,energy FROM public.reward_ledger WHERE user_id=$1 AND evidence_event_key=$2',[id,'progression:'+kind])).rows[0];assert.equal(row.real_xp,xp);assert.equal(row.energy,en);
+ }
+});
+async function legacyClears(id,days=30,gap=-1){
+ // Trusted existing ledger fixture: legacy accepted clears survive the forward migration.
+ for(let n=0;n<days;n++){if(n===gap)continue;const day=new Date(Date.UTC(2026,7,22+n)).toISOString().slice(0,10);
+ await db.query("INSERT INTO public.reward_ledger(user_id,ledger_key,reward_code,real_xp,energy,source_type,source_id) VALUES($1,$2,'DAILY_CLEAR',75,10,'VERIFIED_EVENT',$3)",[id,'legacy-clear:'+day,'daily_clear:'+day]);}
+}
+test('legacy qualified clears support all milestone rewards and weekly streak exactly once',async()=>{
+ const id=await user();await legacyClears(id);
+ for(const [days,xp,en] of [[3,50,5],[7,76,8],[14,108,11],[30,158,16]]){
+  const key=await submit(id,progressionClaim('milestone:'+days),'milestone:'+days);assert.equal((await event(key)).processing_status,'PROCESSED');
+  const row=(await db.query('SELECT real_xp,energy FROM public.reward_ledger WHERE user_id=$1 AND evidence_event_key=$2',[id,'milestone:'+days])).rows[0];assert.equal(row.real_xp,xp);assert.equal(row.energy,en);
+  const replay=await submit(id,progressionClaim('milestone:'+days,'other-profile'),'milestone-replay:'+days);assert.equal((await event(replay)).rejection_reason,'DUPLICATE');
+ }
+ const weekly=await submit(id,progressionClaim('weekly:2026-W38:weekly_streak_keeper'),'weekly:streak');assert.equal((await event(weekly)).processing_status,'PROCESSED');assert.equal(Number((await state(id)).real_total_xp),392+250);
+ const broken=await user();await legacyClears(broken,30,15);const no30=await submit(broken,progressionClaim('milestone:30'),'milestone:gap');assert.equal((await event(no30)).processing_status,'RECEIVED');
+});
+test('transient progression failure rolls back normalized claim and retry grants exactly once',async()=>{
+ const id=await user();await legacyClears(id,3);
+ await db.exec("CREATE FUNCTION public.test_bonus_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'transient'; END $$; CREATE TRIGGER test_bonus_fault BEFORE INSERT ON public.verification_summaries FOR EACH ROW EXECUTE FUNCTION public.test_bonus_fault();");
+ let key;try{key=await submit(id,progressionClaim('milestone:3'),'bonus:retry');assert.equal((await event(key)).processing_status,'RECEIVED');assert.equal(Number((await state(id)).real_total_xp),0);assert.equal(await count('reward_claims',id),0);}finally{await db.exec('DROP TRIGGER test_bonus_fault ON public.verification_summaries; DROP FUNCTION public.test_bonus_fault();');}
+ await asUser(id,'SELECT public.process_pending_sync_events()');await asUser(id,'SELECT public.process_sync_event($1)',[key]);assert.equal(Number((await state(id)).real_total_xp),50);assert.equal(await count('reward_claims',id),1);
+});
+test('boss story claim requires server boss completion and pays fixed reward once',async()=>{
+ const id=await user();await awakening(id);
+ await db.query("INSERT INTO public.reward_ledger(user_id,ledger_key,reward_code,source_type,source_id) VALUES($1,'trusted-world','WORLD_LINK_COMPLETE','VERIFIED_EVENT','world_link_chapter_2')",[id]);
+ await submit(id,{quest_id:'wall_focus_v1',verification_type:'TIMER',verification_score:100,duration_seconds:900},'boss:focus');
+ const payload={quest_id:'the_first_wall_v1',verification_type:'MULTI',verification_score:100,boss_complete:true,real_xp:99999};const key=await submit(id,payload,'boss:claim');assert.equal((await event(key)).processing_status,'RECEIVED');
+ await assert.rejects(asUser(id,"INSERT INTO public.boss_progress(user_id,boss_id,status) VALUES($1,'the_first_wall_v1','COMPLETED')",[id]),/permission denied/);
+ await db.query("INSERT INTO public.boss_progress(user_id,boss_id,status) VALUES($1,'the_first_wall_v1','COMPLETED')",[id]);
+ await asUser(id,'SELECT public.process_pending_sync_events()');assert.equal((await event(key)).processing_status,'PROCESSED');assert.equal(Number((await state(id)).real_total_xp),1100);
+ const replay=await submit(id,payload,'boss:replay');assert.equal((await event(replay)).rejection_reason,'DUPLICATE');
+});
+
+test('timer distance and derived reward metadata cannot fund Pathfinder',async()=>{
+ const id=await user();await awakening(id);const timer=generatedEvidence('learn_read');timer.distance_meters=100000;
+ assert.equal((await event(await submit(id,timer,'timer:fake-distance'))).processing_status,'PROCESSED');
+ const claim=await submit(id,progressionClaim('weekly:2026-W38:weekly_pathfinder'),'pathfinder:fake');
+ assert.equal((await event(claim)).processing_status,'RECEIVED');
+ assert.equal((await db.query("SELECT count(*) n FROM public.reward_ledger WHERE user_id=$1 AND reward_code='PROGRESSION_WEEKLY_PATHFINDER'",[id])).rows[0].n,0);
+});
+test('fractional verified GPS evidence is retained for weekly distance thresholds',async()=>{
+ const id=await user();await awakening(id);
+ for(const [n,day] of ['2026-09-18','2026-09-19','2026-09-20'].entries()){
+  const p=generatedEvidence('ride_easy','easy',day);p.distance_meters=3333.4;await submit(id,p,'fractional:'+n);
+ }
+ const key=await submit(id,progressionClaim('weekly:2026-W38:weekly_pathfinder'),'fractional:claim');assert.equal((await event(key)).processing_status,'PROCESSED');
+});
+test('forward migration preserves settled rewards and requeues newly recognized legacy rejections',async()=>{
+ const upgrade=new PGlite();try{
+ await upgrade.exec("CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY,raw_user_meta_data jsonb DEFAULT '{}'); CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; GRANT USAGE ON SCHEMA auth,public TO anon,authenticated,service_role; GRANT EXECUTE ON FUNCTION auth.uid() TO PUBLIC;");
+ await upgrade.exec(fs.readFileSync(path.join(__dirname,'fixtures/cloud-baseline.sql'),'utf8').replace(/create extension if not exists pgcrypto;/i,''));
+ const files=fs.readdirSync(path.join(__dirname,'../migrations')).sort();const compatibility=files.find(f=>f.endsWith('_canonical_processor_compatibility.sql'));
+ for(const file of files){if(file===compatibility)break;await upgrade.exec(fs.readFileSync(path.join(__dirname,'../migrations',file),'utf8'));}
+ const id=randomUUID();await upgrade.query('INSERT INTO auth.users(id) VALUES($1)',[id]);
+ const call=async(p,key)=>upgrade.transaction(async tx=>{await tx.query("SELECT set_config('request.jwt.claim.sub',$1,true)",[id]);await tx.exec('SET LOCAL ROLE authenticated');return (await tx.query("SELECT public.submit_sync_event($1,'VERIFIED_EVENT',$2,$3::jsonb) id",[key,p.quest_id,JSON.stringify(p)])).rows[0].id;});
+ for(const p of [movement,focus,{quest_id:'final_trial_v1',verification_type:'MULTI',verification_score:95,distance_meters:603,duration_seconds:600},{quest_id:'awakening_chapter_1',verification_type:'MULTI',verification_score:100}])await call(p,'upgrade:'+p.quest_id);
+ const pending=await call(generatedEvidence('learn_read'),'upgrade:generated');
+ assert.equal((await upgrade.query('SELECT rejection_reason FROM public.sync_events WHERE id=$1',[pending])).rows[0].rejection_reason,'UNKNOWN_QUEST');
+ const prior=(await upgrade.query('SELECT count(*) n FROM public.reward_ledger WHERE user_id=$1',[id])).rows[0].n;
+ await upgrade.exec(fs.readFileSync(path.join(__dirname,'../migrations',compatibility),'utf8'));
+ assert.equal((await upgrade.query('SELECT count(*) n FROM public.reward_ledger WHERE user_id=$1',[id])).rows[0].n,prior);
+ assert.equal((await upgrade.query('SELECT processing_status FROM public.sync_events WHERE id=$1',[pending])).rows[0].processing_status,'RECEIVED');
+ await call(generatedEvidence('learn_read'),'upgrade:generated');await call(generatedEvidence('learn_read'),'upgrade:generated');
+ assert.equal(Number((await upgrade.query('SELECT real_total_xp FROM public.player_progress WHERE user_id=$1',[id])).rows[0].real_total_xp),630);
+ }finally{await upgrade.close();}
+});
+
+test('local Monday attribution survives Sunday UTC upload and forged days are rejected',async()=>{
+ const id=await user();
+ const send=async(p,key)=> (await asUser(id,"SELECT public.submit_sync_event($1,'VERIFIED_EVENT',$2,$3::jsonb,null,$4::timestamptz) id",[key,p.quest_id,JSON.stringify({...p,completed_day:'2026-09-21'}),'2026-09-20T22:30:00Z'])).rows[0].id;
+ for(const p of [movement,focus,{quest_id:'final_trial_v1',verification_type:'MULTI',verification_score:95,distance_meters:603,duration_seconds:600},{quest_id:'awakening_chapter_1',verification_type:'MULTI',verification_score:100}]){const key=await send(p,'monday:'+p.quest_id);assert.equal((await event(key)).processing_status,'PROCESSED');}
+ for(const name of ['learn_read','focus_begin'])await send(generatedEvidence(name,'easy','2026-09-21'),'monday:'+name);
+ const bonus=await submit(id,progressionClaim('weekly:2026-W39:weekly_quest_master'),'monday:bonus');assert.equal((await event(bonus)).processing_status,'PROCESSED');
+ const other=await user();const invalid=await submit(other,{...movement,completed_day:'2099-12-31'},'forged:day');assert.equal((await event(invalid)).rejection_reason,'INVALID_PAYLOAD');
+});
+
+
+// Ranked MOVE requires separately PROCESSED core evidence. Merely posting
+// local timer/GPS metadata must not alter official group totals.
+test('MOVE legacy self-reported claims cannot inflate official rankings',async()=>{
+ const owner=await user();
+ const group=(await asUser(owner,"select public.create_move_group('FAMILY','MVP secure group') as id")).rows[0].id;
+ await assert.rejects(asUser(owner,
+   "select public.submit_move_contribution($1,'move:fake','move_walk_10','GPS',100,current_date)",
+   [group]),/permission denied|MOVE_SERVER_EVIDENCE_REQUIRED/i);
+ // Preserve an old entry for audit, but quarantine it from official totals.
+ await db.query("insert into public.move_contributions(group_id,user_id,event_key,quest_id,verified_minutes,verification_method,verification_score,day_key) values($1,$2,'move:untrusted-old','move_bike_20',20,'GPS',100,current_date)",[group,owner]);
+ const groups=await asUser(owner,'select * from public.get_my_move_groups()');
+ assert.equal(Number(groups.rows[0].total_minutes),0);
+ const board=await asUser(owner,'select * from public.get_move_group_leaderboard($1)',[group]);
+ assert.equal(board.rows.length,0);
+});
+
+test('MOVE trusted source cannot be forged, double-claimed, reassigned, or seen across groups',async()=>{
+ const owner=await user(),outsider=await user();
+ const group=(await asUser(owner,"select public.create_move_group('FAMILY','Verified group') as id")).rows[0].id;
+ const today=(await db.query('select current_date::text as day')).rows[0].day;
+ const key='verified:move-ranked-'+randomUUID().replaceAll('-','');
+ const coreQuest='daily:'+today+':walk_protocol_1';
+ await assert.rejects(asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_walk_10',today]),/MOVE_SERVER_EVIDENCE_REQUIRED/);
+ await db.query(`insert into public.sync_events(user_id,event_key,entity_type,entity_id,payload,processing_status,schema_version)
+   values($1,$2,'VERIFIED_EVENT',$3,'{}'::jsonb,'PROCESSED',1)`,[owner,key,coreQuest]);
+ await db.query(`insert into public.verification_summaries(user_id,event_key,activity_type,verdict,confidence_score,distance_meters,duration_seconds)
+   values($1,$2,'WALK','VERIFIED',85,1600,750)`,[owner,key]);
+ // An outsider cannot submit another member's trusted proof.
+ await assert.rejects(asUser(outsider,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_walk_10',today]),/NOT_GROUP_MEMBER/);
+ await assert.rejects(asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_bike_20',today]),/MOVE_SERVER_EVIDENCE_REQUIRED/);
+ await assert.rejects(asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date)',
+   [group,key,'move_walk_10','2026-09-18']),/MOVE_SERVER_EVIDENCE_REQUIRED|INVALID_MOVE_DAY/);
+ const accepted=await asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date) as minutes',
+   [group,key,'move_walk_10',today]);
+ assert.equal(accepted.rows[0].minutes,10);
+ const repeated=await asUser(owner,
+   'select public.submit_verified_move_contribution($1,$2,$3,$4::date) as minutes',
+   [group,key,'move_walk_10',today]);
+ assert.equal(repeated.rows[0].minutes,0);
+ const groupStatus=await asUser(owner,'select * from public.get_my_move_groups()');
+ assert.equal(Number(groupStatus.rows[0].total_minutes),10);
+ const board=await asUser(owner,'select * from public.get_move_group_leaderboard($1)',[group]);
+ assert.equal(board.rows.length,1);assert.equal(Number(board.rows[0].verified_minutes),10);
+ const source=await asUser(owner,'select * from public.get_my_move_verified_source($1,$2::date)',['move_walk_10',today]);
+ assert.equal(source.rows[0].event_key,key);
+ const invisible=await asUser(outsider,'select * from public.get_my_move_verified_source($1,$2::date)',['move_walk_10',today]);
+ assert.equal(invisible.rows.length,0);
+});
+
+test('MOVE invited family member can see group totals but not individual rankings',async()=>{
+ const parent=await user(),member=await user();
+ const group=(await asUser(parent,"select public.create_move_group('FAMILY','Privacy group') as id")).rows[0].id;
+ const code=(await asUser(parent,"select public.create_move_group_invite($1,'MEMBER',1,24) as code",[group])).rows[0].code;
+ await asUser(member,'select public.join_move_group($1)',[code]);
+ const groups=await asUser(member,'select * from public.get_my_move_groups()');
+ assert.equal(groups.rows[0].name,'Privacy group');
+ const board=await asUser(member,'select * from public.get_move_group_leaderboard($1)',[group]);
+ assert.equal(board.rows.length,0);
+});
+
+test('concurrent two-install claim replay preserves exactly-once core XP',async()=>{
+ const id=await user();
+ const attempts=[
+  ...Array.from({length:8},()=>submit(id,movement,'verified:install-a-first-move')),
+  ...Array.from({length:8},(_,i)=>submit(id,movement,'verified:install-b-retry-'+i)),
+ ];
+ await Promise.all(attempts);
+ assert.equal(Number((await state(id)).real_total_xp),100);
+ assert.equal(await count('reward_ledger',id),1);
+ assert.equal(await count('verification_summaries',id),1);
+ const completions=await db.query("select count(*)::int as n from public.quest_completions where user_id=$1 and quest_id='first_movement_v1'",[id]);
+ assert.equal(completions.rows[0].n,1);
+});
+
+
+test('MOVE privacy: students and children cannot query peers individual contribution rows',async()=>{
+ const parent=await user(),childA=await user(),childB=await user();
+ const group=(await asUser(parent,"select public.create_move_group('FAMILY','Children privacy check') as id")).rows[0].id;
+ const invite=(await asUser(parent,"select public.create_move_group_invite($1,'CHILD',2,24) as code",[group])).rows[0].code;
+ await asUser(childA,'select public.join_move_group($1)',[invite]);
+ await asUser(childB,'select public.join_move_group($1)',[invite]);
+ await db.query(`insert into public.move_contributions
+   (group_id,user_id,event_key,quest_id,verified_minutes,verification_method,verification_score,day_key)
+   values($1,$2,'move:a','move_walk_10',10,'GPS',90,current_date),
+         ($1,$3,'move:b','move_walk_10',10,'GPS',90,current_date)`,[group,childA,childB]);
+ const childRoster=(await asUser(childA,'select user_id from public.move_group_members where group_id=$1',[group])).rows;
+ assert.deepEqual(childRoster.map(row=>row.user_id),[childA]);
+ const guardianRoster=(await asUser(parent,'select user_id from public.move_group_members where group_id=$1',[group])).rows;
+ assert.deepEqual(guardianRoster.map(row=>row.user_id).sort(),[parent,childA,childB].sort());
+ const a=(await asUser(childA,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
+ assert.deepEqual(a.map(row=>row.user_id),[childA]);
+ const guardian=(await asUser(parent,'select user_id from public.move_contributions where group_id=$1',[group])).rows;
+ assert.deepEqual(guardian.map(row=>row.user_id).sort(),[childA,childB].sort());
+ const other=(await asUser(childA,'select * from public.get_move_group_leaderboard($1)',[group])).rows;
+ assert.equal(other.length,0);
+});
+function adaptiveEvidence(template='learn_read', options={}) {
+ const {day='2026-09-18',minutes=2,count=1,difficulty=1,weekly=3,tier='easy'}=options;
+ const base=generated.generatedQuest(`daily:${day}:g1_${template}_${tier}`);
+ const seconds=Math.floor(minutes*60/count),speed=base.activityType==='BIKE'?4:base.activityType==='RUN'?2.5:1.25;
+ const target=Math.floor(Math.min(base.progressTarget,base.verification.type==='TIMER'?seconds:seconds*speed));
+ const q=generated.generatedQuest(base.id+`:a1:${difficulty}:${target}`);
+ return {...generatedEvidence(template,tier,day),quest_id:q.id,duration_seconds:q.verification.minimumDurationSeconds??Math.max(120,target),distance_meters:q.verification.minimumDistanceMeters??0,
+ adaptive:{version:1,available_minutes:minutes,daily_count:count,difficulty,weekly_target:weekly}};
+}
+test('adaptive valid g1 contract uses server rewards and rejects changed target, tier and device replays',async()=>{
+ const id=await user();await awakening(id);const p=adaptiveEvidence();const before=Number((await state(id)).real_total_xp);
+ const key=await submit(id,{...p,real_xp:999999},'adaptive:valid');assert.equal((await event(key)).processing_status,'PROCESSED');
+ assert.equal(Number((await state(id)).real_total_xp),before+30);
+ assert.equal(await submit(id,p,'adaptive:valid'),key);
+ const replay=await submit(id,p,'adaptive:other-device');assert.equal((await event(replay)).rejection_reason,'DUPLICATE');
+ const forged=await submit(id,{...p,quest_id:p.quest_id.replace(':120',':1')},'adaptive:forged');assert.equal((await event(forged)).processing_status,'REJECTED');
+ assert.equal(Number((await state(id)).real_total_xp),before+30);
+});
+for(const patch of [{daily_count:5},{available_minutes:1},{difficulty:6},{weekly_target:1},{daily_count:'1'},{version:2}])test('adaptive rejects forged plan '+JSON.stringify(patch),async()=>{
+ const id=await user();await awakening(id);const p=adaptiveEvidence();const key=await submit(id,{...p,adaptive:{...p.adaptive,...patch}},'adaptive:bad');assert.equal((await event(key)).processing_status,'REJECTED');assert.equal((await count('quest_completions',id)),4);
+});
+test('adaptive pending evidence can be enriched once after upgrade without changing its evidence',async()=>{
+ const id=await user();await awakening(id);const p=adaptiveEvidence(),{adaptive,...old}=p;const key=await submit(id,old,'adaptive:legacy');
+ assert.equal((await event(key)).processing_status,'RECEIVED');assert.equal((await event(key)).rejection_reason,'ADAPTIVE_CONTEXT_REQUIRED');
+ await submit(id,{...p,duration_seconds:9999},'adaptive:legacy');assert.equal((await event(key)).processing_status,'RECEIVED');
+ await submit(id,p,'adaptive:legacy');assert.equal((await event(key)).processing_status,'PROCESSED');
+ await submit(id,p,'adaptive:legacy');assert.equal(await count('quest_completions',id),5);
+});
+test('adaptive day and week budgets stay frozen and cannot be bypassed with legacy IDs',async()=>{
+ const id=await user();await awakening(id);const p=adaptiveEvidence();await submit(id,p,'adaptive:first');
+ const changed=adaptiveEvidence('learn_question',{minutes:45,count:3});const mismatch=await submit(id,changed,'adaptive:changed');assert.equal((await event(mismatch)).processing_status,'REJECTED');
+ const bypass=await submit(id,generatedEvidence('learn_question'),'adaptive:legacy-bypass');assert.equal((await event(bypass)).rejection_reason,'DAILY_LIMIT');
+ const clear=await submit(id,{quest_id:'daily_clear:2026-09-18',verification_type:'MULTI',verification_score:100},'adaptive:clear');assert.equal((await event(clear)).processing_status,'PROCESSED');
+ for(const day of ['2026-09-19','2026-09-20'])assert.equal((await event(await submit(id,adaptiveEvidence('learn_question',{day}),'adaptive:'+day))).processing_status,'PROCESSED');
+ const weekly=await submit(id,{quest_id:'weekly_complete:2026-W38',verification_type:'MULTI',verification_score:100},'adaptive:weekly');assert.equal((await event(weekly)).processing_status,'PROCESSED');
+ const replay=await submit(id,{quest_id:'weekly_complete:2026-W38',verification_type:'MULTI',verification_score:100},'adaptive:weekly-replay');assert.equal((await event(replay)).rejection_reason,'DUPLICATE');
+});
+test('adaptive private plans cannot be read or written by clients or applied to another user',async()=>{
+ const id=await user(),other=await user();await awakening(id);const p=adaptiveEvidence();
+ const key=await submit(id,{...p,user_id:other},'adaptive:owner');assert.equal((await event(key)).processing_status,'REJECTED');
+ await assert.rejects(asUser(id,'SELECT * FROM private.adaptive_sync_days'));
+ await assert.rejects(asUser(id,"INSERT INTO private.adaptive_sync_days(user_id,day_key,plan) VALUES($1,'2026-09-18','{}')",[other]));
+});
+test('adaptive Boss persists difficulty, requires later-day accepted Daily and pays once',async()=>{
+ const id=await user();await awakening(id);
+ await db.query("INSERT INTO public.reward_ledger(user_id,ledger_key,reward_code,source_type,source_id) VALUES($1,'trusted-world','WORLD_LINK_COMPLETE','VERIFIED_EVENT','world_link_chapter_2')",[id]);
+ const p={quest_id:'wall_focus_v1',verification_type:'TIMER',verification_score:100,duration_seconds:600,completed_day:'2026-09-18'};
+ const legacy=await submit(id,p,'adaptive:boss-focus','VERIFIED_EVENT',p.quest_id,'2026-09-18T10:00:00Z');assert.equal((await event(legacy)).rejection_reason,'BELOW_DURATION');
+ await submit(id,{...p,adaptive_boss_difficulty:1},'adaptive:boss-focus','VERIFIED_EVENT',p.quest_id,'2026-09-18T10:00:00Z');assert.equal((await event(legacy)).processing_status,'PROCESSED');
+ const move={quest_id:'wall_walk_v1',verification_type:'GPS_DISTANCE',verification_score:100,distance_meters:1000,duration_seconds:900,completed_day:'2026-09-18',adaptive_boss_difficulty:1,activity:{expected:'WALK',detected:'WALK',verdict:'VERIFIED'}};
+ const invalid=await submit(id,{...move,adaptive_boss_difficulty:2,distance_meters:2000},'adaptive:boss-change','VERIFIED_EVENT',move.quest_id,'2026-09-18T11:00:00Z');assert.equal((await event(invalid)).rejection_reason,'ADAPTIVE_PLAN_CONFLICT');
+ const key=await submit(id,move,'adaptive:boss-move','VERIFIED_EVENT',move.quest_id,'2026-09-18T11:00:00Z');assert.equal((await event(key)).processing_status,'PROCESSED');
+ const final={quest_id:'the_first_wall_v1',verification_type:'MULTI',verification_score:100};const claim=await submit(id,final,'adaptive:boss-complete');assert.equal((await event(claim)).processing_status,'RECEIVED');
+ await submit(id,adaptiveEvidence(),'adaptive:boss-same-day');await asUser(id,'SELECT public.process_pending_sync_events()');assert.equal((await event(claim)).processing_status,'RECEIVED');
+ await submit(id,adaptiveEvidence('learn_question',{day:'2026-09-19'}),'adaptive:boss-next-day');await asUser(id,'SELECT public.process_pending_sync_events()');assert.equal((await event(claim)).processing_status,'PROCESSED');
+ const replay=await submit(id,final,'adaptive:boss-replay');assert.equal((await event(replay)).rejection_reason,'DUPLICATE');
+});
+test('adaptive invalid IDs, short evidence and sensor mismatches cannot issue rewards',async()=>{
+ for(const mutate of [p=>({...p,quest_id:p.quest_id.replace('g1_learn_read_easy','g9_unknown_easy')}),p=>({...p,quest_id:p.quest_id+':junk'}),p=>({...p,duration_seconds:119}),p=>({...p,verification_score:99}),p=>({...p,quest_id:p.quest_id.replace(':a1:1:',':a1:6:')})]){
+  const id=await user();await awakening(id);const before=Number((await state(id)).real_total_xp);const key=await submit(id,mutate(adaptiveEvidence()),'adaptive:invalid');assert.equal((await event(key)).processing_status,'REJECTED');assert.equal(Number((await state(id)).real_total_xp),before);
+ }
+ const id=await user();await awakening(id);const move=adaptiveEvidence('walk_reset');const key=await submit(id,{...move,activity:{expected:'WALK',detected:'BIKE',verdict:'VERIFIED'}},'adaptive:wrong-activity');assert.equal((await event(key)).rejection_reason,'INVALID_VERIFICATION');
+ const valid=await submit(id,move,'adaptive:valid-gps');assert.equal((await event(valid)).processing_status,'PROCESSED');
+});
+test('adaptive budgets and XP roll back together on processor failure and concurrent replays',async()=>{
+ const id=await user();await awakening(id);const p=adaptiveEvidence();
+ await db.exec("CREATE FUNCTION public.adaptive_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fault'; END $$; CREATE TRIGGER adaptive_fault BEFORE INSERT ON public.verification_summaries FOR EACH ROW EXECUTE FUNCTION public.adaptive_fault();");
+ let key;try{key=await submit(id,p,'adaptive:rollback');assert.equal((await event(key)).processing_status,'RECEIVED');assert.equal((await db.query('SELECT count(*) n FROM private.adaptive_sync_days WHERE user_id=$1',[id])).rows[0].n,0);}finally{await db.exec('DROP TRIGGER adaptive_fault ON public.verification_summaries; DROP FUNCTION public.adaptive_fault();');}
+ await Promise.all([submit(id,p,'adaptive:rollback'),submit(id,p,'adaptive:parallel')]);assert.equal(await count('quest_completions',id),5);assert.equal(Number((await state(id)).real_total_xp),630);
+});
+test('adaptive fourth slot requires trusted prior activity and does not allow a fifth',async()=>{
+ const id=await user();await awakening(id);const p=adaptiveEvidence('learn_read',{minutes:60,count:4,difficulty:3,weekly:5});
+ const key=await submit(id,p,'adaptive:fourth-plan');assert.equal((await event(key)).processing_status,'RECEIVED');
+ await submit(id,generatedEvidence('learn_question','easy','2026-09-17'),'adaptive:too-old'); // below launch boundary: rejected
+ for(const template of ['learn_question','learn_recall'])assert.equal((await event(await submit(id,generatedEvidence(template),'adaptive:history:'+template))).processing_status,'PROCESSED');
+ // Start the four-slot plan on the following day; all five accepted direct activities are now server-owned.
+ const next=adaptiveEvidence('learn_read',{day:'2026-09-19',minutes:60,count:4,difficulty:3,weekly:5});assert.equal((await event(await submit(id,next,'adaptive:four-plan-next'))).processing_status,'PROCESSED');
+ for(const template of ['learn_question','learn_recall','learn_explain'])assert.equal((await event(await submit(id,adaptiveEvidence(template,{day:'2026-09-19',minutes:60,count:4,difficulty:3,weekly:5}),'adaptive:four:'+template))).processing_status,'PROCESSED');
+ const extra=await submit(id,adaptiveEvidence('learn_language',{day:'2026-09-19',minutes:60,count:4,difficulty:3,weekly:5}),'adaptive:fifth');assert.equal((await event(extra)).rejection_reason,'DAILY_LIMIT');
+});
+test('adaptive recovery cannot forge HARD rewards and tier changes cannot reward one template twice',async()=>{
+ const id=await user();await awakening(id);let before=0;for(let level=1;level<8;level++)before+=progression.xpNeededForRealLevel(level);await db.query("UPDATE public.player_progress SET real_level=8,real_total_xp=$2,rank='D' WHERE user_id=$1",[id,before]);
+ const forged=adaptiveEvidence('learn_read',{tier:'hard',difficulty:1});const key=await submit(id,forged,'adaptive:forged-tier');assert.equal((await event(key)).rejection_reason,'INVALID_ADAPTIVE_PLAN');
+ const valid=adaptiveEvidence('learn_read',{difficulty:2,count:3,minutes:45,weekly:5});assert.equal((await event(await submit(id,valid,'adaptive:tier-easy'))).processing_status,'PROCESSED');
+ const changed=adaptiveEvidence('learn_read',{tier:'hard',difficulty:2,count:3,minutes:45,weekly:5});const replay=await submit(id,changed,'adaptive:tier-hard');assert.equal((await event(replay)).rejection_reason,'DUPLICATE');
+ assert.equal(Number((await state(id)).real_total_xp),before+30);
+});
+test('adaptive Weekly target survives return from BUSY to a larger NORMAL daily plan',async()=>{
+ const id=await user();await awakening(id);
+ assert.equal((await event(await submit(id,adaptiveEvidence(),'adaptive:busy-day'))).processing_status,'PROCESSED');
+ const normal=adaptiveEvidence('learn_question',{day:'2026-09-19',minutes:45,count:3,difficulty:2,weekly:3});
+ assert.equal((await event(await submit(id,normal,'adaptive:normal-day'))).processing_status,'PROCESSED');
+ assert.equal((await db.query("SELECT target FROM private.adaptive_sync_weeks WHERE user_id=$1 AND week_key='2026-W38'",[id])).rows[0].target,3);
+});

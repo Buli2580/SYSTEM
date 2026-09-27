@@ -1,3 +1,5 @@
+import {bossPhaseState} from '../story/bossEngine';
+import BossCinematicPanel from '../components/BossCinematicPanel';
 import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -20,7 +22,7 @@ export default function StoryScreen() {
  const focusMinutes=bossQuest(BOSS_FOCUS,boss?.difficulty)!.progressTarget/60;
  const moveKm=bossQuest(BOSS_WALK,boss?.difficulty)!.progressTarget/1000;
  const bossStages=boss?[boss.focus_at,boss.move_at,boss.discipline_at].filter(Boolean).length:0;
- const bossHp=Math.max(0,100-Math.round(bossStages*100/3));
+ const bossHp=story?.bossHp??Math.max(0,100-Math.round(bossStages*100/3));
  const bossPhase=bossHp<=0?'VICTORY':bossHp<=34?'FINAL PHASE':bossHp<=67?'RAGE PHASE':'PHASE I';
  useFocusEffect(useCallback(()=>{ playSceneMusic(story?.worldLinkComplete&&!story?.bossComplete?'BOSS':'HOME'); return stopMusic; },[story?.worldLinkComplete,story?.bossComplete]));
  return <SystemPage title="STORY / CHRONICLE" subtitle={`ARC 01 // ${ARC.title}`}>
@@ -32,6 +34,7 @@ export default function StoryScreen() {
     <Action label="SYSTEM WORLD →" disabled={c.status==='LOCKED'} onPress={()=>router.push('/world')}/><Action label="DAILY PROTOCOL →" disabled={c.status==='LOCKED'} onPress={()=>router.push('/quests')}/>
    </>}
   </View>)}
+    {boss && <BossCinematicPanel hp={story?.bossHp ?? 100} startedAt={boss.started_at}/>}
   <View style={bossStyles.arena}><View style={bossStyles.threatGlow}/><Text style={bossStyles.code}>BOSS PROTOCOL // {bossPhase}</Text><Text style={bossStyles.name}>THE FIRST WALL</Text><View style={bossStyles.silhouette}><View style={bossStyles.head}/><View style={bossStyles.body}/></View><View style={bossStyles.hpTrack}><View style={[bossStyles.hpFill,{width:`${bossHp}%`}]}/></View><Text style={bossStyles.hpLabel}>HP {bossHp}/100 · DAMAGE FROM VERIFIED REAL TASKS</Text></View>
   <View style={s.panel}><Text style={s.label}>BOSS PROTOCOL // {story?.bossComplete?'DEFEATED':story?.worldLinkComplete?'AVAILABLE':'LOCKED'}</Text><Text style={s.title}>THE FIRST WALL</Text>
    <Text style={s.body}>FOCUS → MOVE → DISCIPLINE. Postęp etapów zostaje zapisany.</Text>

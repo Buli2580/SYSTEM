@@ -7,6 +7,7 @@ import { getAwakeningProgress, getQuest } from '../quests/catalog';
 import type { DailyState } from '../storage/daily';
 import IdentityAvatar from './IdentityAvatar';
 import XpBar from './XpBar';
+import { titlePl } from '../i18n/pl';
 
 type Props = {
   player: PlayerProfile;
@@ -27,17 +28,17 @@ export default function CharacterProgressPanel({
 }: Props) {
   const age = calculateAge(player.birthDate);
   const awakening = getAwakeningProgress(completedQuestIds);
-  const activeQuest = activeQuestId ? getQuest(activeQuestId) : null;
+  const activeQuest = activeQuestId && !completedQuestIds.includes(activeQuestId) ? getQuest(activeQuestId) : null;
   const realProgress = getPlayerProgressPercent(player) * 100;
 
   return <View>
     <Animated.View entering={FadeInUp.duration(420)} style={styles.hero}>
       <View style={styles.heroHeader}>
         <View style={styles.identityBlock}>
-          <Text style={styles.overline}>PLAYER PROGRESS // ONLINE</Text>
+          <Text style={styles.overline}>PLAYER PROGRESS // LOCAL CORE</Text>
           <Text style={styles.name}>{player.displayName}</Text>
           {age !== null && <Text style={styles.title}>WIEK {age}</Text>}
-          <Text style={styles.title}>{player.currentTitle ?? 'UNAWAKENED'}</Text>
+          <Text style={styles.title}>{titlePl(player.currentTitle ?? 'UNAWAKENED')}</Text>
         </View>
         <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} size={68} />
         <View style={styles.rankBlock}>
@@ -118,9 +119,9 @@ const styles = StyleSheet.create({
   heroHeader: { flexDirection: 'row', justifyContent: 'space-between' },
   identityBlock: { flex: 1, minWidth: 0 },
   overline: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.8 },
-  name: { color: C.white, fontSize: 27, fontWeight: '900', marginTop: 9 },
-  title: { color: C.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginTop: 4 },
-  rankBlock: { alignItems: 'flex-end' },
+  name: { color: C.white, fontSize: 27, lineHeight: 33, fontWeight: '900', marginTop: 9, flexShrink: 1 },
+  title: { color: C.textMuted, fontSize: 10, lineHeight: 15, fontWeight: '900', letterSpacing: 1.25, marginTop: 4, flexShrink: 1 },
+  rankBlock: { alignItems: 'flex-end', flexShrink: 0, marginLeft: 8 },
   rankLabel: { color: C.textVeryMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   rank: { color: C.cyan, fontSize: 32, fontWeight: '900', marginTop: 3 },
   levelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 25 },
@@ -131,8 +132,8 @@ const styles = StyleSheet.create({
   metaValue: { color: C.text, fontSize: 13, fontWeight: '900' },
   xpSection: { marginTop: 16 },
   xpFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
-  xpPercent: { color: C.cyanSoft, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  nextLevel: { color: C.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  xpPercent: { color: C.cyanSoft, fontSize: 9, lineHeight: 13, fontWeight: '900', letterSpacing: 0.9, flexShrink: 1 },
+  nextLevel: { color: C.textMuted, fontSize: 9, lineHeight: 13, fontWeight: '900', letterSpacing: 0.9, flexShrink: 0, marginLeft: 8 },
   metricsRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   metricCard: { flex: 1, padding: 12, minHeight: 88, backgroundColor: C.panelSoft, borderWidth: 1, borderColor: C.line, borderRadius: 14 },
   metricValue: { color: C.white, fontSize: 25, fontWeight: '900' },
@@ -158,6 +159,6 @@ const styles = StyleSheet.create({
   questPercent: { color: C.cyan, fontSize: 20, fontWeight: '900' },
   questTrack: { height: 5, backgroundColor: C.line, borderRadius: 5, overflow: 'hidden', marginTop: 12 },
   questFill: { height: '100%', backgroundColor: C.cyan },
-  questHint: { color: C.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.7, marginTop: 14 },
-  questDetail: { color: C.textMuted, fontSize: 10, marginTop: 6 },
+  questHint: { color: C.text, fontSize: 11, lineHeight: 17, fontWeight: '900', letterSpacing: 0.55, marginTop: 14, flexShrink: 1 },
+  questDetail: { color: C.textMuted, fontSize: 10, lineHeight: 15, marginTop: 6, flexShrink: 1 },
 });

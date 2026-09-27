@@ -16,8 +16,11 @@ export default function QuestRoute() {
   const quest = useMemo(() => getQuest(id, difficulty), [id, difficulty]);
   if (!quest) return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: SYSTEM_COLORS.background }}>
-      <Text style={{ color: SYSTEM_COLORS.text }}>Nie znaleziono misji.</Text>
-      <Pressable onPress={() => router.back()}><Text style={{ color: SYSTEM_COLORS.cyan }}>WRÓĆ</Text></Pressable>
+      <Text style={{ color: SYSTEM_COLORS.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 }}>QUEST ROUTE // RECOVERY</Text>
+      <Text style={{ color: SYSTEM_COLORS.white, fontSize: 24, fontWeight: '900', marginTop: 10 }}>NIE ZNALEZIONO MISJI</Text>
+      <Text style={{ color: SYSTEM_COLORS.textMuted, marginTop: 10, lineHeight: 20 }}>Link jest nieaktualny albo misja nie istnieje w tej wersji SYSTEMU. Wybierz bezpieczną trasę powrotu.</Text>
+      <Pressable onPress={() => router.replace('/quests')} style={{ marginTop: 22 }}><Text style={{ color: SYSTEM_COLORS.cyan, fontWeight: '900' }}>QUEST HUB →</Text></Pressable>
+      <Pressable onPress={() => router.replace('/')} style={{ marginTop: 16 }}><Text style={{ color: SYSTEM_COLORS.cyan, fontWeight: '900' }}>HOME →</Text></Pressable>
     </View>
   );
   return <QuestRunScreen key={quest.id} quest={quest} />;
