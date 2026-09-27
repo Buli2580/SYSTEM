@@ -183,7 +183,7 @@ export function useQuestRun(quest: RunnableQuest) {
         }
       }
       if (!focusedRef.current || session !== sessionRef.current) return;
-      if (backgroundSession?.questId === quest.id) attemptRef.current = backgroundSession.attemptId;
+      attemptRef.current = backgroundSession?.questId === quest.id ? backgroundSession.attemptId : null;
       checkpointRef.current = checkpoint;
       activityBaseRef.current = checkpoint?.activityFeatures ?? null;
       distanceRef.current = checkpoint?.distanceMeters ?? 0;
@@ -410,7 +410,7 @@ export function useQuestRun(quest: RunnableQuest) {
     }
     setCurrentSpeed(0);
     setDistance(distanceRef.current);
-    setDuration(0);
+    setDuration(checkpoint?.durationSeconds ?? 0);
     setAccuracy(null);
     startupTimerRef.current = setTimeout(() => {
       if (active()) fail(isTimer ? 'Nie udało się rozpocząć timera. Spróbuj ponownie.' : 'Nie uzyskano dokładnej lokalizacji w ciągu 30 sekund. Sprawdź GPS i spróbuj ponownie.');
