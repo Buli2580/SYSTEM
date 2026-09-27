@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      SYSTEM_ANDROID_KEYSTORE: ${{ runner.temp }}/system-signing.jks
       SYSTEM_ANDROID_KEY_ALIAS: ${{ secrets.SYSTEM_ANDROID_KEY_ALIAS }}
       SYSTEM_ANDROID_STORE_PASSWORD: ${{ secrets.SYSTEM_ANDROID_STORE_PASSWORD }}
       SYSTEM_ANDROID_KEY_PASSWORD: ${{ secrets.SYSTEM_ANDROID_KEY_PASSWORD }}
@@ -42,7 +41,8 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.SYSTEM_ANDROID_KEYSTORE_BASE64 }}
         run: |
           test -n "$KEYSTORE_BASE64" || { echo 'Missing existing application signing key'; exit 1; }
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$SYSTEM_ANDROID_KEYSTORE"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/system-signing.jks"
+          echo "SYSTEM_ANDROID_KEYSTORE=$RUNNER_TEMP/system-signing.jks" >> "$GITHUB_ENV"
       - name: Provenance tests
         run: node --test scripts/apk-provenance.test.cjs
       - name: Build and verify exact commit

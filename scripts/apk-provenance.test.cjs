@@ -41,4 +41,5 @@ test('legacy workflows cannot produce APK and the official checkout is pinned',(
   const source=fs.readFileSync(path.join(root,'.github/workflows',name),'utf8');assert.doesNotMatch(source,/assemble|Copy-Item|cp .*apk|eas.*build/);assert.match(source,/exit 1/);
  }
  const official=fs.readFileSync(path.join(root,'.github/workflows/official-apk.yml'),'utf8');assert.match(official,/ref: \$\{\{ github.sha \}\}/);assert.match(official,/integration\/system-evening-build/);
+ assert.doesNotMatch(official.split('    steps:')[0],/\$\{\{\s*runner\./,'runner context is unavailable in job env');
 });
