@@ -1,0 +1,1 @@
+export type TitleRule={id:string;name:string;level?:number;streak?:number;bosses?:number};export type TitleStats={level:number;streak:number;bosses:number};export function unlockedTitles(rules:TitleRule[],s:TitleStats){return rules.filter(r=>(r.level??0)<=s.level&&(r.streak??0)<=s.streak&&(r.bosses??0)<=s.bosses);}

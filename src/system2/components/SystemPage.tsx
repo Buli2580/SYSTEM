@@ -17,7 +17,7 @@ export default function SystemPage({ title, subtitle, children, intensity = 'qui
       <Text style={styles.code}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
       {ready ? children : <View style={styles.panel}>
-        {error ? <SystemError message={error} retry={() => { void refreshPlayer(); }} /> : <Text style={styles.body}>SYSTEM // INITIALIZING</Text>}
+        {error ? <SystemError message={error} retry={() => { void refreshPlayer(); }} /> : <Text style={styles.body}>SYSTEM // URUCHAMIANIE</Text>}
       </View>}
     </ScrollView>
     <BottomNavigation />

@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import SystemPage, { pageStyles as s } from '../components/SystemPage';
 import Action from '../components/Action';
 import { useSystem } from '../state/SystemProvider';
-import { BOSS_FOCUS, BOSS_WALK, BOSS_RUN, ARC, STORY_REWARDS } from '../story/catalog';
+import { bossQuest, BOSS_FOCUS, BOSS_WALK, BOSS_RUN, ARC, STORY_REWARDS } from '../story/catalog';
 import type { StoryEvent } from '../story/types';
 import { loadChronicle, startBossProtocol } from '../storage/database';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
@@ -17,6 +17,8 @@ export default function StoryScreen() {
  useFocusEffect(useCallback(()=>{const id=++epoch.current;void awaitWithTimeout(loadChronicle()).then(value=>{if(id===epoch.current)setEntries(value);}).catch(()=>{if(id===epoch.current)setError('Nie udało się odczytać Chronicle. Otwórz ekran ponownie.');});return()=>{epoch.current++;};},[story]));
  const open=(questId:string)=>router.push({pathname:'/quest',params:{questId}});
  const boss=story?.boss;
+ const focusMinutes=bossQuest(BOSS_FOCUS,boss?.difficulty)!.progressTarget/60;
+ const moveKm=bossQuest(BOSS_WALK,boss?.difficulty)!.progressTarget/1000;
  const bossStages=boss?[boss.focus_at,boss.move_at,boss.discipline_at].filter(Boolean).length:0;
  const bossHp=Math.max(0,100-Math.round(bossStages*100/3));
  const bossPhase=bossHp<=0?'VICTORY':bossHp<=34?'FINAL PHASE':bossHp<=67?'RAGE PHASE':'PHASE I';
@@ -35,10 +37,10 @@ export default function StoryScreen() {
    <Text style={s.body}>FOCUS → MOVE → DISCIPLINE. Postęp etapów zostaje zapisany.</Text>
    {story?.worldLinkComplete&&!boss&&<Action label="BEGIN BOSS PROTOCOL" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(request===epoch.current)setBusy(false);});}}/>}
    {boss&&<>
-    <Text style={s.body}>STAGE 1 // {boss.focus_at?'COMPLETED':'AVAILABLE'} · 15 MIN FOCUS</Text>
+    <Text style={s.body}>STAGE 1 // {boss.focus_at?'COMPLETED':'AVAILABLE'} · {focusMinutes} MIN FOCUS</Text>
     {!boss.focus_at&&<Action label="BEGIN FOCUS" onPress={()=>open(BOSS_FOCUS)}/>}
-    <Text style={s.body}>STAGE 2 // {boss.move_at?'COMPLETED':boss.focus_at?'AVAILABLE':'LOCKED'} · 2 KM MOVE</Text>
-    {!!boss.focus_at&&!boss.move_at&&<><Action label="WALK 2 KM" onPress={()=>open(BOSS_WALK)}/><Action label="RUN 2 KM" onPress={()=>open(BOSS_RUN)}/></>}
+    <Text style={s.body}>STAGE 2 // {boss.move_at?'COMPLETED':boss.focus_at?'AVAILABLE':'LOCKED'} · {moveKm} KM MOVE</Text>
+    {!!boss.focus_at&&!boss.move_at&&<><Action label={`WALK ${moveKm} KM`} onPress={()=>open(BOSS_WALK)}/><Action label={`RUN ${moveKm} KM`} onPress={()=>open(BOSS_RUN)}/></>}
     <Text style={s.body}>STAGE 3 // {boss.discipline_at?'COMPLETED':boss.move_at?'AVAILABLE':'LOCKED'}</Text>
     <Text style={s.body}>Ukończ Daily po Stage 2, najwcześniej następnego dnia od startu Bossa ({boss.start_day}). Późniejszy dzień również się liczy.</Text>
     {!!boss.move_at&&!boss.discipline_at&&<Action label="DAILY QUESTS →" onPress={()=>router.push('/quests')}/>}

@@ -140,7 +140,7 @@ export default function SystemHomeScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const {
-    player, ready, completedQuestIds, awakeningCompleted, worldUnlocked,
+    adaptivePlan, adaptiveModel, player, ready, completedQuestIds, awakeningCompleted, worldUnlocked,
     activeQuestId, error, refreshPlayer, daily, story, lastReward, dismissLastReward, gameMasterProfile, recentAttempt, recentAttempts, settings, latestRaidVictory, socialSignal,
   } = useSystem();
 
@@ -157,7 +157,7 @@ export default function SystemHomeScreen() {
   const streakTier = player.streak >= 30 ? 3 : player.streak >= 7 ? 2 : player.streak >= 3 ? 1 : 0;
   const awakening = getAwakeningProgress(completedQuestIds);
   const objective = mainStoryObjective(story, awakeningCompleted);
-  const gameMaster = directNextMission({player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts,socialSignal});
+  const gameMaster = directNextMission({adaptivePlan,adaptiveModel,player,daily,story,completedQuestIds,activeQuestId,awakeningCompleted,gameMasterProfile,recentAttempt,recentAttempts,socialSignal});
   const progress = awakeningCompleted ? objective.completed : awakening.completed;
   const total = awakeningCompleted ? objective.total : awakening.total;
   const percent = total ? Math.min(100, progress / total * 100) : 0;
@@ -176,7 +176,8 @@ export default function SystemHomeScreen() {
     return () => clearTimeout(timer);
   }, [lastReward, dismissLastReward]);
 
-  const weekly = Math.min(5, daily?.weeklyCompleted ?? 0);
+  const weeklyTarget = daily?.weeklyTarget ?? 5;
+  const weekly = Math.min(weeklyTarget, daily?.weeklyCompleted ?? 0);
   const dailyDone = daily?.completed ?? 0;
 
   if (!ready) return <View style={styles.loadingRoot}>
@@ -205,8 +206,8 @@ export default function SystemHomeScreen() {
         <Text style={styles.portalLabel}>{worldUnlocked ? 'WORLD GATE' : 'WORLD LOCKED'}</Text>
       </Pressable>
 
-      <WorldNode label="DAILY" sub={`${dailyDone}/3 · SIGNAL`} style={styles.dailyNode} onPress={() => router.push('/quests')} />
-      <WorldNode label="WEEKLY" sub={`${weekly}/5 · PROTOCOL`} style={styles.weeklyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="DAILY" sub={`${dailyDone}/${daily?.questIds.length ?? 0} · SIGNAL`} style={styles.dailyNode} onPress={() => router.push('/quests')} />
+      <WorldNode label="WEEKLY" sub={`${weekly}/${weeklyTarget} · PROTOCOL`} style={styles.weeklyNode} onPress={() => router.push('/quests')} />
       <WorldNode label="BOSS" sub={story?.bossComplete ? 'CLEARED' : bossActive ? 'ANOMALY' : 'DORMANT'} style={styles.bossNode} onPress={() => router.push('/story')} locked={!awakeningCompleted} />
 
       <PlayerHero />

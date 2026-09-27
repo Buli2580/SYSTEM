@@ -1,0 +1,91 @@
+name: Build Android Test APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/android-test-apk.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-test-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Android debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Validate Expo config
+        run: npx expo config --type public > /tmp/expo-config.txt
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Limit test APK to arm64
+        shell: bash
+        run: |
+          if grep -q '^reactNativeArchitectures=' android/gradle.properties; then
+            sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' android/gradle.properties
+          else
+            echo 'reactNativeArchitectures=arm64-v8a' >> android/gradle.properties
+          fi
+          grep '^reactNativeArchitectures=' android/gradle.properties
+
+      - name: Build debug APK
+        working-directory: android
+        shell: bash
+        run: |
+          chmod +x gradlew
+          timeout --signal=TERM 12m ./gradlew :app:assembleDebug \
+            --no-daemon \
+            --build-cache \
+            --parallel \
+            --console=plain \
+            --stacktrace
+
+      - name: Prepare APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk SYSTEM-ONLINE-0.3-background-test.apk
+          sha256sum SYSTEM-ONLINE-0.3-background-test.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SYSTEM-ONLINE-0.3-background-test
+          path: SYSTEM-ONLINE-0.3-background-test.apk
+          if-no-files-found: error
+          retention-days: 7

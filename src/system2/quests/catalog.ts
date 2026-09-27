@@ -1,4 +1,4 @@
-import { BOSS_QUESTS } from '../story/catalog';
+import { BOSS_QUESTS, bossQuest } from '../story/catalog';
 import { dailyQuest } from '../daily/templates';
 import { classifyActivity } from '../activity/classifier';
 import { supportsStrength, phoneProvider } from '../activity/capabilities';
@@ -6,13 +6,19 @@ import { FIRST_MOVEMENT_QUEST } from './firstMovement';
 import { FOCUS_PROTOCOL_QUEST } from './focusProtocol';
 import { FINAL_TRIAL_QUEST } from './finalTrial';
 import type { RunnableQuest, QuestEvidence, QuestAvailability } from './types';
+import { applyAIQuestPresentation } from '../ai/registry';
+
+import { generatedQuest } from '../generation/templates';
 
 export const AWAKENING_CHAPTER_ID = 'awakening_chapter_1';
 export const AWAKENING_REWARD_XP = 300;
 export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PROTOCOL_QUEST, FINAL_TRIAL_QUEST, ...BOSS_QUESTS];
 export const AWAKENING_QUESTS = QUESTS.filter(quest => quest.arc === 'AWAKENING' && quest.chapter === 1)
   .sort((a, b) => a.order - b.order);
-export function getQuest(id: string) { return QUESTS.find(quest => quest.id === id) ?? dailyQuest(id); }
+export function getQuest(id: string, bossDifficulty = 2) {
+  const quest = bossQuest(id, bossDifficulty) ?? QUESTS.find(candidate => candidate.id === id) ?? generatedQuest(id) ?? dailyQuest(id);
+  return quest ? applyAIQuestPresentation(quest) : undefined;
+}
 
 export function prerequisitesCompleted(quest: RunnableQuest, completedIds: readonly string[]) {
   if (quest.category === 'DAILY' || quest.category === 'BOSS') return AWAKENING_QUESTS.every(q => completedIds.includes(q.id));
@@ -34,8 +40,8 @@ export function getAwakeningProgress(completedIds: readonly string[]) {
   return { completed, total, percent: total ? completed / total * 100 : 0 };
 }
 
-export function validateQuestEvidence(evidence: QuestEvidence): RunnableQuest {
-  const quest = getQuest(evidence.questId);
+export function validateQuestEvidence(evidence: QuestEvidence, bossDifficulty = 2): RunnableQuest {
+  const quest = getQuest(evidence.questId, bossDifficulty);
   if (!quest || evidence.verificationType !== quest.verification.type ||
       !Number.isFinite(evidence.durationSeconds) || evidence.durationSeconds <= 0 ||
       !Number.isFinite(evidence.verificationScore) || evidence.verificationScore > 100 ||

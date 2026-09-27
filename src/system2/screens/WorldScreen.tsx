@@ -54,7 +54,7 @@ function OnlineWorld() {
     <View style={styles.map}>
       {world.fix ? <WorldMap fix={world.fix} sectorIds={world.sectorIds} signal={world.signal} follow={follow} centerRequest={centerRequest} /> :
         <View style={styles.empty}><Text style={styles.label}>{world.status === 'STARTING' ? 'STARTING // GPS' : 'INITIALIZE WORLD'}</Text>
-          <Text style={styles.body}>Odkrywaj świat z aktywnym ekranem aplikacji.</Text></View>}
+          <Text style={styles.body}>Mapa świata działa podczas otwartego ekranu WORLD. Aktywne misje ruchowe mogą mierzyć dystans w tle.</Text></View>}
       <View style={styles.mapControls}>
         <Button label="CENTER" disabled={!world.fix} onPress={() => setCenterRequest(n => n + 1)} />
         <Button label={`FOLLOW PLAYER ${follow ? 'ON' : 'OFF'}`} onPress={() => setFollow(value => !value)} />

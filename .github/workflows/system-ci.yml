@@ -1,0 +1,63 @@
+﻿name: SYSTEM CI
+
+on:
+  pull_request:
+    branches:
+      - master
+      - "feature/system-ai-game-master-1.0"
+  push:
+    branches:
+      - master
+      - "agent/**"
+      - "chore/**"
+      - "feature/system-ai-game-master-1.0"
+      - "feature/system-core-freeze-1.0"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: TypeScript + gameplay tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo config
+        run: npx expo config --type public > /tmp/expo-config.txt
+
+      - name: Google Play readiness
+        run: node scripts/check-play-readiness.mjs
+
+      - name: TypeScript
+        run: npx tsc --noEmit --incremental false
+
+      - name: Gameplay tests
+        run: node --test src/system2/tests/gameplay.test.cjs
+
+      - name: AI Game Master tests
+        run: node --test src/system2/tests/ai-game-master.test.cjs
+
+      - name: Cloud processor SQL and mobile tests
+        run: |
+          node supabase/tests/normalize-calendar-fixtures.cjs
+          npm ci --prefix supabase/tests --ignore-scripts
+          npm test --prefix supabase/tests
+
+      - name: Legacy server syntax
+        run: node --check server/server.js
+
+      - name: Diff check
+        run: git diff --check

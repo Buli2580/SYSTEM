@@ -15,7 +15,7 @@ import { QUESTS } from '../quests/catalog';
 import { DAILY_TEMPLATES } from '../daily/templates';
 import { pageStyles as s } from './SystemPage';
 import Action from './Action';
-function permissionLabel(p: { granted: boolean; status: string }) { return p.granted ? 'GRANTED' : p.status === 'undetermined' ? 'NOT REQUESTED' : 'DENIED'; }
+function permissionLabel(p: { granted: boolean; status: string }) { return p.granted ? 'PRZYZNANE' : p.status === 'undetermined' ? 'NIEPYTANO' : 'ODRZUCONE'; }
 export default function BetaSettings() {
  const { player, settings, saveSettings, daily, awakeningCompleted, refreshPlayer, notificationError } = useSystem();
  const [time, setTime] = useState(settings.reminderTime ?? '19:00'), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
@@ -24,7 +24,7 @@ export default function BetaSettings() {
  useFocusEffect(useCallback(() => {
    mounted.current = true;
    void awaitWithTimeout(Promise.all([Location.getForegroundPermissionsAsync(), ImagePicker.getCameraPermissionsAsync(), Notifications.getPermissionsAsync()])).then(([gps,camera,notification]) => {
-     if (mounted.current) setPermissions(`Location ${permissionLabel(gps)} · Camera ${permissionLabel(camera)} · Notifications ${permissionLabel(notification)} · Motion UNAVAILABLE`);
+     if (mounted.current) setPermissions(`Lokalizacja ${permissionLabel(gps)} · Aparat ${permissionLabel(camera)} · Powiadomienia ${permissionLabel(notification)} · Ruch NIEDOSTĘPNY`);
    }).catch(() => { if (mounted.current) setPermissions('Nie udało się odczytać uprawnień. Otwórz ekran ponownie.'); });
    return () => { mounted.current = false; };
  }, []));
@@ -35,13 +35,13 @@ export default function BetaSettings() {
  }
  const prefs = settings.activities ?? DEFAULT_ACTIVITIES;
  return <>
-   <View style={s.panel}><Text style={s.label}>AVAILABLE ACTIVITIES</Text>
-     {(['walking','running','cycling'] as const).map(key => <View key={key}><Text style={s.body}>{key.toUpperCase()}</Text><Switch accessibilityLabel={key} value={prefs[key]} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, activities: { ...prefs, [key]: value } })); }} /></View>)}
+   <View style={s.panel}><Text style={s.label}>DOSTĘPNE AKTYWNOŚCI</Text>
+     {(['walking','running','cycling'] as const).map(key => <View key={key}><Text style={s.body}>{{ walking: 'MARSZ', running: 'BIEG', cycling: 'ROWER' }[key]}</Text><Switch accessibilityLabel={key} value={prefs[key]} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, activities: { ...prefs, [key]: value } })); }} /></View>)}
      <Text style={s.body}>Zmiana wpływa na następny zestaw Daily. Dzisiejsze misje pozostają zapisane.</Text>
    </View>
-   <View style={s.panel}><Text style={s.label}>DAILY REMINDER</Text>
-     <Switch accessibilityLabel="Daily reminder" value={settings.dailyReminder ?? false} disabled={busy} onValueChange={value => { void run(async () => {
-       if (value && !await requestReminderPermission()) { if (mounted.current) setMessage('Notifications DENIED — możesz zmienić zgodę w ustawieniach Androida.'); return; }
+   <View style={s.panel}><Text style={s.label}>CODZIENNE PRZYPOMNIENIE</Text>
+     <Switch accessibilityLabel="Codzienne przypomnienie" value={settings.dailyReminder ?? false} disabled={busy} onValueChange={value => { void run(async () => {
+       if (value && !await requestReminderPermission()) { if (mounted.current) setMessage('Powiadomienia są wyłączone — możesz zmienić zgodę w ustawieniach Androida.'); return; }
        const next = { ...settings, dailyReminder: value, reminderTime: time };
        await saveSettings(next);
      }); }} />
@@ -52,14 +52,14 @@ export default function BetaSettings() {
      }); }} />
      <Text style={s.body}>Lokalne przypomnienia na 7 dni, odnawiane po otwarciu SYSTEMU. Android może opóźnić dostarczenie.</Text>
    </View>
-   <View style={s.panel}><Text style={s.label}>PERMISSIONS</Text><Text style={s.body}>{permissions}</Text>
-     <Text style={s.label}>VERIFICATION CAPABILITY // STANDARD</Text><Text style={s.body}>GPS ✓ (wymaga zgody) · STEPS — · MOTION — · WATCH —</Text>
-     <Text style={s.body}>Brak zegarka nie blokuje Daily. STRICT jest niedostępny bez wymaganych źródeł.</Text></View>
-   {__DEV__ && <View style={s.panel}><Text style={s.label}>SYSTEM DIAGNOSTICS</Text>
-     <Text style={s.body}>ID {player.id.slice(0,8)} · APP {Constants.expoConfig?.version ?? '?'} · CATALOG {QUESTS.length + DAILY_TEMPLATES.length} · SECTORS {player.discoveredSectors}</Text>
+   <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>{permissions}</Text>
+     <Text style={s.label}>MOŻLIWOŚCI WERYFIKACJI // STANDARD</Text><Text style={s.body}>GPS ✓ (wymaga zgody) · KROKI — · RUCH — · ZEGAREK —</Text>
+     <Text style={s.body}>Brak zegarka nie blokuje misji dziennych. Tryb STRICT jest niedostępny bez wymaganych źródeł.</Text></View>
+   {__DEV__ && <View style={s.panel}><Text style={s.label}>DIAGNOSTYKA SYSTEMU</Text>
+     <Text style={s.body}>ID {player.id.slice(0,8)} · APLIKACJA {Constants.expoConfig?.version ?? '?'} · KATALOG {QUESTS.length + DAILY_TEMPLATES.length} · SEKTORY {player.discoveredSectors}</Text>
      <Text style={s.body}>{JSON.stringify(phoneProvider.capabilities)} · {diagnostics}</Text>
-     <Action label="RELOAD PROFILE" disabled={busy} onPress={() => { void run(refreshPlayer); }} />
-     <Action label="RUN INTEGRITY CHECK" disabled={busy} onPress={() => { void run(async () => { const data = await systemDiagnostics(); if (mounted.current) setDiagnostics(`DB ${data.schema} · EVENTS ${data.events} · INTEGRITY ${data.integrity}`); }); }} />
+     <Action label="ODŚWIEŻ PROFIL" disabled={busy} onPress={() => { void run(refreshPlayer); }} />
+     <Action label="SPRAWDŹ INTEGRALNOŚĆ" disabled={busy} onPress={() => { void run(async () => { const data = await systemDiagnostics(); if (mounted.current) setDiagnostics(`DB ${data.schema} · ZDARZENIA ${data.events} · INTEGRALNOŚĆ ${data.integrity}`); }); }} />
    </View>}
    {!!notificationError && <Text style={s.body}>{notificationError}</Text>}
    {!!message && <Text style={s.body}>{message}</Text>}

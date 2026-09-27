@@ -7,7 +7,7 @@ export default function SessionGate() {
   if (ready && onboardingComplete) return null;
   return <Modal visible={!ready || !onboardingComplete} animationType="fade" onRequestClose={() => {}}>
     {ready ? <OnboardingScreen /> : <View style={{ flex: 1, backgroundColor: '#030709', justifyContent: 'center', padding: 24 }}>
-      {error ? <SystemError message={error} retry={() => { void refreshPlayer(); }} /> : <Text style={{ color: '#6ceeff' }}>SYSTEM // INITIALIZING</Text>}
+      {error ? <SystemError message={error} retry={() => { void refreshPlayer(); }} /> : <Text style={{ color: '#6ceeff' }}>SYSTEM // URUCHAMIANIE</Text>}
     </View>}
   </Modal>;
 }

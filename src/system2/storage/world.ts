@@ -1,8 +1,9 @@
+import { applyQuestRewards } from '../core/questEngine';
 import { reconcileStory } from './story';
 import { rewardReceipt } from '../core/rewards';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { LocationObject } from 'expo-location';
-import { addRealXp, addSkillXp, type VerifiedEvent } from '../core';
+import { type VerifiedEvent } from '../core';
 import { isUsableLocation } from '../verification/gps';
 import { locationToSector } from '../world/sectors';
 import { generateSignal, signalReached, SIGNAL_ID, validSignal, type WorldSignal } from '../world/signals';
@@ -61,7 +62,7 @@ export function locateSignal(location: LocationObject, revision: number, active:
     requireFix(fix, active);
     const signal = await readSignal(db);
     requireFix(fix, active);
-    if (!signal || !validSignal(signal)) throw new Error('Nieprawidłowy zapis sygnału. Użyj RELOCATE SIGNAL.');
+    if (!signal || !validSignal(signal)) throw new Error('Nieprawidłowy zapis sygnału. Użyj opcji „Przenieś sygnał”.');
     if (signal.status === 'LOCATED' || signal.revision !== revision || !signalReached(fix, signal)) return { awarded: false, signal };
     const now = new Date().toISOString();
     const event: VerifiedEvent = {
@@ -73,8 +74,7 @@ export function locateSignal(location: LocationObject, revision: number, active:
     const claim = await db.runAsync('INSERT INTO verified_events (id, quest_id, payload, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO NOTHING', SIGNAL_ID, SIGNAL_ID, JSON.stringify(event), now);
     let next = player;
     if (claim.changes === 1) {
-      const rewarded = addSkillXp(addRealXp(player, 50), 'RES', 40);
-      next = { ...rewarded, gameEnergy: rewarded.gameEnergy + 5, updatedAt: now };
+      next = applyQuestRewards(player, { realXp: 50, skillXp: { RES: 40 }, gameEnergy: 5 }, now);
       await db.runAsync('UPDATE app_state SET value = ? WHERE key = ?', JSON.stringify(next), 'player');
     }
     await db.runAsync('UPDATE world_signals SET status = ?, located_at = ? WHERE id = ?', 'LOCATED', now, SIGNAL_ID);

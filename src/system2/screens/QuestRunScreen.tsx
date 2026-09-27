@@ -1,3 +1,4 @@
+import { getNextAction } from '../quests/nextAction';
 import { useSystem } from '../state/SystemProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RewardSummary from '../components/RewardSummary';
@@ -20,7 +21,8 @@ import { useCallback } from 'react';
 export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest?: RunnableQuest } = {}) {
   const router = useRouter();
   useFocusEffect(useCallback(()=>{ playSceneMusic(quest.category === 'BOSS' ? 'BOSS' : 'QUEST'); return stopMusic; },[quest.category]));
-  const { story } = useSystem();
+  const system = useSystem();
+  const { story } = system;
   const rematch = story?.rematchQuestIds.includes(quest.id) ?? false;
   const insets = useSafeAreaInsets();
   const { status, error, distance, accuracy, duration, alreadyCompleted, receipt, loot, activity, currentSpeed, extendedGoal, chooseExtendedGoal,
@@ -52,6 +54,24 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     duration % 60;
   const showLiveTracker = isLiveQuestStatus(status);
   const renderStatus: string = status;
+  const nextAction = getNextAction({
+    player: system.player,
+    completedQuestIds: system.completedQuestIds,
+    failedQuestIds: system.failedQuestIds,
+    activeQuestId: status === 'COMPLETED' ? null : system.activeQuestId,
+    awakeningCompleted: system.awakeningCompleted,
+    daily: system.daily,
+    story: system.story,
+    achievements: system.achievementState,
+  });
+  const continueSystem = () => {
+    if (nextAction.route === '/quest' && nextAction.questId) {
+      router.replace({ pathname: '/quest', params: { questId: nextAction.questId } });
+      return;
+    }
+    router.replace(nextAction.route);
+  };
+
 
   useEffect(() => {
     if (!questAccepted) return;
@@ -362,16 +382,14 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
               style={
                 styles.returnButton
               }
-              onPress={() =>
-                router.back()
-              }
+              onPress={alreadyCompleted ? () => router.back() : continueSystem}
             >
               <Text
                 style={
                   styles.returnText
                 }
               >
-                NEXT MISSION →
+                {alreadyCompleted ? 'WRÓĆ DO SYSTEMU' : nextAction.title}
               </Text>
             </Pressable>
           </View>

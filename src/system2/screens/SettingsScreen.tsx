@@ -10,6 +10,8 @@ import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import { createResetConfirmation } from '../identity/reset';
+import { requestBackgroundLocationAccess } from '../background/locationService';
+import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 export default function SettingsScreen() {
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
@@ -26,6 +28,7 @@ export default function SettingsScreen() {
   return <SystemPage title="WIĘCEJ" subtitle="SYSTEM SETTINGS">
     <View style={s.panel}><Text style={s.label}>PROFILE</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>LEVEL {player.realLevel} · RANK {player.rank} · {player.currentTitle}</Text></View>
+    <View style={s.panel}><Action label="AI GAME MASTER →" onPress={() => router.push('/game-master')} /><Action label="CELE →" onPress={() => router.push('/goals')} /><Action label="SYSTEM ONLINE →" onPress={() => router.push('/system-online')} /><Action label="RANKINGI →" onPress={() => router.push('/leaderboard')} /><Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} /></View>
     <View style={s.panel}><Text style={s.label}>HAPTICS</Text>
       <Switch accessibilityLabel="Haptics ON/OFF" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>AUDIO</Text><Switch accessibilityLabel="Audio ON/OFF" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
@@ -33,11 +36,27 @@ export default function SettingsScreen() {
       <Text style={s.label}>CINEMATIC QUALITY</Text><View style={{flexDirection:'row',gap:8,marginTop:8}}>{(['LOW','MEDIUM','HIGH'] as const).map(mode=><View key={mode} style={{flex:1}}><Action disabled={busy||settings.performanceMode===mode} label={(settings.performanceMode===mode?'✓ ':'')+mode} onPress={()=>{void run(()=>saveSettings({...settings,performanceMode:mode}));}} /></View>)}</View>
       <Text style={s.body}>LOW ogranicza ciężkie efekty. MEDIUM równoważy płynność i klimat. HIGH uruchamia pełną scenę.</Text>
     </View>
-    <View style={s.panel}><Text style={s.label}>PERMISSIONS</Text><Text style={s.body}>GPS działa tylko podczas aktywnego pomiaru na pierwszym planie.</Text>
+    <View style={s.panel}><Text style={s.label}>UPRAWNIENIA</Text><Text style={s.body}>Podczas aktywnej misji ruchowej GPS może działać przy wygaszonym ekranie i w tle. Android pokaże stałe powiadomienie o aktywnym pomiarze.</Text>
       {permission !== '' && <Text style={s.body}>{permission}</Text>}
       <Action label="SPRAWDŹ / PONÓW ZGODĘ GPS" disabled={busy} onPress={() => { void run(async () => {
         const result = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
-        setPermission(result.granted ? 'Lokalizacja: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
+        setPermission(result.granted ? 'Lokalizacja na pierwszym planie: zgoda udzielona.' : result.canAskAgain ? 'Lokalizacja: brak zgody.' : 'Zmień zgodę w ustawieniach systemowych aplikacji.');
+      }); }} />
+      <Action label="WŁĄCZ LOKALIZACJĘ W TLE" disabled={busy} onPress={() => { void run(async () => {
+        const disclosureAccepted = await confirmBackgroundLocationDisclosure();
+        if (!disclosureAccepted) {
+          setPermission('Lokalizacja w tle nie została włączona.');
+          return;
+        }
+        const foreground = await awaitWithTimeout(Location.requestForegroundPermissionsAsync());
+        if (!foreground.granted) {
+          setPermission('Najpierw zezwól na lokalizację podczas używania aplikacji.');
+          return;
+        }
+        const granted = await awaitWithTimeout(requestBackgroundLocationAccess());
+        setPermission(granted
+          ? 'Lokalizacja w tle: włączona. Misje ruchowe mogą działać przy wygaszonym ekranie.'
+          : 'Lokalizacja w tle: brak zgody. W ustawieniach wybierz dostęp do lokalizacji „zawsze”, jeśli telefon udostępnia tę opcję.');
       }); }} />
       <Action label="USTAWIENIA SYSTEMOWE APLIKACJI" onPress={() => { void run(() => Linking.openSettings()); }} />
     </View>
@@ -50,15 +69,19 @@ export default function SettingsScreen() {
       <BetaSettings />
       <Text style={s.body}>World map provider: MapLibre Demo Tiles — konfiguracja developerska.</Text>
     </View>}
-    <View style={s.panel}><Text style={s.label}>DATA</Text><Text style={s.body}>Profil, questy, World i preferencje są zapisane lokalnie w SQLite. Avatar pozostaje w katalogu aplikacji. Brak konta online i synchronizacji. Odinstalowanie aplikacji może usunąć progres.</Text>
-      <Action label="RESET SYSTEM DATA" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />
+    <View style={s.panel}><Text style={s.label}>DATA</Text><Text style={s.body}>Profil, questy, World i preferencje są zapisane lokalnie w SQLite. Avatar pozostaje w katalogu aplikacji. Funkcje SYSTEM ONLINE są oddzielone od lokalnego progresu i wymagają zalogowania. Odinstalowanie aplikacji może usunąć lokalny progres.</Text>
+      {__DEV__ && <Action label="RESET SYSTEM DATA // DEVELOPMENT" danger disabled={busy} onPress={() => { guard.current.begin(); setResetStep(1); }} />}
     </View>
-    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM</Text><Text style={s.body}>Wersja {Constants.expoConfig?.version ?? 'niedostępna'}</Text></View>
+    <View style={s.panel}><Text style={s.label}>PRYWATNOŚĆ</Text>
+      <Text style={s.body}>Sprawdź, jakie dane SYSTEM przetwarza, do czego używa lokalizacji oraz jak działa żądanie usunięcia danych.</Text>
+      <Action label="POLITYKA PRYWATNOŚCI →" onPress={() => router.push('/privacy')} />
+    </View>
+    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM 2.0 // MVP BUILD</Text><Text style={s.body}>Wersja aplikacji: {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'niedostępna'} · BUILD {Constants.nativeBuildVersion ?? Constants.expoConfig?.android?.versionCode ?? 'DEV'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}
-    <Modal visible={resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
+    <Modal visible={__DEV__ && resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, backgroundColor: '#030709' }}>
-        <Text style={s.title}>RESET SYSTEM DATA // {resetStep}/2</Text>
-        <Text style={s.body}>Usuniesz REAL XP, skille, questy, World, historię, ustawienia i avatar. Tej operacji nie można cofnąć. Oryginalne zdjęcia w galerii pozostaną.</Text>
+        <Text style={s.title}>RESET DANYCH SYSTEMU // {resetStep}/2</Text>
+        <Text style={s.body}>Usuniesz REAL XP, cechy, misje, WORLD, historię, ustawienia i avatar. Tej operacji nie można cofnąć. Oryginalne zdjęcia w galerii pozostaną.</Text>
         {resetStep === 1 ? <Action label="ROZUMIEM — PRZEJDŹ DO POTWIERDZENIA" danger onPress={() => { guard.current.confirmWarning(); setResetStep(2); }} /> : <>
           <Text style={s.body}>Aby potwierdzić drugi raz, wpisz RESET.</Text>
           <TextInput accessibilityLabel="Wpisz RESET" value={confirmation} onChangeText={setConfirmation} autoCapitalize="characters" style={{ color: '#fff', minHeight: 52, borderBottomWidth: 1, borderBottomColor: '#ffb9b9' }} />

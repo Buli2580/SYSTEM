@@ -1,3 +1,4 @@
+import { validateBirthDate } from '../identity/age';
 import { useCallback, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,9 +20,10 @@ const pages=[
 
 export default function OnboardingScreen(){
  const [step,setStep]=useState(0),[name,setName]=useState(''),[goal,setGoal]=useState(''),[path,setPath]=useState(0),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false);
+ const [birthDate,setBirthDate]=useState('');
  const busyRef=useRef(false),insets=useSafeAreaInsets(),router=useRouter(); const {finishOnboarding}=useSystem();
  useFocusEffect(useCallback(()=>{playSceneMusic('AWAKENING');return stopMusic;},[]));
- async function enter(){if(busyRef.current)return;if(!goal.trim()){setError('Wpisz główny cel, żeby GAME MASTER mógł dobrać pierwszą ścieżkę.');return;}busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name,{goal,path:PATHS[path][0]});router.replace('/quests');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
+ async function enter(){if(busyRef.current)return;if(!goal.trim()){setError('Wpisz główny cel, żeby GAME MASTER mógł dobrać pierwszą ścieżkę.');return;}busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name,{goal,path:PATHS[path][0],birthDate:validateBirthDate(birthDate)});router.replace('/quests');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
  return <KeyboardAvoidingView style={s.root} behavior={Platform.OS==='ios'?'padding':'height'}>
   <View pointerEvents="none" style={s.energy}><View style={s.ring}/><View style={s.core}/></View>
   <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content,{paddingTop:insets.top+32,paddingBottom:insets.bottom+32}]}>
@@ -29,6 +31,7 @@ export default function OnboardingScreen(){
     <Text style={s.code}>SYSTEM // INITIALIZATION {String(step+1).padStart(2,'0')}/04</Text>
     <Text style={s.title}>{pages[step][0]}</Text><Text style={s.subtitle}>{pages[step][1]}</Text><Text style={s.body}>{pages[step][2]}</Text>
     {step===1&&<View style={s.inputBlock}><Text style={s.code}>PLAYER IDENTITY</Text><TextInput accessibilityLabel="SYSTEM NAME — pseudonim" value={name} onChangeText={setName} maxLength={24} autoCorrect={false} placeholder="Twój pseudonim" placeholderTextColor="#6f8790" style={s.input}/></View>}
+    {step===1&&<View><Text style={s.code}>DATA URODZENIA · RRRR-MM-DD</Text><TextInput accessibilityLabel="Data urodzenia RRRR-MM-DD" value={birthDate} onChangeText={setBirthDate} maxLength={10} autoCorrect={false} placeholder="RRRR-MM-DD" placeholderTextColor="#6f8790" keyboardType="numbers-and-punctuation" style={s.input}/><Text style={s.hint}>Data pozostaje na telefonie. Wiek obliczamy automatycznie.</Text></View>}
     {step===2&&<View style={s.inputBlock}><Text style={s.code}>PRIMARY GOAL</Text><TextInput accessibilityLabel="Główny cel" value={goal} onChangeText={setGoal} maxLength={120} multiline placeholder="Np. kondycja, nauka, dyscyplina..." placeholderTextColor="#6f8790" style={[s.input,s.goal]}/><Text style={s.hint}>AI GAME MASTER // profil celu zostanie rozwinięty po pierwszych misjach.</Text></View>}
     {step===3&&<Animated.View entering={ZoomIn.duration(500)} style={s.mission}>
       <Text style={s.code}>AWAKENING // PATH DISCOVERY</Text><Text style={s.missionTitle}>CHOOSE YOUR FIRST SIGNAL</Text>

@@ -1,3 +1,4 @@
+import CharacterProgressPanel from '../components/CharacterProgressPanel';
 import { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -10,12 +11,14 @@ import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import { SKILL_KEYS, SKILL_META, compareItem, filterInventory, presentedCharacterStats, type EquipmentSlot, type ItemRarity, type SkillKey } from '../core';
 import { dominantSkill } from '../identity/model';
+import { calculateAge, validateBirthDate } from '../identity/age';
 import { persistAvatar, removeOwnedAvatar } from '../identity/avatar';
 
 export default function CharacterScreen() {
-  const { player, titles, updateIdentity, lastReward, inventory, equipItem, unequipItem, latestRaidVictory } = useSystem();
+  const { player, titles, updateIdentity, completedQuestIds, daily, activeQuestId, lastReward, inventory, equipItem, unequipItem, latestRaidVictory } = useSystem();
   const router = useRouter();
   const [name, setName] = useState(player.displayName), [selected, setSelected] = useState<SkillKey | null>(null);
+  const [birthDate, setBirthDate] = useState(player.birthDate ?? '');
   const [rarityFilter,setRarityFilter]=useState<ItemRarity|undefined>();
   const [slotFilter,setSlotFilter]=useState<EquipmentSlot|undefined>();
   const [inventorySort,setInventorySort]=useState<'NEWEST'|'RARITY'|'LEVEL'|'POWER'|'NAME'>('POWER');
@@ -24,6 +27,7 @@ export default function CharacterScreen() {
   const lock = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => setName(player.displayName), [player.id, player.displayName]);
+  useEffect(() => setBirthDate(player.birthDate ?? ''), [player.id, player.birthDate]);
   const aura = useSharedValue(0.72);
   const levelPulse = useSharedValue(0);
   const previousLevel = useRef(player.realLevel);
@@ -83,6 +87,7 @@ export default function CharacterScreen() {
         <View style={cs.avatarStage}>
           <IdentityAvatar uri={player.avatarUri} evolution={player.avatarEvolution} />
           <Text style={cs.name}>{player.displayName}</Text><Text style={cs.title}>{player.currentTitle}</Text>
+          <Text style={cs.meta}>WIEK {calculateAge(player.birthDate) ?? '—'}</Text>
           <Text style={cs.meta}>EVOLUTION {player.avatarEvolution} · {dominantSkill(player)}</Text>
           <View style={cs.powerLine}><View style={cs.powerDot}/><Text style={cs.powerText}>CORE POWER {SKILL_KEYS.reduce((sum,key)=>sum+player.stats[key].level,0)}</Text><View style={cs.powerDot}/></View>
         </View>
@@ -122,6 +127,7 @@ export default function CharacterScreen() {
     </Animated.View>}
     {section==='SKILLS' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
       <Text style={cs.panelKicker}>SKILL TREE // CORE</Text>
+      <CharacterProgressPanel player={player} completedQuestIds={completedQuestIds} daily={daily} activeQuestId={activeQuestId} selectedSkill={selected} onSelectSkill={key => setSelected(selected === key ? null : key)} />
       <View style={cs.skillTree}>{SKILL_KEYS.map((key,i)=><View key={key} style={cs.skillBranch}><View style={[cs.skillOrb,i===0&&cs.skillOrbCore]}><Text style={cs.skillOrbKey}>{key}</Text><Text style={cs.skillOrbLevel}>{player.stats[key].level}</Text></View><Text style={cs.skillBranchName}>{SKILL_META[key].name}</Text></View>)}</View>
     </Animated.View>}
     {section==='TITLES' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
@@ -130,6 +136,7 @@ export default function CharacterScreen() {
     </Animated.View>}
     {section==='ACHIEVEMENTS' && <Animated.View entering={FadeIn.duration(220)} style={cs.rpgPanel}>
       <Text style={cs.panelKicker}>ACHIEVEMENTS // RECORD</Text>
+      <Action label="OSIĄGNIĘCIA →" onPress={() => router.push('/achievements')} />
       <View style={cs.achievementHero}><Text style={cs.achievementValue}>{player.verifiedQuestCount}</Text><Text style={cs.achievementLabel}>ZWERYFIKOWANE QUESTY</Text></View>
       <View style={cs.achievementTrack}><View style={[cs.achievementFill,{width:`${Math.min(100,(player.verifiedQuestCount%10)*10)}%`}]} /></View>
       <Text style={cs.achievementHint}>NASTĘPNY MILESTONE // {Math.ceil((player.verifiedQuestCount+1)/10)*10}</Text>
@@ -139,6 +146,8 @@ export default function CharacterScreen() {
       <Text style={cs.drawerTitle}>IDENTITY // PROFILE</Text>
       <TextInput accessibilityLabel="Zmień SYSTEM NAME" value={name} onChangeText={setName} maxLength={24} style={cs.input} />
       <Action label="ZAPISZ SYSTEM NAME" disabled={busy} onPress={() => { void run(() => updateIdentity({ displayName: name })); }} />
+      <TextInput accessibilityLabel="Data urodzenia RRRR-MM-DD" value={birthDate} onChangeText={setBirthDate} maxLength={10} placeholder="RRRR-MM-DD" style={cs.input} />
+      <Action label="ZAPISZ DATĘ URODZENIA" disabled={busy} onPress={() => { void run(() => updateIdentity({ birthDate: validateBirthDate(birthDate) })); }} />
       <Action label="AVATAR Z GALERII" disabled={busy} onPress={() => { void run(() => chooseAvatar(false)); }} />
       <Action label="ZRÓB ZDJĘCIE" disabled={busy} onPress={() => { void run(() => chooseAvatar(true)); }} />
       {error && <SystemError message={error} retry={() => setError(null)} />}
