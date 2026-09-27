@@ -14,6 +14,7 @@ import { requestBackgroundLocationAccess } from '../background/locationService';
 import { confirmBackgroundLocationDisclosure } from '../background/disclosure';
 import { awaitWithTimeout } from '../storage/awaitWithTimeout';
 export default function SettingsScreen() {
+  const build = Constants.expoConfig?.extra?.buildProvenance;
   const { player, settings, saveSettings, resetData } = useSystem(); const router = useRouter(); const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [permission, setPermission] = useState('');
   const [resetStep, setResetStep] = useState(0), [confirmation, setConfirmation] = useState('');
@@ -79,7 +80,11 @@ export default function SettingsScreen() {
       <Text style={s.body}>Sprawdź, jakie dane SYSTEM przetwarza, do czego używa lokalizacji oraz jak działa żądanie usunięcia danych.</Text>
       <Action label="POLITYKA PRYWATNOŚCI →" onPress={() => router.push('/privacy')} />
     </View>
-    <View style={s.panel}><Text style={s.label}>ABOUT</Text><Text style={s.title}>SYSTEM 2.0 // MVP BUILD</Text><Text style={s.body}>Wersja aplikacji: {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'niedostępna'} · BUILD {Constants.nativeBuildVersion ?? Constants.expoConfig?.android?.versionCode ?? 'DEV'}</Text><Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
+    <View style={s.panel}><Text style={s.label}>ABOUT / ŹRÓDŁO APLIKACJI</Text><Text style={s.title}>SYSTEM</Text><Text style={s.body}>Wersja aplikacji: {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'niedostępna'} · BUILD {Constants.nativeBuildVersion ?? Constants.expoConfig?.android?.versionCode ?? 'DEV'}</Text>
+      <Text selectable style={s.body}>Gałąź: {build?.branch ?? 'DEV — brak metadanych buildu'}</Text>
+      <Text selectable style={s.body}>Commit: {typeof build?.sha === 'string' ? build.sha.slice(0,12) : 'niepotwierdzony'}</Text>
+      <Text selectable style={s.body}>Zbudowano: {build?.builtAt ?? 'niepotwierdzona data'}</Text>
+      <Text style={s.body}>World map: MapLibre Demo Tiles — konfiguracja developerska.</Text></View>
     {error && <SystemError message={error} retry={() => setError(null)} />}
     <Modal visible={__DEV__ && resetStep > 0} animationType="fade" onRequestClose={cancelReset}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, backgroundColor: '#030709' }}>
