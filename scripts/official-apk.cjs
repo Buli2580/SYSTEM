@@ -3,6 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const cp=require('node:child_process');
 const crypto=require('node:crypto');
+const os=require('node:os');
 const {source,verifyConfig,publish}=require('./apk-provenance.cjs');
 const root=path.resolve(__dirname,'..');
 function run(command,args,cwd,env,capture=false) {
@@ -33,7 +34,11 @@ function main(){
  const config=JSON.parse(fs.readFileSync(path.join(checkout,'app.json'),'utf8')).expo;
  const metadata={...identity,builtAt,version:config.version,versionCode:Math.max(config.android.versionCode+1,Math.floor(Date.now()/1000)-1577836800),runId};
  const manifest=path.join(work,'build.json');fs.writeFileSync(manifest,JSON.stringify(metadata));
- const env={...process.env,SYSTEM_BUILD_MANIFEST:manifest,SYSTEM_EXPECTED_SHA:identity.sha,SYSTEM_ANDROID_KEYSTORE:key,CI:'1',EXPO_NO_TELEMETRY:'1'};
+ // Keep Windows Gradle transforms off an inherited external-drive cache. This is
+ // scoped to this build; SYSTEM_ANDROID_GRADLE_HOME permits an explicit location.
+ const gradleHome=process.env.SYSTEM_ANDROID_GRADLE_HOME?path.resolve(process.env.SYSTEM_ANDROID_GRADLE_HOME):(process.platform==='win32'?path.join(os.homedir(),'.gradle'):process.env.GRADLE_USER_HOME);
+ const env={...process.env,...(gradleHome?{GRADLE_USER_HOME:gradleHome}:{}),SYSTEM_BUILD_MANIFEST:manifest,SYSTEM_EXPECTED_SHA:identity.sha,SYSTEM_ANDROID_KEYSTORE:key,CI:'1',EXPO_NO_TELEMETRY:'1'};
+ console.log('Gradle cache: '+(env.GRADLE_USER_HOME||'Gradle default'));
  run(process.platform==='win32'?'npm.cmd':'npm',['ci','--no-audit','--no-fund'],checkout,env);
  run(process.execPath,[path.join(checkout,'node_modules/expo/bin/cli'),'prebuild','--platform','android','--no-install'],checkout,env);
  const appDir=path.join(checkout,'android','app');

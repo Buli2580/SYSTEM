@@ -5,6 +5,29 @@ const os=require('node:os');
 const path=require('node:path');
 const {BRANCH,validateSource,verifyConfig,publish}=require('./apk-provenance.cjs');
 const sha='a'.repeat(40);
+for(const [platform,cacheOverride] of [['win32',null],['win32','C:/SYSTEM custom cache'],['linux',null]]) test('official Gradle invocation keeps cache selection and signing guards: '+platform+' '+(cacheOverride??'default'),()=>{
+ const vm=require('node:vm');
+ const calls=[];
+ const env={SYSTEM_ANDROID_KEYSTORE:'existing.keystore',SYSTEM_ANDROID_KEY_ALIAS:'test-alias',SYSTEM_ANDROID_STORE_PASSWORD:'test-store-secret',SYSTEM_ANDROID_KEY_PASSWORD:'test-key-secret',SYSTEM_ANDROID_CERT_SHA256:'a'.repeat(64),ANDROID_HOME:'/sdk',GRADLE_USER_HOME:'E:/DEV/gradle',...(cacheOverride?{SYSTEM_ANDROID_GRADLE_HOME:cacheOverride}:{})};
+ const fakeFs={existsSync:()=>true,readdirSync:()=>['36.0.0'],mkdirSync(){},writeFileSync(){},appendFileSync(){},readFileSync:()=>JSON.stringify({expo:{version:'1.0.1',android:{versionCode:2}}})};
+ const processMock={platform,argv:['node','official-apk.cjs','--sha',sha],env,execPath:'node'};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'official-apk.cjs'),'utf8'),{
+  __dirname,process:processMock,console:{log(){},error(){}},
+  require(name){
+   if(name==='node:fs')return fakeFs;
+   if(name==='node:child_process')return {spawnSync(command,args,options){calls.push({command,args,options});return {status:/gradlew(?:\.bat)?$/.test(command)?1:0};}};
+   if(name==='./apk-provenance.cjs')return {source:()=>({branch:BRANCH,sha})};
+   return require(name);
+  },
+ });
+ const gradle=calls.find(call=>/gradlew(?:\.bat)?$/.test(call.command));assert.ok(gradle);
+ assert.ok(gradle.args.includes(':app:assembleRelease'));
+ assert.equal(gradle.options.env.GRADLE_USER_HOME,cacheOverride?path.resolve(cacheOverride):platform==='win32'?path.join(os.homedir(),'.gradle'):env.GRADLE_USER_HOME);
+ assert.equal(env.GRADLE_USER_HOME,'E:/DEV/gradle','cache selection must not change the parent environment');
+ assert.ok(gradle.args.includes('--no-daemon'));assert.equal(gradle.options.env.SYSTEM_EXPECTED_SHA,sha);
+ for(const secret of ['test-store-secret','test-key-secret'])assert.ok(!JSON.stringify(calls.map(call=>call.args)).includes(secret));
+ assert.equal(processMock.exitCode,1,'a Gradle failure must still stop publication');
+});
 test('official source accepts only the exact branch, commit and clean tree',()=>{
  const valid={branch:BRANCH,sha,expectedSha:sha,dirty:'',repository:'Buli2580/SYSTEM'};
  assert.doesNotThrow(()=>validateSource(valid));
