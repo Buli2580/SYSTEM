@@ -1,3 +1,5 @@
+import {ArtThumbnail} from '../components/VisualArt';
+import {ART} from '../visual/assets';
 import {bossPhaseState} from '../story/bossEngine';
 import BossCinematicPanel from '../components/BossCinematicPanel';
 import { useCallback, useRef, useState } from 'react';
@@ -35,7 +37,7 @@ export default function StoryScreen() {
    </>}
   </View>)}
     {boss && <BossCinematicPanel hp={story?.bossHp ?? 100} startedAt={boss.started_at}/>}
-  <View style={bossStyles.arena}><View style={bossStyles.threatGlow}/><Text style={bossStyles.code}>BOSS PROTOCOL // {bossPhase}</Text><Text style={bossStyles.name}>THE FIRST WALL</Text><View style={bossStyles.silhouette}><View style={bossStyles.head}/><View style={bossStyles.body}/></View><View style={bossStyles.hpTrack}><View style={[bossStyles.hpFill,{width:`${bossHp}%`}]}/></View><Text style={bossStyles.hpLabel}>HP {bossHp}/100 · DAMAGE FROM VERIFIED REAL TASKS</Text></View>
+  <View style={bossStyles.arena}><View style={bossStyles.threatGlow}/><Text style={bossStyles.code}>BOSS PROTOCOL // {bossPhase}</Text><Text style={bossStyles.name}>THE FIRST WALL</Text><View style={bossStyles.silhouette}><ArtThumbnail source={ART.boss} label="The First Wall — ilustracja bossa" size={64}/></View><View style={bossStyles.hpTrack}><View style={[bossStyles.hpFill,{width:`${bossHp}%`}]}/></View><Text style={bossStyles.hpLabel}>HP {bossHp}/100 · DAMAGE FROM VERIFIED REAL TASKS</Text></View>
   <View style={s.panel}><Text style={s.label}>BOSS PROTOCOL // {story?.bossComplete?'DEFEATED':story?.worldLinkComplete?'AVAILABLE':'LOCKED'}</Text><Text style={s.title}>THE FIRST WALL</Text>
    <Text style={s.body}>FOCUS → MOVE → DISCIPLINE. Postęp etapów zostaje zapisany.</Text>
    {story?.worldLinkComplete&&!boss&&<Action label="BEGIN BOSS PROTOCOL" disabled={busy} onPress={()=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');const request=epoch.current;void awaitWithTimeout(startBossProtocol()).then(()=>refreshPlayer()).catch(()=>{if(request===epoch.current)setError('Nie udało się rozpocząć Bossa. Sprawdź datę i ponów próbę.');}).finally(()=>{lock.current=false;if(request===epoch.current)setBusy(false);});}}/>}

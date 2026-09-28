@@ -23,6 +23,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText;
     const requireMock = name => {
+      if (name === 'react' && Object.hasOwn(mocks, name)) return {memo: component => component, ...mocks[name]};
       if (Object.hasOwn(mocks, name)) return mocks[name];
       // Native scheduling is outside Node; keep rendering the real components.
       if (name === 'react-native-reanimated') {
@@ -34,8 +35,10 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
           withTiming: value => value, withRepeat: value => value, withSequence: (...v) => v.at(-1),
           cancelAnimation() {}, interpolate: (v, input, output) => output[0] };
       }
-      // Metro loads audio as assets, never executable JavaScript in Node VM tests.
-      if (/\.(?:mp3|wav)$/i.test(name)) return name;
+      // Metro loads media as asset IDs, never executable JavaScript in Node VM tests.
+      if (/\.(?:mp3|wav|webp)$/i.test(name)) return name;
+      // Decode/layout belongs to the native image view; keep real selection and screen logic.
+      if (name === 'expo-image') return {Image:'Image'};
       if (name === 'expo-audio') return {createAudioPlayer:()=>({volume:0,loop:false,play(){},remove(){}})};
       if (name === '../quests/privatePhoto') return {capturePrivateQuestPhoto:async()=>null,removePrivateQuestPhoto(){},purgeStalePrivateQuestPhotos(){}};
       if (name === '../telemetry/amplitude') return {queueTelemetry:async()=>{}};

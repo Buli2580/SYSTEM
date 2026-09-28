@@ -1,3 +1,4 @@
+import {ArtBackdrop} from './VisualArt';
 import SystemScreen from './SystemScreen';
 import SystemError from './SystemError';
 import type { ReactNode } from 'react';
@@ -10,18 +11,19 @@ import SystemAmbientBackground from './SystemAmbientBackground';
 import type { ScreenMood, ThreatLevel, WorldSceneId, WorldWeather } from '../visual/types';
 
 export default function SystemPage({
-  title,subtitle,children,intensity='quiet',showNavigation=true,
+  title,subtitle,children,intensity='quiet',showNavigation=true,backdrop,
   screen='HOME',scene,threat=0,weather='CLEAR',
 }:{
   title:string;subtitle:string;children:ReactNode;
   intensity?:'quiet'|'default'|'hero'|'world';
-  showNavigation?:boolean;
+  showNavigation?:boolean; backdrop?:number;
   screen?:ScreenMood;scene?:WorldSceneId;threat?:ThreatLevel;weather?:WorldWeather;
 }) {
   const insets=useSafeAreaInsets();
   const {ready,error,refreshPlayer,player}=useSystem();
   return <SystemScreen style={styles.root}>
     <SystemAmbientBackground intensity={intensity} screen={screen} scene={scene} threat={threat} weather={weather} level={player.realLevel}/>
+    {backdrop && <ArtBackdrop source={backdrop}/>}
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content,{paddingTop:20,paddingBottom:(showNavigation?150:44)+insets.bottom}]}>
       <View style={styles.headerScrim}>
         <Text style={styles.code}>{subtitle}</Text>

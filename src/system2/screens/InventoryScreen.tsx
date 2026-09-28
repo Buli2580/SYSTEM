@@ -1,3 +1,5 @@
+import {ArtThumbnail} from '../components/VisualArt';
+import {itemArt} from '../visual/assets';
 import {useEffect,useState} from 'react';
 import {Text,View} from 'react-native';
 import SystemPage,{pageStyles as s} from '../components/SystemPage';
@@ -14,6 +16,6 @@ export default function InventoryScreen(){
  async function equip(kind:Parameters<typeof equipInventoryItem>[0],id:string){setEquipped(await equipInventoryItem(kind,id))}
  return <SystemPage title="INVENTORY" subtitle="ITEMS // RELICS // COSMETICS">
   <View style={s.panel}><Text style={s.label}>COLLECTION // EQUIPPED {Object.keys(equipped).length}</Text><Text style={s.title}>{unlocked.length} / {INVENTORY_ITEMS.length}</Text><Text style={s.body}>Inventory nie daje XP ani przewagi. Wyposażone przedmioty zmieniają wyłącznie tożsamość i prezentację SYSTEMU.</Text></View>
-  {INVENTORY_ITEMS.map(item=>{const open=unlocked.some(x=>x.id===item.id),active=equipped[item.kind]===item.id;return <View key={item.id} style={[s.panel,{opacity:open?1:.45}]}><Text style={s.label}>{item.rarity} // {item.kind}{active?' // EQUIPPED':''}</Text><Text style={s.title}>{open?item.name:'SEALED ITEM'}</Text><Text style={s.body}>{open?item.description:'Wymaganie nie zostało jeszcze spełnione.'}</Text><Text style={s.body}>SOURCE // {item.source}{item.levelRequired?' · LV.'+item.levelRequired:''}</Text>{open&&<Action label={active?'EQUIPPED ✓':'WYPOSAŻ'} disabled={active} onPress={()=>void equip(item.kind,item.id)}/>}</View>})}
+  {INVENTORY_ITEMS.map(item=>{const open=unlocked.some(x=>x.id===item.id),active=equipped[item.kind]===item.id;return <View key={item.id} style={[s.panel,{opacity:open?1:.45}]}>{open&&<ArtThumbnail source={itemArt(item)}/>}<Text style={s.label}>{item.rarity} // {item.kind}{active?' // EQUIPPED':''}</Text><Text style={s.title}>{open?item.name:'SEALED ITEM'}</Text><Text style={s.body}>{open?item.description:'Wymaganie nie zostało jeszcze spełnione.'}</Text><Text style={s.body}>SOURCE // {item.source}{item.levelRequired?' · LV.'+item.levelRequired:''}</Text>{open&&<Action label={active?'EQUIPPED ✓':'WYPOSAŻ'} disabled={active} onPress={()=>void equip(item.kind,item.id)}/>}</View>})}
  </SystemPage>;
 }

@@ -1,3 +1,5 @@
+import {ArtThumbnail} from './VisualArt';
+import {questArt} from '../visual/assets';
 import { FadeInUp } from 'react-native-reanimated';
 import Animated from 'react-native-reanimated';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -120,7 +122,7 @@ export function QuestMissionCard({ quest, status, progress, progressTarget, disa
   return <Animated.View entering={FadeInUp.duration(360).delay(index * 45)}>
     <Pressable accessibilityRole="button" accessibilityLabel={`${quest.title} — ${STATUS_LABELS[status]}`} accessibilityState={{ disabled, selected: status === 'ACTIVE' }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.card, status === 'ACTIVE' && styles.cardActive, status === 'LOCKED' && styles.cardLocked, pressed && styles.cardPressed]}>
       <View style={styles.cardHeader}>
-        <View style={styles.headerTags}><Text style={styles.category}>{questCategoryLabel(quest.category)}</Text><Text style={styles.difficulty}>{quest.difficulty}</Text></View>
+        <ArtThumbnail source={questArt(quest)}/><View style={styles.headerTags}><Text style={styles.category}>{questCategoryLabel(quest.category)}</Text><Text style={styles.difficulty}>{quest.difficulty}</Text></View>
         <QuestStatusBadge status={status} />
       </View>
       {!!contextLabel && <Text style={styles.contextLabel}>{contextLabel}</Text>}
@@ -141,6 +143,7 @@ export function MissionBriefing({ quest, status, onStart, startDisabled, resume 
   const displayStatus = questStatusForRun(status);
   const objective = quest.verification.type === 'TIMER' ? `${Math.floor((quest.verification.minimumDurationSeconds ?? 0) / 60)} MIN FOCUS` : quest.verification.type === 'MULTI' ? `${quest.verification.minimumDistanceMeters ?? 0} M + ${Math.floor((quest.verification.minimumDurationSeconds ?? 0) / 60)} MIN` : `${quest.verification.minimumDistanceMeters ?? 0} M`;
   return <View style={styles.briefing}>
+    <ArtThumbnail source={questArt(quest)}/>
     <View style={styles.cardHeader}><Text style={styles.category}>MISSION BRIEFING</Text><QuestStatusBadge status={displayStatus} /></View>
     <Text style={styles.briefingType}>{questCategoryLabel(quest.category)} // {quest.difficulty}</Text>
     <Text style={styles.briefingTitle}>{quest.title}</Text>

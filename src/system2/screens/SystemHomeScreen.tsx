@@ -1,3 +1,5 @@
+import {ART} from '../visual/assets';
+import {ArtBackdrop} from '../components/VisualArt';
 import { useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -74,6 +76,7 @@ function WorldScene({ reduced, bossActive, mode }: { reduced: boolean; bossActiv
 
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
     <View style={[StyleSheet.absoluteFill,styles.sky,mode==='BOSS'&&styles.sceneBoss,mode==='AWAKENING'&&styles.sceneAwakening,mode==='VICTORY'&&styles.sceneVictory,mode==='QUEST'&&styles.sceneQuest]} />
+    <ArtBackdrop source={ART.home}/>
     <View style={styles.cityGlow}/>
     <Animated.View style={[styles.farCity,far]}>{[96,145,118,188,126,164,105,210,138].map((height,i)=><View key={i} style={[styles.farTower,{height,left:i*48-16}]}>{!reduced&&<View style={[styles.windowBand,{top:18+(i%4)*13}]}/>}</View>)}</Animated.View>
     <View style={styles.horizonFog}/>

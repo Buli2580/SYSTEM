@@ -1,3 +1,5 @@
+import {ArtThumbnail} from '../components/VisualArt';
+import {achievementArt} from '../visual/assets';
 import SystemError from '../components/SystemError';
 import { useMemo } from 'react';
 import { Text, View, type DimensionValue } from 'react-native';
@@ -22,6 +24,7 @@ export default function AchievementsScreen() {
     {categories.map(category => { const items=visible.filter(def => def.category === category); if(!items.length) return null; const meta=ACHIEVEMENT_CATEGORIES[category]; const categoryUnlocked=items.filter(def => ['UNLOCKED','CLAIMED'].includes(evaluated[def.id].state)).length; return <View key={category}>
       <View style={s.panel}><Text style={s.label}>{meta.icon} {meta.name}</Text><Text style={s.body}>{categoryUnlocked} / {items.length} UNLOCKED</Text></View>
       {items.map(def => { const item=evaluated[def.id], complete=['UNLOCKED','CLAIMED'].includes(item.state), pct=achievementPercent(item); return <View key={def.id} style={s.panel} accessibilityRole="summary" accessibilityLabel={def.name+', '+item.currentProgress+' z '+item.maxProgress}>
+        <ArtThumbnail source={achievementArt(def.category)}/>
         <Text style={s.label}>{def.tier ?? 'COMMON'} · {complete?'UNLOCKED':item.state}</Text><Text style={s.title}>{def.name}</Text><Text style={s.body}>{def.description}</Text>
         <Text style={s.body}>{item.currentProgress.toLocaleString()} / {item.maxProgress.toLocaleString()} · {pct}%</Text>
         <View accessibilityRole="progressbar" accessibilityValue={{min:0,max:item.maxProgress,now:Math.min(item.currentProgress,item.maxProgress)}} style={{height:5,backgroundColor:'#17333e',borderRadius:4,marginTop:10}}><View style={{height:5,width: `${pct}%` as DimensionValue,backgroundColor:'#62efff',borderRadius:4}} /></View>

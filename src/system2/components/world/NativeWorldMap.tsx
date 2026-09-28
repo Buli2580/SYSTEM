@@ -1,6 +1,8 @@
+import {ArtThumbnail} from '../VisualArt';
+import {ART} from '../../visual/assets';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Camera, Map, GeoJSONSource, Layer, type CameraRef } from '@maplibre/maplibre-react-native';
+import { Camera, Map, GeoJSONSource, Layer, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
 import type { WorldMapProps } from './WorldMap';
 import { locationToSector } from '../../world/sectors';
 import { buildFog } from '../../world/fog';
@@ -43,6 +45,9 @@ export default function NativeWorldMap({ fix, sectorIds, signal, follow, centerR
     <GeoJSONSource id="player" data={{ type: 'Point', coordinates: [fix.coords.longitude, fix.coords.latitude] }}>
       <Layer id="player-point" type="circle" paint={{ 'circle-radius': 7, 'circle-color': '#62efff', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 }} />
     </GeoJSONSource>
+    {signal && <Marker id="signal-art" lngLat={[signal.longitude,signal.latitude]} anchor="bottom" offset={[0,-12]}>
+      <View pointerEvents="none" accessible accessibilityLabel={signal.status==='LOCATED'?'Odnaleziony sygnał':'Sygnał świata'} style={{borderRadius:6,borderWidth:2,borderColor:signal.status==='LOCATED'?'#58efb0':'#cb89ff',backgroundColor:'#061017'}}><ArtThumbnail source={ART.mapSignal} size={28}/></View>
+    </Marker>}
     {signal && <GeoJSONSource id="unknown-signal" data={{ type: 'Point', coordinates: [signal.longitude, signal.latitude] }}>
       <Layer id="unknown-signal-point" type="circle" paint={{ 'circle-radius': 10, 'circle-color': signal.status === 'LOCATED' ? '#58efb0' : '#cb89ff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' }} />
     </GeoJSONSource>}

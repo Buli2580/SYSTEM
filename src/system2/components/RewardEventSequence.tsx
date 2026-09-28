@@ -1,3 +1,4 @@
+import {ART} from '../visual/assets';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {useSystem} from '../state/SystemProvider';
 import SystemEventOverlay,{type SystemEvent} from './SystemEventOverlay';
@@ -46,6 +47,6 @@ export default function RewardEventSequence(){
   if(eventIndex>=events.length&&cardReason)return <MilestoneCardOverlay player={player} reason={cardReason} onDismiss={dismiss}/>;
   const item=events[eventIndex];
   if(!item)return null;
-  const event:SystemEvent={id:item.id,eyebrow:item.eyebrow,title:item.title,detail:item.detail,accent:item.accent,durationMs:item.kind==='QUEST_COMPLETE'?1800:2800};
+  const event:SystemEvent={art:item.kind==='QUEST_COMPLETE'?ART.xp:['LEVEL_UP','RANK_UP','SKILL_UP'].includes(item.kind)?ART.levelUp:undefined,id:item.id,eyebrow:item.eyebrow,title:item.title,detail:item.detail,accent:item.accent,durationMs:item.kind==='QUEST_COMPLETE'?1800:2800};
   return <SystemEventOverlay event={event} onDismiss={dismiss}/>;
 }

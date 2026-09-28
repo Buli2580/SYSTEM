@@ -1,3 +1,5 @@
+import {ART} from '../visual/assets';
+import {ArtBackdrop} from './VisualArt';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {Pressable,StyleSheet,Text,View} from 'react-native';
 import Animated,{cancelAnimation,Easing,FadeIn,FadeOut,ZoomIn,ZoomOut,interpolate,useAnimatedStyle,useSharedValue,withRepeat,withTiming} from 'react-native-reanimated';
@@ -67,6 +69,7 @@ export default function SystemBootSequence({
   const cinematic=resolved==='FIRST_AWAKENING';
   return <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(380)} style={styles.root}>
     <SystemAmbientBackground intensity="hero" screen="LAUNCH" level={player?.realLevel??1} threat={threat} scene={current?.phase==='AWAKENING'?'PORTAL':undefined}/>
+    <ArtBackdrop source={ART.intro}/>
     <View style={styles.vignette}/>
     <Text style={styles.topline}>SYSTEM // {cinematic?'AWAKENING PROTOCOL':'CONNECTION RESTORED'}</Text>
     <View style={styles.scanFrame}><View style={[styles.scanProgress,{width:`${Math.round(progress*100)}%`}]} /></View>

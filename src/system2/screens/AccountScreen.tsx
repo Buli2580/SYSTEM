@@ -1,3 +1,4 @@
+import {ART} from '../visual/assets';
 import { useEffect, useRef, useState } from 'react';
 import { Switch, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -217,7 +218,7 @@ export default function AccountScreen() {
     if (mounted.current) { setSession(null); setSocial(null); setStatus('SYSTEM CLOUD // NIEPOŁĄCZONY'); }
   }
 
-  return <SystemPage title="SYSTEM ONLINE" subtitle="KONTO // CHMURA // SPOŁECZNOŚĆ">
+  return <SystemPage backdrop={ART.intro} title="SYSTEM ONLINE" subtitle="KONTO // CHMURA // SPOŁECZNOŚĆ">
     <View style={s.panel}>
       <Text style={s.label}>STATUS</Text>
       <Text style={s.title}>{status}</Text>

@@ -1,3 +1,5 @@
+import {ART} from '../visual/assets';
+import {ArtBackdrop} from '../components/VisualArt';
 import { validateBirthDate } from '../identity/age';
 import { useCallback, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -25,6 +27,7 @@ export default function OnboardingScreen(){
  useFocusEffect(useCallback(()=>{playSceneMusic('AWAKENING');return stopMusic;},[]));
  async function enter(){if(busyRef.current)return;if(!goal.trim()){setError('Wpisz główny cel, żeby GAME MASTER mógł dobrać pierwszą ścieżkę.');return;}busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name,{goal,path:PATHS[path][0],birthDate:validateBirthDate(birthDate)});router.replace('/quests');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
  return <KeyboardAvoidingView style={s.root} behavior={Platform.OS==='ios'?'padding':'height'}>
+  <ArtBackdrop source={ART.intro}/>
   <View pointerEvents="none" style={s.energy}><View style={s.ring}/><View style={s.core}/></View>
   <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content,{paddingTop:insets.top+32,paddingBottom:insets.bottom+32}]}>
    <Animated.View key={step} entering={FadeInDown.duration(360)}>

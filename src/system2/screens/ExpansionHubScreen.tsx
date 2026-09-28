@@ -3,6 +3,7 @@ import {useRouter} from 'expo-router';
 import SystemPage,{pageStyles as s} from '../components/SystemPage';
 import Action from '../components/Action';
 const MODULES=[
+ ['PARTNER MARKETPLACE','Kategorie przyszłych ofert','/partner-marketplace'],
  ['INVENTORY / ITEMS','Relikty, badge, frame, aura','/inventory'],
  ['PROGRESSION 2.0','Achievements, Titles, Skill Tree','/progression-2'],
  ['BATTLE NETWORK','Guild Wars, PvP, Raid 2.0, Seasons 2.0, Referral','/battle-network'],

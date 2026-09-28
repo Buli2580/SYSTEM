@@ -1,10 +1,11 @@
+import {ArtThumbnail} from './VisualArt';
 import {useEffect} from 'react';
 import {Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import Animated,{FadeIn,FadeInUp} from 'react-native-reanimated';
 import {playFeedback} from '../identity/audio';
 
 const ACCENT={CYAN:'#6ceeff',GOLD:'#ffd36c',VIOLET:'#e4baff'} as const;
-export type SystemEvent={id:string;eyebrow:string;title:string;detail?:string;accent?:'CYAN'|'GOLD'|'VIOLET';durationMs?:number};
+export type SystemEvent={id:string;eyebrow:string;title:string;detail?:string;accent?:'CYAN'|'GOLD'|'VIOLET';durationMs?:number;art?:number};
 
 function soundFor(event:SystemEvent){
   if(event.eyebrow.includes('RANK'))return 'RANK_UP' as const;
@@ -30,6 +31,7 @@ export default function SystemEventOverlay({event,onDismiss}:{event:SystemEvent|
       <View style={[styles.haloInner,{borderColor:accent+'66'}]}/>
       <Animated.View entering={FadeIn.duration(220)} style={[styles.scan,{backgroundColor:accent+'66'}]}/>
       <Animated.View entering={FadeInUp.duration(320)} style={[styles.card,{borderColor:accent+'88',shadowColor:accent}]}>
+        <ArtThumbnail source={event.art}/>
         <Text style={[styles.eyebrow,{color:accent}]}>{event.eyebrow}</Text>
         <Text style={styles.title}>{event.title}</Text>
         {event.detail?<Text style={styles.detail}>{event.detail}</Text>:null}
