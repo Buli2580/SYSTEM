@@ -25,7 +25,10 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText;
     const requireMock = name => {
+      if (name === 'react' && Object.hasOwn(mocks, name)) return {memo: component => component, ...mocks[name]};
       if (Object.hasOwn(mocks, name)) return mocks[name];
+      // Native image decoding is outside Node; retain the real component props and screen logic.
+      if (name === 'expo-image') return {Image: 'Image'};
       if (name === 'react-native-reanimated') {
         const transition = { duration() { return this; }, delay() { return this; }, springify() { return this; } };
         return { default: { View: 'View', Text: 'Text' }, View: 'View', Text: 'Text',
