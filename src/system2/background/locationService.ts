@@ -55,7 +55,9 @@ export async function prepareQuestBackgroundTracking(input: {
   await saveBackgroundQuestSession({
     questId: input.questId,
     attemptId: input.attemptId,
-    mode: 'FOREGROUND',
+    // The native service owns fixes until the screen watcher is attached.
+    // Starting in FOREGROUND silently dropped fixes during async startup.
+    mode: 'BACKGROUND',
     extendedGoal: input.extendedGoal,
     ...(existing?.questId === input.questId && existing.attemptId === input.attemptId && existing.lastPoint
       ? { lastPoint: existing.lastPoint } : {}),
