@@ -1,0 +1,20 @@
+// Run: node --test src/system2/tests/living-character.test.cjs
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
+const ts=require(require.resolve('typescript',{paths:[path.resolve(__dirname,'../../..'),process.cwd()]}));
+const file=path.join(__dirname,'../core/livingCharacter.ts');
+const source=fs.readFileSync(file,'utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const mod={exports:{}};
+const SKILL_KEYS=['STR','VIT','INT','WIL','CHA','CRE','RES'];
+const SKILL_META=Object.fromEntries(SKILL_KEYS.map(key=>[key,{name:key}]));
+vm.runInNewContext(compiled,{module:mod,exports:mod.exports,require:(name)=>{if(name==='../core/progression'||name==='./progression')return{SKILL_KEYS,SKILL_META};throw Error(name);},Number,Math,Error},{filename:file});
+const {deriveCharacterIdentity:derive}=mod.exports;
+const player=()=>({realLevel:1,rank:'E',avatarEvolution:0,verifiedQuestCount:0,totalDistanceMeters:0,stats:Object.fromEntries(SKILL_KEYS.map(key=>[key,{totalXp:0}]))});
+test('fresh player has a deterministic starting identity',()=>{const result=derive(player());assert.equal(result.dominantSkill,'STR');assert.equal(result.nextMilestone,'LEVEL_5');});
+test('verified progress is read without creating rewards',()=>{const p=player();p.verifiedQuestCount=12;p.totalDistanceMeters=12345;p.stats.VIT.totalXp=300;const result=derive(p);assert.equal(result.verifiedQuests,12);assert.equal(result.distanceKm,12.3);assert.equal(result.dominantSkill,'VIT');assert.equal(p.stats.VIT.totalXp,300);});
+test('level milestones use canonical level',()=>{const p=player();p.realLevel=25;p.rank='C';p.avatarEvolution=2;const result=derive(p);assert.equal(result.evolution,2);assert.equal(result.nextMilestone,'LEVEL_50');assert.equal(result.milestones.includes('LEVEL_25'),true);});
+test('invalid progress is rejected rather than reset',()=>{const p=player();p.totalDistanceMeters=-1;assert.throws(()=>derive(p));});
