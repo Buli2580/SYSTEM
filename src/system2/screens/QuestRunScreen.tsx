@@ -153,11 +153,14 @@ export default function QuestRunScreen({ quest = FIRST_MOVEMENT_QUEST }: { quest
     setQuestCompleteVisible(status === 'COMPLETED');
   }, [status]);
 
+  useEffect(() => {
+    if (status === 'TRACKING') setQuestAccepted(true);
+  }, [status]);
+
   const handleStartQuest = () => {
     if (startInProgressRef.current) return;
     startInProgressRef.current = true;
     setStartInProgress(true);
-    setQuestAccepted(true);
     return startQuest()
       .catch(() => undefined)
       .finally(() => {

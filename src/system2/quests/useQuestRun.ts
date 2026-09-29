@@ -58,6 +58,16 @@ export function useQuestRun(quest: RunnableQuest) {
   const startupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingHandoffRef = useRef<Promise<void> | null>(null);
   const backgroundHandoffRef = useRef(false);
+  const resumeStartupRef = useRef(false);
+  const startQuestRef = useRef<() => Promise<void>>(async () => {});
+  const startupPhaseRef = useRef('idle');
+  const traceStartup = useCallback((phase: string) => {
+    startupPhaseRef.current = phase;
+    // Deliberately excludes coordinates, profile data and native error payloads.
+    console.info('[SYSTEM quest lifecycle]', JSON.stringify({ questId: quest.id, phase,
+      status: statusRef.current, session: sessionRef.current, appState: AppState.currentState,
+      focused: focusedRef.current }));
+  }, [quest.id]);
   const backgroundSessionActiveRef = useRef(false);
   const riskRef = useRef<GpsRiskSnapshot>(EMPTY_GPS_RISK);
   const [antiCheatRisk,setAntiCheatRisk]=useState<GpsRiskSnapshot>(EMPTY_GPS_RISK);
@@ -123,9 +133,11 @@ export function useQuestRun(quest: RunnableQuest) {
   const transition = useCallback((next: RunStatus) => {
     statusRef.current = next;
     setStatus(next);
-  }, []);
+    traceStartup(next);
+  }, [traceStartup]);
 
   const stopVerification = useCallback(() => {
+    if (statusRef.current === 'STARTING') traceStartup('invalidate-start');
     // Also invalidates pending permissions / a watch promise without a handle yet.
     sessionRef.current += 1;
     setActiveQuestId(current => current === quest.id ? null : current);
@@ -141,7 +153,7 @@ export function useQuestRun(quest: RunnableQuest) {
     startupTimerRef.current = null;
     lastPointRef.current = null;
     activityWindow.current = null;
-  }, [quest.id, setActiveQuestId]);
+  }, [quest.id, setActiveQuestId, traceStartup]);
 
   const pauseForegroundTracking = useCallback(() => {
     sessionRef.current += 1;
@@ -160,6 +172,8 @@ export function useQuestRun(quest: RunnableQuest) {
   }, []);
 
   const fail = useCallback((message: string, denied = false, result: Exclude<AttemptResult,'COMPLETED'> = 'FAILED', reason: AttemptReason = denied ? 'PERMISSION_DENIED' : 'TECHNICAL_ERROR') => {
+    traceStartup('failed:' + startupPhaseRef.current);
+    resumeStartupRef.current = false;
     endAttempt(result,reason);
     stopVerification();
     if (!isTimer) { backgroundSessionActiveRef.current = false; void stopQuestBackgroundTracking(quest.id).catch(() => undefined); }
@@ -168,7 +182,7 @@ export function useQuestRun(quest: RunnableQuest) {
     playFeedback('ERROR');
     setError(message);
     transition(denied ? 'DENIED' : 'ERROR');
-  }, [stopVerification, transition, endAttempt, isTimer, quest.id]);
+  }, [stopVerification, transition, endAttempt, isTimer, quest.id, traceStartup]);
 
   const checkCompletion = useCallback(async () => {
     stopVerification();
@@ -220,7 +234,7 @@ export function useQuestRun(quest: RunnableQuest) {
       // A screen lock may unmount this screen while the native location task
       // keeps the attempt alive. Reattach the foreground watcher automatically
       // instead of leaving the user at READY with a running background session.
-      if (access === 'AVAILABLE' && ownsBackgroundSession && AppState.currentState === 'active') void startQuest();
+      if (access === 'AVAILABLE' && ownsBackgroundSession && AppState.currentState === 'active' && !pendingHandoffRef.current) void startQuest();
     } catch {
       if (focusedRef.current && session === sessionRef.current) {
         // A transient SQLite timeout must not destroy a native GPS session.
@@ -240,6 +254,7 @@ export function useQuestRun(quest: RunnableQuest) {
     focusedRef.current = true;
     void checkCompletion();
     return () => {
+      resumeStartupRef.current = false;
       if (['STARTING','TRACKING'].includes(statusRef.current)) {
         if (isTimer) {
           endAttempt('INTERRUPTED','LEFT_SCREEN');
@@ -301,6 +316,7 @@ export function useQuestRun(quest: RunnableQuest) {
       if (!isTimer && state === 'background' && backgroundSessionActiveRef.current &&
           ['STARTING','TRACKING'].includes(statusRef.current)) {
         const anchor = lastPointRef.current;
+        resumeStartupRef.current = statusRef.current === 'STARTING';
         backgroundHandoffRef.current = true;
         pendingHandoffRef.current = handoffQuestToBackground(quest.id, anchor)
             .then(() => persistCheckpoint(true))
@@ -311,7 +327,14 @@ export function useQuestRun(quest: RunnableQuest) {
 
       if (!isTimer && previous !== 'active' && state === 'active' && backgroundHandoffRef.current) {
         backgroundHandoffRef.current = false;
-        void checkCompletion();
+        const resumeStartup = resumeStartupRef.current;
+        resumeStartupRef.current = false;
+        const checking = checkCompletion();
+        const resumeSession = sessionRef.current;
+        void checking.then(async () => {
+          if (resumeStartup && resumeSession === sessionRef.current && focusedRef.current && AppState.currentState === 'active' &&
+              statusRef.current === 'READY') await startQuestRef.current();
+        });
       }
       // TIMER quests keep their monotonic timer alive while the process remains alive.
       // GPS quests are handed off to the native background location task.
@@ -481,7 +504,9 @@ export function useQuestRun(quest: RunnableQuest) {
 
   async function startQuest() {
     // Synchronous ref guard: a second tap is blocked even before React renders.
-    if (!focusedRef.current || !ready || statusRef.current !== 'READY') return;
+    traceStartup('start-request');
+    if (!focusedRef.current || !ready || statusRef.current !== 'READY') { traceStartup('start-ignored'); return; }
+    resumeStartupRef.current = false;
     transition('STARTING');
     setError(null);
     stopVerification();
@@ -509,6 +534,7 @@ export function useQuestRun(quest: RunnableQuest) {
     setDuration(checkpoint?.durationSeconds ?? 0);
     setAccuracy(null);
     try {
+      traceStartup('access');
       const access = await getQuestAccess(quest.id);
       if (!active()) return;
       if (access === 'LOCKED') {
@@ -559,24 +585,28 @@ export function useQuestRun(quest: RunnableQuest) {
         transition('TRACKING');
         return;
       }
+      traceStartup('disclosure');
       const disclosureAccepted = await confirmBackgroundLocationDisclosure();
       if (!active()) return;
       if (!disclosureAccepted) {
         fail('Lokalizacja w tle nie została włączona. Misja ruchowa nie została rozpoczęta.', true);
         return;
       }
+      traceStartup('foreground-permission');
       const permission = await Location.requestForegroundPermissionsAsync();
       if (!active()) return;
       if (permission.status !== 'granted') {
         fail('SYSTEM nie może zweryfikować tej misji bez dostępu do lokalizacji.', true);
         return;
       }
+      traceStartup('background-permission');
       const backgroundGranted = await requestBackgroundLocationAccess();
       if (!active()) return;
       if (!backgroundGranted) {
         fail('Aby misja liczyła dystans przy wygaszonym ekranie, zezwól SYSTEMOWI na lokalizację „zawsze” / w tle.', true);
         return;
       }
+      traceStartup('background-session');
       await prepareQuestBackgroundTracking({
         questId: quest.id,
         attemptId,
@@ -588,6 +618,7 @@ export function useQuestRun(quest: RunnableQuest) {
       // permission/subscription gap are silently discarded.
       if (!active()) return;
       if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
+        resumeStartupRef.current = (statusRef.current as string) === 'STARTING';
         backgroundHandoffRef.current = true;
         pendingHandoffRef.current = handoffQuestToBackground(quest.id, lastPointRef.current)
             .then(() => persistCheckpoint(true))
@@ -604,6 +635,7 @@ export function useQuestRun(quest: RunnableQuest) {
       // The watch supplies the first fix too, so there is no uncancellable
       // getCurrentPositionAsync request left running after leaving this screen.
       let firstLocation: Location.LocationObject | null = null;
+      traceStartup('foreground-watcher');
       const watcher = await Location.watchPositionAsync(
         // MULTI still needs fresh fixes while waiting for time after reaching 600 m.
         { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1500, distanceInterval: hasTimer || quest.activityType ? 0 : 2 },
@@ -621,6 +653,7 @@ export function useQuestRun(quest: RunnableQuest) {
       }
       if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
         watcher.remove();
+        resumeStartupRef.current = (statusRef.current as string) === 'STARTING';
         backgroundHandoffRef.current = true;
         pendingHandoffRef.current = handoffQuestToBackground(quest.id, lastPointRef.current)
             .then(() => persistCheckpoint(true))
@@ -661,6 +694,8 @@ export function useQuestRun(quest: RunnableQuest) {
       if (active()) fail('Nie udało się uruchomić misji. Sprawdź dostęp do GPS i bazy danych, a następnie spróbuj ponownie.');
     }
   }
+
+  startQuestRef.current = startQuest;
 
   async function retryQuest() {
     if (!focusedRef.current || !['ERROR', 'DENIED'].includes(statusRef.current)) return;

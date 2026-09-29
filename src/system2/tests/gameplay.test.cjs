@@ -304,6 +304,7 @@ function screenHarness(t, options = {}) {
   let starts = 0;
   let awards = 0;
   let endedAttempts = 0;
+  let begunAttempts = 0;
   let checkpoint = options.checkpoint ?? null;
   let backgroundSession = options.backgroundSession ?? null;
   let backgroundStarted = false;
@@ -402,7 +403,7 @@ function screenHarness(t, options = {}) {
     '../storage/database': {
       getQuestAccess: async () => options.access ?? 'AVAILABLE',
       recordActivityAttempt: async () => {},
-      beginQuestAttempt: async (_quest,id) => id,
+      beginQuestAttempt: async (_quest,id) => { begunAttempts++; return id; },
       endQuestAttempt: async () => { endedAttempts++; },
       loadQuestCheckpoint: async () => checkpoint,
       saveQuestCheckpoint: async value => { if(options.checkpointWrite) await options.checkpointWrite.promise; checkpoint = JSON.parse(JSON.stringify(value)); },
@@ -443,10 +444,10 @@ function screenHarness(t, options = {}) {
   t.after(() => slots.forEach(slot => slot?.cleanup?.()));
   render();
   return {
-    render, button,
+    render, button, accepted: () => text(tree).includes('QUEST ACCEPTED'),
     status: () => slots[statusIndex].value,
     distance: () => slots[statusIndex + 2].value,
-    starts: () => starts, removals: () => removals, awards: () => awards, endedAttempts: () => endedAttempts, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
+    begunAttempts: () => begunAttempts, starts: () => starts, removals: () => removals, awards: () => awards, endedAttempts: () => endedAttempts, checkpoint: () => checkpoint, backgroundSession: () => backgroundSession,
     disclosureCount: () => disclosureCount, backgroundPermissionRequests: () => backgroundPermissionRequests,
     leave: () => focusCleanups.forEach(fn=>fn()),
     error: () => gpsError('GPS failed'),
@@ -586,9 +587,10 @@ test('permission dialog and transient AppState before GPS subscription do not st
   h.appState('active');
   watch.resolve();
   await start; await flush(); h.render();
-  assert.equal(h.status(), 'READY');
+  assert.equal(h.status(), 'STARTING');
+  assert.equal(h.begunAttempts(), 1, 'resume reuses the original attempt');
   assert.equal(h.removals(), 1, 'late foreground watcher released after durable handoff');
-  await h.button('ROZPOCZNIJ MISJĘ').props.onPress(); await flush();
+  assert.equal(h.starts(), 2, 'one replacement watcher after the old handle is released');
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
   assert.equal(h.awards(), 0);
@@ -607,7 +609,8 @@ test('remaining in background while permissions resolve hands off before foregro
   assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
   h.appState('active');
   await flush(); h.render();
-  assert.equal(h.status(), 'READY');
+  assert.equal(h.status(), 'STARTING');
+  assert.equal(h.begunAttempts(), 1, 'resume reuses the original attempt');
   await start;
 });
 
@@ -618,7 +621,7 @@ test('background while native quest watcher is pending switches durable session 
   const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
   await flush(); await flush();
   assert.equal(h.starts(), 1);
-  assert.equal(h.backgroundSession()?.mode, 'FOREGROUND');
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
   h.appState('background');
   await flush();
   assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
@@ -627,7 +630,8 @@ test('background while native quest watcher is pending switches durable session 
   assert.equal(h.removals(), 1);
   h.appState('active');
   await flush(); h.render();
-  assert.equal(h.status(), 'READY');
+  assert.equal(h.status(), 'STARTING');
+  assert.equal(h.begunAttempts(), 1, 'resume reuses the original attempt');
 });
 
 test('real background hands GPS off without failing and foreground can resume without remounting', async t => {
@@ -657,7 +661,7 @@ test('background after session prepare but before watcher handle still hands off
   const start = h.button('ROZPOCZNIJ MISJĘ').props.onPress();
   await flush(); await flush();
   assert.equal(h.starts(), 1);
-  assert.equal(h.backgroundSession()?.mode, 'FOREGROUND');
+  assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
   h.appState('background');
   await flush(); await flush();
   assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
@@ -1249,7 +1253,7 @@ function worldTrackingHarness(t, options = {}) {
   const tracker = new WorldTracking({ location, storage, accuracy: 4, foreground: () => foreground,
     unlocked: () => options.unlocked !== false, changed: () => {}, rewarded: () => {}, feedback: () => {}, timeoutMs: options.timeoutMs });
   t.after(() => tracker.stop());
-  return { tracker, location, storage, starts: () => starts, removals: () => removals, discoveries: () => discoveries,
+  return { tracker, location, storage, begunAttempts: () => begunAttempts, starts: () => starts, removals: () => removals, discoveries: () => discoveries,
     appState: state => { foreground = state === 'active'; tracker.onAppState(state); },
     fix: value => watcherCallback?.(value), fail: () => watcherError?.('failed') };
 }
@@ -3115,4 +3119,45 @@ test('adaptive context backfill skips missing historical plans without starving 
  insert.run(row.event_key,'VERIFIED_EVENT',id,JSON.stringify(body),row.client_created_at);
  await h.db.backfillCloudOutbox();assert.ok(JSON.parse(h.sql.prepare('SELECT payload FROM cloud_outbox WHERE event_key=?').get(row.event_key).payload).adaptive);
  assert.equal(h.sql.prepare("SELECT count(*) n FROM cloud_outbox WHERE event_key LIKE 'legacy-missing:%'").get().n,501);
+});
+
+test('Awakening START resumes after permission return without a second tap or duplicate reward', async t => {
+  const permission=deferred(); const h=screenHarness(t,{permission});
+  await flush(); h.render();
+  const start=h.button('ROZPOCZNIJ MISJĘ').props.onPress;
+  const pending=start(); await flush();
+  h.appState('inactive'); h.appState('background');
+  permission.resolve({status:'granted'});
+  await pending; await flush();
+  assert.equal(h.backgroundSession()?.mode,'BACKGROUND');
+  assert.equal(h.starts(),0);
+  h.appState('active');
+  await flush(); await flush(); h.render();
+  assert.equal(h.status(),'STARTING');
+  assert.equal(h.starts(),1);
+  await start(); await start();
+  assert.equal(h.begunAttempts(),1);
+  h.fix(0); assert.equal(h.status(),'TRACKING');
+  for(let meters=10;meters<=520;meters+=10)h.fix(meters);
+  await flush(); h.render();
+  assert.equal(h.status(),'COMPLETED');assert.equal(h.awards(),1);
+  await start(); h.fix(530); await flush();
+  assert.equal(h.awards(),1);assert.equal(h.begunAttempts(),1);
+});
+
+test('Awakening permission denial never announces accepted or grants XP', async t => {
+  const permission=deferred();const h=screenHarness(t,{permission});
+  await flush();h.render();const pending=h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();h.render();h.render();assert.equal(h.accepted(),false);
+  h.appState('inactive');permission.resolve({status:'denied'});h.appState('active');
+  await pending;await flush();h.render();h.render();
+  assert.equal(h.status(),'DENIED');assert.equal(h.accepted(),false);
+  assert.equal(h.starts(),0);assert.equal(h.awards(),0);
+});
+test('Awakening leaving before permission return does not auto-start an unfocused screen', async t => {
+  const permission=deferred();const h=screenHarness(t,{permission});
+  await flush();h.render();const pending=h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  await flush();h.appState('background');permission.resolve({status:'granted'});
+  await pending;await flush();h.leave();h.appState('active');await flush();await flush();
+  assert.equal(h.starts(),0);assert.equal(h.awards(),0);
 });
