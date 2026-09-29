@@ -47,3 +47,13 @@ test('proposal does not contain evidence, reward or completion status',()=>{
  const result=propose(templates,caps,20,2);
  assert.ok(result.proposals.every(q=>!('rewards' in q)&&!('evidence' in q)&&!('completed' in q)));
 });
+
+test('proposal count is deterministic and capped by available templates',()=>{
+ const result=propose(templates,caps,20,5);
+ assert.equal(result.proposals.length,2);
+ assert.equal(result.proposals[0].templateId,'walk');
+});
+test('non-finite time and count are rejected',()=>{
+ assert.equal(propose(templates,caps,NaN,3).proposals.length,0);
+ assert.equal(propose(templates,caps,20,Infinity).proposals.length,0);
+});
