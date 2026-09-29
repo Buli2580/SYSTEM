@@ -8,6 +8,7 @@ const {verify}=require('./verify-official-artifact.cjs');
 const {install}=require('./install-verified-apk.cjs');
 const {check:checkInstalled}=require('./check-installed-apk.cjs');
 const RELEASE_TESTS=[
+ 'scripts/apk-provenance.test.cjs',
  'scripts/tests/verify-official-artifact.test.cjs',
  'scripts/tests/install-verified-apk.test.cjs',
  'scripts/tests/verify-build-source.test.cjs',
@@ -30,6 +31,9 @@ function release(argv,deps={}){
  const tests=(deps.testSpawn||spawn)(process.execPath,['--test',...RELEASE_TESTS],{cwd:path.resolve(__dirname,'..'),encoding:'utf8',stdio:'inherit',shell:false});
  if(tests.error)throw tests.error;
  if(tests.status!==0)throw new Error('Release safety tests failed; APK build blocked');
+ // Test commands may generate or alter files; recheck the exact checkout before building.
+ const afterTests=sourceCheck(options.sha,options.branch);
+ if(afterTests.sha!==identity.sha || afterTests.branch!==identity.branch)throw new Error('Source changed during release tests');
  const script=path.join(__dirname,'official-apk.cjs');
  const result=spawn(process.execPath,[script,'--sha',identity.sha],{cwd:path.resolve(__dirname,'..'),encoding:'utf8',stdio:'pipe',maxBuffer:16*1024*1024,shell:false});
  if(result.stdout)process.stdout.write(result.stdout);
