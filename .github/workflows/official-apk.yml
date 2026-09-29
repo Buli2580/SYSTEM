@@ -1,5 +1,8 @@
 name: SYSTEM Official APK
 on:
+  pull_request:
+    branches:
+      - integration/system-evening-build
   workflow_dispatch:
   push:
     branches:
@@ -10,7 +13,24 @@ concurrency:
   group: system-official-apk
   cancel-in-progress: false
 jobs:
+  release-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test release safeguards without signing secrets
+        run: |
+          node --test scripts/apk-provenance.test.cjs \
+            scripts/tests/verify-official-artifact.test.cjs \
+            scripts/tests/install-verified-apk.test.cjs \
+            scripts/tests/verify-build-source.test.cjs \
+            scripts/tests/release-verified-apk.test.cjs \
+            scripts/tests/check-installed-apk.test.cjs
   build:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
