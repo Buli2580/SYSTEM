@@ -629,6 +629,17 @@ export function useQuestRun(quest: RunnableQuest) {
         return;
       }
       if (!active()) return;
+      // The app may have been locked while markQuestForeground awaited SQLite.
+      // Restore native ownership immediately; never leave the task in
+      // FOREGROUND mode with no foreground watcher.
+      if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
+        backgroundHandoffRef.current = true;
+        pendingHandoffRef.current = handoffQuestToBackground(quest.id, lastPointRef.current)
+          .then(() => persistCheckpoint(true))
+          .catch(() => undefined);
+        pauseForegroundTracking();
+        return;
+      }
       // The first usable GPS fix may take longer than 30 seconds. Keep the
       // durable native session alive rather than treating acquisition as failure.
       if (firstLocation) processLocation(firstLocation, session);
