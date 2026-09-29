@@ -29,6 +29,10 @@ jobs:
             scripts/tests/verify-build-source.test.cjs \
             scripts/tests/release-verified-apk.test.cjs \
             scripts/tests/check-installed-apk.test.cjs
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck app before release
+        run: npm run typecheck
   build:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
