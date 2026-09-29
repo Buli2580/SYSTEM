@@ -880,10 +880,31 @@ export function saveQuestCheckpoint(checkpoint: QuestCheckpoint) {
     ...(checkpoint.activityFeatures ? { activityFeatures: { ...checkpoint.activityFeatures } } : {}),
     updatedAt: checkpoint.updatedAt,
   };
-  return profileTransaction(txn => txn.runAsync(
-    'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-    questCheckpointKey(checkpoint.questId), JSON.stringify(safe)
-  ));
+  return profileTransaction(async txn => {
+    // Foreground and native background tracking write through the same SQLite
+    // queue. A delayed foreground checkpoint must never erase distance already
+    // committed by the background task during a screen-lock handoff.
+    const key = questCheckpointKey(checkpoint.questId);
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_state WHERE key=?', key,
+    );
+    const previous = parseQuestCheckpoint(row?.value, checkpoint.questId);
+    const merged: QuestCheckpoint = previous ? {
+      ...safe,
+      distanceMeters: Math.max(previous.distanceMeters, safe.distanceMeters),
+      durationSeconds: Math.max(previous.durationSeconds, safe.durationSeconds),
+      verificationScore: Math.min(previous.verificationScore, safe.verificationScore),
+      // Keep activity features from the more advanced measurement, rather
+      // than replacing them with an older snapshot on app resume.
+      activityFeatures: (previous.distanceMeters > safe.distanceMeters
+        ? previous.activityFeatures : safe.activityFeatures) ?? previous.activityFeatures,
+      extendedGoal: previous.extendedGoal,
+    } : safe;
+    await txn.runAsync(
+      'INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+      key, JSON.stringify(merged),
+    );
+  });
 }
 
 export function clearQuestCheckpoint(questId: string) {
