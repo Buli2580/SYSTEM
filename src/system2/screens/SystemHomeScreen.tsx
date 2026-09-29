@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import {ART} from '../visual/assets';
 import {ArtBackdrop} from '../components/VisualArt';
 import { useCallback, useEffect } from 'react';
@@ -25,6 +26,10 @@ import { mainStoryObjective } from '../story/selectors';
 import { directNextMission } from '../gameMaster/director';
 import { playSceneMusic, stopMusic } from '../identity/audio';
 
+const buildProvenance = Constants.expoConfig?.extra?.buildProvenance as { sha?: string; version?: string; runId?: string } | undefined;
+const buildLabel = buildProvenance?.sha && /^[0-9a-f]{40}$/i.test(buildProvenance.sha)
+  ? `BUILD ${buildProvenance.sha.slice(0, 12)} · ${buildProvenance.version ?? '?'} · ${String(buildProvenance.runId ?? '?').slice(0, 8)}`
+  : 'BUILD NIEZWERYFIKOWANY';
 const CYAN = '#6CEEFF';
 const SKY = '#071017';
 const VIOLET = '#765CFF';
@@ -186,6 +191,7 @@ export default function SystemHomeScreen() {
   if (!ready) return <View style={styles.loadingRoot}>
     <Text style={styles.loadingSmall}>{error ? 'SYSTEM // BŁĄD ZAPISU' : 'SYSTEM // INITIALIZING'}</Text>
     <Text style={styles.loadingTitle}>AWAKENING</Text>
+    <Text selectable style={styles.buildIdentity}>{buildLabel}</Text>
     {error && <SystemError message={error} retry={() => { void refreshPlayer(); }} />}
   </View>;
 
@@ -242,6 +248,7 @@ export default function SystemHomeScreen() {
         <Text style={styles.worldStateText}>SYSTEM // {sceneMode}</Text>
         <Text style={styles.playerName}>{player.displayName} · {player.currentTitle}</Text>
         <Text style={styles.performanceText}>FX {performanceMode} · AUTO</Text>
+        <Text selectable style={styles.buildIdentity}>{buildLabel}</Text>
       </View>
     </View>
     <BottomNavigation />
@@ -350,6 +357,7 @@ const styles = StyleSheet.create({
   worldState: { position: 'absolute', top: '14%', alignSelf: 'center', alignItems: 'center', zIndex: 10 },
   worldStateText: { color: 'rgba(190,238,246,.48)', fontSize: 6, fontWeight: '900', letterSpacing: 2 },
   playerName: { color: 'rgba(255,255,255,.62)', fontSize: 7, fontWeight: '800', marginTop: 4, letterSpacing: 1 },
+  buildIdentity: { color: '#8AB6C2', fontSize: 9, fontWeight: '700', letterSpacing: 0.5, marginTop: 5 },
   loadingRoot: { flex: 1, backgroundColor: '#020508', alignItems: 'center', justifyContent: 'center' },
   loadingSmall: { color: SYSTEM_COLORS.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 4 },
   loadingTitle: { color: SYSTEM_COLORS.white, fontSize: 38, fontWeight: '900', marginTop: 12 },
