@@ -240,8 +240,8 @@ export function useQuestRun(quest: RunnableQuest) {
           const anchor = lastPointRef.current;
           // Queue the mode switch first so the background task begins
           // accounting locations immediately. Checkpoint persistence is independent.
-          pendingHandoffRef.current = persistCheckpoint(true)
-            .then(() => handoffQuestToBackground(quest.id, anchor))
+          pendingHandoffRef.current = handoffQuestToBackground(quest.id, anchor)
+            .then(() => persistCheckpoint(true))
             .catch(() => undefined);
           pauseForegroundTracking();
         } else {
@@ -294,8 +294,8 @@ export function useQuestRun(quest: RunnableQuest) {
           ['STARTING','TRACKING'].includes(statusRef.current)) {
         const anchor = lastPointRef.current;
         backgroundHandoffRef.current = true;
-        pendingHandoffRef.current = persistCheckpoint(true)
-          .then(() => handoffQuestToBackground(quest.id, anchor))
+        pendingHandoffRef.current = handoffQuestToBackground(quest.id, anchor)
+            .then(() => persistCheckpoint(true))
           .catch(() => undefined);
         pauseForegroundTracking();
         return;
@@ -360,10 +360,8 @@ export function useQuestRun(quest: RunnableQuest) {
     const interval = setInterval(() => {
       if (!focusedRef.current || session !== sessionRef.current || statusRef.current !== 'TRACKING') return;
       if (!isTimer && appStateRef.current !== 'active') return;
-      if (!isTimer && Date.now() - lastFixTimeRef.current > 30000) {
-        fail('Utracono wiarygodny sygnał GPS. Wyjdź na otwartą przestrzeń i rozpocznij ponownie.');
-        return;
-      }
+      // A temporary GPS signal gap must not end an active mission.
+      // Native background tracking continues until a usable fix returns.
       if (hasTimer) {
         const sample = timerRef.current?.sample();
         if (!sample) return;
@@ -568,8 +566,8 @@ export function useQuestRun(quest: RunnableQuest) {
       if (!active()) return;
       if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
         backgroundHandoffRef.current = true;
-        pendingHandoffRef.current = persistCheckpoint(true)
-          .then(() => handoffQuestToBackground(quest.id, lastPointRef.current))
+        pendingHandoffRef.current = handoffQuestToBackground(quest.id, lastPointRef.current)
+            .then(() => persistCheckpoint(true))
           .catch(() => undefined);
         pauseForegroundTracking();
         return;
@@ -601,8 +599,8 @@ export function useQuestRun(quest: RunnableQuest) {
       if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
         watcher.remove();
         backgroundHandoffRef.current = true;
-        pendingHandoffRef.current = persistCheckpoint(true)
-          .then(() => handoffQuestToBackground(quest.id, lastPointRef.current))
+        pendingHandoffRef.current = handoffQuestToBackground(quest.id, lastPointRef.current)
+            .then(() => persistCheckpoint(true))
           .catch(() => undefined);
         pauseForegroundTracking();
         return;
