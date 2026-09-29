@@ -1,0 +1,23 @@
+// Run: node --test src/system2/tests/autoquest-verification.test.cjs
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
+const ts=require(require.resolve('typescript',{paths:[path.resolve(__dirname,'../../..'),process.cwd()]}));
+const source=fs.readFileSync(path.join(__dirname,'../verification/autoQuest.ts'),'utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const mod={exports:{}};
+vm.runInNewContext(compiled,{module:mod,exports:mod.exports,Number,Math},{filename:'verification/autoQuest.ts'});
+const {autoQuestDecision:decide,autoQuestEvidenceCandidate:candidate}=mod.exports;
+const timer={id:'timer',verification:{type:'TIMER',minimumDurationSeconds:300,verificationScoreRequired:100}};
+const gps={id:'walk',verification:{type:'GPS_DISTANCE',minimumDistanceMeters:500,verificationScoreRequired:80},activityType:'WALK'};
+const signals={elapsedSeconds:400,distanceMeters:600,gpsPermission:true,locationAvailable:true,activityVerified:true};
+test('timer requires elapsed time',()=>{assert.equal(decide(timer,{...signals,elapsedSeconds:100}).status,'IN_PROGRESS');assert.equal(decide(timer,signals).status,'VERIFY');});
+test('gps cannot progress without permission',()=>{assert.equal(decide(gps,{...signals,gpsPermission:false}).reason,'LOCATION_UNAVAILABLE');});
+test('gps target must be met',()=>{assert.equal(decide(gps,{...signals,distanceMeters:499}).status,'IN_PROGRESS');});
+test('activity evidence cannot be replaced by a boolean',()=>{assert.equal(candidate(gps,signals,95),null);assert.equal(decide(gps,{...signals,activityVerified:false}).status,'BLOCKED');});
+test('timer candidate is not a verified completion',()=>{const value=candidate(timer,signals,100);assert.equal(value.verificationType,'TIMER');assert.equal(value.questId,'timer');});
+test('rejects malformed signals and score below canonical threshold',()=>{assert.equal(decide(timer,{...signals,elapsedSeconds:NaN}).status,'BLOCKED');assert.equal(candidate(timer,signals,99),null);assert.equal(candidate(timer,signals,101),null);});
+test('multi requires distance and time',()=>{const multi={id:'multi',verification:{type:'MULTI',minimumDistanceMeters:500,minimumDurationSeconds:600,verificationScoreRequired:80}};assert.equal(decide(multi,signals).status,'IN_PROGRESS');assert.equal(decide(multi,{...signals,elapsedSeconds:600}).status,'VERIFY');assert.equal(candidate(multi,{...signals,elapsedSeconds:600},79),null);});
+test('invalid multi time target is blocked',()=>{const multi={id:'multi',verification:{type:'MULTI',minimumDistanceMeters:500,minimumDurationSeconds:NaN,verificationScoreRequired:80}};assert.equal(decide(multi,signals).status,'BLOCKED');});
