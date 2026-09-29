@@ -755,3 +755,34 @@ export function cloudOutboxStats() {
     return { pending: row?.pending ?? 0, synced: row?.synced ?? 0, failed: row?.failed ?? 0 };
   });
 }
+
+
+export type CloudOutboxFailure = {
+  eventKey: string;
+  attempts: number;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+};
+
+export function cloudOutboxLatestFailure(): Promise<CloudOutboxFailure | null> {
+  return profileTransaction(async txn => {
+    const row = await txn.getFirstAsync<{
+      event_key: string;
+      attempts: number;
+      last_attempt_at: string | null;
+      last_error: string | null;
+    }>(
+      `SELECT event_key,attempts,last_attempt_at,last_error
+       FROM cloud_outbox
+       WHERE synced_at IS NULL AND attempts > 0
+       ORDER BY last_attempt_at DESC,event_key DESC
+       LIMIT 1`
+    );
+    return row ? {
+      eventKey: row.event_key,
+      attempts: row.attempts,
+      lastAttemptAt: row.last_attempt_at,
+      lastError: row.last_error,
+    } : null;
+  });
+}

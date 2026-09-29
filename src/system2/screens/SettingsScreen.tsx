@@ -28,7 +28,8 @@ export default function SettingsScreen() {
     <View style={s.panel}><Text style={s.label}>SYSTEM ID // TOŻSAMOŚĆ LOKALNA</Text><Text style={s.title}>{player.displayName}</Text>
       <Text style={s.body}>{player.id}</Text><Text style={s.body}>Utworzono {new Date(player.createdAt).toLocaleDateString()}</Text>
       <Action label="SYSTEM ONLINE // KONTO I PROFIL →" onPress={() => router.push('/account')} />
-      <Action label="HISTORIA SYSTEMU →" onPress={() => router.push('/system-log')} /></View>
+      <Action label="HISTORIA SYSTEMU →" onPress={() => router.push('/system-log')} />
+      <Action label="TRYB TESTERA / DIAGNOSTYKA →" onPress={() => router.push('/diagnostics')} /></View>
     <View style={s.panel}><Text style={s.label}>WIBRACJE</Text>
       <Switch accessibilityLabel="Wibracje włączone lub wyłączone" value={settings.haptics} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, haptics: value })); }} />
       <Text style={s.label}>DŹWIĘK</Text><Switch accessibilityLabel="Dźwięk włączony lub wyłączony" value={settings.audio} disabled={busy} onValueChange={value => { void run(() => saveSettings({ ...settings, audio: value })); }} />
