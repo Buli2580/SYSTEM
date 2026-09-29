@@ -50,7 +50,7 @@ export function planAdaptiveDay(model:UserModel,now=new Date().toISOString()):Pl
  const readiness=clamp(Math.round(65+completion*25-failed*8-rerolls*3-(m.lifeState==='RECOVERY'?25:0)-(m.lifeState==='BUSY'?12:0)),0,100);
  const effort=clamp(Math.round(30+complete*7+week.filter(x=>x.outcome==='PARTIAL').length*3),0,100);
  const difficulty=clamp(m.preferredDifficulty+(effortless&&m.lifeState==='NORMAL'?1:0)-(overload?1:0)-(m.lifeState==='RECOVERY'?1:0),1,5);
- const reasons=[m.lifeState!=='NORMAL'?'Dopasowano do trybu '+m.lifeState:'Standardowy tryb dnia',overload?'Zmniejszono obciążenie po trudnościach':effortless?'Delikatnie zwiększono wyzwanie':'Utrzymano stabilne tempo',yesterday.length===0?'Brak aktywności w ostatniej dobie':'Uwzględniono ostatnią dobę',month.length?'Uwzględniono historię 30 dni':'Brak historii 30 dni'];
+ const reasons=[effectiveMinutes<m.availableMinutes?'Ograniczono obciążenie do budżetu trybu dnia':'Uwzględniono dostępny czas',m.lifeState!=='NORMAL'?'Dopasowano do trybu '+m.lifeState:'Standardowy tryb dnia',overload?'Zmniejszono obciążenie po trudnościach':effortless?'Delikatnie zwiększono wyzwanie':'Utrzymano stabilne tempo',yesterday.length===0?'Brak aktywności w ostatniej dobie':'Uwzględniono ostatnią dobę',month.length?'Uwzględniono historię 30 dni':'Brak historii 30 dni'];
  return{lifeState:m.lifeState,readiness,effort,difficulty,dailyCount,weeklyCount:m.lifeState==='NORMAL'&&!overload?2:1,bossDifficulty:clamp(difficulty-(overload?1:0),1,5),reasons,suggestedState:overload&&m.lifeState==='NORMAL'?'RECOVERY':null};
 }
 export function explainAdaptivePlan(plan:Plan):string{return plan.reasons.join('. ')+'.';}
