@@ -1,4 +1,5 @@
 import { dayOrdinal } from '../daily/calendar';
+import { moveAgeMode } from '../move/age';
 import { adaptiveDifficulty, generateLoadout, adaptCandidates, type Candidate, type GenerationInput } from '../generation/engine';
 import {
   DIFFICULTY,
@@ -25,10 +26,10 @@ const ORDER: Record<GeneratedDifficulty, number> = { EASY: 0, NORMAL: 1, HARD: 2
 function enabled(template: QuestTemplate, input: GenerationInput) {
   if (!template.activity) return true;
   return {
-    WALK: input.prefs.walking,
-    RUN: input.prefs.running,
-    BIKE: input.prefs.cycling,
-  }[template.activity];
+    WALK: input.prefs?.walking,
+    RUN: input.prefs?.running,
+    BIKE: input.prefs?.cycling,
+  }[template.activity] === true;
 }
 
 function offCooldown(template: QuestTemplate, input: GenerationInput) {
@@ -71,10 +72,14 @@ function chooseTemplate(
   forceRecovery: boolean,
 ) {
   const themes = THEMES[proposal.category];
+  const hinted = QUEST_TEMPLATES.find(template => template.id === proposal.templateHint);
+  if (hinted && !enabled(hinted, input)) return undefined;
   const candidates = QUEST_TEMPLATES
     .filter(template => !used.has(template.id))
     .filter(template => !input.exclude?.includes(template.id))
     .filter(template => enabled(template, input))
+    .filter(template => proposal.verification !== 'gps' || template.verification === 'GPS_DISTANCE')
+    .filter(template => proposal.verification !== 'timer' || template.verification === 'TIMER')
     .filter(template => offCooldown(template, input))
     .filter(template => input.player.realLevel >= template.minimumLevel)
     .filter(template => forceRecovery
@@ -110,7 +115,10 @@ export function candidatesFromAI(
   response: AIGameMasterResponse,
   count = 3,
 ): Candidate[] {
+  // Never display or persist unreviewed model prose for a protected age mode.
+  if (moveAgeMode(input.player.birthDate,new Date(input.day+'T12:00:00')) !== 'ADULT') return generateLoadout(input,count);
   const picked: Candidate[] = [];
+  const narratives = new Map<string, AIQuestProposal>();
   const used = new Set<string>();
   const recoveryMode = (input.systemDebt ?? 0) > 0 || response.director.mode === 'recovery';
 
@@ -136,6 +144,7 @@ export function candidatesFromAI(
     if (!baseQuest) continue;
 
     const mayPersonalize = !forceRecovery || proposal.category === 'recovery';
+    if (mayPersonalize) narratives.set(template.id, proposal);
     const quest = mayPersonalize ? {
       ...baseQuest,
       title: safeText(proposal.title, 72) || baseQuest.title,
@@ -163,5 +172,11 @@ export function candidatesFromAI(
     picked.push(candidate);
   }
 
-  return adaptCandidates(input, picked.slice(0, count));
+  return adaptCandidates(input, picked.slice(0, count)).map(candidate => {
+    const proposal = narratives.get(candidate.templateId);
+    if (!proposal) return candidate;
+    return { ...candidate, quest: { ...candidate.quest,
+      description: `${safeText(proposal.description, 230)} ${verificationCopy(candidate.quest)} ${candidate.quest.verification.type === 'TIMER' ? 'Timer potwierdza czas na pierwszym planie, nie wykonanie zadania ani jego jakość.' : ''}`.trim(),
+    } };
+  });
 }

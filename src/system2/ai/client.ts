@@ -15,6 +15,7 @@ export async function requestAIGameMaster(
   context: AIGameMasterContext,
   options: AIGameMasterClientOptions
 ): Promise<AIGameMasterResponse> {
+  if (context.player.ageMode !== 'ADULT') return buildFallback(context);
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),

@@ -173,9 +173,65 @@ function integrationUI(context,extra={}) {
 function nodesOfType(tree,type){if(Array.isArray(tree))return tree.flatMap(n=>nodesOfType(n,type));if(!tree||typeof tree!=='object')return [];return [...(tree.type===type?[tree]:[]),...nodesOfType(tree.props?.children,type)];}
 function generationFixture(overrides={}) {
  const load=loader({}),player=load('core').createNewPlayer('NOVA',{id:'adaptive-test',createdAt:'2026-09-18T00:00:00.000Z'});
+ player.birthDate='1990-01-01';
  return {player,goals:[],day:'2026-09-18',history:[],prefs:{walking:true,running:false,cycling:false},weeklyCompleted:0,weeklyClear:false,...overrides};
 }
 const goalFixture=(category='LEARNING',priority=3)=>({id:'goal',category,priority,title:'Mój cel',description:'',createdAt:'2026-09-18T00:00:00.000Z',status:'ACTIVE'});
+
+test('a2 scales shortened XP and skills while preserving full targets and legacy rewards',()=>{
+ const {generatedQuest,QUEST_TEMPLATES}=loader({})('generation/templates');
+ for(const template of QUEST_TEMPLATES)for(const tier of ['easy','normal','hard']){
+  const id=`daily:2026-09-18:g1_${template.id}_${tier}`,base=generatedQuest(id),target=Math.floor(base.progressTarget/2);
+  const short=generatedQuest(id+`:a2:2:${target}`),full=generatedQuest(id+`:a2:2:${base.progressTarget}`);
+  assert.ok(short);assert.ok(full);
+  assert.equal(short.rewards.realXp,Math.max(1,Math.floor(base.rewards.realXp*target/base.progressTarget)));
+  assert.equal(short.rewards.skillXp[template.stat],Math.max(1,Math.floor(base.rewards.skillXp[template.stat]*target/base.progressTarget)));
+  assert.deepEqual(full.rewards,base.rewards);
+  assert.deepEqual(generatedQuest(id+`:a1:2:${target}`).rewards,base.rewards);
+ }
+});
+
+test('new shortened daily preview equals persisted reward and restart replay adds no XP',async t=>{
+ const h=await dailyHarness(t);
+ await h.db.changeAdaptiveAvailableMinutes(2);h.clock.now+=86400000;
+ const before=await h.db.loadSystemState(),id=before.daily.questIds[0],q=h.load('quests/catalog').getQuest(id);
+ assert.match(id,/:a2:/);assert.ok(q.rewards.realXp<30);
+ await h.db.completeVerifiedQuest(dailyEvidence(h,id));
+ const event=h.sql.prepare('SELECT payload FROM verified_events WHERE quest_id=?').get(id);
+ assert.equal(JSON.parse(event.payload).realXpAwarded,q.rewards.realXp);
+ const outbox=h.sql.prepare('SELECT payload FROM cloud_outbox WHERE entity_id=?').get(id);
+ const payload=JSON.parse(outbox.payload);assert.equal(payload.quest_id,id);assert.equal(payload.adaptive.available_minutes,2);
+ const saved=await h.reload().loadSystemState();
+ assert.equal((await h.reload().completeVerifiedQuest(dailyEvidence(h,id))).awarded,false);
+ assert.equal((await h.reload().loadSystemState()).player.totalRealXp,saved.player.totalRealXp);
+});
+
+test('protected profile rejects direct AI persistence and hides legacy AI text after restart',async t=>{
+ const h=await dailyHarness(t);await h.db.updateIdentity({birthDate:'2018-01-01'});
+ const before=await h.db.loadSystemState(),day=before.daily.dayKey,id=before.daily.questIds[0];
+ const plan={source:'ai',briefing:'UNSAFE REMOTE TEXT',director:{mode:'normal',difficultyBias:0,headline:'UNSAFE',message:'UNSAFE'},quests:[]};
+ await h.db.applyAIDailyPlan(plan);
+ assert.equal(h.sql.prepare('SELECT value FROM app_state WHERE key=?').get('ai_daily_applied:'+day),undefined);
+ h.sql.prepare('INSERT INTO app_state(key,value) VALUES (?,?)').run('ai_daily_applied:'+day,JSON.stringify(plan));
+ h.sql.prepare('INSERT INTO app_state(key,value) VALUES (?,?)').run('ai_daily_presentation:'+day,JSON.stringify({quests:[{id,title:'UNSAFE',description:'UNSAFE'}]}));
+ const restarted=h.reload(),snapshot=await restarted.loadSystemState();
+ assert.equal(snapshot.aiDaily,null);
+ assert.notEqual((await restarted.loadAssignedQuest(id)).title,'UNSAFE');
+ assert.equal(snapshot.player.totalRealXp,before.player.totalRealXp);
+});
+
+test('generation handles unordered history without false return recovery',()=>{
+ const engine=loader({})('generation/engine');
+ const input=generationFixture({history:[{day:'2026-09-01',result:'COMPLETED'},{day:'2026-09-17',result:'COMPLETED'}]});
+ assert.equal(engine.adaptiveDifficulty(input).recovery,false);
+});
+
+test('missing activity preferences safely produce offline timer quests',()=>{
+ const engine=loader({})('generation/engine');
+ const quests=engine.generateLoadout(generationFixture({prefs:undefined}));
+ assert.equal(quests.length,3);
+ assert.ok(quests.every(c=>c.quest.verification.type==='TIMER'));
+});
 test('generation has 35 unique conservative templates, deterministic output and truthful timer evidence',()=>{
  const load=loader({}),engine=load('generation/engine'),templates=load('generation/templates');
  assert.equal(templates.QUEST_TEMPLATES.length,35);assert.equal(new Set(templates.QUEST_TEMPLATES.map(t=>t.id)).size,35);
@@ -277,6 +333,27 @@ test('generated rewards match preview and existing completion pipeline remains a
  const after=await h.db.loadSystemState();assert.equal(after.player.totalRealXp-s.player.totalRealXp,q.rewards.realXp);assert.equal(after.player.stats[q.primarySkill].totalXp-s.player.stats[q.primarySkill].totalXp,q.rewards.skillXp[q.primarySkill]);
  assert.equal(after.daily.weeklyCompleted,1);assert.equal((await h.db.testerHealthCheck()).ok,true);
 });
+
+test('offline reroll and its reward survive reload without replaying XP or losing the daily set',async t=>{
+ const h=await dailyHarness(t),before=await h.db.loadSystemState();
+ const replaced=before.daily.questIds[0];
+ await h.db.rerollDailyQuest(replaced);
+ const saved=await h.reload().loadSystemState();
+ const id=saved.daily.questIds.find(q=>!before.daily.questIds.includes(q));
+ assert.ok(id);
+ assert.equal(saved.player.totalRealXp,before.player.totalRealXp);
+ const first=await h.reload().completeVerifiedQuest(dailyEvidence(h,id));
+ assert.equal(first.awarded,true);
+ const complete=await h.reload().loadSystemState();
+ const replay=await h.reload().completeVerifiedQuest(dailyEvidence(h,id));
+ assert.equal(replay.awarded,false);
+ const after=await h.reload().loadSystemState();
+ assert.equal(after.player.totalRealXp,complete.player.totalRealXp);
+ assert.equal(after.daily.rerollsUsed,1);
+ assert.deepEqual(Array.from(after.daily.questIds),Array.from(saved.daily.questIds));
+ await assert.rejects(h.reload().rerollDailyQuest(id));
+ await assert.rejects(h.reload().completeVerifiedQuest(dailyEvidence(h,replaced)));
+});
 test('eligible repeated failures create one recovery offer on next day, technical errors do not',async t=>{
  const h=await dailyHarness(t),s=await h.db.loadSystemState();
  for(const [n,id] of s.daily.questIds.slice(0,2).entries()){await h.db.beginQuestAttempt(id,'recovery'+n);h.clock.now+=10000;await h.db.endQuestAttempt('recovery'+n,'FAILED','VERIFICATION_REJECTED',10);}
@@ -359,7 +436,7 @@ test('Journey pause blocks progress; resume retains stage and manual goal comple
  await h.db.updateGoalStatus(goal.id,'COMPLETED');after=await h.db.loadSystemState();assert.equal(after.journeys[0].status,'PAUSED');assert.equal(after.player.totalRealXp,xp);assert.equal(h.sql.prepare('SELECT COUNT(*) AS n FROM journey_milestones').get().n,0);
 });
 test('five Journey stages are completable through real generated Daily pipeline across distinct days',async t=>{
- const h=await learningJourney(t);let state=await h.db.loadSystemState();let completed=0;
+ const h=await learningJourney(t);await h.db.updateIdentity({birthDate:'1990-01-01'});let state=await h.db.loadSystemState();let completed=0;
  for(let day=0;day<45&&state.journeys[0].status!=='COMPLETED';day++){
   state=await h.db.loadSystemState();const id=state.daily.questIds.find(id=>state.journeyQuestIds[id]===state.journeys[0].id&&!state.completedQuestIds.includes(id));
   if(id){await h.db.completeVerifiedQuest(dailyEvidence(h,id));completed++;}

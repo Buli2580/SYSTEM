@@ -50,3 +50,16 @@ test('same day loadout does not exceed available minutes',()=>{
  const model=normalizeUserModel({availableMinutes:12,lifeState:'NORMAL'});
  assert.equal(planAdaptiveDay(model,now).dailyCount,1);
 });
+
+test('return after a week reduces Daily Weekly and Boss without changing explicit life state',()=>{
+ const model={...newUserModel(now),preferredDifficulty:4,outcomes:[{id:'old',questType:'focus',difficulty:4,outcome:'COMPLETE',at:'2026-09-15T12:00:00.000Z'}]};
+ const plan=planAdaptiveDay(model,now);
+ assert.equal(plan.dailyCount,1);
+ assert.equal(plan.difficulty,1);
+ assert.equal(plan.bossDifficulty,1);
+ assert.equal(plan.weeklyCount,1);
+ assert.equal(plan.lifeState,'NORMAL');
+ assert.equal(plan.suggestedState,'RECOVERY');
+ const resumed=recordOutcome(model,{id:'new',questType:'focus',difficulty:1,outcome:'COMPLETE',at:now});
+ assert.equal(planAdaptiveDay(resumed,now).suggestedState,null);
+});

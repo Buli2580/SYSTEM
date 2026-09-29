@@ -267,12 +267,14 @@ export function buildFallback(
   context: AIGameMasterContext,
   count = 4,
 ): AIGameMasterResponse {
+  const protectedAge=context.player.ageMode!=='ADULT';
   const safeCount = Math.max(1, Math.min(6, Math.floor(count)));
   const recent = context.recentQuests.map(q => `${q.title} ${q.description ?? ''}`);
-  const fresh = TEMPLATES.filter(
+  const templates=protectedAge?TEMPLATES.filter(q=>q.verification==='timer'&&q.category!=='social'&&q.category!=='fitness'):TEMPLATES;
+  const fresh = templates.filter(
     q => !isTooSimilar(`${q.title} ${q.description}`, recent),
   );
-  const pool = fresh.length >= Math.min(safeCount, 3) ? fresh : TEMPLATES;
+  const pool = fresh.length >= Math.min(safeCount, 3) ? fresh : templates;
   const day = (context.nowIso ?? new Date().toISOString()).slice(0, 10);
   const seed = [
     day,
@@ -289,14 +291,14 @@ export function buildFallback(
   const chosen = diversified(ordered.length ? ordered : pool, normalCount);
   const selected = recovery ? [RECOVERY, ...chosen] : chosen;
   const quests = selected.slice(0, safeCount).map((raw, index) => {
-    const quest = personalizeFallbackQuest(raw, context);
+    const quest = protectedAge ? {...raw,difficulty:'easy' as const,estimatedMinutes:5,target:{kind:'minutes' as const,value:5}} : personalizeFallbackQuest(raw, context);
     return {
       ...quest,
       key: `fallback-${day}-${index}-${quest.templateHint ?? quest.category}`,
     };
   });
 
-  const bias = difficultyBias(context);
+  const bias = protectedAge ? -1 : difficultyBias(context);
   return {
     quests,
     director: {
@@ -305,7 +307,7 @@ export function buildFallback(
       headline: recovery ? 'RECOVERY PROTOCOL' : 'DAILY DIRECTIVE',
       message: recovery
         ? 'SYSTEM obniżył presję. Najpierw odzyskaj rytm jednym małym krokiem.'
-        : context.goals[0]?.title
+        : !protectedAge && context.goals[0]?.title
           ? `SYSTEM przygotował lokalny zestaw pod cel: ${context.goals[0].title}. Research WWW jest niedostępny w trybie fallback.`
           : 'SYSTEM przygotował zróżnicowany zestaw bez połączenia z AI.',
     },

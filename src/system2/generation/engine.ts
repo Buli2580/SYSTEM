@@ -1,4 +1,6 @@
 import { primaryJourney, type Journey } from '../journeys/model';
+import { moveAgeMode } from '../move/age';
+import { independentDailyAllowed } from '../move/safety';
 import type { PlayerProfile } from '../core';
 import type { PlayerGoal } from '../goals/model';
 import type { ActivityPreferences } from '../daily/templates';
@@ -8,11 +10,12 @@ export type RecentActivity={templateId?:string;category?:QuestTheme;difficulty?:
 export type GenerationInput={adaptive?:{difficulty:number;availableMinutes:number;dailyCount:number;preferredTypes:readonly string[]};journeys?:readonly Journey[];player:PlayerProfile;goals:readonly PlayerGoal[];day:string;history:readonly RecentActivity[];prefs:ActivityPreferences;weeklyCompleted:number;weeklyClear:boolean;systemDebt?:0|1|2|3;exclude?:readonly string[];maximumDifficulty?:GeneratedDifficulty};
 export type Candidate={quest:NonNullable<ReturnType<typeof generatedQuest>>;reason:string;templateId:string;category:QuestTheme;recovery:boolean};
 export function adaptiveDifficulty(input:GenerationInput):{difficulty:GeneratedDifficulty;recovery:boolean} {
- const recent=input.history.filter(h=>h.result!=='OFFERED'&&dayOrdinal(input.day)-dayOrdinal(h.day)>=0&&dayOrdinal(input.day)-dayOrdinal(h.day)<=7).slice(0,6);
+ const history=input.history.filter(h=>dayOrdinal(input.day)-dayOrdinal(h.day)>=0).slice().sort((a,b)=>dayOrdinal(b.day)-dayOrdinal(a.day));
+ const recent=history.filter(h=>h.result!=='OFFERED'&&dayOrdinal(input.day)-dayOrdinal(h.day)<=7).slice(0,6);
  const failures=recent.filter(h=>h.result==='FAILED').length,success=recent.filter(h=>h.result==='COMPLETED').length;
- const lastSuccess=input.history.find(h=>h.result==='COMPLETED');
+ const lastSuccess=history.find(h=>h.result==='COMPLETED');
  const recovery=(input.systemDebt??0)>0||failures>=2||(!!lastSuccess&&dayOrdinal(input.day)-dayOrdinal(lastSuccess.day)>=4);
- if(recovery||input.player.realLevel<3)return {difficulty:'EASY',recovery};
+ if(recovery||input.player.realLevel<3||['UNDER_6','UNKNOWN'].includes(moveAgeMode(input.player.birthDate,new Date(input.day+'T12:00:00'))))return {difficulty:'EASY',recovery};
  const recentHard=recent.filter(h=>h.difficulty==='HARD').length;
  return {difficulty:input.player.realLevel>=8&&input.player.rank!=='E'&&success>=4&&failures===0&&input.player.streak>=3&&recentHard<3?'HARD':'NORMAL',recovery:false};
 }
@@ -20,8 +23,9 @@ export function generateLoadout(input:GenerationInput,count=3):Candidate[] {
  const policy=adaptiveDifficulty(input),active=input.goals.filter(g=>g.status==='ACTIVE').slice().sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id));
  const primary=primaryJourney(input.journeys??[],active);
  const blocked=new Set(input.exclude??[]),picked:Candidate[]=[];
- const enabled=(t:QuestTemplate)=>!t.activity||({WALK:input.prefs.walking,RUN:input.prefs.running,BIKE:input.prefs.cycling})[t.activity];
- const candidates=QUEST_TEMPLATES.filter(t=>(t.id!=='focus_return'||policy.recovery)&&enabled(t)&&input.player.realLevel>=t.minimumLevel&&!blocked.has(t.id));
+ const enabled=(t:QuestTemplate)=>!t.activity||({WALK:input.prefs?.walking,RUN:input.prefs?.running,BIKE:input.prefs?.cycling})[t.activity]===true;
+ const ageMode=moveAgeMode(input.player.birthDate,new Date(input.day+'T12:00:00'));
+ const candidates=QUEST_TEMPLATES.filter(t=>(t.id!=='focus_return'||policy.recovery)&&enabled(t)&&independentDailyAllowed(t,ageMode)&&input.player.realLevel>=t.minimumLevel&&!blocked.has(t.id));
  const cool=(t:QuestTemplate)=>!input.history.some(h=>h.templateId===t.id&&dayOrdinal(input.day)-dayOrdinal(h.day)>=0&&dayOrdinal(input.day)-dayOrdinal(h.day)<t.cooldownDays);
  const available=candidates.filter(cool); // Never bypass cooldown just to fill a slot.
  for(let slot=0;slot<count;slot++) {
@@ -51,7 +55,7 @@ export function adaptCandidates(input:GenerationInput,candidates:Candidate[]):Ca
  const plan=input.adaptive, seconds=Math.floor(plan.availableMinutes*60/plan.dailyCount);
  return candidates.map(candidate=>{const q=candidate.quest; const speed=q.activityType==='BIKE'?4:q.activityType==='RUN'?2.5:1.25; const budget=q.verification.type==='TIMER'?seconds:seconds*speed;
  const target=Math.max(1,Math.floor(Math.min(q.progressTarget,budget)));
- const id=q.id.replace(/:a1:[1-5]:[0-9]+$/,'')+':a1:'+plan.difficulty+':'+target;
+ const id=q.id.replace(/:a[12]:[1-5]:[0-9]+$/,'')+':a2:'+plan.difficulty+':'+target;
  const quest=generatedQuest(id); if(!quest)throw new Error('Invalid adaptive target');
  return {...candidate,quest:{...quest,title:q.title}};});
 }

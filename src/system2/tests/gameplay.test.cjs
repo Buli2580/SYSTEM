@@ -1607,7 +1607,9 @@ function dailyEvidence(h,id) {
  return {questId:id,verificationType:'GPS_DISTANCE',durationSeconds:activity.features.durationSeconds,distanceMeters:activity.features.distanceMeters,verificationScore:activity.verificationScore,activity};
 }
 async function dailyHarness(t) {
- const clock={now:new Date(2026,8,18,10).getTime()}; const h=databaseHarness(t,clock); await unlockWorld(h); return {...h,clock};
+ const clock={now:new Date(2026,8,18,10).getTime()}; const h=databaseHarness(t,clock);
+ await h.db.loadSystemState();await h.db.updateIdentity({birthDate:'1990-01-01'});
+ await unlockWorld(h); return {...h,clock};
 }
 test('daily parallel claims + clear atomic once, restart stable, next day + streak',async t=>{
  const h=await dailyHarness(t); const first=await h.db.loadSystemState(); const ids=first.daily.questIds;
@@ -2413,6 +2415,7 @@ test('SystemProvider releases stale AI loading after a concurrent committed writ
 
 test('SystemProvider reuses persisted AI Daily and manual refresh cannot replace accepted quests',async()=>{
  const player=loader({})('core').createNewPlayer('AI CACHE');
+ player.birthDate='1990-01-01';
  const director={mode:'normal',difficultyBias:0,headline:'CACHED DAILY',message:'Persisted plan'};
  const state={...startupFixture(),player,systemDebt:0,awakeningCompleted:true,
   daily:{dayKey:'2026-09-20',weekKey:'2026-W38',questIds:[],suspiciousQuestIds:[],completed:0,weeklyCompleted:0,clear:false,weeklyClear:false,clockAnomaly:false},
@@ -2659,6 +2662,7 @@ test('legacy goal migration is atomic and retry does not duplicate imported goal
 
 test('accepted AI Daily is immutable across restart and a later AI response cannot replace it', async t => {
   const h = await dailyHarness(t);
+  await h.db.updateIdentity({birthDate:'1990-01-01'});
   const before = await h.db.loadSystemState();
   const plan = {
     source: 'ai',
@@ -2687,6 +2691,7 @@ test('accepted AI Daily is immutable across restart and a later AI response cann
 
 test('AI Daily cannot replace a loadout after any quest attempt has started', async t => {
   const h = await dailyHarness(t);
+  await h.db.updateIdentity({birthDate:'1990-01-01'});
   const before = await h.db.loadSystemState();
   await h.db.beginQuestAttempt(before.daily.questIds[0], 'touched-daily');
   const plan = {

@@ -30,6 +30,8 @@ export function planAdaptiveDay(model:UserModel,now=new Date().toISOString()):Pl
  const m=normalizeUserModel(model),time=Date.parse(now),valid=Number.isFinite(time)?time:Date.now();
  const recent=(days:number)=>m.outcomes.filter(x=>{const t=Date.parse(x.at);return Number.isFinite(t)&&t<=valid&&t>=valid-days*86400000;});
  const week=recent(7),month=recent(30),yesterday=recent(1);
+ const lastCompletion=Math.max(...m.outcomes.filter(x=>x.outcome==='COMPLETE'||x.outcome==='RECOVERY').map(x=>Date.parse(x.at)).filter(t=>Number.isFinite(t)&&t<=valid));
+ const returning=Number.isFinite(lastCompletion)&&valid-lastCompletion>=7*86400000;
  const complete=week.filter(x=>x.outcome==='COMPLETE'||x.outcome==='RECOVERY').length;
  const failed=week.filter(x=>x.outcome==='FAILED').length;
  const rerolls=week.filter(x=>x.outcome==='REROLL').length;
@@ -37,6 +39,7 @@ export function planAdaptiveDay(model:UserModel,now=new Date().toISOString()):Pl
  const completion=attempts?complete/attempts:0.65;
  const overload=failed>=3||rerolls>=4||(attempts>=4&&completion<0.4);
  const effortless=attempts>=5&&completion>=0.9&&failed===0&&rerolls===0;
+ if(returning)return{lifeState:m.lifeState,readiness:40,effort:30,difficulty:1,dailyCount:1,weeklyCount:1,bossDifficulty:1,reasons:['Łagodny powrót po przerwie: jeden mały krok, bez nadrabiania zaległości.'],suggestedState:m.lifeState==='NORMAL'?'RECOVERY':null};
  const baseline:Record<LifeState,number>={NORMAL:3,BUSY:1,TRAVEL:1,RECOVERY:1,VACATION:1};
  const capacity=Math.max(1,Math.floor(m.availableMinutes/12));
  const dailyCount=Math.min(capacity,Math.max(1,baseline[m.lifeState]+(m.lifeState==='NORMAL'&&!overload&&effortless?1:0)-(overload?1:0)));

@@ -47,6 +47,38 @@ function validResponse() {
   };
 }
 
+const ageCases=[['UNDER_6','2023-01-01'],['AGE_6_8','2019-01-01'],['AGE_9_12','2015-01-01'],['AGE_13_17','2011-01-01'],['ADULT','1990-01-01'],['UNKNOWN',undefined]];
+for(const [ageMode,birthDate] of ageCases)test('age policy gates generator AI bridge and offline fallback: '+ageMode,()=>{
+ const load=loader(),player={...({...load('core').createNewPlayer('Tester'),birthDate:'1990-01-01'}),birthDate,realLevel:12,rank:'D',streak:7};
+ const input={day:'2026-09-21',player,prefs:{walking:true,running:true,cycling:true},goals:[],history:Array.from({length:4},()=>({day:'2026-09-20',result:'COMPLETED'})),weeklyCompleted:0,weeklyClear:false};
+ const response=validResponse();Object.assign(response.quests[0],{title:'REMOTE UNSAFE',description:'Spotkaj nieznajomego samemu.',category:'social',verification:'timer',difficulty:'hard'});
+ const local=load('generation/engine').generateLoadout(input,3);
+ const bridged=load('ai/bridge').candidatesFromAI(input,response,3);
+ const fallback=load('ai/fallback').buildFallback({player:{ageMode,level:12,rank:'D',streak:7,completionRate7d:1,systemDebt:0},goals:[{id:'unsafe',title:'REMOTE UNSAFE'}],recentQuests:[],nowIso:'2026-09-21T12:00:00Z'},3);
+ assert.equal(local.length,3);assert.equal(bridged.length,3);assert.equal(fallback.quests.length,3);
+ if(ageMode!=='ADULT'){
+  for(const candidate of [...local,...bridged]){assert.equal(candidate.quest.verification.type,'TIMER');assert.ok(candidate.quest.progressTarget<=600);assert.notEqual(candidate.templateId,'focus_social_message');assert.ok(!candidate.quest.description.includes('nieznajomego'));if(['UNDER_6','UNKNOWN'].includes(ageMode)){assert.equal(candidate.quest.difficulty,'EASY');assert.ok(candidate.quest.progressTarget<=300);}}
+  assert.ok(!JSON.stringify(fallback).includes('REMOTE UNSAFE'));
+  assert.ok(fallback.quests.every(q=>q.verification==='timer'&&q.difficulty==='easy'&&q.estimatedMinutes<=5));
+ }else assert.ok(local.some(c=>c.quest.activityType));
+});
+
+test('adaptive AI keeps personalized instructions and the actual shortened verification target',()=>{
+ const load=loader(),input={day:'2026-09-21',player:{...({...load('core').createNewPlayer('Tester'),birthDate:'1990-01-01'}),birthDate:'1990-01-01'},prefs:{walking:false,running:false,cycling:false},goals:[],history:[],weeklyCompleted:0,weeklyClear:false,adaptive:{difficulty:1,availableMinutes:2,dailyCount:1,preferredTypes:[]}};
+ const quest=load('ai/bridge').candidatesFromAI(input,validResponse(),1)[0].quest;
+ assert.match(quest.description,/Pracuj nad jednym ważnym zadaniem/);
+ assert.equal(quest.progressTarget,120);
+ assert.match(quest.description,/minimum 2 min/);
+});
+
+test('AI cannot turn an undeclared bicycle proposal into a differently verified quest',()=>{
+ const load=loader(),input={day:'2026-09-21',player:({...load('core').createNewPlayer('Tester'),birthDate:'1990-01-01'}),prefs:{walking:false,running:false,cycling:false},goals:[],history:[],weeklyCompleted:0,weeklyClear:false};
+ const response=validResponse();Object.assign(response.quests[0],{title:'BICYCLE TEST',description:'Jedź rowerem.',verification:'gps',category:'fitness',templateHint:'ride_easy'});
+ const quests=load('ai/bridge').candidatesFromAI(input,response,3);
+ assert.equal(quests.length,3);
+ assert.ok(quests.every(c=>c.quest.verification.type==='TIMER'&&!c.quest.description.includes('rowerem')&&c.quest.title!=='BICYCLE TEST'));
+});
+
 test('AI response validation accepts a bounded canonical proposal', () => {
   const { validateAIGameMasterResponse } = loader()('ai/validate');
   const result = validateAIGameMasterResponse(validResponse(), []);
@@ -251,6 +283,7 @@ test('AI-to-canonical bridge ignores proposed target values and reward-shaped fi
   const { candidatesFromAI } = load('ai/bridge');
   const { createNewPlayer } = load('core');
   const player = createNewPlayer('Tester');
+  player.birthDate='1990-01-01';
   player.realLevel = 10;
   const input = {
     day: '2026-09-21', player,
@@ -313,6 +346,7 @@ test('offline fallback personalizes quests to an active goal and respects moveme
   const { buildFallback } = loader()('ai/fallback');
   const context = {
     player: {
+      ageMode: 'ADULT',
       level: 4, rank: 'E', streak: 2, completionRate7d: 0.6, systemDebt: 0,
       activities: { walking: true, running: false, cycling: false },
     },
@@ -329,9 +363,22 @@ test('offline fallback personalizes quests to an active goal and respects moveme
   assert.match(response.director.message, /Niemiecki B2/i);
 });
 
+test('protected age client never displays remote content even when network is available',async()=>{
+ const previous=global.fetch;let calls=0;
+ try{
+  global.fetch=async()=>{calls++;return{ok:true,json:async()=>validResponse()};};
+  const client=loader()('ai/client');
+  for(const [ageMode]of ageCases.filter(([mode])=>mode!=='ADULT')){
+   const result=await client.requestAIGameMaster({player:{ageMode,level:1,rank:'E',streak:0,completionRate7d:0,systemDebt:0},goals:[],recentQuests:[]},{endpoint:'https://invalid.local'});
+   assert.equal(result.source,'fallback');assert.ok(result.quests.length>0);
+  }
+  assert.equal(calls,0);
+ }finally{global.fetch=previous;}
+});
+
 test('AI bridge respects local exclusions when selecting proposals and filling the loadout', () => {
   const load = loader();
-  const input = {day:'2026-09-21', player:load('core').createNewPlayer('Tester'),
+  const input = {day:'2026-09-21', player:({...load('core').createNewPlayer('Tester'),birthDate:'1990-01-01'}),
     prefs:{walking:true,running:true,cycling:true}, goals:[], history:[],
     weeklyCompleted:0,weeklyClear:false,exclude:['focus_priority'],systemDebt:0};
   const candidates = load('ai/bridge').candidatesFromAI(input,validResponse(),3);

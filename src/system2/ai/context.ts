@@ -1,3 +1,4 @@
+import { moveAgeMode } from '../move/age';
 import { dayKey, dayOrdinal } from '../daily/calendar';
 import { QUEST_TEMPLATES } from '../generation/templates';
 import { DEFAULT_ACTIVITIES } from '../daily/templates';
@@ -60,6 +61,7 @@ export function buildAIGameMasterContext(snapshot: SystemSnapshot): AIGameMaster
   const resolved = Intl.DateTimeFormat().resolvedOptions();
   return {
     player: {
+      ageMode: moveAgeMode(snapshot.player.birthDate),
       level: snapshot.player.realLevel,
       rank: snapshot.player.rank,
       streak: snapshot.player.streak,

@@ -10,6 +10,7 @@ import { validateAIGameMasterResponse } from './validate';
 async function requestContextAIGameMaster(
   context: AIGameMasterContext,
 ): Promise<AIGameMasterResponse> {
+  if (context.player.ageMode !== 'ADULT') return buildFallback(context,3);
   const session = await getAICloudSession();
   if (!session) return buildFallback(context, 3);
 

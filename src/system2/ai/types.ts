@@ -47,6 +47,7 @@ export interface PlayerGoalSummary {
 
 export interface AIGameMasterContext {
   player: {
+    ageMode?: import('../move/types').MoveAgeMode;
     level: number;
     rank: string;
     streak: number;

@@ -1,6 +1,12 @@
 import type { PlayerProfile, Rank, SkillKey } from './types';
 import { SKILL_KEYS } from './progression';
 import type { Title } from '../identity/model';
+/** a2 contract: floor proportional XP, minimum one for a positive base reward.
+ * Existing a1 grants are immutable. Energy is not an XP reward and is unchanged. */
+export function scaledQuestXp(xp: number, target: number, baseTarget: number): number {
+  if (!Number.isFinite(target) || !Number.isFinite(baseTarget) || target <= 0 || baseTarget <= 0 || !Number.isSafeInteger(xp) || xp < 0) throw new Error('Invalid adaptive XP');
+  return xp === 0 ? 0 : Math.max(1, Math.floor(xp * Math.min(target, baseTarget) / baseTarget));
+}
 export type RewardReceipt = {
   id: string; realXp: number; skillXp: Partial<Record<SkillKey, number>>; energy: number;
   distanceMeters: number; beforeLevel: number; afterLevel: number; beforeRank: Rank; afterRank: Rank;

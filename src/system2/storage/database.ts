@@ -197,6 +197,7 @@ function validAIDirector(value: unknown): value is AIGameMasterResponse['directo
 }
 
 async function readAIDailyCache(db: SQLite.SQLiteDatabase, day: string): Promise<AIDailyCache | null> {
+  if(moveAgeMode((await readPlayer(db)).birthDate)!=='ADULT')return null;
   const row = await db.getFirstAsync<{ value: string }>(
     'SELECT value FROM app_state WHERE key=?',
     'ai_daily_applied:' + day,
@@ -229,6 +230,7 @@ async function readAIDailyCache(db: SQLite.SQLiteDatabase, day: string): Promise
 }
 
 async function hydrateAIQuestPresentations(db: SQLite.SQLiteDatabase) {
+  if(moveAgeMode((await readPlayer(db)).birthDate)!=='ADULT'){replaceAIQuestPresentations([]);return;}
   const rows = await db.getAllAsync<{ value: string }>(
     "SELECT value FROM app_state WHERE key LIKE 'ai_daily_presentation:%' ORDER BY key DESC LIMIT 14"
   );
@@ -1005,7 +1007,7 @@ async function enqueueCloudOutboxEvent(txn: SQLite.SQLiteDatabase, event: Verifi
 }
 
 async function adaptiveCloudContext(txn: SQLite.SQLiteDatabase, questId: string): Promise<Record<string, unknown>> {
-  const match = /^daily:(\d{4}-\d{2}-\d{2}):[a-z0-9_]+:a1:[1-5]:[1-9]\d{0,4}$/.exec(questId);
+  const match = /^daily:(\d{4}-\d{2}-\d{2}):[a-z0-9_]+:a[12]:[1-5]:[1-9]\d{0,4}$/.exec(questId);
   if (match) {
     const saved = await txn.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?', 'adaptive_daily_plan:'+match[1]);
     // Do not invent a historical workload from today's preferences.
@@ -1026,7 +1028,7 @@ export function backfillCloudOutbox() {
     // preserving the original event key, evidence and completion timestamp.
     const legacy = await txn.getAllAsync<{event_key:string;entity_id:string;payload:string}>(
       `SELECT event_key,entity_id,payload FROM cloud_outbox WHERE json_valid(payload) AND
-       ((entity_id LIKE 'daily:%:a1:%' AND json_type(payload,'$.adaptive') IS NULL AND
+       (((entity_id LIKE 'daily:%:a1:%' OR entity_id LIKE 'daily:%:a2:%') AND json_type(payload,'$.adaptive') IS NULL AND
          EXISTS(SELECT 1 FROM app_state a WHERE a.key='adaptive_daily_plan:'||substr(entity_id,7,10))) OR
         (entity_id IN ('wall_focus_v1','wall_walk_v1','wall_run_v1') AND json_type(payload,'$.adaptive_boss_difficulty') IS NULL)) LIMIT 500`
     );
@@ -1129,6 +1131,7 @@ export function updateGoalStatus(id: string, status: GoalStatus) {
 export function applyAIDailyPlan(plan: AIGameMasterResponse) {
  return profileTransaction(async txn => {
    const snapshot = await snapshotInTransaction(txn);
+   if(moveAgeMode(snapshot.player.birthDate)!=='ADULT')return snapshot;
    const daily = snapshot.daily;
    if (!daily || daily.clockAnomaly || daily.clear || plan.source !== 'ai') return snapshot;
 

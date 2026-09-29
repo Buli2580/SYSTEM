@@ -566,6 +566,42 @@ function adaptiveEvidence(template='learn_read', options={}) {
  return {...generatedEvidence(template,tier,day),quest_id:q.id,duration_seconds:q.verification.minimumDurationSeconds??Math.max(120,target),distance_meters:q.verification.minimumDistanceMeters??0,
  adaptive:{version:1,available_minutes:minutes,daily_count:count,difficulty,weekly_target:weekly}};
 }
+
+test('a2 server rewards equal mobile preview and retries or legacy aliases cannot reward twice',async()=>{
+ for(const minutes of [2,45]){
+  const id=await user();await awakening(id);const p=adaptiveEvidence('learn_read',{minutes});p.quest_id=p.quest_id.replace(':a1:',':a2:');
+  const before=Number((await state(id)).real_total_xp),q=generated.generatedQuest(p.quest_id);
+  const key=await submit(id,{...p,real_xp:999999},'a2:first');
+  assert.equal((await event(key)).processing_status,'PROCESSED');assert.ok(q);
+  const expected=minutes===2?12:30;
+  assert.equal(q.rewards.realXp,expected);assert.equal(Number((await state(id)).real_total_xp),before+expected);
+  const ledger=(await db.query('SELECT real_xp,skill_rewards FROM public.reward_ledger WHERE user_id=$1 AND evidence_event_key=$2',[id,'a2:first'])).rows[0];
+  assert.equal(ledger.real_xp,q.rewards.realXp);assert.deepEqual(ledger.skill_rewards,JSON.parse(JSON.stringify(q.rewards.skillXp)));
+  await submit(id,p,'a2:first');await submit(id,p,'a2:second-device');
+  await submit(id,{...p,quest_id:p.quest_id.replace(':a2:',':a1:')},'a2:legacy-replay');
+  assert.equal(Number((await state(id)).real_total_xp),before+expected);
+ }
+});
+
+test('a2 GPS scaling preserves target verification and rejects forged shortening',async()=>{
+ const id=await user();await awakening(id);const p=adaptiveEvidence('walk_reset');p.quest_id=p.quest_id.replace(':a1:',':a2:');
+ const before=Number((await state(id)).real_total_xp),q=generated.generatedQuest(p.quest_id);
+ const forged=await submit(id,{...p,quest_id:p.quest_id.replace(/:150$/,':1')},'a2:forged');
+ assert.equal((await event(forged)).rejection_reason,'INVALID_ADAPTIVE_TARGET');
+ const valid=await submit(id,p,'a2:walk');assert.equal((await event(valid)).processing_status,'PROCESSED');
+ assert.equal(q.rewards.realXp,7);assert.equal(Number((await state(id)).real_total_xp),before+7);
+ const other=await user();const stolen=await submit(other,{...p,user_id:id},'a2:stolen');assert.equal((await event(stolen)).processing_status,'REJECTED');assert.equal(Number((await state(other)).real_total_xp),0);
+});
+
+test('a2 legacy timer shares proportional rewards and does not change existing a1 grants',async()=>{
+ const id=await user();await awakening(id);
+ const q=loadMobile('daily/templates').dailyQuest('daily:2026-09-18:focus_session:a2:1:120');
+ const p={quest_id:q.id,verification_type:'TIMER',verification_score:100,duration_seconds:120,adaptive:{version:1,available_minutes:2,daily_count:1,difficulty:1,weekly_target:3}};
+ const before=Number((await state(id)).real_total_xp);
+ const key=await submit(id,p,'a2:legacy-timer');assert.equal((await event(key)).processing_status,'PROCESSED');
+ assert.equal(q.rewards.realXp,8);assert.equal(Number((await state(id)).real_total_xp),before+q.rewards.realXp);
+ assert.equal(loadMobile('daily/templates').dailyQuest(q.id.replace(':a2:',':a1:')).rewards.realXp,60);
+});
 test('adaptive valid g1 contract uses server rewards and rejects changed target, tier and device replays',async()=>{
  const id=await user();await awakening(id);const p=adaptiveEvidence();const before=Number((await state(id)).real_total_xp);
  const key=await submit(id,{...p,real_xp:999999},'adaptive:valid');assert.equal((await event(key)).processing_status,'PROCESSED');

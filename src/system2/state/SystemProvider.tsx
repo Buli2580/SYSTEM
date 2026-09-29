@@ -1,3 +1,4 @@
+import { moveAgeMode } from '../move/age';
 import type { LifeState } from '../adaptive/engine';
 import type { InventoryItem } from '../core/inventory';
 import type { SocialMode, SocialSession } from '../core/social';
@@ -386,7 +387,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     updateGoalStatus: (id, status) => apply(() => db.updateGoalStatus(id, status)),
     rerollDailyQuest: id => apply(() => db.rerollDailyQuest(id)),
     saveSettings: patch => apply(() => db.saveSettings(patch)), resetData, achievementState, achievementError, refreshAchievements,
-    aiGameMaster, aiLoading, aiError, refreshAIGameMaster,
+    aiGameMaster: moveAgeMode(snapshot.player.birthDate)==='ADULT'?aiGameMaster:null, aiLoading, aiError, refreshAIGameMaster,
     acknowledgeAwakening: () => apply(() => db.acknowledgeAwakening()),
   }}>{children}</SystemContext.Provider>;
 }
