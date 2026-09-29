@@ -100,9 +100,13 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
       location.timestamp > session.lastObservedTimestamp)
     .sort((a,b)=>a.timestamp-b.timestamp);
   if (orderedRaw.length === 0) return;
+  // Providers may repeat the same timestamp inside one native batch too.
+  // Keep the first sample; duplicate delivery must not trigger clock-skew.
+  const uniqueRaw = orderedRaw.filter((location, index) =>
+    index === 0 || location.timestamp !== orderedRaw[index - 1].timestamp);
   let risk=EMPTY_GPS_RISK;
   let riskAnchor=session.lastPoint?locationFromStored(session.lastPoint):null;
-  for(const location of orderedRaw){
+  for(const location of uniqueRaw){
     // Android may deliver a valid historical batch after the screen was locked.
     // Evaluate its fix at the recorded time; delayed delivery alone is not cheating.
     // Keep the real clock-skew check: a future timestamp is never a valid fix.
@@ -119,7 +123,7 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
        (!riskAnchor || location.timestamp > riskAnchor.timestamp)) riskAnchor=location;
   }
 
-  const locations = orderedRaw
+  const locations = uniqueRaw
     .filter(location => Boolean(usableBackgroundLocation(location)));
   if (locations.length === 0) return;
 
