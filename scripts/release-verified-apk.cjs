@@ -7,6 +7,13 @@ const {check}=require('./verify-build-source.cjs');
 const {verify}=require('./verify-official-artifact.cjs');
 const {install}=require('./install-verified-apk.cjs');
 const {check:checkInstalled}=require('./check-installed-apk.cjs');
+const RELEASE_TESTS=[
+ 'scripts/tests/verify-official-artifact.test.cjs',
+ 'scripts/tests/install-verified-apk.test.cjs',
+ 'scripts/tests/verify-build-source.test.cjs',
+ 'scripts/tests/release-verified-apk.test.cjs',
+ 'scripts/tests/check-installed-apk.test.cjs',
+];
 function parse(args){
  const [sha,branch,...flags]=args;
  if(!/^[0-9a-f]{40}$/i.test(sha||'')||!branch||branch.startsWith('-'))throw new Error('Usage: release-verified-apk <full-sha> <branch> [--install] [--serial=device-id]');
@@ -20,6 +27,9 @@ function release(argv,deps={}){
  const sourceCheck=deps.check||check, artifactCheck=deps.verify||verify, deviceInstall=deps.install||install, installedCheck=deps.checkInstalled||checkInstalled;
  const spawn=deps.spawn||cp.spawnSync;
  const identity=sourceCheck(options.sha,options.branch);
+ const tests=(deps.testSpawn||spawn)(process.execPath,['--test',...RELEASE_TESTS],{cwd:path.resolve(__dirname,'..'),encoding:'utf8',stdio:'inherit',shell:false});
+ if(tests.error)throw tests.error;
+ if(tests.status!==0)throw new Error('Release safety tests failed; APK build blocked');
  const script=path.join(__dirname,'official-apk.cjs');
  const result=spawn(process.execPath,[script,'--sha',identity.sha],{cwd:path.resolve(__dirname,'..'),encoding:'utf8',stdio:'pipe',maxBuffer:16*1024*1024,shell:false});
  if(result.stdout)process.stdout.write(result.stdout);
