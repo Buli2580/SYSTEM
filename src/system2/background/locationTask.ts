@@ -99,6 +99,11 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   for(const location of orderedRaw){
     // Android may deliver a valid historical batch after the screen was locked.
     // Evaluate its fix at the recorded time; delayed delivery alone is not cheating.
+    // Keep the real clock-skew check: a future timestamp is never a valid fix.
+    if (!Number.isFinite(location.timestamp) || location.timestamp > Date.now() + 1000) {
+      await rejectSuspiciousBackground(session);
+      return;
+    }
     risk=mergeRiskSnapshots(risk,inspectGpsRisk(riskAnchor,location,location.timestamp));
     if(risk.action==='REJECT'){
       await rejectSuspiciousBackground(session);
