@@ -524,7 +524,12 @@ export function useQuestRun(quest: RunnableQuest) {
           return;
         }
       }
-      const existingAttemptId = attemptRef.current;
+      // Recover the native session's durable attempt even if this screen was
+      // remounted before checkCompletion restored its React refs.
+      const nativeSession = !isTimer ? await loadBackgroundQuestSession() : null;
+      if (!active()) return;
+      const existingAttemptId = nativeSession?.questId === quest.id
+        ? nativeSession.attemptId : attemptRef.current;
       const attemptId = existingAttemptId ?? `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       attemptRef.current = attemptId;
       if (!existingAttemptId) await beginQuestAttempt(quest.id, attemptId);
