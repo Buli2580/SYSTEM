@@ -223,7 +223,15 @@ export function useQuestRun(quest: RunnableQuest) {
       if (access === 'AVAILABLE' && ownsBackgroundSession && AppState.currentState === 'active') void startQuest();
     } catch {
       if (focusedRef.current && session === sessionRef.current) {
-        fail('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
+        // A transient SQLite timeout must not destroy a native GPS session.
+        // Keep its ownership and let the next foreground check restore it.
+        if (backgroundSessionActiveRef.current) {
+          setError('Nie udało się chwilowo odczytać postępu. Misja GPS nadal działa w tle.');
+          transition('STARTING');
+        } else {
+          setError('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
+          transition('ERROR');
+        }
       }
     }
   }, [stopVerification, transition, fail, refreshPlayer, quest.id, quest.activityType, quest.verification.type, flushAttempt, isTimer]);
@@ -490,7 +498,7 @@ export function useQuestRun(quest: RunnableQuest) {
     }
     setCurrentSpeed(0);
     setDistance(distanceRef.current);
-    setDuration(0);
+    setDuration(checkpoint?.durationSeconds ?? 0);
     setAccuracy(null);
     try {
       const access = await getQuestAccess(quest.id);
@@ -607,13 +615,8 @@ export function useQuestRun(quest: RunnableQuest) {
       }
       watcherRef.current = watcher;
       trackingActiveRef.current = true;
-      // Start the GPS acquisition deadline only after native tracking has
-      // actually subscribed. Permissions, SQLite and background-service startup
-      // can take longer than 30 seconds on Android.
-      // A temporary lack of a precise GPS fix must never terminate an
-      // already active native background session. Keep waiting; the first
-      // usable fix transitions STARTING -> TRACKING automatically.
-      // Android can take longer than 30 seconds to acquire an outdoor fix.
+      // The first usable GPS fix may take longer than 30 seconds. Keep the
+      // durable native session alive rather than treating acquisition as failure.
       if (firstLocation) processLocation(firstLocation, session);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     } catch {
