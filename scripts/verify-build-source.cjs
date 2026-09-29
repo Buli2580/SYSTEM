@@ -7,8 +7,13 @@ function check(expectedSha, expectedBranch, run=(args)=>cp.execFileSync('git',ar
   if(actual.toLowerCase()!==expectedSha.toLowerCase())throw new Error('Wrong checkout: HEAD '+actual+' differs from requested '+expectedSha);
   const dirty=run(['status','--porcelain','--untracked-files=all']);
   if(dirty)throw new Error('Dirty checkout; commit or isolate changes before building');
-  const branch=run(['symbolic-ref','--quiet','--short','HEAD']);
-  if(expectedBranch && branch!==expectedBranch)throw new Error('Wrong branch: '+branch+'; expected '+expectedBranch);
+  // `git branch --show-current` returns an empty string on detached HEAD,
+  // unlike symbolic-ref which exits nonzero before we can inspect CI identity.
+  let branch=run(['branch','--show-current']);
+  if(!branch && expectedBranch && env.GITHUB_ACTIONS==='true' &&
+     env.GITHUB_REF==='refs/heads/'+expectedBranch &&
+     env.GITHUB_SHA===actual && env.GITHUB_REPOSITORY==='Buli2580/SYSTEM') branch=expectedBranch;
+  if(expectedBranch && branch!==expectedBranch)throw new Error('Wrong branch: '+(branch||'(detached)')+'; expected '+expectedBranch);
   return {sha:actual,branch};
 }
 if(require.main===module){
