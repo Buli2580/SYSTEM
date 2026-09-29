@@ -1,0 +1,21 @@
+// Run: node --test src/system2/tests/onboarding-progression.test.cjs
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
+const ts=require(require.resolve('typescript',{paths:[path.resolve(__dirname,'../../..'),process.cwd()]}));
+const source=fs.readFileSync(path.join(__dirname,'../onboarding/progression.ts'),'utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const mod={exports:{}};
+vm.runInNewContext(compiled,{module:mod,exports:mod.exports,Date,Set,Number,Math,Error},{filename:'onboarding/progression.ts'});
+const {projectOnboarding:project}=mod.exports;
+const player={id:'p1',realLevel:1,totalRealXp:0};
+const event=(i,date='2026-09-28T12:00:00Z')=>({id:String(i),playerId:'p1',verified:true,createdAt:date,realXpAwarded:10});
+const now='2026-09-29T12:00:00Z';
+test('new player starts with one quest and no fabricated completion',()=>{const r=project(player,[],now);assert.equal(r.stage,'FIRST_QUEST');assert.equal(r.suggestedDailyQuests,1);assert.equal(r.verifiedCount,0);});
+test('character and world unlock progressively',()=>{const one=project(player,[event(1)],now);assert.equal(one.unlocked.includes('CHARACTER'),true);assert.equal(one.unlocked.includes('WORLD'),false);const three=project(player,[event(1),event(2),event(3)],now);assert.equal(three.unlocked.includes('WORLD'),true);});
+test('social and bosses have independent gates',()=>{const events=Array.from({length:10},(_,i)=>event(i));assert.equal(project(player,events,now).unlocked.includes('BOSSES'),false);assert.equal(project({...player,realLevel:3},events,now).unlocked.includes('BOSSES'),true);});
+test('long break offers gentle return without resetting XP',()=>{const p={...player,totalRealXp:1000};const r=project(p,[event(1,'2026-09-20T12:00:00Z')],now);assert.equal(r.comeback,true);assert.equal(r.suggestedDailyQuests,1);assert.equal(p.totalRealXp,1000);});
+test('duplicates and unverified events do not unlock features',()=>{const r=project(player,[event(1),event(1),{...event(2),verified:false}],now);assert.equal(r.verifiedCount,1);});
+test('future events do not count',()=>{const r=project(player,[event(1,'2026-10-01T12:00:00Z')],now);assert.equal(r.verifiedCount,0);});
