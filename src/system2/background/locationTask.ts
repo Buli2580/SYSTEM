@@ -97,12 +97,15 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   let risk=EMPTY_GPS_RISK;
   let riskAnchor=session.lastPoint?locationFromStored(session.lastPoint):null;
   for(const location of orderedRaw){
-    risk=mergeRiskSnapshots(risk,inspectGpsRisk(riskAnchor,location));
+    // Android may deliver a valid historical batch after the screen was locked.
+    // Evaluate its fix at the recorded time; delayed delivery alone is not cheating.
+    risk=mergeRiskSnapshots(risk,inspectGpsRisk(riskAnchor,location,location.timestamp));
     if(risk.action==='REJECT'){
       await rejectSuspiciousBackground(session);
       return;
     }
-    if(location.mocked!==true)riskAnchor=location;
+    if(location.mocked!==true && Number.isFinite(location.timestamp) &&
+       (!riskAnchor || location.timestamp > riskAnchor.timestamp)) riskAnchor=location;
   }
 
   const locations = orderedRaw
