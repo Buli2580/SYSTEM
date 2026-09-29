@@ -6,6 +6,6 @@ const inspect=(apk,expected)=>{assert.equal(apk,'/tmp/new.apk');assert.equal(exp
 test('requires explicit artifact and SHA',()=>assert.throws(()=>plan(['/tmp/new.apk'],inspect),/Usage/));
 test('rejects unsafe device serial',()=>assert.throws(()=>plan(['/tmp/new.apk',sha,'-bad'],inspect),/Invalid/));
 test('uses exactly selected APK, never discovers another',()=>assert.deepEqual(plan(['/tmp/new.apk',sha,'device-1'],inspect).args,['-s','device-1','install','-r','/tmp/new.apk']));
-test('refuses install if provenance fails',()=>{let called=false;assert.throws(()=>install(['/tmp/new.apk',sha],()=>{called=true;},{ } ),/inspect is not a function/);assert.equal(called,false);});
+test('refuses install if provenance fails',()=>{let called=false;assert.throws(()=>install(['/tmp/new.apk',sha],()=>{called=true;},()=>{throw new Error('APK checksum mismatch');}),/APK checksum mismatch/);assert.equal(called,false);});
 test('invokes adb only after verified provenance',()=>{let seen;const p=install(['/tmp/new.apk',sha],(cmd,args,opts)=>{seen={cmd,args,opts};return {status:0};},inspect);assert.equal(p.sha,sha);assert.deepEqual(seen.args,['install','-r','/tmp/new.apk']);assert.equal(seen.opts.shell,false);});
 test('propagates adb failure',()=>assert.throws(()=>install(['/tmp/new.apk',sha],()=>({status:1}),inspect),/failed/));
