@@ -95,9 +95,15 @@ export async function handoffQuestToBackground(
   lastLocation?: Location.LocationObject | null,
 ) {
   const point = lastLocation ? storedLocationPoint(lastLocation) : null;
+  // The native task may have recorded a newer fix while the JS screen was
+  // suspending. Never overwrite that anchor with an older foreground fix.
+  const session = await loadBackgroundQuestSession();
+  if (!session || session.questId !== questId) throw new Error('Sesja GPS tej misji nie jest już aktywna.');
+  const newerNativeFix = session.lastObservedTimestamp !== undefined &&
+    (point === null || session.lastObservedTimestamp >= point.timestamp);
   const updated = await updateBackgroundQuestSession(questId, {
     mode: 'BACKGROUND',
-    ...(point ? { lastPoint: point, lastObservedTimestamp: point.timestamp } : {}),
+    ...(point && !newerNativeFix ? { lastPoint: point, lastObservedTimestamp: point.timestamp } : {}),
   });
   if (!updated) throw new Error('Sesja GPS tej misji nie jest już aktywna.');
 }
