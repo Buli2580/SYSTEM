@@ -1,0 +1,12 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {check,parsePackageDump}=require('../check-installed-apk.cjs');
+const sha='a'.repeat(40);
+const meta={version:'1.0.1',versionCode:200,sha};
+const deps=(output,code=0)=>({verify:()=>({sha,runId:'run-1'}),fs:{readFileSync:()=>JSON.stringify(meta)},spawn:()=>({status:code,stdout:output})});
+test('parses Android dumpsys package',()=>assert.deepEqual(parsePackageDump(' versionCode=200 minSdk=24\n versionName=1.0.1'),{versionCode:200,versionName:'1.0.1'}));
+test('accepts matching installed native identity',()=>assert.equal(check(['test.apk',sha],deps('versionCode=200\nversionName=1.0.1')).sourceSha,sha));
+test('rejects older installed build',()=>assert.throws(()=>check(['test.apk',sha],deps('versionCode=199\nversionName=1.0.1')),/differs/));
+test('rejects different installed versionName',()=>assert.throws(()=>check(['test.apk',sha],deps('versionCode=200\nversionName=1.0.0')),/differs/));
+test('rejects missing package metadata',()=>assert.throws(()=>check(['test.apk',sha],deps('Unable to find package: pl.systemworld.app')),/Cannot read/));
+test('rejects adb failure',()=>assert.throws(()=>check(['test.apk',sha],deps('',1)),/ADB package/));
