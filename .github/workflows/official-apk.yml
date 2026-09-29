@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - integration/system-evening-build
+      - 'agent/**'
   workflow_dispatch:
   push:
     branches:
