@@ -1,8 +1,6 @@
 name: SYSTEM Official APK
 on:
   pull_request:
-    branches:
-      - integration/system-evening-build
   workflow_dispatch:
   push:
     branches:
