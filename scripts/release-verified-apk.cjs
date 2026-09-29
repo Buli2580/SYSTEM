@@ -6,6 +6,7 @@ const path=require('node:path');
 const {check}=require('./verify-build-source.cjs');
 const {verify}=require('./verify-official-artifact.cjs');
 const {install}=require('./install-verified-apk.cjs');
+const {check:checkInstalled}=require('./check-installed-apk.cjs');
 function parse(args){
  const [sha,branch,...flags]=args;
  if(!/^[0-9a-f]{40}$/i.test(sha||'')||!branch||branch.startsWith('-'))throw new Error('Usage: release-verified-apk <full-sha> <branch> [--install] [--serial=device-id]');
@@ -16,7 +17,7 @@ function parse(args){
 }
 function release(argv,deps={}){
  const options=parse(argv);
- const sourceCheck=deps.check||check, artifactCheck=deps.verify||verify, deviceInstall=deps.install||install;
+ const sourceCheck=deps.check||check, artifactCheck=deps.verify||verify, deviceInstall=deps.install||install, installedCheck=deps.checkInstalled||checkInstalled;
  const spawn=deps.spawn||cp.spawnSync;
  const identity=sourceCheck(options.sha,options.branch);
  const script=path.join(__dirname,'official-apk.cjs');
@@ -29,7 +30,12 @@ function release(argv,deps={}){
  if(matches.length!==1)throw new Error('Expected exactly one verified APK path from this build');
  const apk=matches[0][1];
  const proof=artifactCheck(apk,identity.sha);
- if(options.installRequested)deviceInstall([apk,identity.sha,...(options.serial?[options.serial]:[])]);
+ if(options.installRequested){
+    const deviceArgs=[apk,identity.sha,...(options.serial?[options.serial]:[])];
+    deviceInstall(deviceArgs);
+    const installed=installedCheck(deviceArgs);
+    if(installed.sourceSha!==identity.sha)throw new Error('Post-install provenance mismatch');
+  }
  console.log('RELEASE VERIFIED: '+JSON.stringify({apk,sha:proof.sha,runId:proof.runId,installed:options.installRequested}));
  return {apk,proof,installed:options.installRequested};
 }
