@@ -40,6 +40,8 @@ function main(){
  const env={...process.env,...(gradleHome?{GRADLE_USER_HOME:gradleHome}:{}),SYSTEM_BUILD_MANIFEST:manifest,SYSTEM_EXPECTED_SHA:identity.sha,SYSTEM_ANDROID_KEYSTORE:key,CI:'1',EXPO_NO_TELEMETRY:'1'};
  console.log('Gradle cache: '+(env.GRADLE_USER_HOME||'Gradle default'));
  run(process.platform==='win32'?'npm.cmd':'npm',['ci','--no-audit','--no-fund'],checkout,env);
+ // Validate the exact archived source after dependency installation, before native prebuild.
+ run(process.platform==='win32'?'npm.cmd':'npm',['run','typecheck'],checkout,env);
  run(process.execPath,[path.join(checkout,'node_modules/expo/bin/cli'),'prebuild','--platform','android','--no-install'],checkout,env);
  const appDir=path.join(checkout,'android','app');
  fs.writeFileSync(path.join(appDir,'system-signing.gradle'),`android {
