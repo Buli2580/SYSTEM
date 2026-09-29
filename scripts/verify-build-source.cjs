@@ -1,7 +1,7 @@
 // Refuse to build a stale or dirty checkout. Run before official-apk.cjs.
 // Usage: node scripts/verify-build-source.cjs <40-character-expected-sha> [expected-branch]
 const cp=require('node:child_process');
-function check(expectedSha, expectedBranch, run=(args)=>cp.execFileSync('git',args,{encoding:'utf8'}).trim()){
+function check(expectedSha, expectedBranch, run=(args)=>cp.execFileSync('git',args,{encoding:'utf8'}).trim(), env=process.env){
   if(!/^[0-9a-f]{40}$/i.test(expectedSha||''))throw new Error('Explicit 40-character source SHA required');
   const actual=run(['rev-parse','HEAD']);
   if(actual.toLowerCase()!==expectedSha.toLowerCase())throw new Error('Wrong checkout: HEAD '+actual+' differs from requested '+expectedSha);
