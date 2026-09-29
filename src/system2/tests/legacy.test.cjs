@@ -1,0 +1,21 @@
+// Run: node --test src/system2/tests/legacy.test.cjs
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
+const ts=require(require.resolve('typescript',{paths:[path.resolve(__dirname,'../../..'),process.cwd()]}));
+const source=fs.readFileSync(path.join(__dirname,'../core/legacy.ts'),'utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const mod={exports:{}};
+vm.runInNewContext(compiled,{module:mod,exports:mod.exports,Number,Set,Date,Error},{filename:'core/legacy.ts'});
+const {deriveLegacy:derive}=mod.exports;
+const player={id:'p1',realLevel:1};
+const event=(id,distanceMeters=500)=>({id,playerId:'p1',verified:true,createdAt:'2026-09-29T10:00:00.000Z',realXpAwarded:10,distanceMeters});
+test('new player has no invented milestones',()=>{const r=derive(player,[]);assert.equal(r.verifiedQuestCount,0);assert.equal(r.nextQuestTarget,1);assert.equal(r.milestones.some(m=>m.achieved),false);});
+test('verified quests and distance unlock independent milestones',()=>{const r=derive(player,[event('a',600),event('b',500)]);assert.equal(r.verifiedQuestCount,2);assert.equal(r.verifiedDistanceMeters,1100);assert.equal(r.milestones.find(m=>m.id==='DISTANCE_1000').achieved,true);});
+test('duplicate event ids cannot double count',()=>{const r=derive(player,[event('a'),event('a')]);assert.equal(r.verifiedQuestCount,1);});
+test('unverified or another player event cannot count',()=>{const r=derive(player,[{...event('a'),verified:false},{...event('b'),playerId:'p2'}]);assert.equal(r.verifiedQuestCount,0);});
+test('invalid event data is ignored',()=>{const r=derive(player,[{...event('a'),distanceMeters:-5},{...event('b'),realXpAwarded:NaN}]);assert.equal(r.verifiedQuestCount,0);});
+test('level milestones reflect canonical level',()=>{const r=derive({...player,realLevel:25},[]);assert.equal(r.milestones.find(m=>m.id==='LEVEL_25').achieved,true);});
+test('projection does not mutate source events',()=>{const events=[event('a')];derive(player,events);assert.equal(events.length,1);assert.equal(events[0].distanceMeters,500);});
