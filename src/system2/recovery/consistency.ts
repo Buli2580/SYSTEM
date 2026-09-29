@@ -1,5 +1,4 @@
 /** Pure, offline recovery/consistency projection. Does not mutate canonical XP or streak. */
-import {dayOrdinal} from '../daily/calendar';
 import type {Outcome} from '../adaptive/engine';
 
 export type RecoveryPhase='NEW'|'ACTIVE'|'GENTLE_RETURN'|'REBUILD';
@@ -14,10 +13,10 @@ function ordinal(day:string):number|null{
  const [y,m,d]=day.split('-').map(Number);
  const time=Date.UTC(y,m-1,d);
  if(!Number.isFinite(time)||new Date(time).toISOString().slice(0,10)!==day)return null;
- return dayOrdinal(day);
+ return Math.floor(time/86400000);
 }
 const active=(outcome:Outcome)=>outcome.outcome==='COMPLETE'||outcome.outcome==='RECOVERY';
-/** Pass the user's local calendar date as YYYY-MM-DD; never derive local days from UTC here. */
+/** Date buckets use UTC event dates; caller must supply a matching UTC YYYY-MM-DD day. */
 export function recoverySnapshot(outcomes:readonly Outcome[],today:string):RecoverySnapshot{
  const todayIndex=ordinal(today);
  if(todayIndex===null)throw new Error('Invalid local calendar day');
@@ -26,7 +25,7 @@ export function recoverySnapshot(outcomes:readonly Outcome[],today:string):Recov
   if(!active(event)||typeof event.at!=='string')continue;
   const timestamp=Date.parse(event.at);
   if(!Number.isFinite(timestamp))continue;
-  // The caller owns timezone conversion. Date-only event keys are already local.
+  // UTC date bucket: avoids mixing device-local and server timestamps.
   const key=event.at.slice(0,10);
   const day=ordinal(key);
   if(day!==null&&day<=todayIndex&&day>=todayIndex-365)days.add(day);
