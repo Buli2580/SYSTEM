@@ -36,6 +36,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Release safety tests (no signing secrets needed)
+        run: |
+          node --test scripts/apk-provenance.test.cjs \
+            scripts/tests/verify-official-artifact.test.cjs \
+            scripts/tests/install-verified-apk.test.cjs \
+            scripts/tests/verify-build-source.test.cjs \
+            scripts/tests/release-verified-apk.test.cjs \
+            scripts/tests/check-installed-apk.test.cjs
       - name: Load existing signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.SYSTEM_ANDROID_KEYSTORE_BASE64 }}
