@@ -48,7 +48,7 @@ jobs:
       - name: Build and verify exact commit
         env:
           EXPECTED_SHA: ${{ github.sha }}
-        run: node scripts/official-apk.cjs --sha "$EXPECTED_SHA"
+        run: node scripts/release-verified-apk.cjs "$EXPECTED_SHA" integration/system-evening-build
       - uses: actions/upload-artifact@v4
         with:
           name: SYSTEM-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
