@@ -1,0 +1,12 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {parse,release}=require('../release-verified-apk.cjs');
+const sha='a'.repeat(40),branch='integration/system-evening-build';
+test('requires exact source identity',()=>assert.throws(()=>parse(['HEAD',branch]),/Usage/));
+test('serial requires install flag',()=>assert.throws(()=>parse([sha,branch,'--serial=abc']),/Invalid/));
+test('rejects unknown options',()=>assert.throws(()=>parse([sha,branch,'--latest']),/Unknown/));
+function harness(stdout,status=0){let installed=false,verified=false;const deps={check:(s,b)=>{assert.equal(s,sha);assert.equal(b,branch);return {sha:s,branch:b};},spawn:(cmd,args)=>{assert.equal(args.at(-1),sha);return {status,stdout,stderr:''};},verify:(apk,s)=>{verified=true;assert.equal(apk,'/tmp/new.apk');assert.equal(s,sha);return {sha,runId:'new'};},install:()=>{installed=true;}};return {deps,get installed(){return installed;},get verified(){return verified;}};}
+test('build failure never installs',()=>{const h=harness('',1);assert.throws(()=>release([sha,branch,'--install'],h.deps),/build failed/);assert.equal(h.installed,false);});
+test('no fresh output never installs',()=>{const h=harness('old build finished\n');assert.throws(()=>release([sha,branch,'--install'],h.deps),/exactly one/);assert.equal(h.installed,false);});
+test('only fresh output is verified and installed',()=>{const h=harness('Verified APK: /tmp/new.apk\n');assert.equal(release([sha,branch,'--install'],h.deps).installed,true);assert.equal(h.verified,true);assert.equal(h.installed,true);});
+test('no install unless requested',()=>{const h=harness('Verified APK: /tmp/new.apk\n');assert.equal(release([sha,branch],h.deps).installed,false);assert.equal(h.installed,false);});
