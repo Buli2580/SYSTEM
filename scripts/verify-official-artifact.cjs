@@ -14,7 +14,9 @@ function verify(apk, expectedSha, io = fs) {
   if (!/^[0-9a-f]{64}$/i.test(info.sha256 || '')) throw new Error('Invalid APK checksum in provenance');
   const digest = crypto.createHash('sha256').update(io.readFileSync(file)).digest('hex');
   if (digest !== info.sha256.toLowerCase()) throw new Error('APK checksum mismatch: artifact replaced or corrupted');
-  if (!info.runId || !info.builtAt || !info.signingCertificateSHA256) throw new Error('Incomplete official build provenance');
+  if (!info.runId || !info.builtAt || !/^[a-f0-9]{64}$/i.test(info.signingCertificateSHA256 || '')) throw new Error('Incomplete official build provenance');
+  if (info.branch !== 'integration/system-evening-build') throw new Error('APK provenance is not from the official release branch');
+  if (typeof info.version !== 'string' || !/^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(info.version) || !Number.isSafeInteger(info.versionCode) || info.versionCode <= 0) throw new Error('Invalid APK version provenance');
   return { sha: info.sha, sha256: digest, version: info.version, runId: info.runId, builtAt: info.builtAt };
 }
 if (require.main === module) {
