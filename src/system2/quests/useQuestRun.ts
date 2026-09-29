@@ -570,7 +570,9 @@ export function useQuestRun(quest: RunnableQuest) {
         extendedGoal: extendedRef.current,
       });
       backgroundSessionActiveRef.current = true;
-      await markQuestForeground(quest.id);
+      // Keep the native task in BACKGROUND mode while the foreground watcher
+      // is still being created. Otherwise positions arriving during the
+      // permission/subscription gap are silently discarded.
       if (!active()) return;
       if (appStateRef.current !== 'active' || AppState.currentState !== 'active') {
         backgroundHandoffRef.current = true;
@@ -615,6 +617,18 @@ export function useQuestRun(quest: RunnableQuest) {
       }
       watcherRef.current = watcher;
       trackingActiveRef.current = true;
+      try {
+        await markQuestForeground(quest.id);
+      } catch {
+        // A background completion can remove the session while the watch
+        // subscribes. Re-read canonical completion rather than fail the quest.
+        watcher.remove();
+        watcherRef.current = null;
+        trackingActiveRef.current = false;
+        if (active()) void checkCompletion();
+        return;
+      }
+      if (!active()) return;
       // The first usable GPS fix may take longer than 30 seconds. Keep the
       // durable native session alive rather than treating acquisition as failure.
       if (firstLocation) processLocation(firstLocation, session);
