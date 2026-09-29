@@ -217,6 +217,10 @@ export function useQuestRun(quest: RunnableQuest) {
       setAlreadyCompleted(access === 'COMPLETED');
       transition(access === 'COMPLETED' ? 'COMPLETED' : access === 'LOCKED' ? 'LOCKED' : 'READY');
       if (access === 'COMPLETED') void refreshPlayer();
+      // A screen lock may unmount this screen while the native location task
+      // keeps the attempt alive. Reattach the foreground watcher automatically
+      // instead of leaving the user at READY with a running background session.
+      if (access === 'AVAILABLE' && ownsBackgroundSession) void startQuest();
     } catch {
       if (focusedRef.current && session === sessionRef.current) {
         fail('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
@@ -490,9 +494,6 @@ export function useQuestRun(quest: RunnableQuest) {
     setDistance(distanceRef.current);
     setDuration(0);
     setAccuracy(null);
-    startupTimerRef.current = setTimeout(() => {
-      if (active()) fail(isTimer ? 'Nie udało się rozpocząć timera. Spróbuj ponownie.' : 'Nie uzyskano dokładnej lokalizacji w ciągu 30 sekund. Sprawdź GPS i spróbuj ponownie.');
-    }, 30000);
     try {
       const access = await getQuestAccess(quest.id);
       if (!active()) return;
@@ -608,6 +609,14 @@ export function useQuestRun(quest: RunnableQuest) {
       }
       watcherRef.current = watcher;
       trackingActiveRef.current = true;
+      // Start the GPS acquisition deadline only after native tracking has
+      // actually subscribed. Permissions, SQLite and background-service startup
+      // can take longer than 30 seconds on Android.
+      startupTimerRef.current = setTimeout(() => {
+        if (active() && statusRef.current === 'STARTING') {
+          fail('Nie uzyskano dokładnej lokalizacji w ciągu 30 sekund od uruchomienia GPS. Sprawdź sygnał i spróbuj ponownie.');
+        }
+      }, 30000);
       if (firstLocation) processLocation(firstLocation, session);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     } catch {
