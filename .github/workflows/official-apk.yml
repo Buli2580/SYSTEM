@@ -34,6 +34,7 @@ jobs:
       - name: Typecheck app before release
         run: npm run typecheck
   build:
+    needs: release-tests
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 50
