@@ -388,6 +388,13 @@ export function useQuestRun(quest: RunnableQuest) {
   function processLocation(location: Location.LocationObject, session: number) {
     if (!focusedRef.current || session !== sessionRef.current || !trackingActiveRef.current ||
         !['STARTING', 'TRACKING'].includes(statusRef.current)) return;
+    // A cached/out-of-order fix is not evidence of clock manipulation.
+    // Reject actual mock/future fixes, but ignore stale native delivery before
+    // comparing it with the last accepted anchor.
+    if (location.mocked !== true && Number.isFinite(location.timestamp) &&
+        location.timestamp <= Date.now() + 1000 &&
+        (Date.now() - location.timestamp > 15000 ||
+          (lastPointRef.current && location.timestamp <= lastPointRef.current.timestamp))) return;
     const risk = inspectGpsRisk(lastPointRef.current, location);
     riskRef.current = mergeRiskSnapshots(riskRef.current, risk);
     setAntiCheatRisk(riskRef.current);
@@ -428,7 +435,8 @@ export function useQuestRun(quest: RunnableQuest) {
       return;
     }
     if (!isUsableLocation(location)) {
-      lastPointRef.current = null;
+      // Temporary poor accuracy is not a new start. Retain the last good
+      // anchor; verifiedSegment will reject any gap longer than 15 seconds.
       return;
     }
     const previous = lastPointRef.current;
