@@ -7,7 +7,7 @@ const finite=(value:number)=>Number.isFinite(value)&&value>=0;
 export function autoQuestDecision(quest:RunnableQuest,signals:AutoQuestSignals):AutoQuestDecision{
  const method=quest.verification.type;
  const target=method==='TIMER'?quest.verification.minimumDurationSeconds:quest.verification.minimumDistanceMeters;
- if(!finite(target)||target<=0)return{status:'BLOCKED',progress:0,target:0,reason:'INVALID_TARGET'};
+ if(!finite(target)||target<=0||(method==='MULTI'&&(!finite(quest.verification.minimumDurationSeconds)||quest.verification.minimumDurationSeconds<=0)))return{status:'BLOCKED',progress:0,target:0,reason:'INVALID_TARGET'};
  if(!finite(signals.elapsedSeconds)||!finite(signals.distanceMeters))return{status:'BLOCKED',progress:0,target,reason:'INVALID_SIGNALS'};
  if(method!=='TIMER'&&(!signals.gpsPermission||!signals.locationAvailable))return{status:'BLOCKED',progress:0,target,reason:'LOCATION_UNAVAILABLE'};
  const progress=Math.min(target,method==='TIMER'?signals.elapsedSeconds:signals.distanceMeters);
@@ -18,7 +18,7 @@ export function autoQuestDecision(quest:RunnableQuest,signals:AutoQuestSignals):
 }
 /** This only constructs a candidate. The canonical provider must independently validate it. */
 export function autoQuestEvidenceCandidate(quest:RunnableQuest,signals:AutoQuestSignals,verificationScore:number,attemptId?:string):QuestEvidence|null{
- if(autoQuestDecision(quest,signals).status!=='VERIFY'||!Number.isFinite(verificationScore)||verificationScore<0||verificationScore>100)return null;
+ if(autoQuestDecision(quest,signals).status!=='VERIFY'||!Number.isFinite(verificationScore)||verificationScore<quest.verification.verificationScoreRequired||verificationScore>100)return null;
  if(quest.activityType)return null; // Requires the actual classified activity evidence, not a boolean.
  const base={questId:quest.id,attemptId,verificationScore,durationSeconds:signals.elapsedSeconds};
  return quest.verification.type==='TIMER'?{...base,verificationType:'TIMER'}:
