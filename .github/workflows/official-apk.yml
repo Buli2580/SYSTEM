@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: system-official-apk
+  group: ${{ github.event_name == 'pull_request' && format('system-pr-{0}', github.event.pull_request.number) || 'system-official-apk' }}
   cancel-in-progress: false
 jobs:
   release-tests:
