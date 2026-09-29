@@ -12,3 +12,6 @@ test('rejects wrong commit',()=>assert.throws(()=>verify(apk,'c'.repeat(40),io()
 test('rejects replaced APK',()=>assert.throws(()=>verify(apk,sha,io(meta,Buffer.from('old-apk'))),/checksum mismatch/));
 test('rejects incomplete provenance',()=>assert.throws(()=>verify(apk,sha,io({...meta,runId:null})),/Incomplete/));
 test('rejects missing sidecar',()=>assert.throws(()=>verify(apk,sha,{existsSync:p=>p===apk}),/missing/));
+
+test('rejects verification without expected SHA',()=>assert.throws(()=>verify(apk,undefined,io()),/Explicit 40-character/));
+test('rejects shorthand SHA',()=>assert.throws(()=>verify(apk,'a'.repeat(12),io()),/Explicit 40-character/));
