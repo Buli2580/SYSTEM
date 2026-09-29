@@ -93,7 +93,13 @@ async function processLocations(rawLocations: Location.LocationObject[]) {
   }
   if (rawLocations.length === 0) return;
 
-  const orderedRaw=[...rawLocations].sort((a,b)=>a.timestamp-b.timestamp);
+  // Native Android batches may overlap. Ignore fixes already observed before
+  // risk analysis: duplicate timestamps are not clock tampering.
+  const orderedRaw=[...rawLocations]
+    .filter(location => session.lastObservedTimestamp === undefined ||
+      location.timestamp > session.lastObservedTimestamp)
+    .sort((a,b)=>a.timestamp-b.timestamp);
+  if (orderedRaw.length === 0) return;
   let risk=EMPTY_GPS_RISK;
   let riskAnchor=session.lastPoint?locationFromStored(session.lastPoint):null;
   for(const location of orderedRaw){
