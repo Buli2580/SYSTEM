@@ -220,7 +220,7 @@ export function useQuestRun(quest: RunnableQuest) {
       // A screen lock may unmount this screen while the native location task
       // keeps the attempt alive. Reattach the foreground watcher automatically
       // instead of leaving the user at READY with a running background session.
-      if (access === 'AVAILABLE' && ownsBackgroundSession) void startQuest();
+      if (access === 'AVAILABLE' && ownsBackgroundSession && AppState.currentState === 'active') void startQuest();
     } catch {
       if (focusedRef.current && session === sessionRef.current) {
         fail('Nie można odczytać stanu misji z SQLite. Spróbuj ponownie.');
@@ -612,11 +612,10 @@ export function useQuestRun(quest: RunnableQuest) {
       // Start the GPS acquisition deadline only after native tracking has
       // actually subscribed. Permissions, SQLite and background-service startup
       // can take longer than 30 seconds on Android.
-      startupTimerRef.current = setTimeout(() => {
-        if (active() && statusRef.current === 'STARTING') {
-          fail('Nie uzyskano dokładnej lokalizacji w ciągu 30 sekund od uruchomienia GPS. Sprawdź sygnał i spróbuj ponownie.');
-        }
-      }, 30000);
+      // A temporary lack of a precise GPS fix must never terminate an
+      // already active native background session. Keep waiting; the first
+      // usable fix transitions STARTING -> TRACKING automatically.
+      // Android can take longer than 30 seconds to acquire an outdoor fix.
       if (firstLocation) processLocation(firstLocation, session);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     } catch {
