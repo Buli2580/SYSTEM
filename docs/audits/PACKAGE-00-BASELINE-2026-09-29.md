@@ -81,3 +81,18 @@ Status: **P** = potwierdzono obecność w odczytanym źródle; **D** = do sprawd
 - Nie nadpisywać lokalnych zmian `package.json`, katalogu buildu ani backupu.
 - Nie zmieniać klucza podpisu, nie tworzyć APK z niezweryfikowanego SHA.
 - Nie oznaczać punktów D jako wykonanych bez kodu, testu lub dowodu z urządzenia.
+
+## Kontrola źródeł — etap 2 (GitHub, bez uruchamiania kodu)
+Odczytano dodatkowo: `src/system2/state/SystemProvider.tsx`, `src/system2/quests/catalog.ts`, `src/system2/storage/database.ts`, `src/system2/verification/gps.ts`, `src/system2/quests/firstMovement.ts`, `src/system2/telemetry/amplitude.ts`, `src/system2/core/inventory.ts`.
+
+- [ŹRÓDŁO] `firstMovement.ts`: misja `first_movement_v1` wymaga 500 m GPS, progu weryfikacji 80 i deklaruje nagrodę 100 real XP / 80 VIT XP / 10 energii. Nie dowodzi to prawidłowego naliczenia na telefonie.
+- [ŹRÓDŁO] `catalog.ts`: katalog łączy misje Awakening, Boss, generowane i Daily, a także prezentację AI. Nie dowodzi to prawidłowego doboru spersonalizowanych misji.
+- [ŹRÓDŁO] `SystemProvider.tsx`: provider importuje mechanizmy adaptacyjne, osiągnięcia, przypomnienia i magazyn danych; wymaga sprawdzenia wywołań i integracji.
+- [ŹRÓDŁO] `database.ts`: integruje MOVE, model adaptacyjny, osiągnięcia, lokalną weryfikację i ukończenie misji; sama obecność integracji nie dowodzi poprawności migracji ani trwałości danych.
+- [ŹRÓDŁO] `inventory.ts`: istnieją typy przedmiotów, rzadkości, slotów i porównywania ekwipunku. Nie potwierdzono pełnego UI.
+- [ŹRÓDŁO] `telemetry/amplitude.ts`: kolejka AsyncStorage ma limit 200 zdarzeń; wysyłka zależy od `EXPO_PUBLIC_AMPLITUDE_API_KEY`. Nie potwierdzono konfiguracji klucza ani faktycznej dostawy zdarzeń.
+- [OGRANICZENIE] `quests/backgroundLocation.ts` nie istnieje pod sprawdzoną ścieżką; to **nie dowodzi braku obsługi tła** — hook importuje ją z innego modułu.
+- [KRYTYCZNE] API GitHub potwierdza bazę PR #146: `d0241df4335b159849e0e958cbea04a59429ad24`, czyli starszy commit niż lokalnie zgłoszone `0930988`. Do czasu wypchnięcia/uzgodnienia poprawek GPS nie scalać PR i nie uruchamiać oficjalnego APK z tej gałęzi.
+
+### Zaktualizowany stan punktów
+Potwierdzono źródłowo dodatkowo istnienie: katalogu misji (32), modułu Inventory (35), modelu adaptacyjnego w integracji (część 32/43), kolejki telemetrycznej (45). Punkty 32, 35 i 45 pozostają **D**, ponieważ dotyczą sprawności całej funkcji, nie samej obecności pliku. Wszystkie wyniki testów, instalacji APK i zachowania na urządzeniu nadal **niezweryfikowane w tej paczce**.
