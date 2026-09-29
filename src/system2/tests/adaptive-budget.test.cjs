@@ -29,3 +29,44 @@ test('normal days preserve the existing adaptive three-quest baseline',()=>{
  const plan=planAdaptiveDay({...newUserModel(now),availableMinutes:45},now);
  assert.equal(plan.dailyCount,3);
 });
+
+test('busy, travel and recovery plans keep weekly goals modest',()=>{
+ const model=newUserModel(now);
+ for(const lifeState of ['BUSY','TRAVEL','RECOVERY','VACATION']){
+  const plan=planAdaptiveDay({...model,lifeState,availableMinutes:240},now);
+  assert.equal(plan.weeklyCount,1,lifeState);
+  assert.ok(plan.reasons.some(reason=>reason.includes('budżetu trybu dnia')),lifeState);
+ }
+});
+test('normal mode can grow after a successful week without exceeding the time budget',()=>{
+ const model=newUserModel(now);
+ const outcomes=Array.from({length:5},(_,i)=>({id:'win-'+i,questType:'WALK',difficulty:2,outcome:'COMPLETE',at:'2026-09-28T10:00:00.000Z'}));
+ assert.equal(planAdaptiveDay({...model,availableMinutes:240,outcomes},now).dailyCount,4);
+ assert.equal(planAdaptiveDay({...model,availableMinutes:24,outcomes},now).dailyCount,2);
+});
+test('overload reduces normal daily load without reducing special days below one',()=>{
+ const model=newUserModel(now);
+ const outcomes=Array.from({length:4},(_,i)=>({id:'fail-'+i,questType:'WALK',difficulty:2,outcome:'FAILED',at:'2026-09-28T10:00:00.000Z'}));
+ assert.equal(planAdaptiveDay({...model,availableMinutes:240,outcomes},now).dailyCount,2);
+ assert.equal(planAdaptiveDay({...model,lifeState:'RECOVERY',availableMinutes:240,outcomes},now).dailyCount,1);
+ assert.equal(planAdaptiveDay({...model,availableMinutes:240,outcomes},now).suggestedState,'RECOVERY');
+});
+test('a seven-day return always starts with one small quest',()=>{
+ const model=newUserModel(now);
+ const outcomes=[{id:'old',questType:'WALK',difficulty:2,outcome:'COMPLETE',at:'2026-09-20T10:00:00.000Z'}];
+ const plan=planAdaptiveDay({...model,availableMinutes:240,outcomes},now);
+ assert.equal(plan.dailyCount,1);
+ assert.equal(plan.difficulty,1);
+ assert.equal(plan.suggestedState,'RECOVERY');
+});
+test('planner ignores outcomes dated in the future',()=>{
+ const model=newUserModel(now);
+ const outcomes=Array.from({length:5},(_,i)=>({id:'future-'+i,questType:'WALK',difficulty:2,outcome:'COMPLETE',at:'2026-10-01T10:00:00.000Z'}));
+ assert.equal(planAdaptiveDay({...model,availableMinutes:240,outcomes},now).dailyCount,3);
+});
+test('normalization constrains malformed time budgets',()=>{
+ const {normalizeUserModel}=moduleRef.exports;
+ assert.equal(normalizeUserModel({availableMinutes:-1}).availableMinutes,2);
+ assert.equal(normalizeUserModel({availableMinutes:9999}).availableMinutes,240);
+ assert.equal(normalizeUserModel({availableMinutes:'nonsense'}).availableMinutes,2);
+});
