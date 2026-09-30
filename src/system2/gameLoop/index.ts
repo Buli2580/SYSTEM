@@ -4,3 +4,6 @@ export * from './telemetry';
 export * from './orchestrator';
 export * from './rewardPlan';
 export * from './nextQuest';
+export * from './guards';
+export * from './session';
+export * from './reactions';
