@@ -647,8 +647,8 @@ test('real background hands GPS off without failing and foreground can resume wi
   assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
   h.appState('active');
   await flush(); h.render();
-  assert.equal(h.status(), 'READY');
-  await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
+  assert.equal(h.status(), 'STARTING');
+  assert.equal(h.begunAttempts(),1, 'automatic resume must reuse the attempt');
   assert.equal(h.starts(), 2);
   h.fix(0);
   assert.equal(h.status(), 'TRACKING');
@@ -718,9 +718,11 @@ test('GPS distance checkpoint survives background and returns with the same mete
   assert.equal(h.backgroundSession()?.mode, 'BACKGROUND');
   h.appState('active');
   await flush(); h.render();
-  assert.equal(h.status(), 'READY');
+  assert.equal(h.status(), 'STARTING');
   assert.equal(Math.round(h.distance()), Math.round(savedBefore));
-  assert.ok(h.button('WZNÓW MISJĘ'));
+  assert.equal(h.starts(),2);
+  assert.equal(h.begunAttempts(),1);
+  h.fix(220);assert.equal(h.status(),'TRACKING');
 });
 
 
@@ -1667,7 +1669,7 @@ test('activity daily session shares watcher, keeps checkpoint in background and 
  const h=screenHarness(t,{questId:'daily:2026-09-18:walk_protocol_1'});await flush();h.render();await h.button('ROZPOCZNIJ MISJĘ').props.onPress();
  h.fix(0);h.render();h.fix(10);h.appState('background');h.render();assert.equal(h.removals(),1);assert.equal(h.awards(),0);
  await flush();assert.ok(h.checkpoint()?.distanceMeters>0);assert.equal(h.backgroundSession()?.mode,'BACKGROUND');
- h.appState('active');await flush();h.render();assert.equal(h.status(),'READY');await h.button('WZNÓW MISJĘ').props.onPress();await flush();h.fix(10);h.render();
+ h.appState('active');await flush();h.render();assert.equal(h.status(),'STARTING');assert.equal(h.begunAttempts(),1);h.fix(10);h.render();
  for(let meters=17;meters<=1522;meters+=7) h.fix(meters);
  await flush();assert.equal(h.awards(),1, `status=${h.status()} distance=${h.distance()}`);assert.equal(h.removals(),2);
 });
@@ -2964,9 +2966,9 @@ test('GPS quick foreground return waits for pending handoff and resumes the save
   await flush(); h.render();
   assert.equal(h.status(), 'CHECKING');
   pending.resolve(); await flush(); await flush(); h.render();
-  assert.equal(h.status(), 'READY');
+  assert.equal(h.status(), 'STARTING');
   assert.equal(h.distance(), distance);
-  await (h.button('ROZPOCZNIJ MISJĘ') ?? h.button('WZNÓW MISJĘ')).props.onPress(); await flush();
+  assert.equal(h.begunAttempts(),1, 'automatic resume must reuse the attempt');
   h.fix(20); h.fix(30); h.render();
   assert.equal(h.starts(), 2);
   assert.ok(h.distance() >= distance);
@@ -3160,4 +3162,20 @@ test('Awakening leaving before permission return does not auto-start an unfocuse
   await flush();h.appState('background');permission.resolve({status:'granted'});
   await pending;await flush();h.leave();h.appState('active');await flush();await flush();
   assert.equal(h.starts(),0);assert.equal(h.awards(),0);
+});
+
+test('integrated GPS resumes every foreground return without START and keeps one attempt', async t => {
+ const h=screenHarness(t);await flush();h.render();
+ await h.button('ROZPOCZNIJ MISJĘ').props.onPress();await flush();
+ h.fix(0);h.fix(20);await flush();
+ const initialDistance=h.distance();const attempt=h.backgroundSession().attemptId;
+ for(let cycle=0;cycle<3;cycle++){
+   h.appState('background');h.appState('active');await flush();await flush();h.render();
+   assert.equal(h.status(),'STARTING','foreground must reattach automatically');
+   assert.equal(h.backgroundSession().attemptId,attempt);
+   assert.ok(h.distance()>=initialDistance);assert.equal(h.begunAttempts(),1);
+   h.fix(20+cycle*20);h.fix(40+cycle*20);await flush();h.render();
+   assert.equal(h.status(),'TRACKING');assert.equal(h.starts(),cycle+2);
+   assert.equal(h.awards(),0);
+ }
 });

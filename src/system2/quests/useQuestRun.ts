@@ -192,7 +192,13 @@ export function useQuestRun(quest: RunnableQuest) {
     try {
       await awaitWithTimeout(flushAttempt());
       const access = await awaitWithTimeout(getQuestAccess(quest.id));
-      if (pendingHandoffRef.current) await awaitWithTimeout(pendingHandoffRef.current);
+      const pendingHandoff = pendingHandoffRef.current;
+      if (pendingHandoff) {
+        await awaitWithTimeout(pendingHandoff);
+        // Only release the handoff we actually awaited. A newer screen-lock
+        // handoff may already own the slot and must finish before reattaching.
+        if (pendingHandoffRef.current === pendingHandoff) pendingHandoffRef.current = null;
+      }
       let checkpoint: QuestCheckpoint | null = null;
       let backgroundSession = null;
       if (access === 'AVAILABLE' && quest.verification.type !== 'TIMER') {
@@ -234,7 +240,7 @@ export function useQuestRun(quest: RunnableQuest) {
       // A screen lock may unmount this screen while the native location task
       // keeps the attempt alive. Reattach the foreground watcher automatically
       // instead of leaving the user at READY with a running background session.
-      if (access === 'AVAILABLE' && ownsBackgroundSession && AppState.currentState === 'active' && !pendingHandoffRef.current) void startQuest();
+      if (access === 'AVAILABLE' && ownsBackgroundSession && AppState.currentState === 'active' && !pendingHandoffRef.current) void startQuestRef.current();
     } catch {
       if (focusedRef.current && session === sessionRef.current) {
         // A transient SQLite timeout must not destroy a native GPS session.
