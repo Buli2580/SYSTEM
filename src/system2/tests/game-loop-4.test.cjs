@@ -54,3 +54,24 @@ test('failure enters recovery and can resume an active quest', () => {
   state = mod.reduceGameLoop(state,'RESUME');
   assert.equal(state.phase,'ACTIVE');
 });
+
+
+test('reward plan skips optional loot and level phases when not earned', () => {
+  const rewards = load('gameLoop/rewardPlan.ts');
+  const receipt={id:'r2',realXp:10,skillXp:{},energy:1,distanceMeters:0,beforeLevel:2,afterLevel:2,beforeRank:'E',afterRank:'E',skillLevels:[],newTitles:[],worldUnlocked:false};
+  assert.deepEqual(Array.from(rewards.buildRewardPresentationPlan(receipt,false),x=>x.phase),['XP_REWARD','WORLD_REACTION','NEXT_QUEST']);
+});
+
+test('loop invariants reject reward presentation without a receipt', () => {
+  const guards=load('gameLoop/guards.ts');
+  assert.throws(()=>guards.assertLoopInvariant({phase:'XP_REWARD',questId:'q',rewardId:null,recoverable:false}));
+});
+
+test('crash during active mission restores into recovery', () => {
+  const recovery=load('gameLoop/recovery.ts');
+  const session=load('gameLoop/session.ts');
+  const saved=recovery.checkpoint({phase:'ACTIVE',questId:'q',rewardId:null,recoverable:false},'2026-09-30T00:00:00.000Z');
+  const restored=session.restoreGameLoop(saved);
+  assert.equal(restored.phase,'RECOVERY');
+  assert.equal(session.shouldResumeTracking(restored),true);
+});
