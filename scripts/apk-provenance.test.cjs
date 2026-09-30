@@ -22,6 +22,7 @@ for(const [platform,cacheOverride] of [['win32',null],['win32','C:/SYSTEM custom
  });
  const gradle=calls.find(call=>/gradlew(?:\.bat)?$/.test(call.command));assert.ok(gradle);
  assert.ok(gradle.args.includes(':app:assembleRelease'));
+ if(platform==='win32')assert.ok(gradle.options.cwd.length < 90, 'Windows native build root must leave room for CMake compiler-id and Prefab paths');
  assert.equal(gradle.options.env.GRADLE_USER_HOME,cacheOverride?path.resolve(cacheOverride):platform==='win32'?path.join(os.homedir(),'.gradle'):env.GRADLE_USER_HOME);
  assert.equal(env.GRADLE_USER_HOME,'E:/DEV/gradle','cache selection must not change the parent environment');
  assert.ok(gradle.args.includes('--no-daemon'));assert.equal(gradle.options.env.SYSTEM_EXPECTED_SHA,sha);

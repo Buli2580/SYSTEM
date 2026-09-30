@@ -26,7 +26,13 @@ function main(){
  const tools=fs.readdirSync(path.join(sdk,'build-tools')).filter(v=>/^\d+\.\d+\.\d+$/.test(v)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).at(-1);
  if(!tools)throw new Error('No stable Android build tools');
  const runId=crypto.randomUUID(),builtAt=new Date().toISOString();
- const work=path.join(root,'.cache','official-apk',identity.sha+'-'+runId);
+ // CMake compiler identification fails on Windows before linking when the
+ // checkout prefix includes both the full SHA and UUID under the repository.
+ // Keep a fresh directory on the repository drive; SHA stays in build.json
+ // and in the verified output filename. Existing work directories are retained.
+ const work=process.platform==='win32'
+  ?path.join(path.parse(root).root,'system-apk',runId)
+  :path.join(root,'.cache','official-apk',identity.sha+'-'+runId);
  const checkout=path.join(work,'source');fs.mkdirSync(checkout,{recursive:true});
  const archive=path.join(work,'source.tar');
  run('git',['archive','--format=tar','--output',archive,identity.sha],root,process.env);
