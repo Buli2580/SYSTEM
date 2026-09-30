@@ -75,3 +75,25 @@ test('crash during active mission restores into recovery', () => {
   assert.equal(restored.phase,'RECOVERY');
   assert.equal(session.shouldResumeTracking(restored),true);
 });
+
+
+test('every loop phase exposes exactly one primary action', () => {
+  const cta=load('gameLoop/cta.ts');
+  const phases=['HOME','BRIEFING','STARTING','ACTIVE','VERIFYING','COMPLETING','XP_REWARD','LOOT_REWARD','LEVEL_UP','EQUIP','WORLD_REACTION','NEXT_QUEST','RECOVERY'];
+  for(const phase of phases){
+    const action=cta.primaryGameLoopCTA({phase,questId:phase==='HOME'?null:'q',rewardId:['XP_REWARD','LOOT_REWARD','LEVEL_UP','EQUIP','WORLD_REACTION'].includes(phase)?'r':null,recoverable:phase==='RECOVERY'});
+    assert.equal(typeof action.label,'string');
+    assert.ok(action.label.length>0);
+  }
+});
+
+test('reward presentation is replayable without granting a second reward', () => {
+  const p=load('gameLoop/presentation.ts');
+  const receipt={id:'reward:1',realXp:25,skillXp:{},energy:1,distanceMeters:0,beforeLevel:2,afterLevel:3,beforeRank:'E',afterRank:'E',skillLevels:[],newTitles:[],worldUnlocked:false};
+  let view=p.createRewardPresentation(receipt,{id:'loot:1'});
+  assert.equal(p.currentRewardStep(view).phase,'XP_REWARD');
+  const same=p.createRewardPresentation(receipt,{id:'loot:1'});
+  assert.equal(same.rewardId,view.rewardId);
+  while(!p.rewardPresentationComplete(view)) view=p.advanceRewardPresentation(view);
+  assert.equal(p.rewardPresentationComplete(view),true);
+});
