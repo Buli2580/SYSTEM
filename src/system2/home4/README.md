@@ -45,3 +45,9 @@ Keep current provider/receipt behavior until a coordinated Package 1 integration
 Automated verification covers model, render tree, real action callbacks, route destinations, actual quest reward presentation, photo priority, equipment slot, image fallback, finite animation cancellation and accessibility lifecycle. Existing application, backend and script suites were also run; results are in the task report.
 
 No phone render, native GPU profiling, screenshot comparison or APK build performed. Before release check 360 px screens, landscape, large fonts, opaque portrait/boss edges, daylight readability, LOW mode, OS reduce motion, and navigation while reward overlays are present. The day tint cannot remove the sunset baked into the source illustration.
+
+## Package 3 integration update
+
+The world meaning now comes exclusively from AI GM directives through `home4/directives.ts`.
+The original local `worldPresentation` function was removed. See
+`../gameMaster/INTEGRATION-4.md` for current API contracts, validation and remaining gaps.

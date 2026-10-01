@@ -4,14 +4,15 @@ import { StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ART } from '../visual/assets';
-import { worldPresentation, WorldEvent } from './model';
+import { WorldEvent } from './model';
+import { directivePresentation } from './directives';
 
 export function SceneArt({source,fit='cover'}:{source:number;fit?:'cover'|'contain'}) {
  const [failed,setFailed]=useState<number>();
  return failed === source ? <View style={[StyleSheet.absoluteFill,{backgroundColor:'#09151e'}]} /> :
   <Image source={source} contentFit={fit} transition={0} cachePolicy="none" onError={()=>setFailed(source)} style={StyleSheet.absoluteFill} />;
 }
-export default function WorldStage({presentation:p,event,foreground}:{presentation:ReturnType<typeof worldPresentation>;event:WorldEvent;foreground:boolean}) {
+export default function WorldStage({presentation:p,event,foreground}:{presentation:ReturnType<typeof directivePresentation>;event:WorldEvent;foreground:boolean}) {
  const entrance=useSharedValue(1);
  useFocusEffect(useCallback(()=>{
   cancelAnimation(entrance);
@@ -23,10 +24,10 @@ export default function WorldStage({presentation:p,event,foreground}:{presentati
  const near=useAnimatedStyle(()=>({transform:[{translateX:-(1-entrance.value)*p.parallax},{translateY:(1-entrance.value)*8}]}));
  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
   <Animated.View testID="world-background" style={[s.background,far]}><SceneArt source={ART.home}/></Animated.View>
-  <View testID="world-lighting" style={[StyleSheet.absoluteFill,{backgroundColor:p.night?'rgba(1,6,18,.36)':'rgba(40,28,16,.12)'}]} />
-  <View style={[StyleSheet.absoluteFill,{backgroundColor:p.boss==='THREAT'?'rgba(100,12,28,.12)':p.tier>=2?'rgba(30,80,100,.10)':'transparent'}]} />
-  {p.boss==='THREAT' && <Animated.View testID="world-boss" style={[s.boss,near]}><SceneArt source={ART.boss} fit="contain"/></Animated.View>}
-  <View testID="world-fog" style={[s.fog,{opacity:p.night?.22:.1}]} />
+  <View testID="world-lighting" style={[StyleSheet.absoluteFill,{backgroundColor:p.warm?'rgba(155,104,26,.16)':p.night?'rgba(1,6,18,.36)':'rgba(40,28,16,.12)'}]} />
+  <View style={[StyleSheet.absoluteFill,{backgroundColor:p.boss==='THREAT'&&!p.calm?'rgba(100,12,28,.12)':p.tier>=2?'rgba(30,80,100,.10)':'transparent'}]} />
+  {p.boss==='THREAT' && <Animated.View testID="world-boss" style={[s.boss,near,{opacity:p.bossOpacity}]}><SceneArt source={ART.boss} fit="contain"/></Animated.View>}
+  <View testID="world-fog" style={[s.fog,{opacity:p.weather==='CLEAR'?0:p.night?.22:.1}]} />
   <Animated.View testID="world-weather" style={[StyleSheet.absoluteFill,near]}>
    {Array.from({length:p.particles},(_,i)=><View key={i} style={[s.spark,{left:`${12+i*15}%`,top:`${28+(i*13)%44}%`,backgroundColor:p.weather==='ASH'?'#dca775':'#7ccad9'}]}/>)}
   </Animated.View>

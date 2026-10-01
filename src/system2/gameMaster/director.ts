@@ -1,7 +1,8 @@
+import {isTechnicalFailure} from './history';
 import type { PlayerProfile, SkillKey } from '../core';
 import type { DailyState } from '../storage/daily';
 import type { StoryState } from '../story/types';
-import { getQuest } from '../quests/catalog';
+import { AWAKENING_QUESTS, getQuest } from '../quests/catalog';
 import type { RunnableQuest } from '../quests/types';
 import type { Plan, UserModel } from '../adaptive/engine';
 
@@ -15,9 +16,9 @@ export function directNextMission(input:{player:PlayerProfile;daily:DailyState|n
  const pace:GameMasterDecision['difficulty']=recovery?'RECOVERY':player.streak>=7?'PUSH':'STEADY';
  if(activeQuestId){const quest=getQuest(activeQuestId,story?.boss?.difficulty);if(quest)return{quest,difficulty:'STEADY',message:'MISSION IN PROGRESS // FINISH WHAT YOU STARTED',reason:'ACTIVE'};}
  const available=(daily?.questIds??[]).map(id=>getQuest(id,story?.boss?.difficulty)).filter((q):q is RunnableQuest=>Boolean(q)&&!completedQuestIds.includes(q!.id));
- if(!awakeningCompleted){const ids=['first_movement','focus_protocol','final_trial'];const quest=ids.map(id=>getQuest(id,story?.boss?.difficulty)).find((q):q is RunnableQuest=>Boolean(q)&&!completedQuestIds.includes(q!.id))??null;return{quest,difficulty:'STEADY',message:quest?'SYSTEM // AWAKENING PATH DETECTED':'SYSTEM // AWAKENING COMPLETE',reason:'STORY'};}
- const failureCount=recentAttempts.filter(a=>['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(a.result)).length;
- if(recentAttempt&&['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(recentAttempt.result)){const retry=available.find(q=>q.id===recentAttempt.questId);if(retry)return{quest:retry,difficulty:'RECOVERY',message:failureCount>=2?'SYSTEM // FAILURE PATTERN DETECTED // DIFFICULTY REDUCED':'SYSTEM // FAILURE ANALYZED // RECOVERY ROUTE',reason:'ATTEMPT_RECOVERY'};}
+ if(!awakeningCompleted){const quest=AWAKENING_QUESTS.find((q):q is RunnableQuest=>Boolean(q)&&!completedQuestIds.includes(q!.id))??null;return{quest,difficulty:'STEADY',message:quest?'SYSTEM // AWAKENING PATH DETECTED':'SYSTEM // AWAKENING COMPLETE',reason:'STORY'};}
+ const failureCount=recentAttempts.filter(a=>!isTechnicalFailure(a.reason)&&['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(a.result)).length;
+ if(recentAttempt&&!isTechnicalFailure(recentAttempt.reason)&&['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(recentAttempt.result)){const retry=available.find(q=>q.id===recentAttempt.questId);if(retry)return{quest:retry,difficulty:'RECOVERY',message:failureCount>=2?'SYSTEM // FAILURE PATTERN DETECTED // DIFFICULTY REDUCED':'SYSTEM // FAILURE ANALYZED // RECOVERY ROUTE',reason:'ATTEMPT_RECOVERY'};}
  if(!recovery&&socialSignal?.outcome==='SUCCESS'&&socialSignal.completedAt&&Date.now()-new Date(socialSignal.completedAt).getTime()<86400000&&available.length){return{quest:available[0],difficulty:'PUSH',message:'SYSTEM // '+socialSignal.mode+' VICTORY CONFIRMED // CONTINUE MOMENTUM',reason:'SOCIAL'};}
  if(player.streak===0&&available.length){const quest=available.find(q=>q.verification.type==='TIMER')??available[0];return{quest,difficulty:'RECOVERY',message:'STREAK LOST // RECOVERY MISSION SELECTED',reason:'STREAK_RECOVERY'};}
  const preferredSkill = gameMasterProfile?.path==='MOTION'?'VIT':gameMasterProfile?.path==='FOCUS'?'INT':gameMasterProfile?.path==='DISCIPLINE'?'WIL':null;

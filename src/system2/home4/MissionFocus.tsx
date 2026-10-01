@@ -1,10 +1,11 @@
 import {Pressable,StyleSheet,Text,View} from 'react-native';
 import {MissionAction} from './model';
-export default function MissionFocus({title,subtitle,action,progress,total,reward}:{title:string;subtitle:string;action:MissionAction;progress:number;total:number;reward:number}) {
+export default function MissionFocus({title,subtitle,action,progress,total,reward,mission,onChoice}:{title:string;subtitle:string;action:MissionAction;progress:number;total:number;reward:number;mission?:import('../gameMaster/types').MissionDirective;onChoice?:()=>void}) {
  return <View testID="home-mission-focus" style={s.root}>
-  <Text style={s.kicker}>MISJA // {progress}/{total}</Text>
+  <Text style={s.kicker}>{mission?`${mission.campaign.arc} · ${mission.campaign.chain} · ${mission.campaign.stage}/5`:`MISJA // ${progress}/${total}`}</Text>
   <Text style={s.title}>{title}</Text>
   <Text style={s.subtitle}>{subtitle}</Text>
+  {mission&&onChoice&&<Pressable accessibilityRole="button" accessibilityLabel="Zmień kierunek następnych misji" onPress={onChoice} style={{minHeight:44,justifyContent:'center'}}><Text style={s.subtitle}>Kierunek: {mission.campaign.choice} · zmień →</Text></Pressable>}
   <Pressable accessibilityRole="button" accessibilityState={{disabled:!!action.disabled}} disabled={action.disabled} onPress={action.onPress} style={({pressed})=>[s.action,pressed&&{opacity:.8}]}>
    <Text style={s.label}>{action.label}</Text><Text style={s.label}>+{reward} XP →</Text>
   </Pressable>

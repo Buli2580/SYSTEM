@@ -1304,3 +1304,14 @@ export function completeMoveActivity(evidence:MoveCompletionEvidence):Promise<Mo
   return result;
  });
 }
+
+// Read-only outcome ingestion uses canonical SQLite attempts/completions. The
+// presentation campaign shares profile transactions and is cleared by resetData.
+export function loadGameMasterMemory(choice?:import('../gameMaster/types').CampaignChoice, expectedPlayerId?:string) {
+ return profileTransaction(async txn=>{
+  const snapshot=await snapshotInTransaction(txn);
+  if(expectedPlayerId&&snapshot.player.id!==expectedPlayerId)throw new Error('GM_PROFILE_CHANGED');
+  const {reconcileGameMaster}=await import('./gameMaster');
+  return reconcileGameMaster(txn,snapshot.player,new Date().toISOString(),snapshot.gameMasterProfile?.path,choice);
+ });
+}
