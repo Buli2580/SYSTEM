@@ -26,7 +26,8 @@ function main(){
  const tools=fs.readdirSync(path.join(sdk,'build-tools')).filter(v=>/^\d+\.\d+\.\d+$/.test(v)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).at(-1);
  if(!tools)throw new Error('No stable Android build tools');
  const runId=crypto.randomUUID(),builtAt=new Date().toISOString();
- const work=path.join(root,'.cache','official-apk',identity.sha+'-'+runId);
+ // Keep Windows native build paths short; retain the existing location elsewhere.
+ const work=process.platform==='win32'?path.join('E:\\','SB',runId):path.join(root,'.cache','official-apk',identity.sha+'-'+runId);
  const checkout=path.join(work,'source');fs.mkdirSync(checkout,{recursive:true});
  const archive=path.join(work,'source.tar');
  run('git',['archive','--format=tar','--output',archive,identity.sha],root,process.env);
