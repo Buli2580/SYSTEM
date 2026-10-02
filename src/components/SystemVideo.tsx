@@ -5,7 +5,9 @@ import {
 } from 'expo-video';
 
 import {
+    useCallback,
     useEffect,
+    useRef,
 } from 'react';
 
 import {
@@ -39,23 +41,28 @@ export default function SystemVideo({
       }
     );
 
-  useEventListener(
-    player,
-    'playToEnd',
-    onFinish
-  );
+  const completed = useRef(false);
+  const finish = useCallback(() => {
+    if (completed.current) return;
+    completed.current = true;
+    onFinish();
+  }, [onFinish]);
+
+  useEventListener(player, 'playToEnd', finish);
+  // The bundled video is presentation only: a decoder failure must not block onboarding.
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status === 'error') finish();
+  });
 
   useEffect(() => {
     try {
       player.currentTime = 0;
       player.play();
     } catch (error) {
-      console.log(
-        'BŁĄD VIDEO',
-        error
-      );
+      console.warn('SYSTEM boot video unavailable', error);
+      finish();
     }
-  }, []);
+  }, [player, finish]);
 
   return (
     <View style={styles.screen}>
@@ -81,7 +88,7 @@ export default function SystemVideo({
           style={styles.button}
           onPress={() => {
             player.pause();
-            onFinish();
+            finish();
           }}
         >
           <Text style={styles.buttonText}>
