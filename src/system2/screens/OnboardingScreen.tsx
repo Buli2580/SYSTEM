@@ -10,24 +10,31 @@ import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
 import { playSceneMusic, stopMusic } from '../identity/audio';
+import SystemVideo from '../../components/SystemVideo';
+import AudioEnableAction from '../components/AudioEnableAction';
 
 const PATHS=[['DISCIPLINE','WIL','Build consistency and finish what you start.'],['MOTION','VIT','Move, train and strengthen your real body.'],['FOCUS','INT','Learn, create and sharpen attention.']] as const;
 
 const pages=[
  ['SYSTEM INITIALIZING','A NEW PLAYER HAS BEEN DETECTED','Twoje prawdziwe działania będą rozwijały postać. SYSTEM obserwuje postęp — nie musisz zarządzać technicznym panelem.'],
- ['PLAYER PROFILE','REAL LEVEL 1 · RANK E','Każdy zaczyna od tego samego miejsca. Wybierz pseudonim — tożsamość gracza może pozostać anonimowa.'],
+ ['PLAYER PROFILE','ORIGIN · 0 XP · RANK E','Każdy zaczyna od tego samego miejsca. Wybierz pseudonim — tożsamość gracza może pozostać anonimowa.'],
  ['DIRECTIVE','WHAT DO YOU WANT TO CHANGE?','SYSTEM będzie dobierał misje do Twojego celu, postępu i wykonanych prób. Zacznij od kierunku — reszta stanie się questami.'],
  ['FIRST MISSION','REAL ACTION → VERIFY → XP','Po wejściu do SYSTEM-u dostaniesz pierwszą misję. Wykonaj ją, zdobądź XP i rozpocznij Awakening.'],
 ] as const;
 
 export default function OnboardingScreen(){
+ const [bootDone,setBootDone]=useState(false);
  const [step,setStep]=useState(0),[name,setName]=useState(''),[goal,setGoal]=useState(''),[path,setPath]=useState(0),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false);
  const [birthDate,setBirthDate]=useState('');
  const busyRef=useRef(false),insets=useSafeAreaInsets(),router=useRouter(); const {finishOnboarding}=useSystem();
  useFocusEffect(useCallback(()=>{playSceneMusic('AWAKENING');return stopMusic;},[]));
- async function enter(){if(busyRef.current)return;if(!goal.trim()){setError('Wpisz główny cel, żeby GAME MASTER mógł dobrać pierwszą ścieżkę.');return;}busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name,{goal,path:PATHS[path][0],birthDate:validateBirthDate(birthDate)});router.replace('/quests');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
+ async function enter(){if(busyRef.current)return;if(!goal.trim()){setError('Wpisz główny cel, żeby GAME MASTER mógł dobrać pierwszą ścieżkę.');return;}busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name,{goal,path:PATHS[path][0],birthDate:validateBirthDate(birthDate)});router.replace('/');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
+ // Only fresh profiles reach this screen: SQLite onboarding_complete is the replay guard.
+ // An interrupted cinematic restarts safely; no profile or XP is mutated by playback.
+ if(!bootDone)return <SystemVideo source={require('../../../assets/video/system_boot.mp4')} title="SYSTEM" subtitle="FIRST AWAKENING // INITIALIZING" buttonText="POMIŃ INTRO →" onFinish={()=>setBootDone(true)}/>;
  return <KeyboardAvoidingView style={s.root} behavior={Platform.OS==='ios'?'padding':'height'}>
   <ArtBackdrop source={ART.intro}/>
+  <AudioEnableAction cue="AWAKENING"/>
   <View pointerEvents="none" style={s.energy}><View style={s.ring}/><View style={s.core}/></View>
   <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content,{paddingTop:insets.top+32,paddingBottom:insets.bottom+32}]}>
    <Animated.View key={step} entering={FadeInDown.duration(360)}>
