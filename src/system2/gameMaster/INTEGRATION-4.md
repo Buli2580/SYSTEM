@@ -1,5 +1,7 @@
 # AI Game Master 4.0 × HOME/WORLD — implementation and integration report
 
+> Raport historyczny Paczki 3. Aktualny stan integracji 1+2+3, 663 testy i pozostałe ograniczenia opisuje [CORE-INTEGRATION-4-REPORT.md](../../../CORE-INTEGRATION-4-REPORT.md).
+
 Branch: `feature/ai-gm-home-integration`.
 Worktree: `C:\SYSTEM\SYSTEM-ai-gm-home`.
 Base: `f1c288cc9f9b0ac789682ad8654bfd45eeccd0da` (Package 2).
