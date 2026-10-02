@@ -103,6 +103,7 @@ test('SQLite memory and campaign recover after restart, keep quality and ignore 
  const {DatabaseSync}=require('node:sqlite'),sqlite=new DatabaseSync(':memory:');
  sqlite.exec('CREATE TABLE app_state(key TEXT PRIMARY KEY,value TEXT);CREATE TABLE quest_attempts(attempt_id TEXT,quest_id TEXT,ended_at TEXT,result TEXT,reason TEXT,duration REAL);CREATE TABLE quest_completions(quest_id TEXT,completed_at TEXT);CREATE TABLE verified_events(quest_id TEXT,payload TEXT,created_at TEXT);');
  const db={getAllAsync:async(q,...p)=>sqlite.prepare(q).all(...p),getFirstAsync:async(q,...p)=>sqlite.prepare(q).get(...p),runAsync:async(q,...p)=>sqlite.prepare(q).run(...p)};
+ sqlite.exec('CREATE TABLE story_events(id TEXT PRIMARY KEY,type TEXT,title TEXT,subtitle TEXT,created_at TEXT,consumed INTEGER);');
  const player=fixture().player,key='daily:2026-09-02:g1_learn_read_easy';
  const store=load('storage/gameMaster');
  await store.reconcileGameMaster(db,player,'2026-09-01T12:00:00Z');
@@ -123,7 +124,59 @@ test('canonical Director returns the real Awakening id for a new adult',()=>{
  const input=fixture({completedQuestIds:[],awakeningCompleted:false,daily:null});
  assert.equal(gm().getGameMasterState(input).mission.quest.id,'first_movement_v1');
 });
-test('minor onboarding cannot silently bypass unavailable guardian-aware mission',()=>{
+test('minor onboarding selects a canonical safe indoor mission without bypassing safety',()=>{
  const input=fixture({completedQuestIds:[],awakeningCompleted:false,daily:null});input.player.birthDate='2019-01-01';
- assert.equal(gm().getGameMasterState(input).mission.quest,null);
+ const quest=gm().getGameMasterState(input).mission.quest;
+ assert.equal(quest.id,'awakening_observe_v1');
+ assert.equal(quest.verification.type,'TIMER');
+ assert.equal(quest.verification.minimumDurationSeconds,300);
+ assert.equal(quest.activityType,undefined);
+});
+
+test('GM schedules only the unlocked canonical Boss stage alongside Daily and Weekly',()=>{
+ const input=fixture({story:{worldLinkComplete:true,bossComplete:false,boss:{difficulty:1,focus_at:null,move_at:null}}});
+ const first=gm().getGameMasterState(input);
+ assert.equal(first.mission.quest.id,'wall_focus_v1');
+ input.story.boss.focus_at=input.now;
+ const second=gm().getGameMasterState(input);
+ assert.ok(['wall_walk_v1','wall_run_v1'].includes(second.mission.quest.id));
+ assert.ok(second.explanation.some(x=>x.includes('Weekly 2/5')));
+ input.story.boss.move_at=input.now;
+ assert.ok(!gm().getGameMasterState(input).mission.nextPossibleQuestIds.some(id=>id.startsWith('wall_')));
+});
+
+test('comeback uses the persisted recovery Daily; no synthetic ID or reward is created',()=>{
+ const id='daily:2026-09-10:g1_focus_return_easy:a2:1:120';
+ const input=fixture({history:[outcome(1)],daily:{questIds:[id],weeklyCompleted:1,weeklyTarget:3}});
+ const state=gm().getGameMasterState(input);
+ assert.equal(state.mission.quest.id,id);assert.equal(state.mission.comeback,true);
+ assert.equal(state.mission.quest.rewards.realXp,templates.generatedQuest(id).rewards.realXp);
+});
+
+test('exhausted Daily has no synthetic reward-bearing fallback, online or offline',()=>{
+ const input=fixture();input.completedQuestIds.push(...input.daily.questIds);
+ const before=JSON.stringify(input);
+ for(let i=0;i<2;i++){
+  const state=gm().getGameMasterState(input);
+  assert.equal(state.mission.quest,null);assert.equal(state.mission.nextPossibleQuestIds.length,0);
+ }
+ assert.equal(JSON.stringify(input),before);
+});
+
+test('historical attempt parameters and Story consequences survive balance changes and reconciliation',async()=>{
+ const {DatabaseSync}=require('node:sqlite'),sqlite=new DatabaseSync(':memory:');
+ sqlite.exec('CREATE TABLE app_state(key TEXT PRIMARY KEY,value TEXT);CREATE TABLE quest_attempts(attempt_id TEXT,quest_id TEXT,ended_at TEXT,result TEXT,reason TEXT,duration REAL);CREATE TABLE quest_completions(quest_id TEXT,completed_at TEXT);CREATE TABLE verified_events(quest_id TEXT,payload TEXT,created_at TEXT);CREATE TABLE story_events(id TEXT PRIMARY KEY,type TEXT,title TEXT,subtitle TEXT,created_at TEXT,consumed INTEGER);');
+ const db={getAllAsync:async(q,...p)=>sqlite.prepare(q).all(...p),getFirstAsync:async(q,...p)=>sqlite.prepare(q).get(...p),runAsync:async(q,...p)=>sqlite.prepare(q).run(...p)};
+ try {
+  const store=load('storage/gameMaster');await store.reconcileGameMaster(db,fixture().player,'2026-09-01T00:00:00Z');
+  const quest=load('quests/catalog').getQuest('wall_focus_v1',5);
+  await store.captureMissionParameters(db,'attempt-boss',quest);
+  sqlite.prepare('INSERT INTO quest_attempts VALUES (?,?,?,?,?,?)').run('attempt-boss',quest.id,'2026-09-02T10:00:00Z','FAILED','VERIFICATION_REJECTED',1000);
+  const first=await store.reconcileGameMaster(db,fixture().player,'2026-09-03T00:00:00Z');
+  assert.equal(first.history[0].difficulty,5);assert.equal(first.history[0].plannedMinutes,30);assert.equal(first.history[0].verification,null);
+  assert.equal(first.campaign.consequence,'REST');
+  await store.reconcileGameMaster(db,fixture().player,'2026-09-04T00:00:00Z');
+  assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM story_events WHERE type='GM_OUTCOME'").get().n,1);
+  assert.match(sqlite.prepare('SELECT subtitle FROM story_events').get().subtitle,/REST/);
+ }finally{sqlite.close();}
 });

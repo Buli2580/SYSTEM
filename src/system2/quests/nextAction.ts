@@ -4,7 +4,7 @@ import type { PlayerProfile } from '../core';
 import type { PlayerAchievementState } from '../achievements/types';
 import type { DailyState } from '../storage/daily';
 import type { StoryState } from '../story/types';
-import { AWAKENING_QUESTS, getQuest } from './catalog';
+import { nextAwakeningQuest, getQuest } from './catalog';
 
 export type NextAction = {
   kind: 'RESUME' | 'AWAKENING' | 'DAILY' | 'STORY' | 'BOSS' | 'WORLD_EVENT' | 'ACHIEVEMENTS' | 'PROGRESSION' | 'GOAL' | 'JOURNEY';
@@ -33,7 +33,7 @@ export function getNextAction(input: NextActionInput): NextAction {
   }
 
   if (!input.awakeningCompleted) {
-    const next = AWAKENING_QUESTS.find(q => !input.completedQuestIds.includes(q.id));
+    const next = nextAwakeningQuest(input.player.birthDate,input.completedQuestIds);
     if (next) {
       const rematch = input.failedQuestIds?.includes(next.id);
       return {

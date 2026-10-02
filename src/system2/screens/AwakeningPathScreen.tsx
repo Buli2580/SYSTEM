@@ -6,7 +6,7 @@ import SystemPage from '../components/SystemPage';
 import Action from '../components/Action';
 import AudioEnableAction from '../components/AudioEnableAction';
 import { useSystem } from '../state/SystemProvider';
-import { AWAKENING_QUESTS } from '../quests/catalog';
+import { nextAwakeningQuest,awakeningQuestsForPlayer,getQuestStatus } from '../quests/catalog';
 import { journeyPlan } from '../journeys/model';
 import { GOAL_LABELS } from '../goals/model';
 import { SYSTEM_COLORS as C } from '../core';
@@ -23,7 +23,7 @@ export default function AwakeningPathScreen() {
 
   const journey = goal ? system.journeys.find(item => item.goalId === goal.id) : undefined;
   const stages = goal ? journeyPlan(goal.category) : [];
-  const firstQuest = AWAKENING_QUESTS.find(quest => !system.completedQuestIds.includes(quest.id));
+  const firstQuest = nextAwakeningQuest(system.player.birthDate,system.completedQuestIds);
 
   useEffect(() => {
     if (!goal || system.aiGameMaster || system.aiLoading || requested.current) return;
@@ -96,9 +96,10 @@ export default function AwakeningPathScreen() {
 
     <View style={styles.panel}>
       <Text style={styles.code}>INITIAL QUEST LINE // AWAKENING</Text>
-      {AWAKENING_QUESTS.map((quest, index) => {
-        const completed = system.completedQuestIds.includes(quest.id);
-        const previousDone = index === 0 || system.completedQuestIds.includes(AWAKENING_QUESTS[index - 1].id);
+      {awakeningQuestsForPlayer(system.player.birthDate).map((quest, index) => {
+        const availability = getQuestStatus(quest.id,system.completedQuestIds);
+        const completed = availability==='COMPLETED';
+        const previousDone = availability!=='LOCKED';
         const status = completed ? 'DONE' : previousDone ? 'READY' : 'LOCKED';
         return <Pressable key={quest.id} disabled={status === 'LOCKED'}
           onPress={() => router.replace({ pathname: '/quest', params: { questId: quest.id } })}

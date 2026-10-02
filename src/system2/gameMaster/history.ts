@@ -1,4 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';import type {GoalCampaign} from './planner';const KEY='system.gm.history.v1';export type CampaignHistoryEntry={id:string;createdAt:string;campaign:GoalCampaign};export async function listCampaignHistory():Promise<CampaignHistoryEntry[]>{try{return JSON.parse(await AsyncStorage.getItem(KEY)||'[]')}catch{return[]}}export async function appendCampaignHistory(c:GoalCampaign){const rows=await listCampaignHistory();const entry={id:Date.now().toString(36),createdAt:new Date().toISOString(),campaign:c};await AsyncStorage.setItem(KEY,JSON.stringify([entry,...rows].slice(0,20)));return entry;}
+import type {GoalCampaign} from './planner';
+const KEY='system.gm.history.v1';
+export type CampaignHistoryEntry={id:string;createdAt:string;campaign:GoalCampaign};
+// Legacy campaign previews load their native store only when explicitly used.
+// Canonical SQLite mission history below has no AsyncStorage runtime dependency.
+export async function listCampaignHistory():Promise<CampaignHistoryEntry[]>{try{const {default:storage}=await import('@react-native-async-storage/async-storage');return JSON.parse(await storage.getItem(KEY)||'[]')}catch{return[]}}
+export async function appendCampaignHistory(c:GoalCampaign){const rows=await listCampaignHistory();const entry={id:Date.now().toString(36),createdAt:new Date().toISOString(),campaign:c};const {default:storage}=await import('@react-native-async-storage/async-storage');await storage.setItem(KEY,JSON.stringify([entry,...rows].slice(0,20)));return entry;}
 
 import type { RunnableQuest } from '../quests/types';
 import type { MissionOutcome } from './types';

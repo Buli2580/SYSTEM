@@ -27,6 +27,9 @@ export function useGameMaster(input:Omit<GameMasterInput,'campaign'|'history'|'n
   if(!input.ready||lastTelemetry.current===fingerprint)return;
   lastTelemetry.current=fingerprint;
   void queueTelemetry({event_type:'GM_DECISION',event_properties:state.telemetry}).catch(()=>{});
+  if(state.mission.comeback)void queueTelemetry({event_type:'GM_COMEBACK',event_properties:state.telemetry}).catch(()=>{});
+  if(state.mission.recovery)void queueTelemetry({event_type:'GM_RECOVERY_QUEST',event_properties:state.telemetry}).catch(()=>{});
+  void queueTelemetry({event_type:'GM_FALLBACK',event_properties:{...state.telemetry,source:'LOCAL_CANONICAL'}}).catch(()=>{});
  },[input.ready,fingerprint]);
  return {state,error,refresh};
 }

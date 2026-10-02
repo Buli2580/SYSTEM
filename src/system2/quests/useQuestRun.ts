@@ -33,7 +33,7 @@ export function useQuestRun(quest: RunnableQuest) {
   const isTimer = quest.verification.type === 'TIMER';
   const hasTimer = quest.verification.type !== 'GPS_DISTANCE';
   const targetSeconds = quest.verification.type !== 'GPS_DISTANCE' ? quest.verification.minimumDurationSeconds : 0;
-  const { completeVerifiedQuest, ready, error: databaseError, refreshPlayer, setActiveQuestId, daily } = useSystem();
+  const { gameLoop, completeVerifiedQuest, ready, error: databaseError, refreshPlayer, setActiveQuestId, daily } = useSystem();
   const [status, setStatus] = useState<RunStatus>('CHECKING');
   const [error, setError] = useState<string | null>(null);
   const [distance, setDistance] = useState(0);
@@ -102,7 +102,7 @@ export function useQuestRun(quest: RunnableQuest) {
   }, [flushAttempt, refreshPlayer]);
 
   const persistCheckpoint = useCallback(async (force = false) => {
-    if (quest.verification.type === 'TIMER' || distanceRef.current <= 0) return;
+    if (isTimer ? (timerRef.current?.sample().seconds ?? 0) <= 0 : distanceRef.current <= 0) return;
     const now = Date.now();
     if (!force && distanceRef.current - checkpointWriteRef.current.distance < 10 &&
         now - checkpointWriteRef.current.at < 5000) return;
@@ -124,7 +124,7 @@ export function useQuestRun(quest: RunnableQuest) {
     checkpointRef.current = checkpoint;
     checkpointWriteRef.current = { distance: checkpoint.distanceMeters, at: now };
     await saveQuestCheckpoint(checkpoint);
-  }, [quest.id, quest.verification.type]);
+  }, [quest.id, quest.verification.type, isTimer]);
   const chooseExtendedGoal = (value:boolean) => {
     if (statusRef.current !== 'READY' || quest.category !== 'DAILY' || !quest.activityType) return;
     extendedRef.current = value; setExtendedGoal(value);
@@ -133,8 +133,9 @@ export function useQuestRun(quest: RunnableQuest) {
   const transition = useCallback((next: RunStatus) => {
     statusRef.current = next;
     setStatus(next);
+    gameLoop?.observeQuest(next, quest.id);
     traceStartup(next);
-  }, [traceStartup]);
+  }, [traceStartup, gameLoop?.observeQuest, quest.id]);
 
   const stopVerification = useCallback(() => {
     if (statusRef.current === 'STARTING') traceStartup('invalidate-start');
@@ -201,10 +202,10 @@ export function useQuestRun(quest: RunnableQuest) {
       }
       let checkpoint: QuestCheckpoint | null = null;
       let backgroundSession = null;
-      if (access === 'AVAILABLE' && quest.verification.type !== 'TIMER') {
+      if (access === 'AVAILABLE') {
         [checkpoint, backgroundSession] = await Promise.all([
           awaitWithTimeout(loadQuestCheckpoint(quest.id)),
-          awaitWithTimeout(loadBackgroundQuestSession()),
+          isTimer ? Promise.resolve(null) : awaitWithTimeout(loadBackgroundQuestSession()),
         ]);
       } else if (access === 'COMPLETED' || access === 'LOCKED') {
         backgroundSessionActiveRef.current = false;
@@ -263,6 +264,7 @@ export function useQuestRun(quest: RunnableQuest) {
       resumeStartupRef.current = false;
       if (['STARTING','TRACKING'].includes(statusRef.current)) {
         if (isTimer) {
+          void persistCheckpoint(true).catch(() => undefined);
           endAttempt('INTERRUPTED','LEFT_SCREEN');
           stopVerification();
         } else if (backgroundSessionActiveRef.current) {
@@ -403,6 +405,7 @@ export function useQuestRun(quest: RunnableQuest) {
         const sample = timerRef.current?.sample();
         if (!sample) return;
         setDuration(sample.seconds);
+        if (isTimer && !sample.verified) void persistCheckpoint().catch(() => undefined);
         const evidence = buildEvidence(quest, distanceRef.current, sample.seconds, scoreRef.current);
         if (evidence) void finishQuest(evidence);
       } else if (startTimeRef.current) setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
@@ -519,7 +522,7 @@ export function useQuestRun(quest: RunnableQuest) {
     setActiveQuestId(quest.id);
     const session = sessionRef.current;
     const active = () => focusedRef.current && session === sessionRef.current;
-    const checkpoint = quest.verification.type === 'TIMER' ? null : checkpointRef.current;
+    const checkpoint = checkpointRef.current;
     distanceRef.current = checkpoint?.distanceMeters ?? 0;
     scoreRef.current = checkpoint?.verificationScore ?? 100;
     riskRef.current = EMPTY_GPS_RISK;

@@ -1,4 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';import type {GoalCampaign} from './planner';const KEY='system.gm.campaign.v1';export async function saveCampaign(c:GoalCampaign){await AsyncStorage.setItem(KEY,JSON.stringify(c));}export async function loadCampaign():Promise<GoalCampaign|null>{const raw=await AsyncStorage.getItem(KEY);if(!raw)return null;try{return JSON.parse(raw) as GoalCampaign}catch{return null}}export async function clearCampaign(){await AsyncStorage.removeItem(KEY);}
+import type {GoalCampaign} from './planner';
+const KEY='system.gm.campaign.v1';
+export async function saveCampaign(c:GoalCampaign){const {default:storage}=await import('@react-native-async-storage/async-storage');await storage.setItem(KEY,JSON.stringify(c));}
+export async function loadCampaign():Promise<GoalCampaign|null>{const {default:storage}=await import('@react-native-async-storage/async-storage');const raw=await storage.getItem(KEY);if(!raw)return null;try{return JSON.parse(raw) as GoalCampaign}catch{return null}}
+export async function clearCampaign(){const {default:storage}=await import('@react-native-async-storage/async-storage');await storage.removeItem(KEY);}
 
 import type {CampaignState,CampaignChoice,MissionOutcome,CampaignView} from './types';
 export function newCampaign(playerId:string,startedAt:string,choice:CampaignChoice='DISCIPLINE'):CampaignState {

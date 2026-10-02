@@ -1,3 +1,4 @@
+import {useGameLoopController} from '../gameLoop/useGameLoopController';
 import { moveAgeMode } from '../move/age';
 import type { LifeState } from '../adaptive/engine';
 import type { InventoryItem } from '../core/inventory';
@@ -27,6 +28,7 @@ import { activeWorldEvent, formatWorldEventRemaining } from '../world/events';
 import { STREAK_MILESTONES } from '../daily/streak';
 
 type SystemContextValue = db.SystemSnapshot & {
+  gameLoop: ReturnType<typeof useGameLoopController>;
   createPlayerGoal: (input: Parameters<typeof db.createPlayerGoal>[0], operationKey?: string) => Promise<void>;
   createFirstGoalAndPrepareAwakening: (input: Parameters<typeof db.createPlayerGoal>[0]) => Promise<AIGameMasterResponse>;
   prepareAwakeningDirection: (rawGoal: string) => Promise<AIGameMasterResponse>;
@@ -65,6 +67,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     awakeningPending: false, onboardingComplete: false, settings: DEFAULT_SETTINGS, titles: ['UNAWAKENED'],
     gameMasterProfile: null, recentAttempt: null, recentAttempts: [], guardianApproval: null,
   }));
+  const gameLoop = useGameLoopController(snapshot.player.id);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
@@ -214,9 +217,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         if (await awaitWithTimeout(db.hasAvatarCleanupPending())) {
           removeAllAvatars(); await awaitWithTimeout(db.acknowledgeAvatarCleanup());
         }
-        const [next, backgroundQuest] = await awaitWithTimeout(Promise.all([
+        const [next, backgroundQuest, checkpoint] = await awaitWithTimeout(Promise.all([
           db.loadSystemState(),
           db.loadBackgroundQuestSession().catch(() => null),
+          db.loadResumableQuestCheckpoint().catch(() => null),
         ]));
         let resumableBackground = backgroundQuest;
         if (backgroundQuest) {
@@ -234,6 +238,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           setSnapshot(next); setInventory(items); setSocialSessions(sessions);
           setActiveQuestId(current => {
             if (resumableBackground?.questId) return resumableBackground.questId;
+            if (checkpoint?.questId) return checkpoint.questId;
             if (!current || next.completedQuestIds.includes(current)) return null;
             const quest = getQuest(current);
             if (!quest) return null;
@@ -301,6 +306,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const dismissLastReward = useCallback(() => setLastReward(null), []);
   const completeVerifiedQuest = useCallback(async (input: db.CompleteQuestInput) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
+    gameLoop.observe({phase:'COMPLETING',questId:input.questId,rewardId:null,recoverable:false});
     const epoch = ++generation.current; refreshRef.current = null;
     const result = await db.completeVerifiedQuest(input);
     if (epoch === generation.current) {
@@ -312,7 +318,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       if (result.awakeningCompleted && result.daily && !result.daily.clockAnomaly) void runAIGameMaster(result, epoch, true);
     }
     return result;
-  }, [presentReward, runAIGameMaster, syncAchievements]);
+  }, [presentReward, runAIGameMaster, syncAchievements, gameLoop.observe]);
   const applySnapshot = useCallback(async (operation: () => Promise<db.SystemSnapshot>) => {
     if (resetting.current) throw new Error('Trwa reset SYSTEMU.');
     const epoch = ++generation.current; refreshRef.current = null;
@@ -376,7 +382,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const latestRaidVictory = socialSessions.RAID?.state==='COMPLETE' && socialSessions.RAID.reward?.claimed && socialSessions.RAID.completedAt && Date.now()-new Date(socialSessions.RAID.completedAt).getTime()<300000 ? socialSessions.RAID : null;
   const socialSignal = (['RAID','GUILD','PVP'] as SocialMode[]).map(mode=>socialSessions[mode]).filter((s):s is SocialSession=>Boolean(s?.completedAt)).sort((a,b)=>(b.completedAt??'').localeCompare(a.completedAt??''))[0]??null;
   const saveSocialSession=useCallback(async(session:SocialSession)=>setSocialSessions(await awaitWithTimeout(db.saveSocialSession(session))),[]);
-  return <SystemContext.Provider value={{ ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
+  return <SystemContext.Provider value={{gameLoop, ...snapshot, ready, error, activeQuestId, setActiveQuestId, refreshPlayer,
     inventory, refreshInventory, equipItem, unequipItem, claimSocialSession, latestRaidVictory, socialSignal, socialSessions, saveSocialSession, dismissLastReward,
     changeLifeState: state => apply(() => db.changeAdaptiveLifeState(state)),
     changeAvailableMinutes: minutes => apply(() => db.changeAdaptiveAvailableMinutes(minutes)),

@@ -687,3 +687,25 @@ test('adaptive Weekly target survives return from BUSY to a larger NORMAL daily 
  assert.equal((await event(await submit(id,normal,'adaptive:normal-day'))).processing_status,'PROCESSED');
  assert.equal((await db.query("SELECT target FROM private.adaptive_sync_weeks WHERE user_id=$1 AND week_key='2026-W38'",[id])).rows[0].target,3);
 });
+
+test('safe Awakening variants grant exact timer rewards and one shared chapter',async()=>{
+ const id=await user();
+ for(const q of ['awakening_observe_v1','awakening_imagine_v1','awakening_plan_v1']){
+  const e=await submit(id,{quest_id:q,verification_type:'TIMER',verification_score:100,duration_seconds:300},'verified:'+q);
+  assert.equal((await event(e)).processing_status,'PROCESSED');
+ }
+ const chapter=await submit(id,{quest_id:'awakening_chapter_1',verification_type:'MULTI',verification_score:100},'chapter:safe');
+ assert.equal((await event(chapter)).processing_status,'PROCESSED');
+ assert.equal(Number((await state(id)).real_total_xp),450);
+ const alternate=await submit(id,movement,'classic:alternate');
+ assert.equal((await event(alternate)).rejection_reason,'DUPLICATE');
+ assert.equal(Number((await state(id)).real_total_xp),450);
+});
+test('safe Awakening rejects short evidence and cannot skip stage prerequisites',async()=>{
+ const id=await user();
+ const short=await submit(id,{quest_id:'awakening_observe_v1',verification_type:'TIMER',verification_score:100,duration_seconds:299},'safe:short');
+ assert.equal((await event(short)).rejection_reason,'BELOW_DURATION');
+ const skip=await submit(id,{quest_id:'awakening_plan_v1',verification_type:'TIMER',verification_score:100,duration_seconds:300},'safe:skip');
+ assert.equal((await event(skip)).processing_status,'RECEIVED');
+ assert.equal(Number((await state(id)).real_total_xp),0);
+});

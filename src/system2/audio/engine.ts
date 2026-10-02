@@ -12,11 +12,12 @@ let ambientPlayer:AudioPlayer|null=null;
 let fxPlayer:AudioPlayer|null=null;
 let currentMusic:MusicCue|null=null;
 const fades=new Map<AudioPlayer,ReturnType<typeof setInterval>>();
+const retiring=new Set<AudioPlayer>();
 
 const musicSources:Partial<Record<MusicCue,any>>=LEGACY_AUDIO_FALLBACKS.music;
 const sfxSources:Partial<Record<SfxCue,any>>=LEGACY_AUDIO_FALLBACKS.sfx;
 
-function stopPlayer(player:AudioPlayer|null){if(!player)return;clearFade(player);try{player.remove()}catch{}}
+function stopPlayer(player:AudioPlayer|null){if(!player)return;clearFade(player);retiring.delete(player);try{player.remove()}catch{}}
 function spawn(source:any,volume:number,loop=false){
   const p=createAudioPlayer(source);
   p.volume=Math.max(0,Math.min(1,volume));
@@ -31,6 +32,7 @@ function clearFade(player?:AudioPlayer){
 }
 function fadeOutAndRemove(player:AudioPlayer|null,duration=450){
   if(!player)return;
+  retiring.add(player);
   clearFade(player);
   const start=Number(player.volume||0);
   const steps=9;
@@ -67,6 +69,7 @@ export function configureAudioEngine(next:Partial<Mix>){
 export function getAudioMix(){return{...mix}}
 export function stopAllAudio(){
   clearFade();
+  for(const player of retiring)stopPlayer(player);
   stopPlayer(musicPlayer);stopPlayer(ambientPlayer);stopPlayer(fxPlayer);
   musicPlayer=ambientPlayer=fxPlayer=null;currentMusic=null;
 }

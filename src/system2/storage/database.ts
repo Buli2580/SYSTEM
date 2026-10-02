@@ -35,7 +35,7 @@ import type { ProgressionState } from './progression';
 import { normalizePlayer } from '../core/progression';
 import { DEFAULT_SETTINGS, earnedTitles, systemName, parseSettings, mergeSettings, type SettingsPatch, type Settings, type Title } from '../identity/model';
 import { rewardReceipt, type RewardReceipt } from '../core/rewards';
-import { createLoot, equipItem, unequipItem, type InventoryItem, type LootSource } from '../core/inventory';
+import { createLoot, QUEST_LOOT_PITY_AFTER, equipItem, unequipItem, type InventoryItem, type LootSource } from '../core/inventory';
 import { type SocialHistoryEntry, type SocialMode, type SocialSession } from '../core/social';
 import type { AIGameMasterResponse } from '../ai/types';
 import { candidatesFromAI } from '../ai/bridge';
@@ -462,11 +462,15 @@ const completeQuestUseCase = createQuestCompletion<CompleteQuestResult>({
             const pathRow = await txn.getFirstAsync<{value:string}>("SELECT value FROM app_state WHERE key='game_master_profile'");
             const lootPath = pathRow?.value ? JSON.parse(pathRow.value).path : undefined;
             let instance = 0;
-            loot = createLoot({ rewardKey: 'quest:' + quest.id, level: next.realLevel, source: lootSource, path: lootPath, now, instance });
+            const streakRow=await txn.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?','quest_loot_common_streak');
+            const commonStreak=Math.max(0,Math.min(QUEST_LOOT_PITY_AFTER,Number(streakRow?.value)||0));
+            const minimumRarity=commonStreak>=QUEST_LOOT_PITY_AFTER?'RARE':'COMMON';
+            loot = createLoot({ rewardKey: 'quest:' + quest.id, level: next.realLevel, source: lootSource, path: lootPath, now, instance, minimumRarity });
             while (await txn.getFirstAsync<{id:string}>('SELECT id FROM inventory_items WHERE id = ?', loot.id)) {
-              loot = createLoot({ rewardKey: 'quest:' + quest.id, level: next.realLevel, source: lootSource, path: lootPath, now, instance: ++instance });
+              loot = createLoot({ rewardKey: 'quest:' + quest.id, level: next.realLevel, source: lootSource, path: lootPath, now, instance: ++instance, minimumRarity });
             }
             await txn.runAsync('INSERT INTO inventory_items(id,payload,acquired_at) VALUES (?,?,?)', loot.id, JSON.stringify(loot), now);
+            await txn.runAsync('INSERT INTO app_state(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value','quest_loot_common_streak',String(loot.rarity==='COMMON'?commonStreak+1:0));
           }
           const snapshot = await snapshotInTransaction(txn);
           const beforeHp = presentationBefore.story?.bossHp;
@@ -708,13 +712,14 @@ export function recordActivityAttempt(questId: string, evidence: ActivityEvidenc
 
 export function beginQuestAttempt(questId:string, attemptId:string) {
  return profileTransaction(async txn=>{
-   const snapshot=await snapshotInTransaction(txn), quest=getQuest(questId);
-   if(!quest||snapshot.completedQuestIds.includes(questId)||!prerequisitesCompleted(quest,snapshot.completedQuestIds)) throw new Error('Misja nie jest dostępna.');
+   const snapshot=await snapshotInTransaction(txn), quest=getQuest(questId,await readBossDifficulty(txn));
+   if(!quest||getQuestStatus(questId,snapshot.completedQuestIds)==='COMPLETED'||!prerequisitesCompleted(quest,snapshot.completedQuestIds)) throw new Error('Misja nie jest dostępna.');
    if(quest.category==='DAILY') await ensureDailyAccess(txn,snapshot.player,questId,snapshot.awakeningCompleted,snapshot.settings.activities??DEFAULT_ACTIVITIES);
    if(quest.category==='BOSS'&&!await bossAccess(txn,questId)) throw new Error('Etap Bossa jest zablokowany.');
    const pending=await txn.getFirstAsync('SELECT attempt_id FROM quest_attempts WHERE result IS NULL LIMIT 1');
    if(pending) throw new Error('Poprzednia próba jest nadal aktywna. Sprawdź jej zapis przed ponowieniem.');
    await txn.runAsync('INSERT INTO quest_attempts(attempt_id,quest_id,kind,started_at) VALUES (?,?,?,?)',attemptId,questId,attemptKind(quest),new Date(Date.now()).toISOString());
+   await (await import('./gameMaster')).captureMissionParameters(txn,attemptId,quest);
    return attemptId;
  });
 }
@@ -867,8 +872,10 @@ export function loadQuestCheckpoint(questId: string): Promise<QuestCheckpoint | 
 
 export function saveQuestCheckpoint(checkpoint: QuestCheckpoint) {
   const quest = getQuest(checkpoint.questId);
-  if (!quest || quest.verification.type === 'TIMER') return clearQuestCheckpoint(checkpoint.questId);
-  if (!isFiniteNonNegative(checkpoint.distanceMeters) || checkpoint.distanceMeters <= 0 ||
+  if (!quest) return Promise.reject(new Error('Nieznana misja.'));
+  const timer = quest.verification.type === 'TIMER';
+  if (!isFiniteNonNegative(checkpoint.distanceMeters) ||
+      (timer ? checkpoint.distanceMeters !== 0 || checkpoint.durationSeconds <= 0 : checkpoint.distanceMeters <= 0) ||
       !isFiniteNonNegative(checkpoint.durationSeconds) || !isFiniteNonNegative(checkpoint.verificationScore) ||
       checkpoint.verificationScore > 100) return Promise.reject(new Error('Nieprawidłowy zapis postępu misji.'));
   const safe: QuestCheckpoint = {
@@ -909,6 +916,20 @@ export function saveQuestCheckpoint(checkpoint: QuestCheckpoint) {
 
 export function clearQuestCheckpoint(questId: string) {
   return profileTransaction(txn => txn.runAsync('DELETE FROM app_state WHERE key=?', questCheckpointKey(questId)));
+}
+
+/** Resume discovery uses existing checkpoints, not a second session store. */
+export function loadResumableQuestCheckpoint():Promise<QuestCheckpoint|null> {
+ return profileTransaction(async txn=>{
+  const snapshot=await snapshotInTransaction(txn);
+  const rows=await txn.getAllAsync<{value:string}>("SELECT value FROM app_state WHERE key LIKE 'quest_checkpoint:%'");
+  const candidates=rows.flatMap(row=>{try{const raw=JSON.parse(row.value);const value=parseQuestCheckpoint(row.value,raw.questId);return value?[value]:[];}catch{return [];}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  for(const candidate of candidates){
+   const access=questAvailability(candidate.questId,{completedQuestIds:snapshot.completedQuestIds,daily:snapshot.daily,bossAccessible:await bossAccess(txn,candidate.questId)});
+   if(access.canComplete)return candidate;
+  }
+  return null;
+ });
 }
 
 export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
@@ -1312,6 +1333,24 @@ export function loadGameMasterMemory(choice?:import('../gameMaster/types').Campa
   const snapshot=await snapshotInTransaction(txn);
   if(expectedPlayerId&&snapshot.player.id!==expectedPlayerId)throw new Error('GM_PROFILE_CHANGED');
   const {reconcileGameMaster}=await import('./gameMaster');
-  return reconcileGameMaster(txn,snapshot.player,new Date().toISOString(),snapshot.gameMasterProfile?.path,choice);
+  return reconcileGameMaster(txn,snapshot.player,new Date(Date.now()).toISOString(),snapshot.gameMasterProfile?.path,choice);
+ });
+}
+
+/** Reuses the canonical pending receipt and actual gameplay inventory. */
+export function gameLoopRewardPresentation(receiptId:string,expectedStep?:string,expectedPlayerId?:string) {
+ return profileTransaction(async txn=>{
+  if(expectedPlayerId&&(await readPlayer(txn)).id!==expectedPlayerId)throw new Error('GM_PROFILE_CHANGED');
+  const pending=await txn.getFirstAsync<{value:string}>('SELECT value FROM app_state WHERE key=?',PENDING_REWARD_PRESENTATIONS_KEY);
+  const receipt=parsePendingRewardPresentations(pending?.value).find(r=>r.id===receiptId);
+  if(!receipt)return null;
+  const event=await txn.getFirstAsync<{quest_id:string}>('SELECT quest_id FROM verified_events WHERE id=?',receipt.id);
+  const rows=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items ORDER BY acquired_at DESC,id');
+  const loot=event?rows.map(r=>JSON.parse(r.payload) as InventoryItem).find(item=>item.rewardKey==='quest:'+event.quest_id)??null:null;
+  const {buildRewardPresentationPlan}=await import('../gameLoop/rewardPlan');
+  const {rewardCursor,advanceRewardCursor}=await import('./gameLoopPresentation');
+  const steps=buildRewardPresentationPlan(receipt,!!loot);
+  const current=expectedStep?await advanceRewardCursor(txn,receipt.id,steps,expectedStep):await rewardCursor(txn,receipt.id,steps);
+  return {rewardId:receipt.id,questId:event?.quest_id??null,receipt,loot,steps,current};
  });
 }

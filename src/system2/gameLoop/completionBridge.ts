@@ -13,7 +13,7 @@ export function applyCompletionToLoop(state:GameLoopState,result:LoopCompletionR
   return {state:result.awarded?reduceGameLoop(state,'FAIL'):state,presentation:null};
  }
  return {
-  state:reduceGameLoop(state,'COMPLETE',{rewardId:result.receipt.id}),
+  state:reduceGameLoop(state,'COMPLETE',{rewardId:result.receipt.id,hasLoot:!!result.loot,levelUp:result.receipt.afterLevel>result.receipt.beforeLevel}),
   presentation:createRewardPresentation(result.receipt,result.loot??null),
  };
 }

@@ -13,7 +13,7 @@ export function checkpoint(state: GameLoopState, now = new Date().toISOString())
 export function recoveryPhase(checkpointValue: GameLoopCheckpoint | null): GameLoopPhase {
   if (!checkpointValue) return 'HOME';
   const { phase, questId } = checkpointValue.state;
-  if (['ACTIVE','VERIFYING','COMPLETING'].includes(phase) && questId) return 'RECOVERY';
+  if (['STARTING','ACTIVE','VERIFYING','COMPLETING'].includes(phase) && questId) return 'RECOVERY';
   if (['XP_REWARD','LOOT_REWARD','LEVEL_UP','EQUIP','WORLD_REACTION'].includes(phase)) return phase;
   return phase === 'RECOVERY' ? 'RECOVERY' : 'HOME';
 }

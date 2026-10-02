@@ -120,6 +120,32 @@ function databaseHarness(t, clock) {
 }
 const evidence = { questId: 'first_movement_v1', verificationType: 'GPS_DISTANCE', verificationScore: 95, distanceMeters: 503.25, durationSeconds: 400 };
 
+test('timer checkpoint survives process restart without counting closed-app wall time', async t => {
+  const first = screenHarness(t, { questId: 'focus_protocol_v1' });
+  await flush(); first.render();
+  await first.button('ROZPOCZNIJ MISJĘ').props.onPress(); await flush(); first.render();
+  first.advance(240); await flush();
+  assert.equal(first.checkpoint()?.durationSeconds, 240);
+  first.leave(); await flush();
+  const second = screenHarness(t, { questId: 'focus_protocol_v1', checkpoint: first.checkpoint() });
+  await flush(); second.render(); second.changeWallClock(86400);
+  await second.button('WZNÓW MISJĘ').props.onPress(); await flush(); second.render();
+  second.advance(359); await flush(); assert.equal(second.awards(), 0);
+  second.advance(1); await flush(); assert.equal(second.awards(), 1);
+});
+
+test('timer checkpoints use the existing durable store with zero distance', async t => {
+  const { db, reload } = databaseHarness(t); await db.loadSystemState();
+  const checkpoint = { questId: 'awakening_observe_v1', distanceMeters: 0, durationSeconds: 120,
+    verificationScore: 100, extendedGoal: false, updatedAt: new Date().toISOString() };
+  await db.saveQuestCheckpoint(checkpoint);
+  assert.equal((await reload().loadQuestCheckpoint(checkpoint.questId)).durationSeconds, 120);
+  assert.equal((await reload().loadResumableQuestCheckpoint()).questId,checkpoint.questId);
+  await db.completeVerifiedQuest({questId:checkpoint.questId,verificationType:'TIMER',durationSeconds:300,verificationScore:100});
+  assert.equal(await db.loadResumableQuestCheckpoint(),null);
+  await assert.rejects(db.saveQuestCheckpoint({ ...checkpoint, questId: 'first_movement_v1' }));
+});
+
 test('parallel completion awards once, persists one event and distance, preserves streak', async t => {
   const { db, sql } = databaseHarness(t);
   const initial = await db.loadOrCreatePlayer();
@@ -1067,7 +1093,7 @@ test('shared navigation connects all five real tabs without stacking pushes', ()
 });
 
 test('Quest list uses persisted completion IDs and locks subsequent cards', () => {
-  const { load, navigation } = uiHarness({ completedQuestIds: ['first_movement_v1'], activeQuestId: null });
+  const { load, navigation } = uiHarness({ player: {birthDate:'1990-01-01'}, completedQuestIds: ['first_movement_v1'], activeQuestId: null });
   const tree = load('screens/QuestsScreen').default();
   const buttons = findButtons(tree).filter(b => b.props.accessibilityLabel?.includes(' — '));
   assert.equal(buttons.length, 3);
@@ -1691,6 +1717,15 @@ test('audio rewards prioritize one level-up, OFF prevents native player creation
  assert.equal(a.rewardSound({beforeLevel:1,afterLevel:2,skillLevels:[]}), 'LEVEL_UP');
  assert.equal(a.rewardSound({beforeLevel:1,afterLevel:1,skillLevels:[]}), 'QUEST_COMPLETE');
  a.configureAudio(true);a.playFeedback('QUEST_START');assert.equal(created,1);a.stopAudio();
+});
+
+test('audio scene crossfade retains previous music until fade and releases all players on background',()=>{
+ const players=[],clock={now:Date.now(),intervals:new Map()};
+ const audio=loader({'expo-audio':{createAudioPlayer(){const p={volume:0,removed:false,play(){},remove(){this.removed=true;}};players.push(p);return p;}}},clock)('audio/engine');
+ audio.configureAudioEngine({enabled:true});audio.playMusic('HOME');
+ audio.playMusic('HOME');assert.equal(players.length,1);
+ audio.playMusic('QUEST');assert.equal(players.length,2);assert.equal(players[0].removed,false);
+ audio.stopAllAudio();assert.ok(players.every(p=>p.removed));assert.equal(clock.intervals.size,0);
 });
 
 
@@ -2339,6 +2374,7 @@ function providerUI(db,dev=false,achievementMocks={}) {
   loadInventory:async()=>[],
   loadSocialSessions:async()=>({}),
   loadBackgroundQuestSession:async()=>null,
+  loadResumableQuestCheckpoint:async()=>null,
   getQuestAccess:async()=> 'AVAILABLE',
   loadPendingRewardPresentations:async()=>[],
   acknowledgeRewardPresentation:async()=>{},
@@ -3015,6 +3051,19 @@ test('Android config preserves published identity and active mission background 
  for(const permission of ['ACCESS_FINE_LOCATION','ACCESS_BACKGROUND_LOCATION','FOREGROUND_SERVICE','FOREGROUND_SERVICE_LOCATION'])assert.ok(config.android.permissions.includes('android.permission.'+permission));
 });
 
+test('quest loot pity is committed once with the canonical reward and survives replay',async t=>{
+ const h=await databaseHarness(t);
+ await h.db.loadSystemState();
+ h.sql.prepare('INSERT INTO app_state(key,value) VALUES (?,?)').run('quest_loot_common_streak','4');
+ const result=await h.db.completeVerifiedQuest(evidence);
+ assert.equal(result.awarded,true);assert.notEqual(result.loot.rarity,'COMMON');
+ const saved=h.sql.prepare('SELECT value FROM app_state WHERE key=?').get('quest_loot_common_streak');
+ assert.equal(saved.value,'0');
+ const replay=await h.reload().completeVerifiedQuest(evidence);assert.equal(replay.awarded,false);
+ assert.equal(h.sql.prepare('SELECT value FROM app_state WHERE key=?').get('quest_loot_common_streak').value,'0');
+ assert.equal((await h.db.loadInventory()).length,1);
+});
+
 test('SystemProvider late refresh cannot overwrite committed reward',async()=>{
  const state=startupFixture();let release;
  const rewarded={...state,player:loader({})('core').addRealXp(state.player,100),awarded:true};
@@ -3178,4 +3227,77 @@ test('integrated GPS resumes every foreground return without START and keeps one
    assert.equal(h.status(),'TRACKING');assert.equal(h.starts(),cycle+2);
    assert.equal(h.awards(),0);
  }
+});
+
+test('safe Awakening reaches chapter once; classic alternate cannot award again',async t=>{
+ const {db,sql,reload}=databaseHarness(t);await db.loadSystemState();
+ for(const questId of ['awakening_observe_v1','awakening_imagine_v1','awakening_plan_v1']){
+  const proof={questId,verificationType:'TIMER',verificationScore:100,durationSeconds:300};
+  const result=await db.completeVerifiedQuest(proof);assert.equal(result.awarded,true);
+  const current=reload();assert.equal((await current.completeVerifiedQuest(proof)).awarded,false);
+ }
+ const snapshot=await db.loadSystemState();assert.equal(snapshot.awakeningCompleted,true);assert.equal(snapshot.player.totalRealXp,450);
+ await assert.rejects(()=>db.completeVerifiedQuest(evidence));
+ assert.equal((await db.loadSystemState()).player.totalRealXp,450);
+ assert.equal(sql.prepare('SELECT count(*) n FROM inventory_items').get().n,3);
+ await assert.rejects(()=>db.beginQuestAttempt('first_movement_v1','alternate-stage'));
+});
+
+test('START captures durable canonical mission parameters before an interrupted attempt',async t=>{
+ const h=databaseHarness(t);await h.db.loadSystemState();
+ await h.db.beginQuestAttempt('awakening_observe_v1','capture-start');
+ const raw=h.sql.prepare('SELECT value FROM app_state WHERE key=?').get('gm_attempt_parameters:capture-start').value;
+ const saved=JSON.parse(raw);assert.equal(saved.difficulty,1);assert.equal(saved.plannedMinutes,5);
+ await h.db.endQuestAttempt('capture-start','INTERRUPTED','BACKGROUND',90,0);
+ const memory=await h.reload().loadGameMasterMemory();const attempt=memory.history.find(h=>h.id==='capture-start');
+ assert.equal(attempt.minutes,1.5);assert.equal(attempt.difficulty,1);assert.equal(attempt.plannedMinutes,5);
+ assert.equal(attempt.result,'TECHNICAL');assert.equal(attempt.verification,null);
+ assert.equal(h.sql.prepare('SELECT value FROM app_state WHERE key=?').get('gm_attempt_parameters:capture-start').value,raw);
+});
+test('canonical completion exposes actual loot and durable reward cursor after restart',async t=>{
+ const {db,reload}=databaseHarness(t);await db.loadSystemState();const result=await db.completeVerifiedQuest(evidence);
+ let view=await db.gameLoopRewardPresentation(result.receipt.id);assert.equal(view.loot.id,result.loot.id);
+ const total=(await db.loadSystemState()).player.totalRealXp;
+ for(const step of view.steps){
+  await db.gameLoopRewardPresentation(result.receipt.id,step.key);
+  await db.gameLoopRewardPresentation(result.receipt.id,step.key);
+  view=await reload().gameLoopRewardPresentation(result.receipt.id);
+ }
+ assert.equal(view.current,view.steps.length);assert.equal((await db.loadSystemState()).player.totalRealXp,total);
+});
+
+test('30-minute new-player loop joins canonical quests rewards GM memory and HOME without duplicate XP',async t=>{
+ const clock={now:new Date('2026-10-01T12:00:00Z').getTime()};
+ const h=databaseHarness(t,clock);await h.db.loadSystemState();
+ await h.db.updateIdentity({birthDate:'1990-01-01'});
+ await h.db.saveSettings({activities:{walking:false,running:false,cycling:false}});
+ const gm=h.load('gameMaster/runtime'),selectors=h.load('gameLoop/selectors');
+ let elapsed=0,missions=0;
+ while(elapsed<1800){
+  const snapshot=await h.db.loadSystemState();const memory=await h.db.loadGameMasterMemory();
+  const directed=gm.getGameMasterState({...snapshot,...memory,now:new Date(clock.now).toISOString(),hour:12,activeQuestId:null});
+  const quest=directed.mission.quest;assert.ok(quest,JSON.stringify({elapsed,explanation:directed.explanation,completed:snapshot.completedQuestIds,daily:snapshot.daily?.questIds}));
+  assert.equal(selectors.selectPrimaryAction(selectors.selectHomeLoop({missionId:quest.id,activeQuestId:null})).disabled,false);
+  const seconds=quest.verification.type==='GPS_DISTANCE'?400:quest.verification.minimumDurationSeconds;
+  const proof={questId:quest.id,verificationType:quest.verification.type,verificationScore:100,durationSeconds:seconds,...(quest.verification.type!=='TIMER'?{distanceMeters:quest.verification.minimumDistanceMeters}:{})};
+  clock.now+=seconds*1000;elapsed+=seconds;
+  const result=await h.db.completeVerifiedQuest(proof);assert.equal(result.awarded,true);
+  const total=result.player.totalRealXp;
+  assert.equal((await h.reload().completeVerifiedQuest(proof)).awarded,false);
+  let view=await h.db.gameLoopRewardPresentation(result.receipt.id);
+  assert.ok(view.loot);assert.equal(view.loot.id,result.loot.id);
+  for(const step of view.steps){
+   await h.db.gameLoopRewardPresentation(result.receipt.id,step.key);
+   view=await h.reload().gameLoopRewardPresentation(result.receipt.id);
+   assert.equal((await h.db.loadSystemState()).player.totalRealXp,total);
+  }
+  await h.db.acknowledgeRewardPresentation(result.receipt.id);
+  const after=await h.db.loadGameMasterMemory();assert.ok(after.campaign.completed.includes(quest.id));
+  missions++;
+ }
+ assert.ok(missions>=4);assert.ok(elapsed>=1800);
+ const final=await h.db.loadSystemState(),memory=await h.db.loadGameMasterMemory();
+ const next=gm.getGameMasterState({...final,...memory,now:new Date(clock.now).toISOString(),hour:12,activeQuestId:null});
+ assert.ok(next.mission.quest);assert.equal(next.world.missionSignal,next.mission.quest.id);
+ console.log('30-minute canonical simulation:',{seconds:elapsed,missions,remembered:memory.campaign.completed.length});
 });

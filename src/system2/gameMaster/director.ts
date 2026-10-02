@@ -2,7 +2,7 @@ import {isTechnicalFailure} from './history';
 import type { PlayerProfile, SkillKey } from '../core';
 import type { DailyState } from '../storage/daily';
 import type { StoryState } from '../story/types';
-import { AWAKENING_QUESTS, getQuest } from '../quests/catalog';
+import { nextAwakeningQuest, getQuest } from '../quests/catalog';
 import type { RunnableQuest } from '../quests/types';
 import type { Plan, UserModel } from '../adaptive/engine';
 
@@ -16,7 +16,7 @@ export function directNextMission(input:{player:PlayerProfile;daily:DailyState|n
  const pace:GameMasterDecision['difficulty']=recovery?'RECOVERY':player.streak>=7?'PUSH':'STEADY';
  if(activeQuestId){const quest=getQuest(activeQuestId,story?.boss?.difficulty);if(quest)return{quest,difficulty:'STEADY',message:'MISSION IN PROGRESS // FINISH WHAT YOU STARTED',reason:'ACTIVE'};}
  const available=(daily?.questIds??[]).map(id=>getQuest(id,story?.boss?.difficulty)).filter((q):q is RunnableQuest=>Boolean(q)&&!completedQuestIds.includes(q!.id));
- if(!awakeningCompleted){const quest=AWAKENING_QUESTS.find((q):q is RunnableQuest=>Boolean(q)&&!completedQuestIds.includes(q!.id))??null;return{quest,difficulty:'STEADY',message:quest?'SYSTEM // AWAKENING PATH DETECTED':'SYSTEM // AWAKENING COMPLETE',reason:'STORY'};}
+ if(!awakeningCompleted){const quest=nextAwakeningQuest(player.birthDate,completedQuestIds)??null;return{quest,difficulty:'STEADY',message:quest?'SYSTEM // AWAKENING PATH DETECTED':'SYSTEM // AWAKENING COMPLETE',reason:'STORY'};}
  const failureCount=recentAttempts.filter(a=>!isTechnicalFailure(a.reason)&&['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(a.result)).length;
  if(recentAttempt&&!isTechnicalFailure(recentAttempt.reason)&&['FAILED','REJECTED','INTERRUPTED','ABANDONED'].includes(recentAttempt.result)){const retry=available.find(q=>q.id===recentAttempt.questId);if(retry)return{quest:retry,difficulty:'RECOVERY',message:failureCount>=2?'SYSTEM // FAILURE PATTERN DETECTED // DIFFICULTY REDUCED':'SYSTEM // FAILURE ANALYZED // RECOVERY ROUTE',reason:'ATTEMPT_RECOVERY'};}
  if(!recovery&&socialSignal?.outcome==='SUCCESS'&&socialSignal.completedAt&&Date.now()-new Date(socialSignal.completedAt).getTime()<86400000&&available.length){return{quest:available[0],difficulty:'PUSH',message:'SYSTEM // '+socialSignal.mode+' VICTORY CONFIRMED // CONTINUE MOMENTUM',reason:'SOCIAL'};}

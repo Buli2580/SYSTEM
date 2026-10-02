@@ -1,3 +1,5 @@
+import {moveAgeMode} from '../move/age';
+import {SAFE_AWAKENING_QUESTS,awakeningStage,awakeningStageCompleted} from './safeAwakening';
 import { BOSS_QUESTS, bossQuest } from '../story/catalog';
 import { dailyQuest } from '../daily/templates';
 import { classifyActivity } from '../activity/classifier';
@@ -16,12 +18,14 @@ export const QUESTS: readonly RunnableQuest[] = [FIRST_MOVEMENT_QUEST, FOCUS_PRO
 export const AWAKENING_QUESTS = QUESTS.filter(quest => quest.arc === 'AWAKENING' && quest.chapter === 1)
   .sort((a, b) => a.order - b.order);
 export function getQuest(id: string, bossDifficulty = 2) {
-  const quest = bossQuest(id, bossDifficulty) ?? QUESTS.find(candidate => candidate.id === id) ?? generatedQuest(id) ?? dailyQuest(id);
+  const quest = bossQuest(id, bossDifficulty) ?? QUESTS.find(candidate => candidate.id === id) ?? SAFE_AWAKENING_QUESTS.find(candidate=>candidate.id===id) ?? generatedQuest(id) ?? dailyQuest(id);
   return quest ? applyAIQuestPresentation(quest) : undefined;
 }
 
 export function prerequisitesCompleted(quest: RunnableQuest, completedIds: readonly string[]) {
-  if (quest.category === 'DAILY' || quest.category === 'BOSS') return AWAKENING_QUESTS.every(q => completedIds.includes(q.id));
+  const stage=awakeningStage(quest.id);
+  if(stage!==null)return Array.from({length:stage-1},(_,i)=>i+1).every(n=>awakeningStageCompleted(n,completedIds));
+  if (quest.category === 'DAILY' || quest.category === 'BOSS') return AWAKENING_QUESTS.every(q => awakeningStageCompleted(q.order,completedIds));
   return QUESTS.filter(other => other.arc === quest.arc && other.chapter === quest.chapter && other.order < quest.order)
     .every(other => completedIds.includes(other.id));
 }
@@ -29,13 +33,13 @@ export function prerequisitesCompleted(quest: RunnableQuest, completedIds: reado
 export function getQuestStatus(id: string, completedIds: readonly string[], activeQuestId: string | null = null): QuestAvailability {
   const quest = getQuest(id);
   if (!quest || !supportsStrength(quest.verificationStrength ?? 'STANDARD')) return 'LOCKED';
-  if (completedIds.includes(id)) return 'COMPLETED';
+  if (completedIds.includes(id) || awakeningStage(id)!==null && awakeningStageCompleted(awakeningStage(id)!,completedIds)) return 'COMPLETED';
   if (!prerequisitesCompleted(quest, completedIds)) return 'LOCKED';
   return activeQuestId === id ? 'ACTIVE' : 'AVAILABLE';
 }
 
 export function getAwakeningProgress(completedIds: readonly string[]) {
-  const completed = AWAKENING_QUESTS.filter(quest => completedIds.includes(quest.id)).length;
+  const completed = AWAKENING_QUESTS.filter(quest => awakeningStageCompleted(quest.order,completedIds)).length;
   const total = AWAKENING_QUESTS.length;
   return { completed, total, percent: total ? completed / total * 100 : 0 };
 }
@@ -71,3 +75,6 @@ export function validateQuestEvidence(evidence: QuestEvidence, bossDifficulty = 
   }
   return quest;
 }
+
+export function awakeningQuestsForPlayer(birthDate?:string|null,now=new Date()){return moveAgeMode(birthDate??undefined,now)==='ADULT'?AWAKENING_QUESTS:SAFE_AWAKENING_QUESTS;}
+export function nextAwakeningQuest(birthDate:string|null|undefined,ids:readonly string[]){return awakeningQuestsForPlayer(birthDate).find(q=>!awakeningStageCompleted(q.order,ids));}

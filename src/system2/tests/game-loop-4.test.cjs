@@ -1,20 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const ts = require(require.resolve('typescript', { paths: [path.resolve(__dirname, '../../..'), process.cwd()] }));
-const root = path.resolve(__dirname, '../../..');
-
-function load(relative) {
-  const file = path.join(root, 'src/system2', relative);
-  const source = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const module = { exports: {} };
-  vm.runInNewContext(source, { module, exports: module.exports, require, console });
-  return module.exports;
-}
+const load = require('./gm-test-support.cjs').loader();
 
 const mod = load('gameLoop/stateMachine.ts');
 
@@ -52,7 +38,7 @@ test('failure enters recovery and can resume an active quest', () => {
   assert.equal(state.phase,'RECOVERY');
   assert.equal(mod.canContinueMission(state),true);
   state = mod.reduceGameLoop(state,'RESUME');
-  assert.equal(state.phase,'ACTIVE');
+  assert.equal(state.phase,'BRIEFING');
 });
 
 

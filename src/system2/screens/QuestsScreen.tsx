@@ -7,7 +7,7 @@ import { DAILY_RULES } from '../daily/calendar';
 import { Text, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import SystemPage, { pageStyles as styles } from '../components/SystemPage';
-import { AWAKENING_QUESTS, getQuest, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
+import { awakeningQuestsForPlayer, getQuest, getAwakeningProgress, getQuestStatus } from '../quests/catalog';
 import { useSystem } from '../state/SystemProvider';
 import { QuestMissionCard } from '../components/QuestExperience';
 import { getNextAction } from '../quests/nextAction';
@@ -54,7 +54,7 @@ export default function QuestsScreen() {
       <Text style={styles.title}>WEEKLY PROTOCOL · {Math.min(daily.weeklyTarget, daily.weeklyCompleted)}/{daily.weeklyTarget}</Text>
       <Text style={styles.body}>{daily.weeklyClear ? 'WEEKLY COMPLETE' : `${daily.weeklyTarget} Daily activities · +${DAILY_RULES.weeklyXp} REAL XP / +${DAILY_RULES.weeklyEnergy} ENERGY`} · {daily.weekKey}</Text>
     </View>}
-    {AWAKENING_QUESTS.map((quest, index) => {
+    {awakeningQuestsForPlayer(system.player.birthDate).map((quest, index) => {
       const access = getQuestStatus(quest.id, completedQuestIds, activeQuestId);
       const status = access === 'AVAILABLE' && failedQuestIds.includes(quest.id) ? 'FAILED' : access;
       const locked = status === 'LOCKED';

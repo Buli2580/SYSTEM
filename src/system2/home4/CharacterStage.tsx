@@ -6,15 +6,15 @@ import { characterArt } from '../visual/assets';
 import IdentityAvatar from '../components/IdentityAvatar';
 import {SceneArt} from './WorldStage';
 import {WorldEvent} from './model';
-export default function CharacterStage({uri,evolution,avatarStyle,name,event,reaction,animate,onPress,equipment}:{uri?:string;evolution:number;avatarStyle:string;name:string;event:WorldEvent;reaction?:import('../gameMaster/types').CharacterReaction;animate:boolean;onPress:()=>void;equipment?:ReactNode}){
+export default function CharacterStage({uri,evolution,avatarStyle,name,event,reaction,animate,onPress,equipment}:{uri?:string;evolution:number;avatarStyle:string;name:string;event:WorldEvent;reaction?:import('../gameMaster/types').CharacterReaction;animate:boolean;onPress?:()=>void;equipment?:ReactNode}){
  const reveal=useSharedValue(1);
  useFocusEffect(useCallback(()=>{
   cancelAnimation(reveal);reveal.value=1;
-  if(animate){reveal.value=.95;reveal.value=withTiming(1,{duration:650});}
+  if(animate){reveal.value=reaction==='LOOT'?.9:.95;reveal.value=withTiming(1,{duration:650});}
   return ()=>cancelAnimation(reveal);
  },[animate,event,reaction,reveal]));
  const motion=useAnimatedStyle(()=>({opacity:reveal.value,transform:[{scale:reveal.value}]}));
- return <Pressable accessibilityRole="button" accessibilityLabel={`Postać ${name}. Otwórz postać i wyposażenie`} onPress={onPress} style={s.root}>
+ return <Pressable disabled={!onPress} accessibilityRole={onPress?'button':undefined} accessibilityLabel={onPress?`Postać ${name}. Otwórz postać i wyposażenie`:`Postać ${name}`} onPress={onPress} style={s.root}>
   <Animated.View pointerEvents="none" style={[s.portrait,motion,(reaction==='VICTORY'||reaction==='LEVEL_UP'||event==='VICTORY')&&s.victory, reaction==='RECOVERY'&&{opacity:.8}]}>
    {uri ? <View style={s.avatar}><IdentityAvatar uri={uri} evolution={evolution} size={124}/></View> : <SceneArt source={characterArt(avatarStyle,evolution)} fit="contain"/>}
   </Animated.View>

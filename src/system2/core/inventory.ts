@@ -32,9 +32,10 @@ export function rollRarity(seed:string,level:number,source:LootSource):ItemRarit
  let rarity:ItemRarity=roll<legendary?'LEGENDARY':roll<legendary+epic?'EPIC':roll<legendary+epic+rare?'RARE':'COMMON';
  const floor=sourceFloor[source]; if(floor) rarity=maxRarity(rarity,floor); return rarity;
 }
-export function createLoot(input:{rewardKey:string;level:number;source:LootSource;instance?:number;path?:'DISCIPLINE'|'MOTION'|'FOCUS';now?:string}):InventoryItem{
+export const QUEST_LOOT_PITY_AFTER=4;
+export function createLoot(input:{rewardKey:string;level:number;source:LootSource;instance?:number;path?:'DISCIPLINE'|'MOTION'|'FOCUS';now?:string;minimumRarity?:ItemRarity}):InventoryItem{
  const instance=input.instance??0, seed=input.rewardKey+':'+instance+':'+input.source;
- const rarity=rollRarity(seed,input.level,input.source),slot=slots[hash(seed+':slot')%slots.length];
+ const rarity=maxRarity(rollRarity(seed,input.level,input.source),input.minimumRarity??'COMMON'),slot=slots[hash(seed+':slot')%slots.length];
  const primary:ItemStatKey=slot==='WEAPON'?'STR':slot==='ARMOR'?'END':slot==='RING'?'AGI':'INT';
  const pathStat:ItemStatKey=input.path==='DISCIPLINE'?'WIL':input.path==='MOTION'?'VIT':input.path==='FOCUS'?'INT':hash(seed)%2?'VIT':'WIL';
  const stats:ItemStats={[primary]:statValue(seed,input.level,rarity,1)};stats[pathStat]=(stats[pathStat]??0)+statValue(seed,input.level,rarity,2);

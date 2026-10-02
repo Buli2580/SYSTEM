@@ -42,6 +42,7 @@ function component(file, overrides={}) {
    'react/jsx-runtime':{jsx,jsxs:jsx},
    'react-native':{View:'View',Text:'Text',Pressable:'Pressable',ScrollView:'ScrollView',StyleSheet:{create:x=>x,absoluteFill:{}},useWindowDimensions:()=>({width:390,height:844})},
    'expo-image':{Image:'Image'},
+   '../telemetry/amplitude':{queueTelemetry:async()=>{}},
    'expo-router':{useFocusEffect:()=>{},useRouter:()=>({push:()=>{}})},
    'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:24,bottom:20})},
    'react-native-reanimated':{default:{View:'Animated.View'},useSharedValue:v=>({value:v}),useAnimatedStyle:f=>f(),cancelAnimation:()=>{},withTiming:v=>v},
@@ -51,7 +52,7 @@ function component(file, overrides={}) {
   };
   const requireMock=name=>{
    if(name in mocks)return mocks[name];
-   if(name.startsWith('.'))return read(require.resolve(require('node:path').resolve(require('node:path').dirname(file),name)+ ((name==='./model'||name==='./directives')?'.ts':'.tsx')));
+   if(name.startsWith('.')){const base=require('node:path').resolve(require('node:path').dirname(file),name);return read([base+'.ts',base+'.tsx'].find(p=>fs.existsSync(p))??base);}
    throw Error('Unexpected '+name);
   };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:false,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:requireMock});
@@ -170,7 +171,7 @@ for(const kind of ['mission','arc','boss','recovery','comeback','victory','chara
 });
 test('GM hook ignores late memory after blur and scopes persistent choices to the current player',async()=>{
  let resolveLoad;const writes=[],cleanups=[],calls=[];
- const state={telemetry:{version:4,mode:'NORMAL'}};
+ const state={telemetry:{version:4,mode:'NORMAL'},mission:{comeback:false,recovery:false}};
  const useGM=component('../gameMaster/useGameMaster.ts',{
   'react':{useState:v=>[v,next=>writes.push(next)],useRef:v=>({current:v}),useCallback:f=>f,useEffect:f=>f()},
   'expo-router':{useFocusEffect:f=>cleanups.push(f())},

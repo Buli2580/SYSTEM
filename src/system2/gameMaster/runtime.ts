@@ -1,3 +1,4 @@
+import {isSafeAwakening} from '../quests/safeAwakening';
 import {directNextMission} from './director';
 import {getQuest} from '../quests/catalog';
 import {questAvailability} from '../quests/availability';
@@ -8,6 +9,7 @@ import {newUserModel,planAdaptiveDay,recordOutcome} from '../adaptive/engine';
 import {archetypeForPlayer,playerPerks} from '../progression/perks';
 import {activeWorldEvent} from '../world/events';
 import {primaryJourney} from '../journeys/model';
+import {BOSS_FOCUS,BOSS_WALK,BOSS_RUN} from '../story/catalog';
 import {semanticQuest} from './history';
 import {getCampaignState} from './campaignStore';
 import type {SystemSnapshot} from '../storage/database';
@@ -28,7 +30,9 @@ export function getGameMasterState(input:GameMasterInput) {
  const last=history.at(-1),comeback=!!last&&now-Date.parse(last.at)>=4*86400000;
  const week=behavioral.filter(h=>now-Date.parse(h.at)<=7*86400000);
  const overload=week.slice(-5).filter(h=>h.result!=='COMPLETED'||(h.plannedMinutes>0&&h.minutes>h.plannedMinutes*2)).length>=2;
- const recovery=!comeback&&(input.player.streak===0&&behavioral.length>0||overload||model.lifeState==='RECOVERY');
+ // A new player's zero streak is not a broken streak. Same-session successes must not lock Awakening.
+ const priorDaySuccess=behavioral.some(h=>h.result==='COMPLETED'&&now-Date.parse(h.at)>=86400000);
+ const recovery=!comeback&&(input.player.streak===0&&priorDaySuccess||overload||model.lifeState==='RECOVERY');
  const maxDifficulty=comeback||recovery?1:plan.difficulty;
  const age=moveAgeMode(input.player.birthDate,new Date(input.now));
  const ageMax=age==='ADULT'?5:age==='AGE_13_17'?2:1;
@@ -41,13 +45,16 @@ export function getGameMasterState(input:GameMasterInput) {
  const worldEvent=activeWorldEvent(input.player,!!input.worldUnlocked,now);
  // Existing Director retains active/awakening ordering. Candidates are real, persisted quests.
  const base=directNextMission({...input,recentAttempt:undefined,recentAttempts:[],socialSignal:null});
- const ids=[...(base.quest?[base.quest.id]:[]),...(input.daily?.questIds??[])];
+ const bossStage=input.story?.worldLinkComplete&&!input.story?.bossComplete&&input.story?.boss;
+ const bossIds:string[]=bossStage?(!bossStage.focus_at?[BOSS_FOCUS]:!bossStage.move_at?[BOSS_WALK,BOSS_RUN]:[]):[];
+ const ids=[...(base.quest?[base.quest.id]:[]),...(input.daily?.questIds??[]),...bossIds];
  const candidates=[...new Set(ids)].flatMap(id=>{
   let q=getQuest(id,input.story?.boss?.difficulty);if(!q)return [];
+  if(q.category==='BOSS'&&!bossIds.includes(id))return [];
   if(!questAvailability(id,{completedQuestIds:input.completedQuestIds,activeQuestId:input.activeQuestId,daily:input.daily,bossAccessible:!!input.story?.worldLinkComplete&&!input.story?.bossComplete}).canComplete)return [];
   const meta=semanticQuest(q),template=templateFor(id);
   if(age!=='ADULT') {
-   if(!template||!independentDailyAllowed(template,age)||q.verification.type!=='TIMER'||q.difficulty==='HARD'||q.difficulty==='EXTREME'||meta.difficulty>ageMax||meta.plannedMinutes>ageMinutes)return [];
+   if((!isSafeAwakening(id)&&(!template||!independentDailyAllowed(template,age)))||q.verification.type!=='TIMER'||q.difficulty==='HARD'||q.difficulty==='EXTREME'||meta.difficulty>ageMax||meta.plannedMinutes>ageMinutes)return [];
    // Stored AI wording is never trusted for a minor. Keep canonical mechanics and curated copy.
    q=generatedQuest(q.id)??q;
   }
@@ -62,6 +69,7 @@ export function getGameMasterState(input:GameMasterInput) {
  const score=(q:RunnableQuest)=>{
   const m=semanticQuest(q),t=templateFor(q.id);
   return -Math.abs(m.difficulty-difficulty)*30 + (q.primarySkill===desiredStat?18:0)
+   +(q.category==='BOSS'&&!comeback&&!recovery?100:0)
    +(journey&&t?.goals.includes(journey.category)?24:0)
    +Math.max(0,10-input.player.stats[q.primarySkill].level)*2
    +(model.preferredTypes.includes(m.family)?6:0)
@@ -77,7 +85,7 @@ export function getGameMasterState(input:GameMasterInput) {
  };
  const ranked=fresh.slice().sort((a,b)=>score(b)-score(a)||a.id.localeCompare(b.id));
  const quest=locked??ranked[0]??null;
- const reason=locked?base.message:!quest&&!input.awakeningCompleted&&age!=='ADULT'?'Awakening wymaga nadzorowanej misji dla tego wieku; katalog nie ma jeszcze takiego wariantu.':!quest?'Brak bezpiecznej dostępnej misji poza cooldownem. Sprawdź cele lub uprawnienia.':comeback?'Powrót po przerwie: mały krok, bez nadrabiania zaległości.':recovery?'Spokojna misja regeneracyjna po trudnościach.':`${campaign.arc} · ${campaign.chain} · etap ${campaign.stage}. Kierunek ${input.campaign.choice}; rozwój ${quest.primarySkill}.`;
+ const reason=locked?base.message:!quest?'Brak bezpiecznej dostępnej misji poza cooldownem. Sprawdź cele lub uprawnienia.':comeback?'Powrót po przerwie: mały krok, bez nadrabiania zaległości.':recovery?'Spokojna misja regeneracyjna po trudnościach.':`${campaign.arc} · ${campaign.chain} · etap ${campaign.stage}. Kierunek ${input.campaign.choice}; rozwój ${quest.primarySkill}.`;
  const diversity=week.length?new Set(week.map(h=>h.signature)).size/week.length:1;
  const mission:MissionDirective={quest,reason,campaign,difficulty,readiness:comeback?40:recovery?Math.min(40,plan.readiness):plan.readiness,recovery,comeback,diversity,nextPossibleQuestIds:ranked.map(q=>q.id)};
  const storyBoss=!!input.awakeningCompleted&&!!input.story?.worldLinkComplete&&!input.story?.bossComplete;

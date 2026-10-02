@@ -1,6 +1,6 @@
 import type {SystemSnapshot} from '../storage/database';
 import type {QuestReward} from '../core';
-import {AWAKENING_QUESTS,getQuest} from '../quests/catalog';
+import {nextAwakeningQuest,getQuest} from '../quests/catalog';
 import {primaryJourney,stageRequirement,journeyPlan} from '../journeys/model';
 import {dayKey} from '../daily/calendar';
 import {adaptiveDifficulty} from '../generation/engine';
@@ -15,7 +15,7 @@ export function directSystem(s:DirectorState,activeQuestId:string|null,now=Date.
   const objective=kind==='CHALLENGE_BOSS'?'THE FIRST WALL':kind==='ADVANCE_WEEKLY'?'WEEKLY PROTOCOL':kind==='AWAKENING'?'PIERWSZE PRZEBUDZENIE':goals.find(g=>g.id===linked?.goalId)?.title??(kind==='CONTINUE_JOURNEY'?goal?.title:undefined)??'SYSTEM PROGRESSION';
   return {kind,title,objective,reason,route,...(questId?{questId,reward:getQuest(questId)?.rewards}:{}),...(linked?{journeyId:linked.id}:{})};
  };
- if(!s.awakeningCompleted){const q=AWAKENING_QUESTS.find(q=>!s.completedQuestIds.includes(q.id));return pick('AWAKENING','AWAKENING','Najpierw ukończ pierwsze przebudzenie.','/quest',q?.id);}
+ if(!s.awakeningCompleted){const q=nextAwakeningQuest(s.player?.birthDate,s.completedQuestIds);return pick('AWAKENING','AWAKENING','Najpierw ukończ pierwsze przebudzenie.','/quest',q?.id);}
  if(activeQuestId&&!s.completedQuestIds.includes(activeQuestId))return pick('ACTIVE_QUEST','CONTINUE ACTIVE QUEST',getQuest(activeQuestId)?.title??'Aktywna misja','/quest',activeQuestId);
  if(!goals.some(g=>g.status==='ACTIVE'))return pick('CREATE_GOAL','SET YOUR FIRST GOAL','Wskaż kierunek lub wznów cel. Daily nadal są dostępne.','/goals');
  if(s.daily?.clockAnomaly||(s.daily?.dayKey&&s.daily.dayKey!==dayKey(now)))return pick('CLOCK','ODŚWIEŻ DAILY','Sprawdź datę i odśwież zapisane misje.','/quests');

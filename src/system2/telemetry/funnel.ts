@@ -1,4 +1,5 @@
-export type FunnelEvent=
+export type FunnelEvent=import('../gameLoop/telemetry').GameLoopTelemetryEvent
+  |'GM_DECISION'|'GM_FALLBACK'|'GM_COMEBACK'|'GM_RECOVERY_QUEST'
   |'APP_OPEN'|'ONBOARDING_START'|'ONBOARDING_COMPLETE'
   |'QUEST_BRIEFING_VIEW'|'QUEST_START'|'QUEST_ABORT'|'QUEST_COMPLETE'
   |'VERIFY_START'|'VERIFY_FAIL'|'VERIFY_SUCCESS'

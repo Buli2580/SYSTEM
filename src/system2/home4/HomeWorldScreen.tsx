@@ -1,3 +1,5 @@
+import {selectHomeLoop,selectPrimaryAction} from '../gameLoop/selectors';
+import {queueTelemetry} from '../telemetry/amplitude';
 import { useCallback, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -15,7 +17,7 @@ import { playSceneMusic, stopMusic } from '../identity/audio';
 import WorldStage from './WorldStage';
 import CharacterStage from './CharacterStage';
 import MissionFocus from './MissionFocus';
-import { missionAction } from './model';
+
 import { useWorldEnvironment } from './useWorldEnvironment';
 export default function HomeWorldScreen() {
   const router = useRouter();
@@ -40,9 +42,13 @@ export default function HomeWorldScreen() {
   const progress = awakeningCompleted ? objective.completed : awakening.completed;
   const total = awakeningCompleted ? objective.total : awakening.total;
   const directedQuest = gm.state.mission.quest;
+  const loopState=selectHomeLoop({missionId:directedQuest?.id??null,activeQuestId,pendingRewardId:system.celebration?.id,observed:system.gameLoop?.state});
+  const primaryAction=selectPrimaryAction(loopState);
+  useEffect(()=>{if(ready)system.gameLoop?.observe(loopState);},[ready,loopState.phase,loopState.questId,loopState.rewardId,system.gameLoop?.observe]);
+  useEffect(()=>{if(ready)void queueTelemetry({event_type:'LOOP_HOME',event_properties:{phase:'HOME'}}).catch(()=>{});},[ready]);
   const active = directedQuest
-    ? { title: directedQuest.title, subtitle: gm.state.mission.reason, action: activeQuestId === directedQuest.id ? 'CONTINUE' : 'START', route: { pathname: '/quest' as const, params: { questId: directedQuest.id } } }
-    : { title: 'WYBIERZ KOLEJNY KROK', subtitle: gm.state.mission.reason, action: 'VIEW', route: '/quests' as const };
+    ? { title: directedQuest.title, subtitle: gm.state.mission.reason, route: { pathname: '/quest' as const, params: { questId: directedQuest.id } } }
+    : { title: 'WYBIERZ KOLEJNY KROK', subtitle: gm.state.mission.reason, route: '/quests' as const };
   useFocusEffect(useCallback(() => { playSceneMusic(music); return stopMusic; }, [music]));
   useEffect(() => {
     if (!lastReward) return;
@@ -77,7 +83,7 @@ export default function HomeWorldScreen() {
         {lastReward?.worldUnlocked&&<Text style={s.meta}>WORLD GATE // UNLOCKED</Text>}
       </View>}
       {gm.error&&<SystemError message={gm.error} retry={()=>{void gm.refresh();}}/>}
-      <MissionFocus mission={gm.state.mission} onChoice={()=>{void gm.refresh(gm.state.campaign.choice==='DISCIPLINE'?'FOCUS':gm.state.campaign.choice==='FOCUS'?'MOTION':'DISCIPLINE');}} title={active.title} subtitle={active.subtitle} progress={progress} total={total} reward={directedQuest?.rewards.realXp??0} action={missionAction(`${active.action} MISSION`,()=>router.push(active.route as never))}/>
+      <MissionFocus mission={gm.state.mission} onChoice={()=>{void gm.refresh(gm.state.campaign.choice==='DISCIPLINE'?'FOCUS':gm.state.campaign.choice==='FOCUS'?'MOTION':'DISCIPLINE');}} title={active.title} subtitle={active.subtitle} progress={progress} total={total} reward={directedQuest?.rewards.realXp??0} action={{label:primaryAction.label,disabled:primaryAction.disabled||!!system.celebration,onPress:()=>router.push(loopState.questId?{pathname:'/quest',params:{questId:loopState.questId}}:active.route as never)}}/>
       <Pressable accessibilityRole="button" onPress={()=>router.push('/quests')} style={s.secondary}><Text style={s.meta}>DAILY {dailyDone}/{daily?.questIds.length??0} · WEEKLY {weekly}/{weeklyTarget} →</Text></Pressable>
     </ScrollView>
     <BottomNavigation/>

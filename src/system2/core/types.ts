@@ -203,6 +203,8 @@ export interface Quest {
 }
 
 export interface VerifiedEvent {
+  questDifficulty?: number;
+  questTarget?: number;
   levelBefore?: number;
   levelAfter?: number;
   activity?: import('../activity/types').ActivityEvidence;

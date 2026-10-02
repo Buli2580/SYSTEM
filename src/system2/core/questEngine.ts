@@ -43,6 +43,8 @@ export function completeQuest(player: PlayerProfile, input: QuestEvidence, statu
     player: next,
     quest: { ...definition, status: 'COMPLETED', completedAt, progress: definition.progressTarget },
     event: {
+      questDifficulty: definition.adaptiveDifficulty ?? ({EASY:1,NORMAL:2,HARD:3,EXTREME:4}[definition.difficulty]),
+      questTarget: definition.progressTarget,
       levelBefore: player.realLevel, levelAfter: next.realLevel,
       activity: definition.activityType ? evidence.activity : undefined,
       id: 'quest_' + definition.id, playerId: player.id, questId: definition.id, createdAt: completedAt,

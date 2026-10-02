@@ -3,15 +3,18 @@ import { Pressable, Text, View } from 'react-native';
 import QuestRunScreen from '../system2/screens/QuestRunScreen';
 import { useSystem } from '../system2/state/SystemProvider';
 import { useMemo } from 'react';
-import { getQuest } from '../system2/quests/catalog';
+import { getQuest,awakeningQuestsForPlayer } from '../system2/quests/catalog';
+import {awakeningStage,isSafeAwakening} from '../system2/quests/safeAwakening';
 import { FIRST_MOVEMENT_QUEST } from '../system2/quests/firstMovement';
 import { SYSTEM_COLORS } from '../system2/core';
 
 export default function QuestRoute() {
   const { questId } = useLocalSearchParams<{ questId?: string | string[] }>();
   const router = useRouter();
-  const { story } = useSystem();
-  const id = typeof questId === 'string' ? questId : questId === undefined ? FIRST_MOVEMENT_QUEST.id : '';
+  const { story,player } = useSystem();
+  const requested = typeof questId === 'string' ? questId : questId === undefined ? FIRST_MOVEMENT_QUEST.id : '';
+  const stage=awakeningStage(requested);
+  const id=stage===null||isSafeAwakening(requested)?requested:awakeningQuestsForPlayer(player.birthDate)[stage-1].id;
   const difficulty = story?.boss?.difficulty;
   const quest = useMemo(() => getQuest(id, difficulty), [id, difficulty]);
   if (!quest) return (
