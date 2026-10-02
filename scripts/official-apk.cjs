@@ -72,7 +72,7 @@ function main(){
  const badging=run(path.join(toolDir,process.platform==='win32'?'aapt.exe':'aapt'),['dump','badging',apk],root,env,true);
  if(!badging.includes("name='pl.systemworld.app'")||!badging.includes("versionCode='"+metadata.versionCode+"'")||!badging.includes("versionName='"+metadata.version+"'"))throw new Error('Native APK identity/version mismatch');
  const signature=run(path.join(toolDir,process.platform==='win32'?'apksigner.bat':'apksigner'),['verify','--print-certs',apk],root,env,true);
- const actual=signature.match(/Signer #1 certificate SHA-256 digest:\s*([a-fA-F0-9]+)/)?.[1]?.toLowerCase();
+ const actual=signature.match(/(?:Signer #1|V[234](?:\.1)? Signer):? certificate SHA-256 digest:\s*([a-fA-F0-9]{64})/i)?.[1]?.toLowerCase();
  if(actual!==cert)throw new Error('APK signing certificate is not the existing application certificate');
  source(root,identity.sha); // Reject checkout changes during the build as well.
  const output=path.join(root,'dist','official',identity.sha+'-'+runId);fs.mkdirSync(output,{recursive:true});
