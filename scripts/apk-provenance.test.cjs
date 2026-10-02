@@ -9,7 +9,7 @@ for(const [platform,cacheOverride] of [['win32',null],['win32','C:/SYSTEM custom
  const vm=require('node:vm');
  const calls=[];
  const env={SYSTEM_ANDROID_KEYSTORE:'existing.keystore',SYSTEM_ANDROID_KEY_ALIAS:'test-alias',SYSTEM_ANDROID_STORE_PASSWORD:'test-store-secret',SYSTEM_ANDROID_KEY_PASSWORD:'test-key-secret',SYSTEM_ANDROID_CERT_SHA256:'a'.repeat(64),ANDROID_HOME:'/sdk',GRADLE_USER_HOME:'E:/DEV/gradle',...(cacheOverride?{SYSTEM_ANDROID_GRADLE_HOME:cacheOverride}:{})};
- const fakeFs={existsSync:()=>true,readdirSync:()=>['36.0.0'],mkdirSync(){},writeFileSync(){},appendFileSync(){},readFileSync:()=>JSON.stringify({expo:{version:'1.0.1',android:{versionCode:2}}})};
+ const fakeFs={existsSync:()=>true,readdirSync:()=>['36.0.0'],mkdirSync(){},mkdtempSync:prefix=>prefix+'123456',writeFileSync(){},appendFileSync(){},readFileSync:()=>JSON.stringify({expo:{version:'1.0.1',android:{versionCode:2}}})};
  const processMock={platform,argv:['node','official-apk.cjs','--sha',sha],env,execPath:'node'};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'official-apk.cjs'),'utf8'),{
   __dirname,process:processMock,console:{log(){},error(){}},
@@ -22,7 +22,11 @@ for(const [platform,cacheOverride] of [['win32',null],['win32','C:/SYSTEM custom
  });
  const gradle=calls.find(call=>/gradlew(?:\.bat)?$/.test(call.command));assert.ok(gradle);
  assert.ok(gradle.args.includes(':app:assembleRelease'));
- if(platform==='win32')assert.ok(gradle.options.cwd.length < 90, 'Windows native build root must leave room for CMake compiler-id and Prefab paths');
+ if(platform==='win32') {
+  const cxx=path.join(gradle.options.cwd,'../node_modules/react-native-reanimated/android/.cxx/RelWithDebInfo/481l484y/arm64-v8a');
+  const relativePrefab='/../prefab/arm64-v8a/prefab/lib/aarch64-linux-android/cmake/react-native-worklets/react-native-workletsConfigVersion.cmake';
+  assert.ok((cxx+relativePrefab).length < 260, 'Ninja must stat the unnormalized Prefab path below Windows MAX_PATH');
+ }
  assert.equal(gradle.options.env.GRADLE_USER_HOME,cacheOverride?path.resolve(cacheOverride):platform==='win32'?path.join(os.homedir(),'.gradle'):env.GRADLE_USER_HOME);
  assert.equal(env.GRADLE_USER_HOME,'E:/DEV/gradle','cache selection must not change the parent environment');
  assert.ok(gradle.args.includes('--no-daemon'));assert.equal(gradle.options.env.SYSTEM_EXPECTED_SHA,sha);
