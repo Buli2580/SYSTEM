@@ -1,0 +1,302 @@
+[
+  {
+    "id": "01",
+    "file": "intro/01_system_emblem.webp",
+    "source": "kosmiczna_katedra_błękitnej_energii.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Symbol SYSTEM-u na tle filmowym (nie transparentne logo)",
+    "sha256": "1a33562a6953c4311b578b9f21590d04ee8fce5531648ba320572b4f18ad30c6"
+  },
+  {
+    "id": "02",
+    "file": "intro/02_boot_void.webp",
+    "source": "kosmiczne_przebudzenie_w_otchłani.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Pustka i przebudzenie",
+    "sha256": "02d34eb674ae3e794799807641332c28e6bf738a1b4edb7c5afbfa71cfe6a5c6"
+  },
+  {
+    "id": "03",
+    "file": "intro/03_boot_portal.webp",
+    "source": "przebudzenie_w_ruinach_błękitnego_portalu.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Otwarcie portalu",
+    "sha256": "0f7db610e104178e61ebee0f889f39320e9678bbb212a74470ccb8356bd84a0a"
+  },
+  {
+    "id": "04",
+    "file": "intro/04_world_reveal.webp",
+    "source": "epic_dark_fantasy_sci_fi_scene_cinematic_vertical.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Pierwsze spojrzenie na świat",
+    "sha256": "398397cd372ed52ee3f74b9c1a63f1e550e47a8013583677e9645ee3424c5701"
+  },
+  {
+    "id": "05",
+    "file": "intro/05_first_awakening.webp",
+    "source": "strażnik_błękitnego_portalu.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "First Awakening key art",
+    "sha256": "55b2ff125bac4efa7af0f8ecec5c7c53777e0ecd782b16b5a74c23157e60a9ba"
+  },
+  {
+    "id": "06",
+    "file": "character/06_vanguard.webp",
+    "source": "mroczny_rycerz_pod_niebiańskim_portalem.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Vanguard scena, bez przezroczystości",
+    "sha256": "15c34343efc0883c62e08355bf2c29bb2f60b2b6492d8f7137129dbfed0cc39b"
+  },
+  {
+    "id": "07",
+    "file": "character/07_shadow.webp",
+    "source": "nocny_łotr_w_ruinach_pod_księżycem.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Shadow scena, bez przezroczystości",
+    "sha256": "263c131a88c8aa870da3502219576d8f2632ff2880153de2743d3e08a546459f"
+  },
+  {
+    "id": "08",
+    "file": "character/08_sage.webp",
+    "source": "magiczny_strażnik_wśród_niebiańskich_ruin.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Sage scena, bez przezroczystości",
+    "sha256": "93875f4b9000f6b9bdc65853c2830862c895eefd033d8acf2b7e4fd974c7e26e"
+  },
+  {
+    "id": "09",
+    "file": "character/09_avatar_neutral.webp",
+    "source": "błękitny_strażnik_zrujnowanej_cytadeli.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Portret postaci",
+    "sha256": "c01fd04d797565b840438cc25bedfee249907bc9c8a8a4036d6a98ea71f52ea2"
+  },
+  {
+    "id": "10",
+    "file": "home/10_private_domain.webp",
+    "source": "podniebne_sanktuarium_pod_gwiazdami.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Private Domain koncept",
+    "sha256": "fd80b5550ef3fcaba66121913b13841da23a36c13f1f38a3b30ecd6105e873e5"
+  },
+  {
+    "id": "11",
+    "file": "character/11_character_selection.webp",
+    "source": "strażnicy_złamanego_niebios_pierścienia.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Character selection key art",
+    "sha256": "6aecf28a3aed7a37b47f66aa02e2f1e56207c2542fd751478ace8b3e1cbb2190"
+  },
+  {
+    "id": "12",
+    "file": "boss/12_world_boss.webp",
+    "source": "kolossalny_tytan_nad_ruinami.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "World Boss",
+    "sha256": "3643ee27eb2effb3b796c15f533057c176da35f5ef2af815d42d9f37551234cb"
+  },
+  {
+    "id": "13",
+    "file": "intro/13_portal_hall.webp",
+    "source": "kroczący_ku_niebiańskiemu_portalowi.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Portal Hall",
+    "sha256": "e400f7ffa4344a9731d9bacb4dfc20ff17790010d1fa6772a052f9e31ae87e30"
+  },
+  {
+    "id": "14",
+    "file": "inventory/14_loot_chest.webp",
+    "source": "kosmiczna_skrzynia_skarbów_w_katedrze.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Loot Reveal",
+    "sha256": "e4a7a620365876bf3ce77010662f8777f2c13d836b540a472ca3718ba798f204"
+  },
+  {
+    "id": "15",
+    "file": "boss/15_combat_scene.webp",
+    "source": "rycerz_przeciwko_tytanowi_otchłani.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Combat scene",
+    "sha256": "e37ad73255a937f436002b1fb5b4321f8f0233e4182299a787ea1026ae032964"
+  },
+  {
+    "id": "16",
+    "file": "progression/16_skill_tree.webp",
+    "source": "astralny_ołtarz_drzewa_umiejętności.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Skill Tree key art",
+    "sha256": "b31c7f27ea8a7141a20ebb8ef15704858f69c0e259d8583403b329888899ff7f"
+  },
+  {
+    "id": "17",
+    "file": "world/17_settlement.webp",
+    "source": "podniebne_miasto_kryształowych_wodospadów.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Osada / baza",
+    "sha256": "797efe3e45052bbcff7beb9db330f233bd71acb09e455cd51545d8d85a703516"
+  },
+  {
+    "id": "18",
+    "file": "guild/18_guild_vista.webp",
+    "source": "nocna_panorama_królestwa_na_klifach.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Widok gildii",
+    "sha256": "8e0015b2f07f5b5155321f4b8227873e607baf2028e611cdf7c306c5b4bcfa77"
+  },
+  {
+    "id": "19",
+    "file": "intro/19_awakening_power.webp",
+    "source": "władca_błękitnej_energii_w_ruinach_celestialny.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Awakening Power",
+    "sha256": "822057c177c5ba379eac1867b9316d01ca4b4e61fe88d6a82b6e194dff51b843"
+  },
+  {
+    "id": "20",
+    "file": "world/20_final_city_vista.webp",
+    "source": "samotny_bohater_nad_miastem_portali.png",
+    "source_resolution": [
+      941,
+      1672
+    ],
+    "export_resolution": [
+      1080,
+      1920
+    ],
+    "description": "Końcowa panorama świata",
+    "sha256": "04c708ca0ef4ea17d08011adff74a9c4fe11476bb46c033ec8a3ad567e74fd48"
+  }
+]

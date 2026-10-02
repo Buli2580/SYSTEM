@@ -31,7 +31,7 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
         return { default: { View: 'View', Text: 'Text' }, View: 'View', Text: 'Text',
           FadeInUp: transition, FadeInDown: transition, FadeIn: transition, FadeOut: transition, ZoomIn: transition, ZoomOut: transition,
           Easing: { inOut: x => x, ease: x => x, linear: x => x },
-          useSharedValue: value => ({ value }), useAnimatedStyle: fn => fn(),
+          useReducedMotion: () => true, useSharedValue: value => ({ value }), useAnimatedStyle: fn => fn(),
           withTiming: value => value, withRepeat: value => value, withSequence: (...v) => v.at(-1),
           cancelAnimation() {}, interpolate: (v, input, output) => output[0] };
       }

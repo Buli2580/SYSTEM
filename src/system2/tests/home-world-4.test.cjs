@@ -38,7 +38,7 @@ function component(file, overrides={}) {
   const exports={};cache.set(file,exports);
   const jsx=(type,props)=>({type,props:props??{}});
   const mocks={
-   'react':{useState:v=>[v,()=>{}],useCallback:f=>f,useEffect:()=>{}},
+   'react':{memo:f=>f,useState:v=>[v,()=>{}],useCallback:f=>f,useEffect:()=>{}},
    'react/jsx-runtime':{jsx,jsxs:jsx},
    'react-native':{View:'View',Text:'Text',Pressable:'Pressable',ScrollView:'ScrollView',StyleSheet:{create:x=>x,absoluteFill:{}},useWindowDimensions:()=>({width:390,height:844})},
    'expo-image':{Image:'Image'},
@@ -46,7 +46,7 @@ function component(file, overrides={}) {
    'expo-router':{useFocusEffect:()=>{},useRouter:()=>({push:()=>{}})},
    'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:24,bottom:20})},
    'react-native-reanimated':{default:{View:'Animated.View'},useSharedValue:v=>({value:v}),useAnimatedStyle:f=>f(),cancelAnimation:()=>{},withTiming:v=>v},
-   '../visual/assets':{ART:{home:1,boss:2},characterArt:()=>3},
+   '../visual/assets':{ART:{privateDomain:1,boss:undefined},characterArt:()=>3},
    '../components/IdentityAvatar':{default:'IdentityAvatar'},
    ...overrides,
   };
@@ -121,8 +121,9 @@ test('world motion is finite and cancels on blur; background and reduce motion n
  }
 });
 test('image failure has a static fallback and a different source can load',()=>{
- let failed;const Art=component('WorldStage.tsx',{'react':{useState:()=>[failed,v=>failed=v]}}).SceneArt;
- Art({source:1}).props.onError();assert.equal(Art({source:1}).type,'View');assert.equal(Art({source:2}).type,'Image');
+ let failed;const Scene=component('WorldStage.tsx',{'react':{memo:f=>f,useState:()=>[failed,v=>failed=v]}}).SceneArt;
+ const Art=source=>{const element=Scene({source});return element.type(element.props);};
+ Art(1).props.children.props.onError();assert.equal(Art(1).props.children,false);assert.equal(Art(2).props.children.type,'Image');
 });
 test('environment listens to accessibility and app lifecycle and removes listeners',async()=>{
  const state=[],cleanup=[],handlers={};let removed=0;

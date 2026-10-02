@@ -1,4 +1,4 @@
-import {Image as ExpoImage} from 'expo-image';
+import {ArtImage} from './VisualArt';
 import {characterArt} from '../visual/assets';
 import { useEffect } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -75,7 +75,7 @@ export default function CharacterCard({
           {player.avatarUri ? (
             <Image source={{ uri: player.avatarUri }} style={styles.image} resizeMode="cover" />
           ) : (
-            <ExpoImage source={characterArt(style,visual.stage)} style={styles.image} contentFit="contain" cachePolicy="none" transition={0} accessibilityLabel="Ilustracja stylu postaci"/>
+            <ArtImage source={characterArt(style,visual.stage)} fit="contain"/>
 
           )}
           <View style={styles.scanOverlay} />

@@ -1,11 +1,11 @@
 import {ART} from '../visual/assets';
-import {ArtBackdrop} from '../components/VisualArt';
+import {ArtBackdrop,ArtImage} from '../components/VisualArt';
 import { validateBirthDate } from '../identity/age';
 import { useCallback, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, ZoomIn, useReducedMotion } from 'react-native-reanimated';
 import Action from '../components/Action';
 import SystemError from '../components/SystemError';
 import { useSystem } from '../state/SystemProvider';
@@ -21,16 +21,18 @@ const pages=[
 ] as const;
 
 export default function OnboardingScreen(){
+ const reducedMotion=useReducedMotion();
  const [step,setStep]=useState(0),[name,setName]=useState(''),[goal,setGoal]=useState(''),[path,setPath]=useState(0),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false);
  const [birthDate,setBirthDate]=useState('');
  const busyRef=useRef(false),insets=useSafeAreaInsets(),router=useRouter(); const {finishOnboarding}=useSystem();
  useFocusEffect(useCallback(()=>{playSceneMusic('AWAKENING');return stopMusic;},[]));
  async function enter(){if(busyRef.current)return;if(!goal.trim()){setError('Wpisz główny cel, żeby GAME MASTER mógł dobrać pierwszą ścieżkę.');return;}busyRef.current=true;setBusy(true);setError(null);try{await finishOnboarding(name,{goal,path:PATHS[path][0],birthDate:validateBirthDate(birthDate)});router.replace('/quests');}catch(cause){setError(cause instanceof Error?cause.message:'Nie udało się uruchomić SYSTEM-u.');}finally{busyRef.current=false;setBusy(false);}}
  return <KeyboardAvoidingView style={s.root} behavior={Platform.OS==='ios'?'padding':'height'}>
-  <ArtBackdrop source={ART.intro}/>
+  <ArtBackdrop source={step===1?ART.characterSelection:step===3?ART.firstAwakening:ART.systemEmblem} transitionMs={reducedMotion?0:180}/>
   <View pointerEvents="none" style={s.energy}><View style={s.ring}/><View style={s.core}/></View>
   <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content,{paddingTop:insets.top+32,paddingBottom:insets.bottom+32}]}>
    <Animated.View key={step} entering={FadeInDown.duration(360)}>
+    {step===1&&<View style={{height:200,aspectRatio:9/16,alignSelf:'center',marginBottom:16,overflow:'hidden',borderRadius:12}}><ArtImage source={ART.avatarNeutral}/></View>}
     <Text style={s.code}>SYSTEM // INITIALIZATION {String(step+1).padStart(2,'0')}/04</Text>
     <Text style={s.title}>{pages[step][0]}</Text><Text style={s.subtitle}>{pages[step][1]}</Text><Text style={s.body}>{pages[step][2]}</Text>
     {step===1&&<View style={s.inputBlock}><Text style={s.code}>PLAYER IDENTITY</Text><TextInput accessibilityLabel="SYSTEM NAME — pseudonim" value={name} onChangeText={setName} maxLength={24} autoCorrect={false} placeholder="Twój pseudonim" placeholderTextColor="#6f8790" style={s.input}/></View>}

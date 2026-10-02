@@ -1,8 +1,8 @@
-import {ART} from '../visual/assets';
+import {bootArt} from '../visual/assets';
 import {ArtBackdrop} from './VisualArt';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {Pressable,StyleSheet,Text,View} from 'react-native';
-import Animated,{cancelAnimation,Easing,FadeIn,FadeOut,ZoomIn,ZoomOut,interpolate,useAnimatedStyle,useSharedValue,withRepeat,withTiming} from 'react-native-reanimated';
+import Animated,{cancelAnimation,Easing,FadeIn,FadeOut,ZoomIn,ZoomOut,interpolate,useAnimatedStyle,useReducedMotion,useSharedValue,withRepeat,withTiming} from 'react-native-reanimated';
 import SystemAmbientBackground from './SystemAmbientBackground';
 import {launchBeats,launchDuration,launchVariant,type LaunchVariant} from '../launch/engine';
 import {playAudioTheme,playFeedback,stopAudioTheme} from '../identity/audio';
@@ -13,6 +13,7 @@ export default function SystemBootSequence({
 }:{
   visible:boolean;onComplete?:()=>void;player?:PlayerProfile|null;firstRun?:boolean;variant?:LaunchVariant;
 }){
+  const reducedMotion=useReducedMotion();
   const resolved=variant??launchVariant(player,firstRun);
   const beats=useMemo(()=>launchBeats(resolved),[resolved]);
   const [beat,setBeat]=useState(0);
@@ -69,7 +70,7 @@ export default function SystemBootSequence({
   const cinematic=resolved==='FIRST_AWAKENING';
   return <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(380)} style={styles.root}>
     <SystemAmbientBackground intensity="hero" screen="LAUNCH" level={player?.realLevel??1} threat={threat} scene={current?.phase==='AWAKENING'?'PORTAL':undefined}/>
-    <ArtBackdrop source={ART.intro}/>
+    <ArtBackdrop source={bootArt(current?.phase)} transitionMs={reducedMotion?0:180}/>
     <View style={styles.vignette}/>
     <Text style={styles.topline}>SYSTEM // {cinematic?'AWAKENING PROTOCOL':'CONNECTION RESTORED'}</Text>
     <View style={styles.scanFrame}><View style={[styles.scanProgress,{width:`${Math.round(progress*100)}%`}]} /></View>
