@@ -5,6 +5,22 @@ const os=require('node:os');
 const path=require('node:path');
 const {BRANCH,validateSource,verifyConfig,publish}=require('./apk-provenance.cjs');
 const sha='a'.repeat(40);
+test('RC3 beta keeps exact SHA and clean-source checks in launcher and Expo config',t=>{
+ const branch='integration/rc3-awakening-world';
+ const valid={branch,sha,expectedSha:sha,dirty:'',repository:'Buli2580/SYSTEM'};
+ assert.doesNotThrow(()=>validateSource(valid));
+ for(const patch of [{branch:'integration/rc3-other'},{expectedSha:'b'.repeat(40)},{dirty:' M app.json'}])assert.throws(()=>validateSource({...valid,...patch}));
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'system-rc3-config-'));
+ const keys=['SYSTEM_BUILD_MANIFEST','SYSTEM_EXPECTED_SHA','EAS_BUILD','EAS_BUILD_PROFILE'];
+ const saved=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
+ t.after(()=>{for(const k of keys){if(saved[k]===undefined)delete process.env[k];else process.env[k]=saved[k];}fs.rmSync(dir,{recursive:true,force:true});});
+ delete process.env.EAS_BUILD;delete process.env.EAS_BUILD_PROFILE;
+ process.env.SYSTEM_BUILD_MANIFEST=path.join(dir,'manifest.json');process.env.SYSTEM_EXPECTED_SHA=sha;
+ fs.writeFileSync(process.env.SYSTEM_BUILD_MANIFEST,JSON.stringify({branch,sha,versionCode:123}));
+ const configure=require('../app.config.js');
+ assert.doesNotThrow(()=>configure({config:{}}));
+ process.env.SYSTEM_EXPECTED_SHA='b'.repeat(40);assert.throws(()=>configure({config:{}}));
+});
 for(const [platform,cacheOverride] of [['win32',null],['win32','C:/SYSTEM custom cache'],['linux',null]]) test('official Gradle invocation keeps cache selection and signing guards: '+platform+' '+(cacheOverride??'default'),()=>{
  const vm=require('node:vm');
  const calls=[];

@@ -5,11 +5,12 @@ const BRANCH = 'integration/system-evening-build';
 const RC1_BRANCH = 'integration/game-loop-home-gm-4';
 const RC1_SHA = 'bac48bda2dfc6cef993bc11ad7b245802fe94178';
 const RC2_BRANCH = 'fix/rc2-build-readiness';
+const RC3_BRANCH = 'integration/rc3-awakening-world';
 
 function approvedBranch(branch, sha) {
   return branch === BRANCH ||
     (branch === RC1_BRANCH && sha === RC1_SHA) ||
-    branch === RC2_BRANCH;
+    branch === RC2_BRANCH || branch === RC3_BRANCH;
 }
 const REPOSITORY = 'Buli2580/SYSTEM';
 
