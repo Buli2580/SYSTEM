@@ -3272,6 +3272,28 @@ test('START captures durable canonical mission parameters before an interrupted 
  assert.equal(attempt.result,'TECHNICAL');assert.equal(attempt.verification,null);
  assert.equal(h.sql.prepare('SELECT value FROM app_state WHERE key=?').get('gm_attempt_parameters:capture-start').value,raw);
 });
+test('Living Gear and Tracebook retain canonical loot, equipped instance and unique history after restart',async t=>{
+ const {db,reload,sql}=databaseHarness(t);
+ await db.loadSystemState();await db.finishOnboarding('Tracebook tester');
+ const result=await db.completeVerifiedQuest({questId:'awakening_observe_v1',verificationType:'TIMER',durationSeconds:300,verificationScore:100});
+ const item=result.loot;assert.ok(item);
+ await Promise.all([db.equipInventoryItem(item.id),db.equipInventoryItem(item.id)]);
+ const next=reload();const items=await next.loadInventory();
+ assert.equal(items.find(x=>x.id===item.id).equipped,true);
+ assert.equal(items.filter(x=>x.id===item.id).length,1);
+ const trace=await next.loadTracebook();
+ assert.equal(trace.entries.filter(x=>x.category==='LOOT').length,1);
+ assert.equal(trace.entries.filter(x=>x.category==='QUEST').length,1);
+ assert.equal(trace.entries.filter(x=>x.category==='DOMAIN').length,1);
+ assert.equal(trace.playerId,result.player.id);
+ assert.equal(JSON.stringify(await next.loadTracebook()),JSON.stringify(trace));
+ assert.equal((await next.loadSystemState()).player.totalRealXp,result.player.totalRealXp);
+ assert.equal(sql.prepare('SELECT count(*) n FROM quest_completions').get().n,1);
+ await next.unequipInventoryItem(item.id);
+ assert.equal((await reload().loadInventory()).find(x=>x.id===item.id).equipped,false);
+ assert.equal(JSON.stringify(await next.loadTracebook()),JSON.stringify(trace),'equip changes do not invent history');
+});
+
 test('canonical completion exposes actual loot and durable reward cursor after restart',async t=>{
  const {db,reload}=databaseHarness(t);await db.loadSystemState();const result=await db.completeVerifiedQuest(evidence);
  let view=await db.gameLoopRewardPresentation(result.receipt.id);assert.equal(view.loot.id,result.loot.id);

@@ -76,6 +76,23 @@ test('domain locations navigate once per focus, locked locations have no fake ac
  const text=JSON.stringify(tree);assert.match(text,/FORGE · LOCKED/);assert.match(text,/SANCTUARY · LOCKED/);
  assert.equal(Panel({domain:null}),null);
 });
+test('Living Gear exposes actual comparison, guards equip taps and links Tracebook',async()=>{
+ let finish;let calls=0;const routes=[];
+ const item={id:'owned',name:'Owned',rarity:'RARE',slot:'WEAPON',source:'QUEST',requiredLevel:1,stats:{STR:3},equipped:false,acquiredAt:'2026-10-03T00:00:00Z'};
+ const Gear=component('../components/LivingGear.tsx',{
+  react:{useRef:v=>({current:v}),useState:v=>[v,()=>{}]},
+  'expo-router':{useRouter:()=>({push:r=>routes.push(r)})},
+  '../state/SystemProvider':{useSystem:()=>({player:{realLevel:1},inventory:[item],equipItem:()=>{calls++;return new Promise(resolve=>finish=resolve);},unequipItem:async()=>{}})},
+  './SystemPage':{pageStyles:{panel:{}}},'./Action':{default:'Action'},'./VisualArt':{ArtThumbnail:'ArtThumbnail'},
+  '../visual/assets':{itemArt:()=>undefined},
+ }).default;
+ const tree=Gear();const actions=nodes(tree).filter(n=>n.type==='Action');
+ actions.find(n=>n.props.label.includes('TRACEBOOK')).props.onPress();assert.equal(routes[0],'/tracebook');
+ const equip=actions.find(n=>n.props.label==='WYPOSAŻ');equip.props.onPress();equip.props.onPress();assert.equal(calls,1);finish();await new Promise(resolve=>setImmediate(resolve));
+ equip.props.onPress();assert.equal(calls,2);finish();
+ assert.match(JSON.stringify(tree),/STR \+3/);assert.match(JSON.stringify(tree),/RARE/);assert.match(JSON.stringify(tree),/pustego slotu/);
+});
+
 test('mission CTA dispatches supplied action once without reward mutations',()=>{
  let calls=0;const Focus=component('MissionFocus.tsx').default;
  const tree=Focus({title:'GPS',subtitle:'Walk',progress:1,total:3,reward:20,action:{label:'RESUME MISSION',onPress:()=>calls++}});

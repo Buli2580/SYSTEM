@@ -6,6 +6,7 @@ import { readAdaptiveModel, recordAdaptiveOutcome, updateAdaptiveLifeState, upda
 import type { LifeState, Plan, UserModel } from '../adaptive/engine';
 import { ensureAchievementSchema } from '../achievements/schema';
 import { readDomain } from '../domain/storage';
+import { buildTracebook } from '../inventory/tracebook';
 import { validateBirthDate } from '../identity/age';
 import { inspectLocalHealth, type LocalHealth } from './health';
 import { createQuestCompletion } from '../application/completeQuest';
@@ -937,6 +938,20 @@ export function loadResumableQuestCheckpoint():Promise<QuestCheckpoint|null> {
 
 export function listQuestAttempts() { return profileTransaction(txn=>txn.getAllAsync<QuestAttempt>('SELECT * FROM quest_attempts ORDER BY started_at DESC,attempt_id DESC LIMIT 50')); }
 export function loadChronicle() { return profileTransaction(txn=>txn.getAllAsync<StoryEvent>("SELECT * FROM story_events WHERE type NOT IN ('REMATCH_AVAILABLE','REMATCH_COMPLETED') ORDER BY created_at DESC,id DESC LIMIT 50")); }
+export function loadTracebook() {
+ return profileTransaction(async txn=>{
+  const player=await readPlayer(txn);
+  const quests=await txn.getAllAsync<{quest_id:string;completed_at:string}>('SELECT quest_id,completed_at FROM quest_completions');
+  const events=await txn.getAllAsync<{payload:string}>('SELECT payload FROM verified_events');
+  const chapters=await txn.getAllAsync<{chapter_id:string;completed_at:string}>('SELECT chapter_id,completed_at FROM chapter_completions');
+  const bonuses=await txn.getAllAsync<{bonus_key:string;kind:string;created_at:string}>('SELECT bonus_key,kind,created_at FROM protocol_bonuses');
+  const loot=await txn.getAllAsync<{payload:string}>('SELECT payload FROM inventory_items');
+  return {playerId:player.id,entries:buildTracebook({playerId:player.id,
+   quests:quests.map(q=>{const quest=getQuest(q.quest_id);return {...q,title:quest?.title??q.quest_id,category:quest?.category??(q.quest_id.startsWith('daily:')?'DAILY':'QUEST')};}),
+   events:events.map(e=>JSON.parse(e.payload) as VerifiedEvent).filter(e=>e.playerId===player.id),
+   chapters,bonuses,loot:loot.map(row=>JSON.parse(row.payload) as InventoryItem)})};
+ });
+}
 export function consumeStoryEvent(id:string) { return profileTransaction(txn=>txn.runAsync('UPDATE story_events SET consumed=1 WHERE id=?',id)); }
 export function startBossProtocol() {
  return profileTransaction(async txn=>{
