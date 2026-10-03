@@ -17,6 +17,7 @@ import { playSceneMusic, stopMusic } from '../identity/audio';
 import WorldStage from './WorldStage';
 import CharacterStage from './CharacterStage';
 import MissionFocus from './MissionFocus';
+import DomainPanel from './DomainPanel';
 
 import { useWorldEnvironment } from './useWorldEnvironment';
 export default function HomeWorldScreen() {
@@ -85,6 +86,7 @@ export default function HomeWorldScreen() {
       {gm.error&&<SystemError message={gm.error} retry={()=>{void gm.refresh();}}/>}
       <MissionFocus mission={gm.state.mission} onChoice={()=>{void gm.refresh(gm.state.campaign.choice==='DISCIPLINE'?'FOCUS':gm.state.campaign.choice==='FOCUS'?'MOTION':'DISCIPLINE');}} title={active.title} subtitle={active.subtitle} progress={progress} total={total} reward={directedQuest?.rewards.realXp??0} action={{label:primaryAction.label,disabled:primaryAction.disabled||!!system.celebration,onPress:()=>router.push(loopState.questId?{pathname:'/quest',params:{questId:loopState.questId}}:active.route as never)}}/>
       <Pressable accessibilityRole="button" onPress={()=>router.push('/quests')} style={s.secondary}><Text style={s.meta}>DAILY {dailyDone}/{daily?.questIds.length??0} · WEEKLY {weekly}/{weeklyTarget} →</Text></Pressable>
+      <DomainPanel domain={system.domain}/>
     </ScrollView>
     <BottomNavigation/>
   </SystemScreen>;

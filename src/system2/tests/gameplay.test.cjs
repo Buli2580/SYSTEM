@@ -146,6 +146,24 @@ test('timer checkpoints use the existing durable store with zero distance', asyn
   await assert.rejects(db.saveQuestCheckpoint({ ...checkpoint, questId: 'first_movement_v1' }));
 });
 
+test('onboarding to domain to verified quest to restart preserves one development and one reward', async t => {
+  const {db,reload}=databaseHarness(t);
+  assert.equal((await db.loadSystemState()).domain,null);
+  await db.finishOnboarding('Domain tester');
+  const initial=await db.loadSystemState();
+  assert.equal(initial.domain.playerId,initial.player.id);
+  assert.equal(initial.domain.completedQuests,0);
+  const input={questId:'awakening_observe_v1',verificationType:'TIMER',durationSeconds:300,verificationScore:100};
+  const results=await Promise.all([db.completeVerifiedQuest(input),db.completeVerifiedQuest(input)]);
+  assert.equal(results.filter(x=>x.awarded).length,1);
+  assert.equal(results[0].domain.completedQuests,1);
+  const restarted=await reload().loadSystemState();
+  assert.equal(restarted.domain.completedQuests,1);
+  assert.equal(restarted.domain.firstAchievement,true);
+  assert.equal(restarted.player.totalRealXp,results[0].player.totalRealXp);
+  assert.equal(JSON.stringify(restarted.domain),JSON.stringify(results[0].domain));
+});
+
 test('parallel completion awards once, persists one event and distance, preserves streak', async t => {
   const { db, sql } = databaseHarness(t);
   const initial = await db.loadOrCreatePlayer();

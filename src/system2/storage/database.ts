@@ -5,6 +5,7 @@ import { MOVEMENT_SKILLS } from '../move/skills';
 import { readAdaptiveModel, recordAdaptiveOutcome, updateAdaptiveLifeState, updateAdaptiveAvailableMinutes, loadAdaptivePlan, readBossDifficulty } from '../adaptive/storage';
 import type { LifeState, Plan, UserModel } from '../adaptive/engine';
 import { ensureAchievementSchema } from '../achievements/schema';
+import { readDomain } from '../domain/storage';
 import { validateBirthDate } from '../identity/age';
 import { inspectLocalHealth, type LocalHealth } from './health';
 import { createQuestCompletion } from '../application/completeQuest';
@@ -91,6 +92,7 @@ export type AIDailyCache = {
 };
 
 export type SystemSnapshot = {
+  domain?: import('../domain/storage').DomainState | null;
   adaptiveModel?: UserModel; adaptivePlan?: Plan;
   systemDebt: 0 | 1 | 2 | 3;
   aiDaily?: AIDailyCache | null;
@@ -393,6 +395,7 @@ async function snapshotInTransaction(db: SQLite.SQLiteDatabase) {
   if (daily) chapter.player.streak = await currentStreak(db, daily.dayKey, chapter.player.streak);
   const failed = await db.getAllAsync<{ quest_id: string }>("SELECT DISTINCT quest_id FROM quest_attempts WHERE result IN ('FAILED','REJECTED','INTERRUPTED','SUSPICIOUS') AND quest_id NOT IN (SELECT quest_id FROM quest_completions)");
   return {
+    domain: await readDomain(db, chapter.player.id, chapter.player.displayName, onboarding?.value === 'true'),
     adaptiveModel: await readAdaptiveModel(db), adaptivePlan: await loadAdaptivePlan(db),
     systemDebt: consequence.systemDebt, aiDaily, goals, journeys, journeyQuestIds: await journeyBindings(db), recentActivity, progression,
     failedQuestIds: failed.map(row => row.quest_id), daily, story: reconciled.story,

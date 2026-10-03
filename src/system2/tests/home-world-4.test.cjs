@@ -61,6 +61,21 @@ function component(file, overrides={}) {
  return read(require.resolve('../home4/'+file));
 }
 function nodes(tree){if(!tree||typeof tree!=='object')return [];return [tree,...[tree.props?.children].flat(Infinity).flatMap(nodes)];}
+
+test('domain locations navigate once per focus, locked locations have no fake actions',()=>{
+ const pushes=[];let focus;
+ const Panel=component('DomainPanel.tsx',{
+  react:{memo:f=>f,useRef:v=>({current:v}),useCallback:f=>f},
+  'expo-router':{useFocusEffect:f=>{focus=f;f();},useRouter:()=>({push:p=>pushes.push(p)})},
+ }).default;
+ const tree=Panel({domain:{name:'Azyl',level:1,completedQuests:1,nextLevelAt:5,firstAchievement:true}});
+ const buttons=nodes(tree).filter(n=>n.type==='Pressable');
+ assert.equal(buttons.length,4);
+ const routes=['/quests','/goals','/progression-2','/inventory'];
+ buttons.forEach((button,i)=>{focus();button.props.onPress();button.props.onPress();assert.equal(pushes.length,i+1);assert.equal(pushes[i],routes[i]);});
+ const text=JSON.stringify(tree);assert.match(text,/FORGE · LOCKED/);assert.match(text,/SANCTUARY · LOCKED/);
+ assert.equal(Panel({domain:null}),null);
+});
 test('mission CTA dispatches supplied action once without reward mutations',()=>{
  let calls=0;const Focus=component('MissionFocus.tsx').default;
  const tree=Focus({title:'GPS',subtitle:'Walk',progress:1,total:3,reward:20,action:{label:'RESUME MISSION',onPress:()=>calls++}});
