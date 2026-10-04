@@ -59,8 +59,8 @@ function loader(mocks, clock = { get now() { return Date.now(); } }) {
   return relative => load(path.join(root, 'src/system2', relative));
 }
 
-function databaseHarness(t, clock) {
-  const sql = new DatabaseSync(':memory:');
+function databaseHarness(t, clock, file = ':memory:') {
+  let sql = new DatabaseSync(file);
   t.after(() => sql.close());
   const faults = { open: false, init: false, statement: '', commit: false, afterCommit: false, failWhen: null };
   let transaction = false;
@@ -116,7 +116,7 @@ function databaseHarness(t, clock) {
     return adapter;
   } } };
   const load = loader(mocks, clock);
-  return { db: load('storage/database'), faults, sql, load, reload: () => loader(mocks, clock)('storage/database'), reloadWorld: () => loader(mocks, clock)('storage/world') };
+  return { db: load('storage/database'), faults, get sql() { return sql; }, load, reload: () => loader(mocks, clock)('storage/database'), reopen: () => { sql.close(); sql = new DatabaseSync(file); return loader(mocks, clock)('storage/database'); }, reloadWorld: () => loader(mocks, clock)('storage/world') };
 }
 const evidence = { questId: 'first_movement_v1', verificationType: 'GPS_DISTANCE', verificationScore: 95, distanceMeters: 503.25, durationSeconds: 400 };
 
@@ -3340,4 +3340,42 @@ test('30-minute new-player loop joins canonical quests rewards GM memory and HOM
  const next=gm.getGameMasterState({...final,...memory,now:new Date(clock.now).toISOString(),hour:12,activeQuestId:null});
  assert.ok(next.mission.quest);assert.equal(next.world.missionSignal,next.mission.quest.id);
  console.log('30-minute canonical simulation:',{seconds:elapsed,missions,remembered:memory.campaign.completed.length});
+});
+
+test('visual read contracts retain profile loot domain and active mission after closing and reopening SQLite',async t=>{
+ const dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'system-visual-read-'));
+ const h=databaseHarness(t,undefined,path.join(dir,'system2.db'));
+ t.after(()=>fs.rmSync(dir,{recursive:true}));await h.db.loadSystemState();await h.db.finishOnboarding('Visual tester');
+ const awarded=await h.db.completeVerifiedQuest({questId:'awakening_observe_v1',verificationType:'TIMER',durationSeconds:300,verificationScore:100});
+ assert.ok(awarded.loot);await h.db.equipInventoryItem(awarded.loot.id);
+ const questId='awakening_imagine_v1';
+ await h.db.saveQuestCheckpoint({questId,distanceMeters:0,durationSeconds:120,verificationScore:100,extendedGoal:false,updatedAt:new Date().toISOString()});
+ const next=h.reopen(),snapshot=await next.loadSystemState(),checkpoint=await next.loadResumableQuestCheckpoint();
+ assert.equal(checkpoint.questId,questId);assert.equal(checkpoint.durationSeconds,120);
+ const state={...snapshot,ready:true,error:null,activeQuestId:checkpoint.questId,inventory:await next.loadInventory(),
+ socialSessions:await next.loadSocialSessions(),aiGameMaster:null,aiLoading:false,aiError:null,
+ gameLoop:{state:h.load('gameLoop/questRunAdapter').questRunLoopState('READY',questId)}};
+ const reads=h.load('presentation/visualReadModels');
+ const before=h.sql.prepare('SELECT total_changes() AS n').get().n;
+ const home=reads.selectHomeReadModel(state),character=reads.selectCharacterReadModel(state),quest=reads.selectQuestReadModel(state);
+ assert.equal(home.totalXp,awarded.player.totalRealXp);assert.equal(character.profile.displayName,'Visual tester');
+ assert.equal(character.profile.id,awarded.player.id);assert.equal(character.profile.totalRealXp,home.totalXp);
+ assert.equal(character.equipped.find(x=>x.id===awarded.loot.id).equipped,true);
+ assert.equal(home.domain.name,snapshot.domain.name);assert.equal(home.domain.completedQuests,1);
+ assert.equal(home.activeMission.id,questId);assert.equal(quest.activeMission.access.status,'ACTIVE');
+ assert.equal(home.loop.questId,questId);assert.equal(home.loop.phase,'BRIEFING');
+ reads.selectWorldReadModel(state);assert.equal(Object.keys(reads.selectSocialReadModel(state).localSessions).length,0);
+ assert.equal(h.sql.prepare('SELECT total_changes() AS n').get().n,before,'pure UI reads must not write SQLite');
+ assert.equal((await next.loadSystemState()).player.totalRealXp,home.totalXp);
+});
+test('visual boss rows use persisted difficulty and require canonical stage access',async t=>{
+ const h=databaseHarness(t);const snapshot=await h.db.loadSystemState();
+ const state={...snapshot,ready:true,error:null,activeQuestId:null,inventory:[],socialSessions:{},
+ aiGameMaster:null,aiLoading:false,aiError:null,gameLoop:{state:h.load('gameLoop/stateMachine').INITIAL_GAME_LOOP_STATE}};
+ const reads=h.load('presentation/visualReadModels');
+ const rows=reads.selectQuestReadModel(state).missions.filter(x=>x.quest.category==='BOSS');
+ assert.ok(rows.length>0);assert.ok(rows.every(x=>!x.accessKnown));
+ const bossAccess={};for(const row of rows)bossAccess[row.quest.id]=['AVAILABLE','ACTIVE'].includes(await h.db.getQuestAccess(row.quest.id));
+ const checked=reads.selectQuestReadModel(state,{bossAccess}).missions.filter(x=>x.quest.category==='BOSS');
+ assert.ok(checked.every(x=>x.accessKnown&&x.access.status==='LOCKED'));
 });
