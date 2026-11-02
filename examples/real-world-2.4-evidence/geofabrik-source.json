@@ -1,0 +1,19 @@
+{
+  "kind": "OSM",
+  "origin": "MANUALLY_SUPPLIED_OSM",
+  "datasetId": "lebork-geofabrik-261101-v1",
+  "sourceUrl": "https://download.geofabrik.de/europe/poland/pomorskie-latest.osm.pbf",
+  "resolvedSourceUrl": "https://download.geofabrik.de/europe/poland/pomorskie-261101.osm.pbf",
+  "retrievedAt": "2026-11-02T19:34:04.446Z",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors",
+  "bbox": [
+    17.74612,
+    54.53775,
+    17.75388,
+    54.54225
+  ],
+  "sha256": "ef7955c5873faec704278eae14d2565784735444375251005a605cc17ecb24b2",
+  "bytes": 118349746,
+  "acquisition": "AUTHORIZED_ONE_SHOT_HTTPS_DOWNLOAD; origin is existing local-admission category, not an independent source certification"
+}

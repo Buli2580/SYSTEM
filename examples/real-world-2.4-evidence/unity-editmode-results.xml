@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="11" result="Passed" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:06Z" duration="0,4438564">
+  <test-suite type="TestSuite" id="1000" name="SYSTEM World Foundation TEMP" fullname="SYSTEM World Foundation TEMP" runstate="Runnable" testcasecount="25" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:06Z" duration="0.443856" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1031" name="System.World.EditTests.dll" fullname="C:/SYSTEM/SYSTEM-UNITY-WORLD/Library/ScriptAssemblies/System.World.EditTests.dll" runstate="Runnable" testcasecount="25" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:06Z" duration="0.432395" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="25140" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestFixture" id="1001" name="RealWorldValidatorTests" fullname="RealWorldValidatorTests" classname="RealWorldValidatorTests" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:06Z" duration="0.429398" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-case id="1006" name="BadOriginRejected" fullname="RealWorldValidatorTests.BadOriginRejected" methodname="BadOriginRejected" classname="RealWorldValidatorTests" runstate="Runnable" seed="503397340" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:05Z" duration="0.062317" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1004" name="BlankTileIdRejected" fullname="RealWorldValidatorTests.BlankTileIdRejected" methodname="BlankTileIdRejected" classname="RealWorldValidatorTests" runstate="Runnable" seed="1443862928" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:05Z" duration="0.002626" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1002" name="BundleManifestAndAll36PacketsValidate" fullname="RealWorldValidatorTests.BundleManifestAndAll36PacketsValidate" methodname="BundleManifestAndAll36PacketsValidate" classname="RealWorldValidatorTests" runstate="Runnable" seed="2122698759" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:05Z" duration="0.102125" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1007" name="ExtraFieldRejected" fullname="RealWorldValidatorTests.ExtraFieldRejected" methodname="ExtraFieldRejected" classname="RealWorldValidatorTests" runstate="Runnable" seed="1022510879" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:05Z" duration="0.001756" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1011" name="FrameAxesAreEastUpNorth" fullname="RealWorldValidatorTests.FrameAxesAreEastUpNorth" methodname="FrameAxesAreEastUpNorth" classname="RealWorldValidatorTests" runstate="Runnable" seed="1418743541" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:05Z" duration="0.027463" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1010" name="LowLodSessionDedupesToUniqueFeatures" fullname="RealWorldValidatorTests.LowLodSessionDedupesToUniqueFeatures" methodname="LowLodSessionDedupesToUniqueFeatures" classname="RealWorldValidatorTests" runstate="Runnable" seed="82277435" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:05Z" duration="0.058444" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1009" name="MissingPacketFileRejected" fullname="RealWorldValidatorTests.MissingPacketFileRejected" methodname="MissingPacketFileRejected" classname="RealWorldValidatorTests" runstate="Runnable" seed="217212236" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:05Z" duration="0.022372" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1012" name="NeighborSharedCornerAlignsWithinMillimetre" fullname="RealWorldValidatorTests.NeighborSharedCornerAlignsWithinMillimetre" methodname="NeighborSharedCornerAlignsWithinMillimetre" classname="RealWorldValidatorTests" runstate="Runnable" seed="1636342839" result="Passed" start-time="2026-11-02 20:27:05Z" end-time="2026-11-02 20:27:06Z" duration="0.046917" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1008" name="OversizedPacketRejected" fullname="RealWorldValidatorTests.OversizedPacketRejected" methodname="OversizedPacketRejected" classname="RealWorldValidatorTests" runstate="Runnable" seed="856467779" result="Passed" start-time="2026-11-02 20:27:06Z" end-time="2026-11-02 20:27:06Z" duration="0.025033" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1003" name="ShaMismatchRejected" fullname="RealWorldValidatorTests.ShaMismatchRejected" methodname="ShaMismatchRejected" classname="RealWorldValidatorTests" runstate="Runnable" seed="2023884719" result="Passed" start-time="2026-11-02 20:27:06Z" end-time="2026-11-02 20:27:06Z" duration="0.053116" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1005" name="WrongProtocolRejected" fullname="RealWorldValidatorTests.WrongProtocolRejected" methodname="WrongProtocolRejected" classname="RealWorldValidatorTests" runstate="Runnable" seed="1031614736" result="Passed" start-time="2026-11-02 20:27:06Z" end-time="2026-11-02 20:27:06Z" duration="0.004910" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+          <output><![CDATA[Saving results to: C:/Users/Ja/AppData/LocalLow/SYSTEM Experimental/SYSTEM World Foundation TEMP\TestResults.xml
+]]></output>
+        </test-case>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

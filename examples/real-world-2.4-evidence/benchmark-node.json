@@ -1,0 +1,214 @@
+{
+  "format": "SYSTEM_CITY_NODE_BENCHMARK_V1",
+  "dataStatus": "SYNTHETIC",
+  "environment": "NODE_DESKTOP_NOT_UNITY_OR_ANDROID",
+  "node": "v24.21.0",
+  "cpu": "Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz",
+  "measuredAt": "2026-11-02T19:31:41.189Z",
+  "method": "Density cases isolated child processes, one measured LOW compile each after module/fixture preparation; no performance threshold or statistical claim. Nine-tile session uses memory loader, not disk/network. SQLite closes/reopens same Node process.",
+  "memoryPolicy": "RSS/heap before and after; maxRSS is process lifetime high-water if supported (zero means unavailable). Not sampled true per-operation peak. Logical mesh storage counts numeric slots*8; excludes object overhead/transients.",
+  "densities": [
+    {
+      "buildings": 100,
+      "lod": "LOW",
+      "samples": 1,
+      "warmup": 0,
+      "elapsedMs": 119.22460000000012,
+      "inputBytes": 42481,
+      "tiles": 9,
+      "packetBytes": 573117,
+      "serializedTriangles": 1480,
+      "memoryBefore": {
+        "rssBytes": 94662656,
+        "heapUsedBytes": 28269632,
+        "externalBytes": 2342299,
+        "processLifetimeMaxRssBytes": 96391168
+      },
+      "memoryAfter": {
+        "rssBytes": 98430976,
+        "heapUsedBytes": 33841816,
+        "externalBytes": 2342303,
+        "processLifetimeMaxRssBytes": 100126720
+      },
+      "rssDeltaBytes": 3768320,
+      "relationRendering": "BLOCKED_V1; excluded from rendered counts"
+    },
+    {
+      "buildings": 500,
+      "lod": "LOW",
+      "samples": 1,
+      "warmup": 0,
+      "elapsedMs": 588.6230999999998,
+      "inputBytes": 205300,
+      "tiles": 9,
+      "packetBytes": 2213387,
+      "serializedTriangles": 5500,
+      "memoryBefore": {
+        "rssBytes": 97189888,
+        "heapUsedBytes": 28465424,
+        "externalBytes": 2342299,
+        "processLifetimeMaxRssBytes": 98410496
+      },
+      "memoryAfter": {
+        "rssBytes": 121516032,
+        "heapUsedBytes": 47592680,
+        "externalBytes": 2342303,
+        "processLifetimeMaxRssBytes": 122863616
+      },
+      "rssDeltaBytes": 24326144,
+      "relationRendering": "BLOCKED_V1; excluded from rendered counts"
+    },
+    {
+      "buildings": 1000,
+      "lod": "LOW",
+      "samples": 1,
+      "warmup": 0,
+      "elapsedMs": 1070.7800000000002,
+      "inputBytes": 409939,
+      "tiles": 25,
+      "packetBytes": 4876714,
+      "serializedTriangles": 12020,
+      "memoryBefore": {
+        "rssBytes": 98963456,
+        "heapUsedBytes": 28672168,
+        "externalBytes": 2342299,
+        "processLifetimeMaxRssBytes": 99819520
+      },
+      "memoryAfter": {
+        "rssBytes": 124989440,
+        "heapUsedBytes": 55817192,
+        "externalBytes": 2342303,
+        "processLifetimeMaxRssBytes": 124993536
+      },
+      "rssDeltaBytes": 26025984,
+      "relationRendering": "BLOCKED_V1; excluded from rendered counts"
+    }
+  ],
+  "activeNineAndLOD": [
+    {
+      "lod": "LOW",
+      "elapsedMs": 41.39519999999993,
+      "activeTiles": 9,
+      "uniqueMeshes": 14,
+      "uniqueFeatures": 14,
+      "packetBytes": 58889,
+      "numericMeshBytes": 21840,
+      "memoryBefore": {
+        "rssBytes": 100761600,
+        "heapUsedBytes": 34240280,
+        "externalBytes": 2342278,
+        "processLifetimeMaxRssBytes": 102555648
+      },
+      "memoryAfter": {
+        "rssBytes": 100573184,
+        "heapUsedBytes": 36638664,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 102555648
+      }
+    },
+    {
+      "lod": "HIGH",
+      "elapsedMs": 37.16030000000046,
+      "activeTiles": 9,
+      "uniqueMeshes": 14,
+      "uniqueFeatures": 14,
+      "packetBytes": 59047,
+      "numericMeshBytes": 21840,
+      "memoryBefore": {
+        "rssBytes": 100573184,
+        "heapUsedBytes": 36640136,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 102555648
+      },
+      "memoryAfter": {
+        "rssBytes": 100667392,
+        "heapUsedBytes": 38871488,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 102555648
+      }
+    },
+    {
+      "lod": "MEDIUM",
+      "elapsedMs": 32.26519999999982,
+      "activeTiles": 9,
+      "uniqueMeshes": 14,
+      "uniqueFeatures": 14,
+      "packetBytes": 59123,
+      "numericMeshBytes": 21840,
+      "memoryBefore": {
+        "rssBytes": 100667392,
+        "heapUsedBytes": 38872808,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 102555648
+      },
+      "memoryAfter": {
+        "rssBytes": 101486592,
+        "heapUsedBytes": 41125304,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 102555648
+      }
+    },
+    {
+      "lod": "DISTANT",
+      "elapsedMs": 31.23909999999978,
+      "activeTiles": 9,
+      "uniqueMeshes": 14,
+      "uniqueFeatures": 14,
+      "packetBytes": 52298,
+      "numericMeshBytes": 21840,
+      "memoryBefore": {
+        "rssBytes": 101486592,
+        "heapUsedBytes": 41126624,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 102555648
+      },
+      "memoryAfter": {
+        "rssBytes": 103579648,
+        "heapUsedBytes": 43193000,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 103579648
+      }
+    },
+    {
+      "lod": "LOW",
+      "elapsedMs": 28.241800000000694,
+      "activeTiles": 9,
+      "uniqueMeshes": 14,
+      "uniqueFeatures": 14,
+      "packetBytes": 58889,
+      "numericMeshBytes": 21840,
+      "memoryBefore": {
+        "rssBytes": 103579648,
+        "heapUsedBytes": 43194320,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 103579648
+      },
+      "memoryAfter": {
+        "rssBytes": 105758720,
+        "heapUsedBytes": 45416912,
+        "externalBytes": 2342282,
+        "processLifetimeMaxRssBytes": 105758720
+      }
+    }
+  ],
+  "offline": {
+    "restartVerified": true,
+    "packetsVerified": 9,
+    "environment": "NODE_SQLITE_NOT_ANDROID",
+    "networkRequests": 0,
+    "elapsedMs": 1407.9006,
+    "fileBytes": 90112,
+    "memoryBefore": {
+      "rssBytes": 105783296,
+      "heapUsedBytes": 45418896,
+      "externalBytes": 2342282,
+      "processLifetimeMaxRssBytes": 105783296
+    },
+    "memoryAfter": {
+      "rssBytes": 129589248,
+      "heapUsedBytes": 64071840,
+      "externalBytes": 2342282,
+      "processLifetimeMaxRssBytes": 133754880
+    }
+  }
+}

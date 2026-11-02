@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Merge only into the separate RN experimental app; never production RC3. -->
+  <application>
+    <activity android:name="com.system.worldfoundation.WorldUnityActivity"
+      android:exported="false" android:launchMode="singleTask" android:hardwareAccelerated="true"
+      android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|density" />
+  </application>
+</manifest>

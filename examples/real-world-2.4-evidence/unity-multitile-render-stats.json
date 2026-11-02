@@ -1,0 +1,55 @@
+{
+  "dataStatus": "SYNTHETIC",
+  "actualLeborkData": false,
+  "root": "C:\\SYSTEM\\SYSTEM-UNITY-WORLD\\Assets\\StreamingAssets\\real-world-2.4-multitile-synthetic",
+  "tileCount": 9,
+  "uniqueFeatures": 14,
+  "lods": {
+    "LOW": {
+      "activeTiles": 9,
+      "errors": 0,
+      "uniqueMeshes": 14,
+      "triangles": 106,
+      "packetBytes": 58772,
+      "meshBytes": 21840,
+      "serializedTrianglesAllTiles": 130,
+      "kinds": { "BUILDING": 9, "PARK": 1, "PLAZA": 1, "ROAD": 3 }
+    },
+    "MEDIUM": {
+      "activeTiles": 9,
+      "errors": 0,
+      "uniqueMeshes": 14,
+      "triangles": 106,
+      "packetBytes": 59006,
+      "meshBytes": 21840,
+      "serializedTrianglesAllTiles": 130,
+      "kinds": { "BUILDING": 9, "PARK": 1, "PLAZA": 1, "ROAD": 3 }
+    },
+    "HIGH": {
+      "activeTiles": 9,
+      "errors": 0,
+      "uniqueMeshes": 14,
+      "triangles": 106,
+      "packetBytes": 58930,
+      "meshBytes": 21840,
+      "serializedTrianglesAllTiles": 130,
+      "kinds": { "BUILDING": 9, "PARK": 1, "PLAZA": 1, "ROAD": 3 }
+    },
+    "DISTANT": {
+      "activeTiles": 9,
+      "errors": 0,
+      "uniqueMeshes": 14,
+      "triangles": 106,
+      "packetBytes": 52181,
+      "meshBytes": 21840,
+      "serializedTrianglesAllTiles": 130,
+      "kinds": { "BUILDING": 9, "PARK": 1, "PLAZA": 1, "ROAD": 3 }
+    }
+  },
+  "playSpawn": {
+    "meshFilters": 14,
+    "triangles": 106
+  },
+  "scene": "Assets/_SYSTEM/Scenes/REAL_WORLD_MULTITILE_LAB.unity",
+  "foundationUntouchedSha256": "5E76B5D19F1C0DAB14D98E843431919DE67E02D083BE2FB3FDA968C500FCEF64"
+}

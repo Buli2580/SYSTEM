@@ -1,0 +1,12 @@
+# Generated Unity state and exports stay outside the source mirror.
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Ll]ogs/
+UserSettings/
+[Bb]uilds/
+[Bb]uild/
+MemoryCaptures/
+Recordings/
+*.csproj
+*.sln

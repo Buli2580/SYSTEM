@@ -1,0 +1,10 @@
+{
+  "name": "System.World",
+  "references": [
+    "Unity.RenderPipelines.Universal.Runtime"
+  ],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
+  ]
+}

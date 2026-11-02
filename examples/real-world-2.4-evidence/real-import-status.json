@@ -1,0 +1,15 @@
+{
+  "status": "BLOCKED",
+  "regionalPbfAvailable": true,
+  "dataStatus": "DOWNLOADED_OSM_PBF_UNVERIFIED",
+  "localFile": ".cache/real-world-2.4/geofabrik-download/pomorskie-261101.osm.pbf",
+  "httpStatus": 200,
+  "bytes": 118349746,
+  "sha256": "ef7955c5873faec704278eae14d2565784735444375251005a605cc17ecb24b2",
+  "reason": "OSMIUM_UNAVAILABLE",
+  "leborkExtractVerified": false,
+  "realSvgAvailable": false,
+  "actualPipelineMetrics": null,
+  "nativeUnityStatus": "NOT_TESTED",
+  "notice": "Downloaded regional source exists; actual Lebork geography has not been decoded/imported."
+}

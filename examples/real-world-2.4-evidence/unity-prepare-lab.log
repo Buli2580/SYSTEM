@@ -1,0 +1,529 @@
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 10324)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 29976)
+VBCSCompiler prewarm took 484.60 ms
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.6/staging' branch; Version is '6000.6.4f1 (12bfff696524) revision 1228799'; Using compiler version '194234433'; Build Type 'Release'
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Ja" at "2026-11-02T20:18:49.0938151Z"
+OS: 'Windows 11  (10.0.26200) Core' Language: 'pl' Physical Memory: 32605 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-11-02T20:18:49Z
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 10892, path: "C:/Program Files/Unity Hub/UnityLicensingClient_V1/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              1e6c82fff1a14d9eba53f70bdb678504
+  Correlation Id:          8a62046b4bb9d189af11d5947abb942e
+  External correlation Id: 7179991041838665175
+  Machine Id:              Yy8QB6WwOHQ6V/Xti5m09o9WvX0=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-Ja" (connect: 0.00s, validation: 0.00s, handshake: 0.07s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Ja-notifications" at "2026-11-02T20:18:49.1701972Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 7972629025395-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.00
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.09s
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Unity.exe
+-batchmode
+-nographics
+-quit
+-projectPath
+C:\SYSTEM\SYSTEM-UNITY-WORLD
+-executeMethod
+MultitileLabBuilder.PrepareLab
+-logFile
+C:\SYSTEM\SYSTEM-RC2\examples\real-world-2.4-evidence\unity-prepare-lab.log
+Successfully changed project path to: C:\SYSTEM\SYSTEM-UNITY-WORLD
+C:/SYSTEM/SYSTEM-UNITY-WORLD
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [22312]  Target information:
+
+Player connection [22312]  * "[IP] 192.168.0.23 [Port] 55504 [Flags] 2 [Guid] 510963072 [EditorId] 510963072 [Version] 1048832 [Id] WindowsEditor(7,LAPTOP-MM1SPGUM) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [22312] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [22312] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-24388" after 0.4 seconds.
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+Initialising UDS system complete:
+  - System type: Client
+  - Resource namespace: 1dada6abfcb1b02b53db9d735292ed62
+  - Shared memory size: 1073741824
+  - Command buffer id: 1052576
+  - Command buffer size: 8192
+  - Hashmap size: 4194304
+  - Service connected: false
+Launching Unity Data Store - C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/Tools/Unity.DataStore.exe 
+Unity Data Store artifact dir = Library/DataStore, working dir = C:/SYSTEM/SYSTEM-UNITY-WORLDUnity Data Store running and initialised
+[Licensing::Client] Successfully resolved entitlement details
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.6.4f1 (12bfff696524)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=1048576, entitiesPerBlock=256, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path C:/SYSTEM/SYSTEM-UNITY-WORLD/Assets
+Forcing GfxDevice: Null
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+NullGfxDevice:
+    Version:  NULL 1.0 [1.0]
+    Renderer: Null Device
+    Vendor:   Unity Technologies
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56388
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/PlaybackEngines/AndroidPlayer/UnityEditor.Android.Extensions.dll
+Registered in 0.003817 seconds.
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:False
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.137 seconds
+Domain Reload Profiling: 2103ms
+	BeginReloadAssembly (316ms)
+		CreateAndSetChildDomain (20ms)
+	RebuildCommonClasses (7ms)
+	RebuildNativeTypeToScriptingClass (29ms)
+	initialDomainReloadingComplete (96ms)
+	LoadAllAssembliesAndSetupDomain (515ms)
+		LoadAssemblies (292ms)
+		TypeCache.Refresh (347ms)
+			TypeCache.ScanAssembly (327ms)
+		AnalyzeDomain (1ms)
+	FinalizeReload (1140ms)
+		SetupLoadedEditorAssemblies (0ms)
+			LogAssemblyErrors (3ms)
+			InitializePlatformSupportModulesInManaged (11ms)
+			BeforeProcessingInitializeOnLoad (208ms)
+			ProcessInitializeOnLoadAttributes (174ms)
+			ProcessInitializeOnLoadMethodAttributes (418ms)
+			EditorAssembliesLoaded (3ms)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 24 packages:
+  Built-in packages:
+    com.unity.modules.androidjni@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.androidjni)
+    com.unity.modules.audio@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.imgui@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.particlesystem@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.modules.jsonserialize@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.physics@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.uielements@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.ui@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.hierarchycore@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.hierarchycore)
+    com.unity.modules.animation@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.animation)
+  Local packages:
+    com.unity.nuget.newtonsoft-json@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.newtonsoft-json (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.newtonsoft-json)
+    com.unity.render-pipelines.universal@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal)
+    com.unity.render-pipelines.core@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.core (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.core)
+    com.unity.burst@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.burst (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.burst)
+    com.unity.collections@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.collections (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.collections)
+    com.unity.nuget.mono-cecil@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.mono-cecil (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.mono-cecil)
+    com.unity.test-framework@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework)
+    com.unity.ext.nunit@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.ext.nunit (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.ext.nunit)
+    com.unity.test-framework.performance@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework.performance (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework.performance)
+    com.unity.profiling.core@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.profiling.core (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.profiling.core)
+    com.unity.shadergraph@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.shadergraph (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.shadergraph)
+    com.unity.searcher@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.searcher (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.searcher)
+    com.unity.graph-authoring@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.graph-authoring (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.graph-authoring)
+    com.unity.render-pipelines.universal-config@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal-config (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal-config)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.02 seconds
+Warning: Disk space low. The project is on a drive with diskspace below 1.00 GB. Please free up some space for Unity to work correctly.
+Couldn't create 'C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.burst/~UnityDirMonSyncFile~bdd5a5795f5f8d944b5d35b2b3059048~'
+Assets/StreamingAssets/real-world-2.4-multitile-synthetic is a symbolic link. Using symlinks in Unity projects may cause your project to become corrupted if you create multiple references to the same asset, use recursive symlinks or use symlinks to share assets between projects used with different versions of Unity. Make sure you know what you are doing.
+Disabling directory monitoring for current editor session. Found symlinks in project which cannot be used with directory monitoring. Directory monitoring settings can be changed in preferences.
+AcceleratorClientConnectionCallback - disconnected - :0
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1300b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: C:/SYSTEM/SYSTEM-UNITY-WORLD
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 8s270ms
+[522/664    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[640/664    1s] Csc Library/Bee/artifacts/1300b0aE.dag/System.World.dll (+2 others)
+Assets\_SYSTEM\Bridge\WorldProtocol.cs(8,186): warning UAC1001: Field 'payload' type 'Newtonsoft.Json.Linq.JObject' is skipped by serialization (missing the [Serializable] attribute). Refer to the Serialization rules analyzer reference. (https://docs.unity3d.com/6000.6/Documentation/Manual/script-serialization-analyzer.html#uac1001)
+[641/664    0s] Csc Library/Bee/artifacts/1300b0aE.dag/System.World.PlayTests.dll (+2 others)
+[642/664    0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/System.World.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/System.World.dll, with 156 defines and 263 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[643/664    0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/System.World.PlayTests.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/System.World.PlayTests.dll, with 156 defines and 263 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[644/664    0s] CopyFiles Library/ScriptAssemblies/System.World.pdb
+[645/664    0s] CopyFiles Library/ScriptAssemblies/System.World.PlayTests.pdb
+[646/664    0s] CopyFiles Library/ScriptAssemblies/System.World.PlayTests.dll
+[647/664    0s] CopyFiles Library/ScriptAssemblies/System.World.dll
+[648/664    3s] Csc Library/Bee/artifacts/1300b0aE.dag/System.World.Editor.dll (+2 others)
+[649/664    3s] Csc Library/Bee/artifacts/1300b0aE.dag/System.World.EditTests.dll (+2 others)
+[650/664    0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/System.World.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/System.World.Editor.dll, with 154 defines and 307 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[651/664    0s] CopyFiles Library/ScriptAssemblies/System.World.Editor.pdb
+[652/664    0s] CopyFiles Library/ScriptAssemblies/System.World.Editor.dll
+[653/664    0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/System.World.EditTests.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/System.World.EditTests.dll, with 154 defines and 304 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[654/664    0s] CopyFiles Library/ScriptAssemblies/System.World.EditTests.pdb
+[655/664    0s] CopyFiles Library/ScriptAssemblies/System.World.EditTests.dll
+[656/664    1s] Csc Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp.dll (+2 others)
+[657/664    0s] Csc Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp-Editor.dll (+2 others)
+[658/664    1s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp.dll, with 156 defines and 297 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[659/664    1s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/Assembly-CSharp-Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp-Editor.dll, with 154 defines and 342 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[660/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.dll
+[661/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.pdb
+[662/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.dll
+[663/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.pdb
+*** Tundra build success (8.22 seconds), 25 items updated, 664 evaluated
+Assets\_SYSTEM\Bridge\WorldProtocol.cs(8,186): warning UAC1001: Field 'payload' type 'Newtonsoft.Json.Linq.JObject' is skipped by serialization (missing the [Serializable] attribute). Refer to the Serialization rules analyzer reference. (https://docs.unity3d.com/6000.6/Documentation/Manual/script-serialization-analyzer.html#uac1001)
+AssetDatabase: script compilation time: 9.560032s
+Begin MonoManager ReloadAssembly
+Total cache size 268344722
+Total cache size after purge 268344722, took 00:00:00.9860693
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+Importing 'GUID: 31b45c2178b3f444f8ffcae3f9418df4 - Path: Assets/StreamingAssets' with importer (DefaultImporter)
+Imported 'GUID: 31b45c2178b3f444f8ffcae3f9418df4' -> (Import Result ID: '3599c7f5d76005d2a97523fd860b0dff') in 0.044 seconds [static dependencies only]. Details - ImportResultOutputID=ddc594ecf8b6193be449d0e9f24dca19 DependenciesID=783fee5aa6127173508428dd42457f10 StaticDependenciesID=999fa6e0908bd7ccc4773a50396ecf37 
+Importing 'GUID: 32e57a886e629cb4696a7c6eb8218053 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic' with importer (DefaultImporter)
+Imported 'GUID: 32e57a886e629cb4696a7c6eb8218053' -> (Import Result ID: 'ac5c8215bf8ab4405ad3cd5d3af762ba') in 0.014 seconds [static dependencies only]. Details - ImportResultOutputID=87561233e2aeb281a6230efa6eb520de DependenciesID=72430be8a04a853f0c230a092016d920 StaticDependenciesID=68f514a3826f8f5e3884419e38e5becf 
+Importing 'GUID: da6fbdd63185ac14e88a4560dd5318a8 - Path: Assets/_SYSTEM/RealWorld' with importer (DefaultImporter)
+Imported 'GUID: da6fbdd63185ac14e88a4560dd5318a8' -> (Import Result ID: '6312a9dca5266ffd0414df1e7d3cb441') in 0.012 seconds [static dependencies only]. Details - ImportResultOutputID=9e63016a0d011fe1bc110e226aaafaf2 DependenciesID=dd01033e7f4b11fc3069fa8695253977 StaticDependenciesID=ba6a25f0a1306f9bfb1b86f3e97bbb24 
+Importing 'GUID: a61346ab2eb87e045aadfd30ac6518df - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH' with importer (DefaultImporter)
+Imported 'GUID: a61346ab2eb87e045aadfd30ac6518df' -> (Import Result ID: '90f45449b1ea0a7e306285574f2d579c') in 0.010 seconds [static dependencies only]. Details - ImportResultOutputID=cbf2cfb5cc980927e97769b56813c091 DependenciesID=1c50049ccc56e6b0ebd2be9c197ca6f5 StaticDependenciesID=0c02991acb1cdf82db06c07414104b95 
+Importing 'GUID: b6e9d0584ac3b9b408e76386f750745b - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM' with importer (DefaultImporter)
+Imported 'GUID: b6e9d0584ac3b9b408e76386f750745b' -> (Import Result ID: 'ba573a342fdc0bffb73ccb4480923d39') in 0.013 seconds [static dependencies only]. Details - ImportResultOutputID=fe6202ae610bcf0a7da3078c60f9a7be DependenciesID=bc0d968897c2ee34b43c135d12598cec StaticDependenciesID=d52deb4bae4f0e82504516e634496167 
+Importing 'GUID: 2e559a948f04a224ba8f89688994d5f5 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW' with importer (DefaultImporter)
+Imported 'GUID: 2e559a948f04a224ba8f89688994d5f5' -> (Import Result ID: '09fa4895cdfd047a531a5e4e055599f0') in 0.012 seconds [static dependencies only]. Details - ImportResultOutputID=f85d958cad6fbe2d3044038ed1188e2d DependenciesID=6af539a613d977878911c61834369535 StaticDependenciesID=d9530488129a0a5e816009b9d05c7f6f 
+Importing 'GUID: 3e3f901cbdc88d746bb1161513025f87 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT' with importer (DefaultImporter)
+Imported 'GUID: 3e3f901cbdc88d746bb1161513025f87' -> (Import Result ID: '2a9165edc4a8bbb430d6109e55daa64e') in 0.011 seconds [static dependencies only]. Details - ImportResultOutputID=0ecdfd53b88ef08c583b50cc257c62b3 DependenciesID=36f748af12a83291277558358837fffc StaticDependenciesID=58f6b3ed44a58fd82544964eb715cc5c 
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  2.361 seconds
+Domain Reload Profiling: 6343ms
+	BeginReloadAssembly (1101ms)
+		DisableScriptedObjects (134ms)
+		CreateAndSetChildDomain (100ms)
+	RebuildCommonClasses (22ms)
+	RebuildNativeTypeToScriptingClass (42ms)
+	initialDomainReloadingComplete (103ms)
+	LoadAllAssembliesAndSetupDomain (2712ms)
+		LoadAssemblies (2437ms)
+		TypeCache.Refresh (623ms)
+			TypeCache.ScanAssembly (603ms)
+		AnalyzeDomain (55ms)
+			BuildScriptInfoCaches (39ms)
+			ResolveRequiredComponents (12ms)
+	FinalizeReload (2363ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (22ms)
+			BeforeProcessingInitializeOnLoad (454ms)
+			ProcessInitializeOnLoadAttributes (262ms)
+			ProcessInitializeOnLoadMethodAttributes (196ms)
+			AfterProcessingInitializeOnLoad (23ms)
+			EditorAssembliesLoaded (3ms)
+		AwakeInstancesAfterBackupRestoration (84ms)
+Starting new worker id: 0 with log in C:/SYSTEM/SYSTEM-UNITY-WORLD/Logs/AssetImportWorkerHW0.log
+Importing 'GUID: e0a15b3329df26d47a59f50759f6b3b2 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/source-preview.svg' with importer (DefaultImporter)
+Imported 'GUID: e0a15b3329df26d47a59f50759f6b3b2' -> (Import Result ID: '0a9a58390b9df4476bcefe87db1e5838') in 0.137 seconds [static dependencies only]. Details - ImportResultOutputID=03eef49d9dbf731f1aa5a67952c9ab50 DependenciesID=996be43cf6a54ec33dd163063025f3c1 StaticDependenciesID=a11466358e93ecf04ead8f21681fc922 
+Importing 'GUID: 290461f006149fb4d9ccf624dc924282 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/manifest.json' with importer (DefaultImporter)
+Imported 'GUID: 290461f006149fb4d9ccf624dc924282' -> (Import Result ID: '27f5d102596e5f8acc5b633182eb9adc') in 0.038 seconds [static dependencies only]. Details - ImportResultOutputID=c2db9e0923bdebf52171b43dc062deae DependenciesID=bdb6d7ad7be3edace13bf6aecafcf4c0 StaticDependenciesID=fc110e1996e57e642e96e1a96182b6ff 
+Importing 'GUID: 69fe526c3de1d3941804c47b769597da - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/source.osm' with importer (DefaultImporter)
+Imported 'GUID: 69fe526c3de1d3941804c47b769597da' -> (Import Result ID: '9c05272a7889cf974de68e47fd632cb9') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=19777c2a1c7d95666dbe7914319a7195 DependenciesID=13f8aa28450b672b0b8b92145e3217b2 StaticDependenciesID=3d1f31e29201c22acf620be8655cc4b7 
+Importing 'GUID: 80a7a44ee4562884e88b7b444e18baff - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143997-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 80a7a44ee4562884e88b7b444e18baff' -> (Import Result ID: '0f2e1a212fa88eb885edc8b48fa248e2') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=371372c809ed207672f2f00edea8048c DependenciesID=14d21e8c479586d028ffc8814966d360 StaticDependenciesID=67abd9b978b953841b2a931a7c2b33c9 
+Importing 'GUID: 9035cfeddff23db4cb96357bd43af182 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143996-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 9035cfeddff23db4cb96357bd43af182' -> (Import Result ID: 'e65069b9035034136c6b8afa0e9022c9') in 0.013 seconds [static dependencies only]. Details - ImportResultOutputID=a9ec510e58e5132d13c830c1b9362179 DependenciesID=088a17195b8685ea7990939f34a6d0a4 StaticDependenciesID=e12c40f055e8c67de7154c99d21c6a29 
+Importing 'GUID: 41f8db40975130e43acfe9f5b1644fe2 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143996-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 41f8db40975130e43acfe9f5b1644fe2' -> (Import Result ID: 'a5af07932c4e79ff0f19cd40709bc87a') in 0.015 seconds [static dependencies only]. Details - ImportResultOutputID=f2537a8492c97b26170003fab32bc5b1 DependenciesID=925cf5be4d0c98eec86436a7c3c71029 StaticDependenciesID=a0d0c2808713b19ed92a53b96465aaf8 
+Importing 'GUID: e1a0e03371cede6428a05f0cd2cb27bc - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143997-83496.json' with importer (DefaultImporter)
+Imported 'GUID: e1a0e03371cede6428a05f0cd2cb27bc' -> (Import Result ID: '34ec48a46cdb25a819069e92776e34f2') in 0.015 seconds [static dependencies only]. Details - ImportResultOutputID=ba1766313c0533a46729a43149a0793d DependenciesID=132bfabc2cd09c8d6ce61701f9de725d StaticDependenciesID=53d93325f491b872bd64a3887832ae01 
+Importing 'GUID: e11d1825e361bb94a8a8cf87f06cf396 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143998-83495.json' with importer (DefaultImporter)
+Imported 'GUID: e11d1825e361bb94a8a8cf87f06cf396' -> (Import Result ID: 'd0f617cc0f9e90c4a3a36ecfcbb4efac') in 0.015 seconds [static dependencies only]. Details - ImportResultOutputID=5b1a71235250f606c082af45395c03de DependenciesID=b0c3e3f92b2690023e287a941f1bb61f StaticDependenciesID=88b1bfd540f60a3b02407b7fd52b5271 
+Importing 'GUID: e1dea54c75c48f74a8d241c3f825b357 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143997-83496.json' with importer (DefaultImporter)
+Imported 'GUID: e1dea54c75c48f74a8d241c3f825b357' -> (Import Result ID: '88b1682c9fa62f8e8e1c8e4c9c814933') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=cd16de9a69ef3ccac98fe4aab62ab600 DependenciesID=53826dd070601dc22c0a9a00b9ffa8ca StaticDependenciesID=1c439b150fd4311ee35c7413ea84d655 
+Importing 'GUID: c214833f55a91104fa58bedabab4ad5a - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143998-83496.json' with importer (DefaultImporter)
+Imported 'GUID: c214833f55a91104fa58bedabab4ad5a' -> (Import Result ID: '77921c3d8f1050a63d08d48f83477ee9') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=2eccd31b2812592dac771d97e76de1cd DependenciesID=1e7f5c0ff5c7f4d8235c95117a339648 StaticDependenciesID=4a2d04d813ce86e35648bf244ef11828 
+Importing 'GUID: 236291225938e5e4abf84a68040edc96 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143998-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 236291225938e5e4abf84a68040edc96' -> (Import Result ID: 'ec4bac3494fb4bea84b283e0e638a964') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=898931d9924803a6f4b4e0d2b8516819 DependenciesID=1e2ccb932548aef2886c5393c4385555 StaticDependenciesID=323e2f1361d6807d0cf3c4fc57b7cca1 
+Importing 'GUID: 431bbaf20ceaa6248b1a71d4650f08fd - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143998-83496.json' with importer (DefaultImporter)
+Imported 'GUID: 431bbaf20ceaa6248b1a71d4650f08fd' -> (Import Result ID: 'a556c23b4c12580d228700183398bc83') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=2875f4c01dea452880ddbb90d0fe397b DependenciesID=445bcf108e378c53b777097924eee386 StaticDependenciesID=7d5dce8da3ca3d4eb1c6112e71459f20 
+Importing 'GUID: b3296862216414b4b997e901423b7c8b - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143998-83497.json' with importer (DefaultImporter)
+Imported 'GUID: b3296862216414b4b997e901423b7c8b' -> (Import Result ID: '6c3bf31811e9967870aae740d918349e') in 0.015 seconds [static dependencies only]. Details - ImportResultOutputID=24a16cdbac370b0374837be0e1f17d75 DependenciesID=8c813107b83b4d8c27d79bd20090015d StaticDependenciesID=68a3ae357a26043a8779d9ef62e0190c 
+Importing 'GUID: 0458f8b588067d64fab10307cc7179de - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143997-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 0458f8b588067d64fab10307cc7179de' -> (Import Result ID: '4212158e80448f6be189009ac17f8237') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=5d731959c45926bdfff93d76557c9d9c DependenciesID=1e6b4bd05840754dcc00dfa467e705bc StaticDependenciesID=4129057fe89cee6f8558623fbc88bf7f 
+Importing 'GUID: 3499f1aaa8057e941800aec50f677853 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143998-83496.json' with importer (DefaultImporter)
+Imported 'GUID: 3499f1aaa8057e941800aec50f677853' -> (Import Result ID: '04063d534ac52b099e5e8c2119f415e7') in 0.018 seconds [static dependencies only]. Details - ImportResultOutputID=8541c1e0cd527d5d963730a6050b57f8 DependenciesID=c4519f6616d28d91ae497825c4f216fc StaticDependenciesID=07635da7a2657ad517dd8ceb5914c923 
+Importing 'GUID: 6578c40c8d539bb48a078715847ac4ac - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143998-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 6578c40c8d539bb48a078715847ac4ac' -> (Import Result ID: '81a45418afdf5ef0d86f14e27753d172') in 0.019 seconds [static dependencies only]. Details - ImportResultOutputID=00d63287587b166aff39f0ee77543176 DependenciesID=8e84a31e59797474d5170e325b5f4a95 StaticDependenciesID=9d88d4b8c7b12febbe4e86b1240f3c24 
+Importing 'GUID: b527b99bf638bee49aafcb4534d3d5a0 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143996-83496.json' with importer (DefaultImporter)
+Imported 'GUID: b527b99bf638bee49aafcb4534d3d5a0' -> (Import Result ID: '1c8da37b3619edeb9b113cca1cf400f3') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=ad57537ec344f096165bf0ad2771aa01 DependenciesID=0d65e171454b80d6fdbe061602500204 StaticDependenciesID=ed8242b07321371a4e8e9e7c2a13dbc7 
+Importing 'GUID: d5c1732cfbe74ee448276a1ede570561 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143998-83497.json' with importer (DefaultImporter)
+Imported 'GUID: d5c1732cfbe74ee448276a1ede570561' -> (Import Result ID: '443c8436dbe410789de4102e5244daeb') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=2e729ef661e87927b805dcc54c208f1c DependenciesID=fe896218cd01003773bba5d26e95fda5 StaticDependenciesID=6ebbae60262995bf344567adcf4c4d60 
+Importing 'GUID: 26e0ee15b55eecd4b978eb0fe8b1ee3e - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143997-83496.json' with importer (DefaultImporter)
+Imported 'GUID: 26e0ee15b55eecd4b978eb0fe8b1ee3e' -> (Import Result ID: '8516c18a32dafd8e0f3eb637db84156b') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=65b2d976d2964b622c18402b1258b126 DependenciesID=1b4ef72308757ad67d8ed31340503a8d StaticDependenciesID=39f160f4bb00eeed7bfd5b701bf9bc1c 
+Importing 'GUID: 9696b92f611714f42b3c76243916175c - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143998-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 9696b92f611714f42b3c76243916175c' -> (Import Result ID: '62d5ecd0816771172978dd7192593108') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=a4e12353a63c6f6b3f13edcabf41dbb0 DependenciesID=3dd2cf090f20b5eebc7fcba9f14c49df StaticDependenciesID=10c8375324c05e1a6697b3f29da8bc70 
+Importing 'GUID: 97c292ccc20dcfb47a8bb9a62fa55dec - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143997-83496.json' with importer (DefaultImporter)
+Imported 'GUID: 97c292ccc20dcfb47a8bb9a62fa55dec' -> (Import Result ID: '49ec283da9a3f6082fe94d6bcedd41c5') in 0.015 seconds [static dependencies only]. Details - ImportResultOutputID=0de2a11795725f02553ebd57170a9b8f DependenciesID=34f798820fbe6c7bc4b9c3670181dac0 StaticDependenciesID=85a53d2381644ab0364609cde6834eb7 
+Importing 'GUID: 977756eebe492d04291a3a68bdbbc684 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143996-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 977756eebe492d04291a3a68bdbbc684' -> (Import Result ID: '291790bbb5c850be85e890611c152aca') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=65a9c5555614015c0a68e9a658a2216f DependenciesID=0737f2c983e692b266f8cbb0906b9145 StaticDependenciesID=e7d5534f5b2f341ab4dcc8380fdbc562 
+Importing 'GUID: 1891657789550d84db82970260c36d90 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143996-83496.json' with importer (DefaultImporter)
+Imported 'GUID: 1891657789550d84db82970260c36d90' -> (Import Result ID: '3c137572eef8b3f39ae3a7bd4a63c6f4') in 0.018 seconds [static dependencies only]. Details - ImportResultOutputID=4a806da530a1b9c6c48146277e4991e0 DependenciesID=5568a7893de693d34d52ccfa0dbe9267 StaticDependenciesID=e842d6a458418aa4f09ded496e2c4ee4 
+Importing 'GUID: 989d3ad321abdbb47ab18406e2e7e5a1 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143996-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 989d3ad321abdbb47ab18406e2e7e5a1' -> (Import Result ID: '46cbcb1b9bac436e839d2970f3b9faa1') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=1f3f0109be68307eb32fbeecd061e7ff DependenciesID=3f2467d18a806b2cfe49bb985b9fde2e StaticDependenciesID=c73c33026b24ba8ad0843399c6c31175 
+Importing 'GUID: 9987d4fc8a8587945bee84ef7538b278 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143996-83496.json' with importer (DefaultImporter)
+Imported 'GUID: 9987d4fc8a8587945bee84ef7538b278' -> (Import Result ID: '83f1653bae94baca7ade99f13b09fe7f') in 0.019 seconds [static dependencies only]. Details - ImportResultOutputID=6ce1937c78bb671d540765a4fb6a5614 DependenciesID=67942b8a4a6fe8e377b45b88e43feb99 StaticDependenciesID=11853d625960472a07de4f01f4fbb5c8 
+Importing 'GUID: a9c0010180b9bcc47b91ae65a2363a77 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/HIGH/18-143996-83496.json' with importer (DefaultImporter)
+Imported 'GUID: a9c0010180b9bcc47b91ae65a2363a77' -> (Import Result ID: 'f95eabe6484423501dbf4104c8dfc294') in 0.020 seconds [static dependencies only]. Details - ImportResultOutputID=f264960bcf3c19900cda9ad0e4b4da7b DependenciesID=4e5aaea754da0fd2a600d93b2c7cf50e StaticDependenciesID=1eaf137774ab2e1bcdf58403bbcdd828 
+Importing 'GUID: 0af8f8ac5a11ba24b9250b13ce2bd29d - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143996-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 0af8f8ac5a11ba24b9250b13ce2bd29d' -> (Import Result ID: '21097af6de9cd01e0538beeb791e3220') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=1140fe8e075b98ed902fc2fd0adba74b DependenciesID=9bc160338e493128f49458dca1e73fd2 StaticDependenciesID=a4b7fe6a242a0bb6ed8924eccea14ead 
+Importing 'GUID: 9a2071c5ca53f934fbb8d238029b10b8 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143997-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 9a2071c5ca53f934fbb8d238029b10b8' -> (Import Result ID: 'ab438c7796641c0fe42934cc359accfd') in 0.018 seconds [static dependencies only]. Details - ImportResultOutputID=489041bf0970feace3879d5e35fbe88d DependenciesID=d51aa77234cf7963cb28b625ad6df9e9 StaticDependenciesID=912c8143a08695ff9ed71bbd8035f5d4 
+Importing 'GUID: eb6b182ad422f6f47b485851c98c325e - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143996-83495.json' with importer (DefaultImporter)
+Imported 'GUID: eb6b182ad422f6f47b485851c98c325e' -> (Import Result ID: '90171d20e1d970bee53b7b2d1cd20bd3') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=8b8ea262b90ee79187a09a006e4daa1b DependenciesID=47cc56a0ff9b0ef2b3f181d0f85805fa StaticDependenciesID=2b6c9edd96083434522d0f167e6cc98b 
+Importing 'GUID: 0c55fe0b6e792a74da6b7bf4158b01f3 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143996-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 0c55fe0b6e792a74da6b7bf4158b01f3' -> (Import Result ID: '8f607d45e76d6c1e4b6cf0a28313de85') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=6b65684fa31f8a55e888d35d324e48b6 DependenciesID=d7c56b6ceed0a475e302ea3b5065e8ef StaticDependenciesID=b50052a70db71daa84cb92f5ec8af0ef 
+Importing 'GUID: 0cbe386c46331df459d6c78d08f9210e - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143997-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 0cbe386c46331df459d6c78d08f9210e' -> (Import Result ID: '3a230a88e80082ad6a254e2453e6c6e3') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=5b04a0f1a9254a90452920541a190c26 DependenciesID=96892204d81e783358604d7ac4710f58 StaticDependenciesID=e69d6f6a66c7f3bd63d4379102984e8a 
+Importing 'GUID: 9d47ff5a80c21bb4ea2a496dbfa91133 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143997-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 9d47ff5a80c21bb4ea2a496dbfa91133' -> (Import Result ID: 'c969bd8ccb28eb924d50ac1d356c9aab') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=32f21c6b0881e3323707053f7133073f DependenciesID=4ae5de07b4d01eea1f70c6f812f81ff1 StaticDependenciesID=6e264e0a423004934c394c81b2c3911d 
+Importing 'GUID: 1e8146ba3457a0c42aefe6ad34ed5f14 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/DISTANT/18-143997-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 1e8146ba3457a0c42aefe6ad34ed5f14' -> (Import Result ID: 'a8a4a1ce615e01195c25ed683b44c9ab') in 0.017 seconds [static dependencies only]. Details - ImportResultOutputID=76e62312a1b48751f5f88124ead44b6d DependenciesID=c1dd7dd22dd2b8e7ff436446110848ba StaticDependenciesID=05903fae6f6ac1f4523ecde680d0de45 
+Importing 'GUID: 4e98fb1d716d8944595f0025533bdba6 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143997-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 4e98fb1d716d8944595f0025533bdba6' -> (Import Result ID: 'd5635077271d7cfc33171da0c37753e4') in 0.014 seconds [static dependencies only]. Details - ImportResultOutputID=85a89f05faa63c35f2d821516ad8640a DependenciesID=17da3d026c7f72d30390fab6beda83bd StaticDependenciesID=67a34198ff5abd9e9f4c05e65ad2c583 
+Importing 'GUID: 4e5cb1055fa5b4748831e0fcec941523 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143997-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 4e5cb1055fa5b4748831e0fcec941523' -> (Import Result ID: '22632dc0f8cdec3b5eba7b2142cb3f1d') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=5c61bd1eeeda2d37e02a327dc0ea436b DependenciesID=dd23913dd81cfdebbc6dd3a52fa59814 StaticDependenciesID=517646ab15ba73e72a0ce784bcfd4c9f 
+Importing 'GUID: 9ed8a710a05e69f4fb706eeae90ad552 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/MEDIUM/18-143998-83495.json' with importer (DefaultImporter)
+Imported 'GUID: 9ed8a710a05e69f4fb706eeae90ad552' -> (Import Result ID: 'c9c1f1a9d765509f1fadb091866b5e58') in 0.014 seconds [static dependencies only]. Details - ImportResultOutputID=73fd315a557e286954a21adfc6791f0e DependenciesID=0ac06462d6703ba427157b273b8cf79b StaticDependenciesID=96fbddfdb0ba8db97e946d711a37ddc6 
+Importing 'GUID: aee7192239e45bc4a92fb4cdb55a8f4e - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143998-83497.json' with importer (DefaultImporter)
+Imported 'GUID: aee7192239e45bc4a92fb4cdb55a8f4e' -> (Import Result ID: '65764ecc55f46c456137291980b86bdc') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=6c19f39fc662fad896577e3cbff68dc1 DependenciesID=9d7d5968be45a109f1113c01f88f703c StaticDependenciesID=e7bb215461716013a4747f3c8226947e 
+Importing 'GUID: fedc083e021ab0348b5074deae83c3f5 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143998-83496.json' with importer (DefaultImporter)
+Imported 'GUID: fedc083e021ab0348b5074deae83c3f5' -> (Import Result ID: 'cb4388ede1dd382a80222129300177cf') in 0.014 seconds [static dependencies only]. Details - ImportResultOutputID=50bbdd216d2e209042cc82eeb71ff23a DependenciesID=f4ce43d5dcf13839365efba90b64e4e5 StaticDependenciesID=40f4d987865363977707c9f68d4e529a 
+Importing 'GUID: 7ffd035f1108e8443893237e1e884946 - Path: Assets/StreamingAssets/real-world-2.4-multitile-synthetic/LOW/18-143996-83497.json' with importer (DefaultImporter)
+Imported 'GUID: 7ffd035f1108e8443893237e1e884946' -> (Import Result ID: '0695eedf8894241f103c7fb9384aaa5b') in 0.016 seconds [static dependencies only]. Details - ImportResultOutputID=125279f60651377721c8070c08250e42 DependenciesID=64ce6db046d36e938c7ed27ccd8ce2e3 StaticDependenciesID=3186efa80101ebef74930ce776f8ef30 
+
+Asset Pipeline Refresh (id=9a0e08c83a335994d91c6a9673894f67): Total: 18.150 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=46 (actual=46, local cache=0, cache server=0)
+		Asset DB Process Time: managed=13 ms, native=3966 ms
+		Asset DB Callback time: managed=387 ms, native=36 ms
+		Scripting: domain reloads=1, domain reload time=4104 ms, compile time=9565 ms, other=75 ms
+		Project Asset Count: scripts=689, non-scripts=1445
+		Asset File Changes: new=0, changed=3, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 50.254ms
+	ApplyChangesToAssetFolders: 3.834ms
+	Scan: 181.075ms
+	Collect global state as custom dependencies: 39.164ms
+	OnSourceAssetsModified: 1.243ms
+	CategorizeScriptCompilationAssets: 31.420ms
+	ProcessAssetsWithTransientArtifactChanges: 45.530ms
+	CategorizeAssets: 102.643ms
+	CompileScripts: 9565.242ms
+	ImportOutOfDateAssets: 3326.567ms (2368.600ms without children)
+		ImportManagerImport: 930.820ms (9.344ms without children)
+			UpdateCategorizedAssets: 0.394ms
+		ReloadNativeAssets: 0.056ms
+		UnloadImportedAssets: 5.183ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.941ms
+		ImportSchedulerStart: 20.948ms
+	PostProcessAllAssets: 392.247ms
+		ShaderAssetModifiedCallback 0.397ms
+		PostProcessCallbackCreateDeferredMaterials 0.246ms
+		RaytracingShaderImportPostprocess 0.217ms
+		ComputeShaderImportPostprocess 0.208ms
+		SpeedTreeImporter.PostprocessAllAssets 0.147ms
+		LocalizationDatabase.AssetDatabasePostprocessCallback 0.089ms
+		AssemblyValidation.PostprocessAllAssets 0.088ms
+		BlockShaderImporter.PostprocessAllAssets 0.069ms
+		MonoPostProcessAllAssets: 384.314ms
+			AssetPostprocessor.OnPostprocessAllAssets 197.563ms
+			UniversalRenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 49.491ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 46.945ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 14.762ms
+			ShaderGraphAssetPostProcessor.OnPostprocessAllAssets 8.973ms
+			SyncVS.PostprocessSyncProject 5.755ms
+			AssetChangedListener.OnPostprocessAllAssets 5.371ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 5.352ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 4.658ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 4.117ms
+			MaterialPostprocessor.OnPostprocessAllAssets 2.769ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 2.311ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 2.022ms
+			PostProcessor.OnPostprocessAllAssets 1.456ms
+			ShaderReflectionAssetPostProcessor.OnPostprocessAllAssets 1.429ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 1.258ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 1.149ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.872ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.830ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.780ms
+			AssetEvents.OnPostprocessAllAssets 0.732ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.519ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.463ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.453ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.449ms
+			ThemePostprocessor.OnPostprocessAllAssets 0.348ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.186ms
+	PostAssetChangesProfiler: 4.716ms
+	UnloadStreamsBegin: 3.362ms
+	PersistCurrentRevisions: 0.667ms
+	GenerateScriptTypeHashes: 3.190ms
+	GenerateScriptTypeSerializationHashes: 5.804ms
+	Untracked: 4362.333ms
+
+Application.AssetDatabase Initial Refresh End
+Shader Hidden/ChartRasterizerHardware is not supported: GPU does not support conservative rasterization
+Shader Hidden/ChartRasterizerHardware is not supported: GPU does not support conservative rasterization
+Scanning for USB devices : 3.234ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-SYSTEM World Foundation TEMP
+Unloading 65 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 2849 unused Assets / (5.3 MB). Loaded Objects now: 3792.
+Memory consumption went from 316.2 MB to 311.0 MB.
+Total: 24.754600 ms (FindLiveObjects: 0.789700 ms CreateObjectMapping: 0.616900 ms MarkObjects: 13.616500 ms  DeleteObjects: 8.899400 ms)
+
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 0 unused Assets / (Unknown). Loaded Objects now: 3799.
+Memory consumption went from 306.9 MB to 306.9 MB.
+Total: 12.617800 ms (FindLiveObjects: 0.442900 ms CreateObjectMapping: 0.130500 ms MarkObjects: 11.759000 ms  DeleteObjects: 0.010800 ms)
+
+Importing 'GUID: e0c77cac4d15aa3488927de15c44930a - Path: Assets/_SYSTEM/Scenes/REAL_WORLD_MULTITILE_LAB.unity' with importer (DefaultImporter)
+Imported 'GUID: e0c77cac4d15aa3488927de15c44930a' -> (Import Result ID: '6df0da82d59d75f92faf624d4925e0ae') in 0.003 seconds [static dependencies only]. Details - ImportResultOutputID=ace3fabdb85c50f80e8f74d761c0d95d DependenciesID=85c41210bb6eae8076c83fb3343c1e4f StaticDependenciesID=3fc135c324f05b88de23ec851b328b9f 
+Asset Pipeline Refresh (id=a3b6d80620da7fc4e9de3ef47674bbf0): Total: 0.168 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+AcceleratorClientConnectionCallback - disconnected - :0
+Importing 'GUID: 0000000000000000b000000000000000 - Path: ProjectSettings/EditorBuildSettings.asset' with importer (LibraryAssetImporter)
+Imported 'GUID: 0000000000000000b000000000000000' -> (Import Result ID: '97bf8af8da4b4454736d77377155ad1b') in 0.003 seconds [static dependencies only]. Details - ImportResultOutputID=0a89a5c5f492143e0fa186859e17ba6f DependenciesID=f9c8dcf45c70f9d76f0376b41d2b10b5 StaticDependenciesID=22d40fe8f7e92eaa0af96154453be139 
+Asset Pipeline Refresh (id=7c4322b824e2b6a49a83e7de846bd894): Total: 0.053 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+REAL WORLD MULTITILE LAB saved at Assets/_SYSTEM/Scenes/REAL_WORLD_MULTITILE_LAB.unity (FOUNDATION untouched).
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+MultitileLabBuilder:PrepareLab () (at Assets/_SYSTEM/Editor/MultitileLabBuilder.cs:40)
+
+(Filename: Assets/_SYSTEM/Editor/MultitileLabBuilder.cs Line: 40)
+
+Batchmode quit successfully invoked - shutting down!
+Killing ADB server in 0,3949161 seconds.
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-Ja-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-Ja channel disconnected successfully.
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+Shut down UDS service system complete
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+Exiting batchmode successfully now!
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 0

@@ -1,0 +1,174 @@
+[
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_INIT",
+    "messageId": "fixture:0",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "hostBuildSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "quality": "MEDIUM"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_SNAPSHOT",
+    "messageId": "fixture:1",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "displayName": "TEMP tester",
+      "realLevel": 1,
+      "realXp": 0,
+      "skills": {
+        "STR": 1,
+        "VIT": 1,
+        "INT": 1,
+        "WIL": 1,
+        "CHA": 1,
+        "CRE": 1,
+        "RES": 1
+      },
+      "equippedItemIds": [],
+      "domainLevel": 1,
+      "activeQuestId": null
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_DIRECTIVE",
+    "messageId": "fixture:2",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "mode": "NORMAL",
+      "message": "Welcome"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_COMMAND_ACK",
+    "messageId": "fixture:3",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "commandId": "cmd1",
+      "result": "APPLIED"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_COMMAND_REJECT",
+    "messageId": "fixture:4",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "commandId": "cmd2",
+      "code": "STALE_REVISION"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_PAUSE",
+    "messageId": "fixture:5",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "reason": "USER"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_RESUME",
+    "messageId": "fixture:6",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "reason": "USER"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_DISPOSE",
+    "messageId": "fixture:7",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "reason": "USER"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_COMMAND",
+    "messageId": "fixture:8",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "commandId": "cmd:REQUEST_SNAPSHOT",
+      "expectedRevision": 2,
+      "activeSessionId": "session1",
+      "action": "REQUEST_SNAPSHOT"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_COMMAND",
+    "messageId": "fixture:9",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "commandId": "cmd:OPEN_PANEL",
+      "expectedRevision": 2,
+      "activeSessionId": "session1",
+      "action": "OPEN_PANEL",
+      "panel": "QUESTS"
+    }
+  },
+  {
+    "protocolVersion": "SYSTEM_WORLD_BRIDGE_V1",
+    "type": "WORLD_COMMAND",
+    "messageId": "fixture:10",
+    "timestamp": "2026-11-02T11:00:00.000Z",
+    "playerId": "player1",
+    "profileGeneration": 1,
+    "sessionId": "session1",
+    "stateRevision": 2,
+    "payload": {
+      "commandId": "cmd:SET_QUALITY",
+      "expectedRevision": 2,
+      "activeSessionId": "session1",
+      "action": "SET_QUALITY",
+      "quality": "LOW"
+    }
+  }
+]

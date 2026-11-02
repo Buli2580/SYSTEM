@@ -1,0 +1,407 @@
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 17144)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 21808)
+VBCSCompiler prewarm took 439.85 ms
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.6/staging' branch; Version is '6000.6.4f1 (12bfff696524) revision 1228799'; Using compiler version '194234433'; Build Type 'Release'
+OS: 'Windows 11  (10.0.26200) Core' Language: 'pl' Physical Memory: 32605 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-11-02T20:28:46Z
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Ja" at "2026-11-02T20:28:46.4547464Z"
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 10892, path: "C:/Program Files/Unity Hub/UnityLicensingClient_V1/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              63f108cf90db496f9f8a679a27c47c04
+  Correlation Id:          8a62046b4bb9d189af11d5947abb942e
+  External correlation Id: 686380212768887986
+  Machine Id:              Yy8QB6WwOHQ6V/Xti5m09o9WvX0=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-Ja" (connect: 0.00s, validation: 0.00s, handshake: 0.08s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Ja-notifications" at "2026-11-02T20:28:46.5424639Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 7972629025395-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.00
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.10s
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Unity.exe
+-batchmode
+-nographics
+-quit
+-projectPath
+C:\SYSTEM\SYSTEM-UNITY-WORLD
+-executeMethod
+MultitileLabReport.Capture
+-logFile
+C:\SYSTEM\SYSTEM-RC2\examples\real-world-2.4-evidence\unity-stats.log
+Successfully changed project path to: C:\SYSTEM\SYSTEM-UNITY-WORLD
+C:/SYSTEM/SYSTEM-UNITY-WORLD
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [14100]  Target information:
+
+Player connection [14100]  * "[IP] 192.168.0.23 [Port] 55504 [Flags] 2 [Guid] 88614097 [EditorId] 88614097 [Version] 1048832 [Id] WindowsEditor(7,LAPTOP-MM1SPGUM) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [14100] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [14100] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-19980" after 0.4 seconds.
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+Initialising UDS system complete:
+  - System type: Client
+  - Resource namespace: 1dada6abfcb1b02b53db9d735292ed62
+  - Shared memory size: 1073741824
+  - Command buffer id: 1052576
+  - Command buffer size: 8192
+  - Hashmap size: 4194304
+  - Service connected: false
+Launching Unity Data Store - C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/Tools/Unity.DataStore.exe 
+Unity Data Store artifact dir = Library/DataStore, working dir = C:/SYSTEM/SYSTEM-UNITY-WORLDUnity Data Store running and initialised
+[Licensing::Client] Successfully resolved entitlement details
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.6.4f1 (12bfff696524)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=1048576, entitiesPerBlock=256, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path C:/SYSTEM/SYSTEM-UNITY-WORLD/Assets
+Forcing GfxDevice: Null
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+NullGfxDevice:
+    Version:  NULL 1.0 [1.0]
+    Renderer: Null Device
+    Vendor:   Unity Technologies
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56980
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.4f1/Editor/Data/PlaybackEngines/AndroidPlayer/UnityEditor.Android.Extensions.dll
+Registered in 0.003818 seconds.
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:False
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.239 seconds
+Domain Reload Profiling: 2529ms
+	BeginReloadAssembly (272ms)
+		CreateAndSetChildDomain (7ms)
+	RebuildCommonClasses (7ms)
+	RebuildNativeTypeToScriptingClass (26ms)
+	initialDomainReloadingComplete (139ms)
+	LoadAllAssembliesAndSetupDomain (844ms)
+		LoadAssemblies (262ms)
+		TypeCache.Refresh (591ms)
+			TypeCache.ScanAssembly (550ms)
+		AnalyzeDomain (1ms)
+	FinalizeReload (1242ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (14ms)
+			BeforeProcessingInitializeOnLoad (242ms)
+			ProcessInitializeOnLoadAttributes (200ms)
+			ProcessInitializeOnLoadMethodAttributes (447ms)
+			EditorAssembliesLoaded (4ms)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 24 packages:
+  Built-in packages:
+    com.unity.modules.androidjni@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.androidjni)
+    com.unity.modules.audio@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.imgui@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.particlesystem@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.modules.jsonserialize@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.physics@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.uielements@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.ui@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.hierarchycore@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.hierarchycore)
+    com.unity.modules.animation@1.0.0 (location: C:\SYSTEM\SYSTEM-UNITY-WORLD\Library\PackageCache\com.unity.modules.animation)
+  Local packages:
+    com.unity.nuget.newtonsoft-json@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.newtonsoft-json (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.newtonsoft-json)
+    com.unity.render-pipelines.universal@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal)
+    com.unity.render-pipelines.core@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.core (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.core)
+    com.unity.burst@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.burst (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.burst)
+    com.unity.collections@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.collections (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.collections)
+    com.unity.nuget.mono-cecil@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.mono-cecil (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.nuget.mono-cecil)
+    com.unity.test-framework@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework)
+    com.unity.ext.nunit@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.ext.nunit (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.ext.nunit)
+    com.unity.test-framework.performance@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework.performance (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.test-framework.performance)
+    com.unity.profiling.core@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.profiling.core (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.profiling.core)
+    com.unity.shadergraph@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.shadergraph (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.shadergraph)
+    com.unity.searcher@file:C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.searcher (location: C:\Users\Ja\.codex\visualizations\2026\11\02\01a19bef-e63f-7a63-b4e7-a7335358d94e\unity-cache\com.unity.searcher)
+    com.unity.graph-authoring@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.graph-authoring (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.graph-authoring)
+    com.unity.render-pipelines.universal-config@file:C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal-config (location: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.render-pipelines.universal-config)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.02 seconds
+Warning: Disk space low. The project is on a drive with diskspace below 1.00 GB. Please free up some space for Unity to work correctly.
+Couldn't create 'C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.burst/~UnityDirMonSyncFile~0d39b43e69d337b499997503175877e0~'
+Assets/StreamingAssets/real-world-2.4-multitile-synthetic is a symbolic link. Using symlinks in Unity projects may cause your project to become corrupted if you create multiple references to the same asset, use recursive symlinks or use symlinks to share assets between projects used with different versions of Unity. Make sure you know what you are doing.
+Disabling directory monitoring for current editor session. Found symlinks in project which cannot be used with directory monitoring. Directory monitoring settings can be changed in preferences.
+AcceleratorClientConnectionCallback - disconnected - :0
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1300b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: C:/SYSTEM/SYSTEM-UNITY-WORLD
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\Facades\System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\NetStandard\Extensions\2.0.0\System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\System.ComponentModel.Composition.dll" in favor of "C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\NetStandard\compat\2.1.0\shims\netfx\System.ComponentModel.Composition.dll"
+DisplayProgressbar: Compiling Scripts
+ExitCode: 4 Duration: 0s537ms
+Rebuilding DAG because FileSignature timestamp changed: Library/Bee/1300b0aE-inputdata.json
+[528/664    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+*** Tundra requires additional run (0.48 seconds), 1 items updated, 527 evaluated
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\DotNetSdk\dotnet.exe "C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Tools\BuildPipeline\ScriptCompilationBuildProgram.exe" "Library/Bee/1300b0aE.dag.json" "Library/Bee/1300b0aE-inputdata.json" "Library\Bee\buildprogram0.traceevents"
+WorkingDir: C:/SYSTEM/SYSTEM-UNITY-WORLD
+ExitCode: 0 Duration: 1s249ms
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.4f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1300b0aE.dag" --continue-on-failure --dagfilejson="Library\Bee\1300b0aE.dag.json" --profile="Library/Bee/backend2.traceevents" ScriptAssemblies
+WorkingDir: C:/SYSTEM/SYSTEM-UNITY-WORLD
+ExitCode: 0 Duration: 2s47ms
+Finished compiling graph: 667 nodes, 10284 flattened edges (8894 ToBuild, 92 ToUse), maximum node priority 409
+[418/664    0s] WriteText Library/Bee/artifacts/1300b0aE.dag/System.World.Editor.rsp
+[525/664    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[652/664    0s] Csc Library/Bee/artifacts/1300b0aE.dag/System.World.Editor.dll (+2 others)
+[653/664    0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/System.World.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/System.World.Editor.dll, with 154 defines and 307 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[654/664    0s] CopyFiles Library/ScriptAssemblies/System.World.Editor.dll
+[655/664    0s] CopyFiles Library/ScriptAssemblies/System.World.Editor.pdb
+[656/664    0s] Csc Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp.dll (+2 others)
+[657/664    0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp.dll, with 156 defines and 297 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[658/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.dll
+[659/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.pdb
+[660/664    0s] Csc Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp-Editor.dll (+2 others)
+[661/664    0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/Assembly-CSharp-Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/Assembly-CSharp-Editor.dll, with 154 defines and 342 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[662/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.dll
+[663/664    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.pdb
+*** Tundra build success (2.00 seconds), 14 items updated, 664 evaluated
+AssetDatabase: script compilation time: 4.982466s
+Begin MonoManager ReloadAssembly
+Total cache size 268344722
+Symbol file LoadedFromMemory is not a mono symbol file
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.629 seconds
+Domain Reload Profiling: 3795ms
+	BeginReloadAssembly (1064ms)
+		DisableScriptedObjects (61ms)
+		CreateAndSetChildDomain (185ms)
+	RebuildCommonClasses (23ms)
+	RebuildNativeTypeToScriptingClass (35ms)
+	initialDomainReloadingComplete (102ms)
+	LoadAllAssembliesAndSetupDomain (940ms)
+		LoadAssemblies (971ms)
+		TypeCache.Refresh (248ms)
+			TypeCache.ScanAssembly (217ms)
+		AnalyzeDomain (90ms)
+			BuildScriptInfoCaches (75ms)
+			ResolveRequiredComponents (12ms)
+	FinalizeReload (1631ms)
+		SetupLoadedEditorAssemblies (0ms)
+			LogAssemblyErrors (4ms)
+			InitializePlatformSupportModulesInManaged (11ms)
+			BeforeProcessingInitializeOnLoad (202ms)
+			ProcessInitializeOnLoadAttributes (247ms)
+			ProcessInitializeOnLoadMethodAttributes (154ms)
+			AfterProcessingInitializeOnLoad (13ms)
+		AwakeInstancesAfterBackupRestoration (81ms)
+Starting new worker id: 0 with log in C:/SYSTEM/SYSTEM-UNITY-WORLD/Logs/AssetImportWorkerHW0.log
+
+Asset Pipeline Refresh (id=794a73f3ff4b8b141bf782aac6a4c02d): Total: 9.908 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=2282 ms
+		Asset DB Callback time: managed=262 ms, native=32 ms
+		Scripting: domain reloads=1, domain reload time=2275 ms, compile time=4987 ms, other=67 ms
+		Project Asset Count: scripts=689, non-scripts=1446
+		Asset File Changes: new=1, changed=1, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 46.117ms
+	ApplyChangesToAssetFolders: 3.918ms
+	Scan: 192.469ms
+	Collect global state as custom dependencies: 37.926ms
+	OnSourceAssetsModified: 0.825ms
+	CategorizeScriptCompilationAssets: 21.334ms
+	ProcessAssetsWithTransientArtifactChanges: 61.437ms
+	CategorizeAssets: 69.569ms
+	CompileScripts: 4987.059ms
+	ImportOutOfDateAssets: 1655.154ms (1634.138ms without children)
+		ReloadNativeAssets: 0.063ms
+		UnloadImportedAssets: 4.276ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 1.043ms
+		ImportSchedulerStart: 15.629ms
+	PostProcessAllAssets: 263.464ms
+		VCAutoAddAssetPostprocess 1.760ms
+		VersionControlSettings.HiddenFilePostprocess 0.237ms
+		MonoPostProcessAllAssets: 260.247ms
+			AssetPostprocessor.OnPostprocessAllAssets 125.476ms
+			UniversalRenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 32.860ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 23.049ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 15.751ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 5.014ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 4.445ms
+			AssetChangedListener.OnPostprocessAllAssets 4.383ms
+			SyncVS.PostprocessSyncProject 3.931ms
+			ShaderGraphAssetPostProcessor.OnPostprocessAllAssets 3.173ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 2.461ms
+			MaterialPostprocessor.OnPostprocessAllAssets 1.820ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 1.652ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 1.652ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 1.105ms
+			ShaderReflectionAssetPostProcessor.OnPostprocessAllAssets 0.943ms
+			AssetEvents.OnPostprocessAllAssets 0.910ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.855ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.760ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.691ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.607ms
+			PostProcessor.OnPostprocessAllAssets 0.454ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.402ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.355ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.293ms
+			ThemePostprocessor.OnPostprocessAllAssets 0.281ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.263ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.142ms
+	PostAssetChangesProfiler: 3.206ms
+	UnloadStreamsBegin: 4.092ms
+	PersistCurrentRevisions: 0.130ms
+	GenerateScriptTypeHashes: 2.325ms
+	GenerateScriptTypeSerializationHashes: 4.138ms
+	Untracked: 2521.113ms
+
+Application.AssetDatabase Initial Refresh End
+Shader Hidden/ChartRasterizerHardware is not supported: GPU does not support conservative rasterization
+Shader Hidden/ChartRasterizerHardware is not supported: GPU does not support conservative rasterization
+Scanning for USB devices : 12.086ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-SYSTEM World Foundation TEMP
+Unloading 65 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 2850 unused Assets / (5.3 MB). Loaded Objects now: 3791.
+Memory consumption went from 315.5 MB to 310.2 MB.
+Total: 13.664800 ms (FindLiveObjects: 0.654400 ms CreateObjectMapping: 0.513700 ms MarkObjects: 8.873400 ms  DeleteObjects: 3.332000 ms)
+
+Wrote C:\SYSTEM\SYSTEM-RC2\examples\real-world-2.4-evidence\unity-multitile-render-stats.json
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+MultitileLabReport:Capture () (at Assets/_SYSTEM/Editor/MultitileLabReport.cs:53)
+
+(Filename: Assets/_SYSTEM/Editor/MultitileLabReport.cs Line: 53)
+
+Batchmode quit successfully invoked - shutting down!
+Worker ready: AssetImportWorkerHW0 0
+Killing ADB server in 2,1203323 seconds.
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-Ja-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-Ja channel disconnected successfully.
+Lingering sessions upon destruction of worker manager
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+Shut down UDS service system complete
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+abort_threads: Failed aborting id: 000000000000169C, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 00000000000074E4, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 000000000000169C, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 00000000000074E4, mono_thread_manage will ignore it
+
+debugger-agent: Unable to listen on 3388
+Exiting batchmode successfully now!
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 0

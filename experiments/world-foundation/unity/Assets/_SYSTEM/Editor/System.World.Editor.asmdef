@@ -1,0 +1,1 @@
+{"name":"System.World.Editor","references":["System.World","Unity.RenderPipelines.Universal.Runtime"],"includePlatforms":["Editor"]}

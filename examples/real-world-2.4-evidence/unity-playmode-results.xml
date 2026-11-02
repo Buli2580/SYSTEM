@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="3" result="Passed" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-02 20:27:54Z" end-time="2026-11-02 20:27:55Z" duration="0,4234351">
+  <test-suite type="TestSuite" id="1020" name="SYSTEM World Foundation TEMP" fullname="SYSTEM World Foundation TEMP" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-11-02 20:27:54Z" end-time="2026-11-02 20:27:55Z" duration="0.423435" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1037" name="System.World.PlayTests.dll" fullname="C:/SYSTEM/SYSTEM-UNITY-WORLD/Library/ScriptAssemblies/System.World.PlayTests.dll" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-11-02 20:27:54Z" end-time="2026-11-02 20:27:55Z" duration="0.408273" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="24836" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestFixture" id="1029" name="RealWorldMultitilePlayTests" fullname="RealWorldMultitilePlayTests" classname="RealWorldMultitilePlayTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-11-02 20:27:54Z" end-time="2026-11-02 20:27:55Z" duration="0.404361" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-case id="1032" name="DisposePreventsFurtherLoads" fullname="RealWorldMultitilePlayTests.DisposePreventsFurtherLoads" methodname="DisposePreventsFurtherLoads" classname="RealWorldMultitilePlayTests" runstate="Runnable" seed="1754391954" result="Passed" start-time="2026-11-02 20:27:54Z" end-time="2026-11-02 20:27:54Z" duration="0.129364" asserts="0">
+          <properties>
+            <property name="_JOINTYPE" value="UnityCombinatorial" />
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1030" name="LoadsNineLowTilesWithSyntheticLabelAndGeometry" fullname="RealWorldMultitilePlayTests.LoadsNineLowTilesWithSyntheticLabelAndGeometry" methodname="LoadsNineLowTilesWithSyntheticLabelAndGeometry" classname="RealWorldMultitilePlayTests" runstate="Runnable" seed="1007251338" result="Passed" start-time="2026-11-02 20:27:54Z" end-time="2026-11-02 20:27:54Z" duration="0.097772" asserts="0">
+          <properties>
+            <property name="_JOINTYPE" value="UnityCombinatorial" />
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1031" name="LodSwitchKeepsOneVariantAndReleasesMeshes" fullname="RealWorldMultitilePlayTests.LodSwitchKeepsOneVariantAndReleasesMeshes" methodname="LodSwitchKeepsOneVariantAndReleasesMeshes" classname="RealWorldMultitilePlayTests" runstate="Runnable" seed="1799867085" result="Passed" start-time="2026-11-02 20:27:54Z" end-time="2026-11-02 20:27:55Z" duration="0.158558" asserts="0">
+          <properties>
+            <property name="_JOINTYPE" value="UnityCombinatorial" />
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+          <output><![CDATA[Saving results to: C:/Users/Ja/AppData/LocalLow/SYSTEM Experimental/SYSTEM World Foundation TEMP\TestResults.xml
+]]></output>
+        </test-case>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

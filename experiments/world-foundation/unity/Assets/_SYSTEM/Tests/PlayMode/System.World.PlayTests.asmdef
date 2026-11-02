@@ -1,0 +1,14 @@
+{
+  "name": "System.World.PlayTests",
+  "references": [
+    "System.World"
+  ],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "Newtonsoft.Json.dll"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

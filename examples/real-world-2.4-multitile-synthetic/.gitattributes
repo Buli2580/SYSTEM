@@ -1,0 +1,4 @@
+*.json text eol=lf
+*.svg text eol=lf
+*.osm text eol=lf
+.gitattributes text eol=lf

@@ -1,0 +1,690 @@
+{
+  "format": "SYSTEM_CITY_MULTITILE_DEMO_V1",
+  "protocolVersion": "SYSTEM_REAL_WORLD_DATA_V1",
+  "dataStatus": "SYNTHETIC",
+  "actualLeborkData": false,
+  "unityStatus": "NOT_TESTED",
+  "tileIds": [
+    "18/143996/83495",
+    "18/143996/83496",
+    "18/143996/83497",
+    "18/143997/83495",
+    "18/143997/83496",
+    "18/143997/83497",
+    "18/143998/83495",
+    "18/143998/83496",
+    "18/143998/83497"
+  ],
+  "origin": {
+    "latitude": 54.53980817230183,
+    "longitude": 17.750473022460938,
+    "altitude": 0
+  },
+  "frame": {
+    "units": "METERS",
+    "x": "EAST",
+    "y": "UP",
+    "z": "NORTH",
+    "position": "translation + x*local.x + y*local.y + z*local.z",
+    "normal": "rotation only"
+  },
+  "tileTransforms": {
+    "18/143996/83495": {
+      "translation": {
+        "x": -88.88379734591135,
+        "y": -0.0012345289285562444,
+        "z": 88.68437915606634
+      },
+      "x": {
+        "x": 0.9999999985148378,
+        "y": 0.000013905403989156184,
+        "z": -0.000019521730052929342
+      },
+      "y": {
+        "x": -0.000013904794315067193,
+        "y": 1.0000000004935927,
+        "z": 0.000013905429938176894
+      },
+      "z": {
+        "x": 0.000019522761704138247,
+        "y": -0.000013905050252560613,
+        "z": 0.9999999980193763
+      }
+    },
+    "18/143996/83496": {
+      "translation": {
+        "x": -88.88552870088834,
+        "y": -0.0006179768219006558,
+        "z": 0.0008676444378626467
+      },
+      "x": {
+        "x": 1.000000000288793,
+        "y": 0.000013906492016334303,
+        "z": -0.000019521652280607123
+      },
+      "y": {
+        "x": -0.00001390504520770719,
+        "y": 1.0000000008826173,
+        "z": 9.57088786153991e-10
+      },
+      "z": {
+        "x": 0.000019522814255878984,
+        "y": 1.9882054824119783e-10,
+        "z": 0.999999999154577
+      }
+    },
+    "18/143996/83497": {
+      "translation": {
+        "x": -88.88726007202884,
+        "y": -0.0012345773891340173,
+        "z": -88.68436347320721
+      },
+      "x": {
+        "x": 1.0000000010960122,
+        "y": 0.000013904841104306342,
+        "z": -0.000019522545102290678
+      },
+      "y": {
+        "x": -0.000013905358244414856,
+        "y": 1.0000000010688126,
+        "z": -0.00001390483635077544
+      },
+      "z": {
+        "x": 0.00001952236114277639,
+        "y": 0.000013905162710159402,
+        "z": 0.999999999084821
+      }
+    },
+    "18/143997/83495": {
+      "translation": {
+        "x": -1.8879120489145862e-11,
+        "y": -0.0006165647603850744,
+        "z": 88.68351152778908
+      },
+      "x": {
+        "x": 0.9999999991232578,
+        "y": 1.802220594981918e-10,
+        "z": -2.530242682041717e-10
+      },
+      "y": {
+        "x": 2.1163515384614584e-11,
+        "y": 1.0000000006619914,
+        "z": 0.000013905193526397852
+      },
+      "z": {
+        "x": -1.616591305264592e-10,
+        "y": -0.000013905281079473752,
+        "z": 0.9999999983434691
+      }
+    },
+    "18/143997/83496": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "x": {
+        "x": 1.000000000737668,
+        "y": 6.713110116684138e-10,
+        "z": 6.628210925888962e-10
+      },
+      "y": {
+        "x": -7.972039695047783e-12,
+        "y": 1.000000000333615,
+        "z": 1.2254242065523613e-10
+      },
+      "z": {
+        "x": 3.28669869098519e-11,
+        "y": -2.892898143258549e-10,
+        "z": 0.9999999998398879
+      }
+    },
+    "18/143997/83497": {
+      "translation": {
+        "x": 5.2295945351943374e-11,
+        "y": -0.000616590301504516,
+        "z": -88.68523113526896
+      },
+      "x": {
+        "x": 1.0000000014029062,
+        "y": 7.948486313580361e-10,
+        "z": 4.893649929726962e-10
+      },
+      "y": {
+        "x": -3.710454166139243e-11,
+        "y": 1.0000000000052367,
+        "z": -0.000013904948431786579
+      },
+      "z": {
+        "x": -1.1872813843183394e-10,
+        "y": 0.000013905014242254765,
+        "z": 0.9999999992932658
+      }
+    },
+    "18/143998/83495": {
+      "translation": {
+        "x": 88.8837973463952,
+        "y": -0.0012345294348534708,
+        "z": 88.6843791567772
+      },
+      "x": {
+        "x": 0.9999999987649204,
+        "y": -0.00001390398958278638,
+        "z": 0.00001952295487228639
+      },
+      "y": {
+        "x": 0.000013904614888815559,
+        "y": 1.0000000007891998,
+        "z": 0.000013905014895954082
+      },
+      "z": {
+        "x": -0.000019523085015293873,
+        "y": -0.000013904753330962194,
+        "z": 0.9999999992078159
+      }
+    },
+    "18/143998/83496": {
+      "translation": {
+        "x": 88.88552870121893,
+        "y": -0.0006179763578462172,
+        "z": 0.0008676453916791615
+      },
+      "x": {
+        "x": 1.0000000002373497,
+        "y": -0.000013903999781873073,
+        "z": 0.00001952296920919598
+      },
+      "y": {
+        "x": 0.000013904869689440602,
+        "y": 0.99999999918768,
+        "z": 1.2610212873909177e-10
+      },
+      "z": {
+        "x": -0.000019522952683814765,
+        "y": 3.5639047268887225e-11,
+        "z": 0.9999999993836846
+      }
+    },
+    "18/143998/83497": {
+      "translation": {
+        "x": 88.88726007227298,
+        "y": -0.001234578454983648,
+        "z": -88.6843634733161
+      },
+      "x": {
+        "x": 1.0000000010445547,
+        "y": -0.000013904133531639218,
+        "z": 0.00001952315697906215
+      },
+      "y": {
+        "x": 0.00001390550578150851,
+        "y": 0.9999999997414193,
+        "z": -0.000013904578040069282
+      },
+      "z": {
+        "x": -0.000019522456639720076,
+        "y": 0.00001390384991850624,
+        "z": 0.9999999993226538
+      }
+    }
+  },
+  "counts": {
+    "BUILDING": 9,
+    "ROAD": 3,
+    "PARK": 1,
+    "PLAZA": 1
+  },
+  "uniqueFeatures": 14,
+  "relations": {
+    "sourceCount": 1,
+    "holes": 1,
+    "rendering": "BLOCKED_V1_RELATION_AND_HOLES",
+    "sourcePreserved": true,
+    "notice": "Purple SVG hole is source evidence only; no relation mesh exists in V1."
+  },
+  "diagnostics": [
+    {
+      "id": "osm:relation:8000",
+      "code": "RELATION_REQUIRES_V2"
+    },
+    {
+      "id": "osm:relation:8000",
+      "code": "UNSUPPORTED_RELATION"
+    },
+    {
+      "id": "osm:way:1002",
+      "code": "ESTIMATED_HEIGHT_REQUIRED"
+    },
+    {
+      "id": "osm:way:1005",
+      "code": "ESTIMATED_HEIGHT_REQUIRED"
+    },
+    {
+      "id": "osm:way:1008",
+      "code": "ESTIMATED_HEIGHT_REQUIRED"
+    },
+    {
+      "id": "osm:way:8001",
+      "code": "RELATION_MEMBER_WITHHELD"
+    }
+  ],
+  "packets": [
+    {
+      "file": "HIGH/18-143996-83495.json",
+      "bytes": 3986,
+      "sha256": "abedcf00916824c2528e8c3f0049c98cddb12089c6201b43096f02d8c11e8da3",
+      "lod": "HIGH",
+      "tileId": "18/143996/83495",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "HIGH/18-143996-83496.json",
+      "bytes": 8360,
+      "sha256": "8b21b58dfb51ec1db2afd20da85711b145c2e15a72b07b7fd0cf3ca4bdec6a0e",
+      "lod": "HIGH",
+      "tileId": "18/143996/83496",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "HIGH/18-143996-83497.json",
+      "bytes": 3960,
+      "sha256": "0d215f3078f635574198c2d24c3a6819d438227ba6863632d4c80549f775d3e4",
+      "lod": "HIGH",
+      "tileId": "18/143996/83497",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "HIGH/18-143997-83495.json",
+      "bytes": 6239,
+      "sha256": "999092771f6f18cc7e1f2616a3971b598577a6dd955d89865e7dd71c3c939086",
+      "lod": "HIGH",
+      "tileId": "18/143997/83495",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "HIGH/18-143997-83496.json",
+      "bytes": 12266,
+      "sha256": "f66e246b56a94da1400cf1746ef2b2959f6f73f6e65ebdfe85d4fe9dff05325f",
+      "lod": "HIGH",
+      "tileId": "18/143997/83496",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 5,
+      "meshes": 5,
+      "triangles": 24
+    },
+    {
+      "file": "HIGH/18-143997-83497.json",
+      "bytes": 6160,
+      "sha256": "98ca3f7c72f70a30a04e8a048eccb825921a54783260bef77a3388944d2629f2",
+      "lod": "HIGH",
+      "tileId": "18/143997/83497",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "HIGH/18-143998-83495.json",
+      "bytes": 3994,
+      "sha256": "7ae6bf50e77fc88f1fc97fd003344d2f00b57505ae5899c863c07dab8ffb9fba",
+      "lod": "HIGH",
+      "tileId": "18/143998/83495",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "HIGH/18-143998-83496.json",
+      "bytes": 8403,
+      "sha256": "c36a7dab9700d60ca82e6c52c798f45fb053de45081716f596dc39f6edeac826",
+      "lod": "HIGH",
+      "tileId": "18/143998/83496",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "HIGH/18-143998-83497.json",
+      "bytes": 5562,
+      "sha256": "61596435d9221681c2260086f77d44574df40fc52c57f91e2f49d22a20dbe590",
+      "lod": "HIGH",
+      "tileId": "18/143998/83497",
+      "datasetId": "SYNTHETIC-city-v1:HIGH",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 12
+    },
+    {
+      "file": "MEDIUM/18-143996-83495.json",
+      "bytes": 3992,
+      "sha256": "f61f7908f3ddb455ec7ea6971712b3d4a1d9c6b6a6a4d6ab8b38e5a2e7cc874d",
+      "lod": "MEDIUM",
+      "tileId": "18/143996/83495",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "MEDIUM/18-143996-83496.json",
+      "bytes": 8370,
+      "sha256": "e7905c5e860b61d8c562fe6f4f7d28c84ae8234ea639b69aa248bc9481da4043",
+      "lod": "MEDIUM",
+      "tileId": "18/143996/83496",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "MEDIUM/18-143996-83497.json",
+      "bytes": 3966,
+      "sha256": "46b974c81b3a35b1cb1da56480a8af72d15ce73e92aefd4e5bedd00a0ffa09e7",
+      "lod": "MEDIUM",
+      "tileId": "18/143996/83497",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "MEDIUM/18-143997-83495.json",
+      "bytes": 6247,
+      "sha256": "3165b763b252d559ac316d8c6bbd695cd54a7d28b78114c27ff8177d30b07811",
+      "lod": "MEDIUM",
+      "tileId": "18/143997/83495",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "MEDIUM/18-143997-83496.json",
+      "bytes": 12280,
+      "sha256": "e47d09ebb8b7fb8b27d532aac2463b13ab8f96a856b0a91440240c105b94beb9",
+      "lod": "MEDIUM",
+      "tileId": "18/143997/83496",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 5,
+      "meshes": 5,
+      "triangles": 24
+    },
+    {
+      "file": "MEDIUM/18-143997-83497.json",
+      "bytes": 6168,
+      "sha256": "a9963cdc6592a3e98761c411cd643c76b8424e817ec99ce0cb48495874db5725",
+      "lod": "MEDIUM",
+      "tileId": "18/143997/83497",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "MEDIUM/18-143998-83495.json",
+      "bytes": 4000,
+      "sha256": "5c2aae49002fe4574037ff89f0d6e8767a9f210975a05439d33a728467353848",
+      "lod": "MEDIUM",
+      "tileId": "18/143998/83495",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "MEDIUM/18-143998-83496.json",
+      "bytes": 8413,
+      "sha256": "9653b8c1620444d819bfd8c454bbdbdde3c0f2110ae77079d5d3a8d41f31b9f2",
+      "lod": "MEDIUM",
+      "tileId": "18/143998/83496",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "MEDIUM/18-143998-83497.json",
+      "bytes": 5570,
+      "sha256": "34be3cc965c99b1f9fe7eccc250e7116e8f806047451be10a11913bb59c534e1",
+      "lod": "MEDIUM",
+      "tileId": "18/143998/83497",
+      "datasetId": "SYNTHETIC-city-v1:MEDIUM",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 12
+    },
+    {
+      "file": "LOW/18-143996-83495.json",
+      "bytes": 3977,
+      "sha256": "624f677a7bf769c344c0c478fbe629dd222807c5d9f54f1b4b41ef7ee3792a70",
+      "lod": "LOW",
+      "tileId": "18/143996/83495",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "LOW/18-143996-83496.json",
+      "bytes": 8337,
+      "sha256": "ca1d9294feeec58f29f9c9333543f5fcc50f0f2716b8d99303b630a9096fe579",
+      "lod": "LOW",
+      "tileId": "18/143996/83496",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "LOW/18-143996-83497.json",
+      "bytes": 3951,
+      "sha256": "87b0995b37be8dd653387f8e84b371f3ffcf9a242e03947a5d43f4256daa7e82",
+      "lod": "LOW",
+      "tileId": "18/143996/83497",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "LOW/18-143997-83495.json",
+      "bytes": 6223,
+      "sha256": "1214da29f510a50a9a7fc3556ad6b73253631aa4f20441be5065eeeb1e2356e8",
+      "lod": "LOW",
+      "tileId": "18/143997/83495",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "LOW/18-143997-83496.json",
+      "bytes": 12229,
+      "sha256": "389deeade493277572221ac8f51b4aadc75fd0f612a57e107c6ac24716a76fde",
+      "lod": "LOW",
+      "tileId": "18/143997/83496",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 5,
+      "meshes": 5,
+      "triangles": 24
+    },
+    {
+      "file": "LOW/18-143997-83497.json",
+      "bytes": 6144,
+      "sha256": "8a1118a391f47589832607068b51e00352471d8e9433f819f26a9bae3f57f7e2",
+      "lod": "LOW",
+      "tileId": "18/143997/83497",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "LOW/18-143998-83495.json",
+      "bytes": 3985,
+      "sha256": "26c37eac7a63e9d372a53603af8b7685d6cf8cf9550d8e801cfb933249dadeaa",
+      "lod": "LOW",
+      "tileId": "18/143998/83495",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "LOW/18-143998-83496.json",
+      "bytes": 8380,
+      "sha256": "1569b7960772c9ca06cbd145e977bb129309b002aa4ab8ba4e7b6019ac268578",
+      "lod": "LOW",
+      "tileId": "18/143998/83496",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "LOW/18-143998-83497.json",
+      "bytes": 5546,
+      "sha256": "8b4d8ae2102840db0426eb6b8d1f33977e1d7d03ae10f544170c99da7a05625c",
+      "lod": "LOW",
+      "tileId": "18/143998/83497",
+      "datasetId": "SYNTHETIC-city-v1:LOW",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 12
+    },
+    {
+      "file": "DISTANT/18-143996-83495.json",
+      "bytes": 3257,
+      "sha256": "0766aa1ded04ecbdd65d626cda86a916dc7a96e91455b5d78f37f3ac33e53796",
+      "lod": "DISTANT",
+      "tileId": "18/143996/83495",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "DISTANT/18-143996-83496.json",
+      "bytes": 7612,
+      "sha256": "1b669a5f100696ec82438e72ce0c90d746e241bba84aca082b7988bde3b48c17",
+      "lod": "DISTANT",
+      "tileId": "18/143996/83496",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "DISTANT/18-143996-83497.json",
+      "bytes": 3223,
+      "sha256": "a1dd892b9d0c848843f8343ee46e790257b027f3ff5f16591db52a228cdedc5a",
+      "lod": "DISTANT",
+      "tileId": "18/143996/83497",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "DISTANT/18-143997-83495.json",
+      "bytes": 5500,
+      "sha256": "a3ed86713b3b7311ef3a797a0cbd6a352fe3af4287db6e28d8f18f342e423bfb",
+      "lod": "DISTANT",
+      "tileId": "18/143997/83495",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "DISTANT/18-143997-83496.json",
+      "bytes": 11503,
+      "sha256": "4a9b1052fcffc2d5ebd07de170680484dc99e68112adea6961aafc14c419471c",
+      "lod": "DISTANT",
+      "tileId": "18/143997/83496",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 5,
+      "meshes": 5,
+      "triangles": 24
+    },
+    {
+      "file": "DISTANT/18-143997-83497.json",
+      "bytes": 5386,
+      "sha256": "df5704a6d07726604e17d9ffe7e283b751360c4a4f6f86d07dc0744257183e53",
+      "lod": "DISTANT",
+      "tileId": "18/143997/83497",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 14
+    },
+    {
+      "file": "DISTANT/18-143998-83495.json",
+      "bytes": 3232,
+      "sha256": "5bbb082ec87506d73fa5642653709032b993cb937c7bbc8bcb64f6bf1bcaf800",
+      "lod": "DISTANT",
+      "tileId": "18/143998/83495",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 1,
+      "meshes": 1,
+      "triangles": 10
+    },
+    {
+      "file": "DISTANT/18-143998-83496.json",
+      "bytes": 7666,
+      "sha256": "630eb76019cb7f6e00bca4b5f365c1e473323f0fbaa976d487fb400c4d66268e",
+      "lod": "DISTANT",
+      "tileId": "18/143998/83496",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 3,
+      "meshes": 3,
+      "triangles": 18
+    },
+    {
+      "file": "DISTANT/18-143998-83497.json",
+      "bytes": 4802,
+      "sha256": "6d92fe3335dd89cbdd8c003c35c4c0e16ca349ecf0a810ac11472bd1a90ac9e1",
+      "lod": "DISTANT",
+      "tileId": "18/143998/83497",
+      "datasetId": "SYNTHETIC-city-v1:DISTANT",
+      "features": 2,
+      "meshes": 2,
+      "triangles": 12
+    }
+  ],
+  "files": [
+    {
+      "file": "source.osm",
+      "bytes": 6155,
+      "sha256": "753801528acb2426ca7288f2dd86ad338bc22b410bc391d0e9269e0eed4de4e1"
+    },
+    {
+      "file": "source-preview.svg",
+      "bytes": 3793,
+      "sha256": "9f2a650c4bd66c62d7fea3825996c5269b4a1deab94cbfbe356994d9bc781bfd"
+    },
+    {
+      "file": ".gitattributes",
+      "bytes": 82,
+      "sha256": "b895a95cf3c4845ee50fc5fc3d472c8536955416f09387538877ebc1562dc8cf"
+    }
+  ],
+  "totalArtifactBytesExcludingManifest": 238919,
+  "packetBytes": 228889,
+  "trianglesSerialized": 520,
+  "notice": "SYNTHETIC. Full feature geometry is repeated in intersected tiles. Deduplicate by ID and choose one LOD. Not actual Lebork."
+}
