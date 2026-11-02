@@ -29,16 +29,7 @@ public sealed class RealWorldBundle {
  }
 
  public static string ResolveDefaultRoot() {
-  var env = Environment.GetEnvironmentVariable("SYSTEM_REAL_WORLD_2_4_ROOT");
-  if (!string.IsNullOrEmpty(env) && Directory.Exists(env)) return Path.GetFullPath(env);
-  var streaming = Path.Combine(UnityEngine.Application.streamingAssetsPath, "real-world-2.4-multitile-synthetic");
-  if (Directory.Exists(streaming)) return Path.GetFullPath(streaming);
-  var candidates = new[] {
-   Path.GetFullPath(Path.Combine(UnityEngine.Application.dataPath, "..", "..", "..", "..", "examples", "real-world-2.4-multitile-synthetic")),
-   @"C:\SYSTEM\SYSTEM-RC2\examples\real-world-2.4-multitile-synthetic"
-  };
-  foreach (var c in candidates) if (Directory.Exists(c)) return c;
-  throw new FileNotFoundException("REAL_WORLD_2_4_ROOT_MISSING");
+  return RealWorldStreamingUtil.EnsureReadableRoot();
  }
 
  public static RealWorldBundle Load(string root = null) {

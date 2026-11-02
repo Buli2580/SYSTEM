@@ -6,7 +6,8 @@ namespace SystemWorld.RealWorld {
 public sealed class RealWorldMultitileLab : MonoBehaviour {
  public string BundleRootOverride;
  public string InitialLod = "LOW";
- public bool LoadOnStart = true;
+ /// <summary>When false, waits for on-screen ENTER LAB (Android-friendly).</summary>
+ public bool LoadOnStart = false;
 
  RealWorldBundle bundle;
  RealWorldMultitileSession session;
@@ -16,6 +17,7 @@ public sealed class RealWorldMultitileLab : MonoBehaviour {
  RealWorldSnapshot lastSnapshot;
  string status = "IDLE";
  bool syntheticLabel = true;
+ string lastError;
 
  public RealWorldSnapshot LastSnapshot => lastSnapshot;
  public string Status => status;
@@ -36,8 +38,14 @@ public sealed class RealWorldMultitileLab : MonoBehaviour {
 
  void Start() {
   if (LoadOnStart) {
-   Bootstrap();
-   SetLod(InitialLod);
+   try {
+    Bootstrap();
+    SetLod(InitialLod);
+   } catch (System.Exception ex) {
+    lastError = ex.Message;
+    status = "ERROR";
+    Debug.LogException(ex);
+   }
   }
  }
 
@@ -49,18 +57,68 @@ public sealed class RealWorldMultitileLab : MonoBehaviour {
  }
 
  void OnGUI() {
-  if (!syntheticLabel) return;
-  const int w = 420, h = 72;
+  DrawHud();
+  DrawTouchControls();
+ }
+
+ void DrawHud() {
+  const int w = 520, h = 72;
   GUI.Box(new Rect(12, 12, w, h), "");
   var style = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
   style.normal.textColor = new Color(1f, 0.85f, 0.15f);
   GUI.Label(new Rect(24, 20, w - 24, 28), "SYNTHETIC — NOT ACTUAL LĘBORK", style);
-  var sub = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+  var sub = new GUIStyle(GUI.skin.label) { fontSize = 14 };
   sub.normal.textColor = Color.white;
   var lod = ActiveLod ?? "-";
   var meshes = lastSnapshot?.uniqueMeshCount ?? 0;
   var tris = lastSnapshot?.triangleCount ?? 0;
-  GUI.Label(new Rect(24, 48, w - 24, 24), status + "  LOD=" + lod + "  meshes=" + meshes + "  tris=" + tris, sub);
+  var line = status + "  LOD=" + lod + "  meshes=" + meshes + "  tris=" + tris;
+  if (!string.IsNullOrEmpty(lastError)) line += "  err=" + lastError;
+  GUI.Label(new Rect(24, 48, w - 24, 24), line, sub);
+ }
+
+ void DrawTouchControls() {
+  var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
+  float pad = 16f;
+  float h = 72f;
+  float y = Screen.height - h - pad;
+  float enterW = Mathf.Min(420f, Screen.width - pad * 2f);
+
+  if (session == null) {
+   if (GUI.Button(new Rect(pad, y, enterW, h), "ENTER REAL WORLD MULTITILE LAB", btn)) {
+    try {
+     lastError = null;
+     Bootstrap();
+     SetLod(string.IsNullOrEmpty(InitialLod) ? "LOW" : InitialLod);
+    } catch (System.Exception ex) {
+     lastError = ex.Message;
+     status = "ERROR";
+     Debug.LogException(ex);
+    }
+   }
+   return;
+  }
+
+  var labels = new[] { "LOW", "MEDIUM", "HIGH", "DISTANT" };
+  float gap = 10f;
+  float bw = (Screen.width - pad * 2f - gap * 3f) / 4f;
+  for (var i = 0; i < labels.Length; i++) {
+   var lod = labels[i];
+   var active = ActiveLod == lod;
+   var prev = GUI.backgroundColor;
+   if (active) GUI.backgroundColor = new Color(0.2f, 0.65f, 0.35f);
+   if (GUI.Button(new Rect(pad + i * (bw + gap), y, bw, h), lod, btn)) {
+    try {
+     lastError = null;
+     SetLod(lod);
+    } catch (System.Exception ex) {
+     lastError = ex.Message;
+     status = "ERROR";
+     Debug.LogException(ex);
+    }
+   }
+   GUI.backgroundColor = prev;
+  }
  }
 
  public void Bootstrap() {
