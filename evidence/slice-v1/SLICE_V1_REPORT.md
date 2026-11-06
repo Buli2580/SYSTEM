@@ -7,7 +7,7 @@
 | Worktree | `C:\SYSTEM\.tmp\system-slice-v1` |
 | Branch | `feat/slice-v1` (worktree `system-slice-v1`) |
 | Base | `cd53f3f9` |
-| Delivery commit | `87a6f05d` |
+| Delivery commits | `87a6f05d` (package), `ffd11eea` (report) |
 | Tags | `slice-v1-s0`, `slice-v1-s8`, `slice-v1-handoff` |
 
 ## Files changed (delivery)
