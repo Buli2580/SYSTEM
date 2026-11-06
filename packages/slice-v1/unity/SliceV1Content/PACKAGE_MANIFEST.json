@@ -1,0 +1,32 @@
+{
+  "protocol": "SLICE_V1_UNITY_CONTENT",
+  "name": "SliceV1Content",
+  "version": "1.0.0",
+  "isolation": "Do not merge into active EX12/World5 scene automatically. Selective import by Codex.",
+  "forbidden": [
+    "Second World5Bootstrap",
+    "New Quest Bridge",
+    "New player controller",
+    "Editing live Lębork scene in Codex project"
+  ],
+  "prefabs": [
+    { "id": "Checkpoint_SliceV1", "path": "Prefabs/Checkpoint_SliceV1.prefab.json", "role": "mission checkpoint" },
+    { "id": "MissionMarker_SliceV1", "path": "Prefabs/MissionMarker_SliceV1.prefab.json", "role": "first order marker" },
+    { "id": "BaseMarker_SliceV1", "path": "Prefabs/BaseMarker_SliceV1.prefab.json", "role": "base visual marker" }
+  ],
+  "effects": [
+    { "id": "FX_OrderStart", "path": "Effects/FX_OrderStart.json" },
+    { "id": "FX_OrderActivate", "path": "Effects/FX_OrderActivate.json" },
+    { "id": "FX_OrderVerified", "path": "Effects/FX_OrderVerified.json" }
+  ],
+  "audio": [
+    { "id": "SFX_OrderIssue", "path": "Audio/SFX_OrderIssue.placeholder.txt", "status": "PLACEHOLDER_ORIGINAL_SPEC" },
+    { "id": "SFX_Verified", "path": "Audio/SFX_Verified.placeholder.txt", "status": "PLACEHOLDER_ORIGINAL_SPEC" }
+  ],
+  "adapter": {
+    "contract": "Existing world bridge / quest markers only",
+    "script": "Scripts/SliceV1MarkerAdapter.cs.txt"
+  },
+  "editorTests": "BLOCKED_IF_CODEX_BUILDING — do not open Unity Editor against shared project",
+  "materials": "Original dark steel + amber accent specs in Effects/*.json (no third-party packs)"
+}

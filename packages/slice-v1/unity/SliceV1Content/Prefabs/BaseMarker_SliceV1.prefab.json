@@ -1,0 +1,1 @@
+﻿{"name":"BaseMarker_SliceV1","components":["Transform","MeshRenderer"],"visual":{"mesh":"hex_platform","color":"#1B2430","accent":"#3DD68C"},"behavior":{"visibleAfterBaseUnlock":true}}

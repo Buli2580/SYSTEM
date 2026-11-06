@@ -1,0 +1,7 @@
+{
+  "name": "MissionMarker_SliceV1",
+  "components": ["Transform", "MeshRenderer", "SphereCollider", "SliceV1MarkerAdapter"],
+  "visual": { "mesh": "cylinder_beacon", "color": "#E6A23C", "emissive": 0.35, "heightMeters": 2.2 },
+  "behavior": { "pulseSeconds": 2.4, "showOnlyWhenFirstOrderActive": true },
+  "poiBinding": { "optional": true, "leborkPilot": { "lat": 54.5394, "lon": 17.7505 } }
+}

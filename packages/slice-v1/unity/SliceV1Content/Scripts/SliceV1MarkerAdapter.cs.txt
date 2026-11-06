@@ -1,0 +1,14 @@
+﻿// SliceV1MarkerAdapter.cs.txt — drop into isolated Unity copy ONLY.
+// Does NOT replace World bootstrap / Quest Bridge / player controller.
+// Wire to existing marker contracts when Codex integrates.
+using UnityEngine;
+namespace SYSTEM.SliceV1 {
+  public class SliceV1MarkerAdapter : MonoBehaviour {
+    public string ContentId = "slice_first_order_v1";
+    public bool VisibleWhenActive = true;
+    // Host should drive visibility from RN/QE state via existing bridge — not a new bridge.
+    public void SetActiveOrder(bool active) {
+      if (VisibleWhenActive) gameObject.SetActive(active);
+    }
+  }
+}

@@ -1,0 +1,1 @@
+﻿{"name":"Checkpoint_SliceV1","components":["Transform","MeshRenderer","BoxCollider"],"visual":{"mesh":"box_pad","color":"#2A3340","edge":"#6CB6FF"},"behavior":{"triggerRadiusMeters":8}}
